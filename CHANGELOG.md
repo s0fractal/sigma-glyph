@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.5 (2026-07)
+- **Oracle bug fix (Codex follow-up P1):** `eval` could (a) leak a raw `Unresolved` exception through the post-step lookahead — violating the §3.4 totalization MUST — and (b) report `atp_spent > atp` by firing a rule it could not pay for. New loop: exhaustion is decided **before** any resolve of the next step; `spent` never exceeds `atp`; failed firings are not charged; `eval` is total.
+- Book I §3.4: new normative bullet pinning the above (budget check precedes firing; `eval(REF(missing),0)` = ATP Exhausted, not Unresolved).
+- Book I §3.5: **eager materialization normative in 0.4.x** — APPLY children resolve before redex recognition; a missing dead argument yields Unresolved Reference, not reduction past it (Codex follow-up P1: the gap was divergence-grade). Lazy left-spine resolution filed as **ADR-003** (v0.5 candidate; composes with ADR-001).
+- Conformance suite: +5 vectors (39 total) — `EV-K-DEAD-MISSING`, `EV-REF-MISSING-ATP0/1`, `EV-I-REF-MISSING-ATP1/2` pin the new semantics and the exhaustion-vs-unresolved precedence.
+- **Corrected published vectors:** `EV-TV4-IK-ATP0`, `EV-TV7-OMEGA-0` — `atp_spent` 1 → 0. These values were produced by the buggy loop and contradicted §3.4; a defective vector is corrected, not grandfathered (rationale in `reviews/2026-07-codex-v0.4.4-followup-response.md`). Outcome hashes unchanged.
+- Version metadata (Codex P2): README "Current" line fixed (was stale at v0.4.0); `vectors.json` gains `suite_version` alongside `spec_version`; conformance claims must cite both plus `book1_anchor`.
+- Release checklist extended: README version line + "did published vectors change" statement are now release gates.
+
+**Impact:** Book I text clarified (2 additions), oracle semantics corrected on previously-unpinned edges, two published vector values corrected with rationale. No outcome-hash changes for any previously published vector.
+
 ## v0.4.4 (2026-07)
 - **New: `tests/spec_conformance/`** — machine-readable conformance suite (Sonnet 4.5 P3.2, the highest-priority deferred item).
   - `vectors.json` (format v1): 23 CAS objects + 34 vectors — genesis/serialization, 8 negative validation cases, eval vectors covering TV-4…TV-10 with exact-budget and under-budget boundaries, root-missing, bad-bytes-child (§3.5b), inert stored DISSONANCE. Normative observables: `result_hash` + `atp_spent` (tree semantics); dissonance outcomes compare uniformly via canonical DISSONANCE hashes.

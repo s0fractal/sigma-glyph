@@ -1,8 +1,9 @@
 {
   "format": "sigma-glyph-conformance",
   "format_version": 1,
-  "spec_version": "0.4.3",
-  "book1_anchor": "fcac54034aaecefcddd2cb2859ff3dc162e7f5ed467ab1b92594552c4c32d40d",
+  "spec_version": "0.4.5",
+  "suite_version": "0.4.5",
+  "book1_anchor": "6ca303f30889a9a52117f7558e4a8b44ce5b42a0303cd6da381594d792ea2cfb",
   "oracle": "impl/sigma_glyph.py",
   "notes": [
     "objects: hex canonical bytes to preload into the CAS, keyed by their SHA-256 NodeHash.",
@@ -20,6 +21,7 @@
     "3e2d2c140be19790380ccc4b10c0e4fbd79fa83a48fc586d80b7ab5570ea9345": "0101e84bd1deaad7f7dc7f7b26065db7eba744249a0fc19b90e1250f68333421c5a1",
     "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e": "02062f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
     "55f38cdcc00b28cc506a3982816fbf5609303f16a1d4488d39ffd69248f94fd2": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+    "58d8c450cb4d11dfefef6453f686ab4d346d5d2d59cd27df894b72e912699560": "01010755e9fe09abe5fcf62f95ffdd2ddfeeea9a9b9fdebc70b51da2f2b369f3c442",
     "65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098": "0206bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "77e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf6": "0206d3f257e81d7b46f2dfa2f36eb4047c07aaaadbd206e9521f2578a47a689c66fd2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6": "00018de0b3c47f112c59745f717a626932264c422a7563954872e237b223af4ad643",
@@ -33,8 +35,10 @@
     "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc": "020614569c72e742f7a1173598767fb09b7759c9ec5b9909e9fb9ac056a430c1a8c42f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "d1b6a6982b4a8c4b04c83d3adbf7aba04f587891f67b5ddb81d95bcd83cb6843": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a689bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798",
     "d3f257e81d7b46f2dfa2f36eb4047c07aaaadbd206e9521f2578a47a689c66fd": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a62f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "d4ab74fa053962084dbd59a9a1d0e65d8cb89786466810562a594528f720bf37": "02062f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f416258d8c450cb4d11dfefef6453f686ab4d346d5d2d59cd27df894b72e912699560",
     "d4b1057a38927a8b97d214200b2f67ff09832148155f93b6f0c0d5aa5f4ba123": "03020000000000000000000000000000000000000000000000000000000000000000",
-    "e84bd1deaad7f7dc7f7b26065db7eba744249a0fc19b90e1250f68333421c5a1": "0101bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c"
+    "e84bd1deaad7f7dc7f7b26065db7eba744249a0fc19b90e1250f68333421c5a1": "0101bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+    "eacd24f443f5b6cf28ec34a6f821b158889880ac13efeab4a9c088ab0ae9e382": "020665cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a320980755e9fe09abe5fcf62f95ffdd2ddfeeea9a9b9fdebc70b51da2f2b369f3c442"
   },
   "vectors": [
     {
@@ -226,7 +230,7 @@
       "expected": {
         "outcome": "atp_exhausted",
         "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
-        "atp_spent": 1
+        "atp_spent": 0
       }
     },
     {
@@ -322,7 +326,7 @@
       "expected": {
         "outcome": "atp_exhausted",
         "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
-        "atp_spent": 1
+        "atp_spent": 0
       }
     },
     {
@@ -335,6 +339,66 @@
         "outcome": "unresolved_reference",
         "result_hash": "3b399e1936bc9acbbbf60ec7bd2e5846ea23f2e9e20003b65c0fde19fbf36262",
         "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-K-DEAD-MISSING",
+      "kind": "eval",
+      "note": "s3.5: eager materialization is normative in 0.4.x \u2014 APPLY(APPLY(K,I), <absent>) -> Unresolved Reference, NOT I (dead argument must exist; lazy spine = ADR-003)",
+      "term": "eacd24f443f5b6cf28ec34a6f821b158889880ac13efeab4a9c088ab0ae9e382",
+      "atp": 10,
+      "expected": {
+        "outcome": "unresolved_reference",
+        "result_hash": "3b399e1936bc9acbbbf60ec7bd2e5846ea23f2e9e20003b65c0fde19fbf36262",
+        "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-REF-MISSING-ATP0",
+      "kind": "eval",
+      "note": "s3.4: exhaustion is decided BEFORE any resolve of the next step \u2014 REF(<absent>) at budget 0 -> ATP Exhausted, not Unresolved",
+      "term": "58d8c450cb4d11dfefef6453f686ab4d346d5d2d59cd27df894b72e912699560",
+      "atp": 0,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-REF-MISSING-ATP1",
+      "kind": "eval",
+      "note": "s3.4: a failed firing is not charged \u2014 REF(<absent>) at budget 1 -> Unresolved Reference, 0 ATP",
+      "term": "58d8c450cb4d11dfefef6453f686ab4d346d5d2d59cd27df894b72e912699560",
+      "atp": 1,
+      "expected": {
+        "outcome": "unresolved_reference",
+        "result_hash": "3b399e1936bc9acbbbf60ec7bd2e5846ea23f2e9e20003b65c0fde19fbf36262",
+        "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-I-REF-MISSING-ATP1",
+      "kind": "eval",
+      "note": "s3.4 totality + precedence: APPLY(I, REF(<absent>)) at exact budget 1 -> R-I fires, then exhaustion wins over the pending unresolvable R-R",
+      "term": "d4ab74fa053962084dbd59a9a1d0e65d8cb89786466810562a594528f720bf37",
+      "atp": 1,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-I-REF-MISSING-ATP2",
+      "kind": "eval",
+      "note": "s3.4 totality: same term at budget 2 -> canonical Unresolved Reference (never a raw error), only the completed R-I is charged",
+      "term": "d4ab74fa053962084dbd59a9a1d0e65d8cb89786466810562a594528f720bf37",
+      "atp": 2,
+      "expected": {
+        "outcome": "unresolved_reference",
+        "result_hash": "3b399e1936bc9acbbbf60ec7bd2e5846ea23f2e9e20003b65c0fde19fbf36262",
+        "atp_spent": 1
       }
     },
     {

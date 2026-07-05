@@ -25,11 +25,14 @@
 - C1 compiler FV() is explicitly defined (capture-avoiding substitution); normative annex is self-contained (DeepSeek, 2026-07).
 - ATP budget width: `uint32` is the canonical API contract; ATP > 2³²−1 is implementation-defined (MAY reject or clamp). Only the three canonical outcomes are consensus-critical (Claude Sonnet 4.5, 2026-07).
 - `resolve(h)` failure modes are explicit and distinct: hash not found → DISSONANCE(Unresolved Reference); bytes failing §4.1 → Canonical Invalid Object (Claude Sonnet 4.5, 2026-07).
+- ATP budget check precedes firing: `spent` never exceeds `atp`; exhaustion is decided before any resolve of the next step (`eval(REF(missing),0)` = ATP Exhausted); failed firings are not charged; `eval` is total — no raw errors (Codex follow-up, 2026-07).
+- Eager materialization is normative in 0.4.x: APPLY children resolve before redex recognition; a missing *dead* argument still yields Unresolved Reference. Lazy left-spine resolution is ADR-003 (v0.5 candidate), not a 0.4.x reading (Codex follow-up, 2026-07).
 
 ## Open proposals (see proposals/)
 
 - ADR-001: size-priced ATP (memory linearly bounded by budget; breaks ATP vectors; v0.5 candidate).
 - ADR-002: entropy–coherence coupling in interfere() (breaks pinned wave math; v0.5 candidate).
+- ADR-003: lazy left-spine resolution (dead branches never fetched; flips EV-K-DEAD-MISSING; v0.5 candidate).
 
 ## Open fronts (contributions wanted)
 

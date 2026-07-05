@@ -21,12 +21,17 @@ Top level:
 {
   "format": "sigma-glyph-conformance",
   "format_version": 1,
-  "spec_version": "0.4.3",        // Book I version the vectors conform to
-  "book1_anchor": "fcac5403…",    // Specification Anchor of that Book I
+  "spec_version": "0.4.5",        // Book I DOCUMENT version the vectors conform to
+  "suite_version": "0.4.5",       // conformance-suite PACKAGE (release) version
+  "book1_anchor": "6ca303f3…",    // Specification Anchor of that Book I
   "objects": { "<node-hash-hex>": "<canonical-bytes-hex>", … },
   "vectors": [ … ]
 }
 ```
+
+`spec_version` and `suite_version` can differ: the suite may grow vectors in a
+release that does not touch Book I text. A conformance claim cites both plus
+`book1_anchor` — the anchor is the unambiguous one.
 
 **Setup:** insert every entry of `objects` into your CAS. Keys are the SHA-256
 NodeHash of the bytes — verify this while loading. One object is deliberately
@@ -56,8 +61,8 @@ comparing `result_hash` covers them uniformly.
 ## Claiming conformance
 
 1. Load `objects`, verifying CAS keys.
-2. Pass all `vectors` (34 in this release).
-3. State the `spec_version` + `book1_anchor` you tested against.
+2. Pass all `vectors` (39 in this release).
+3. State the `spec_version`, `suite_version` and `book1_anchor` you tested against.
 
 Passing this suite demonstrates conformance on the covered surface; it does
 not replace reading Book I. The suite grows — new findings become new vectors

@@ -1,4 +1,4 @@
-"""Sigma-GLYPH v0.3.1 — Reference Implementation, Book I (Milestone 1).
+"""Sigma-GLYPH v0.4.5 — Reference Implementation, Book I (Milestone 1).
 
 Scope: SigmaNodeV2 canonical serialization/deserialization, validation,
 SHA-256 NodeHash, CAS object store, genesis I/K/S, normal-order SKI
@@ -128,9 +128,26 @@ def step(t, store, stats, limits):
 DEFAULT_LIMITS = dict(max_node_depth=4096, max_materialized_nodes=1_000_000,
                       max_store_fetches=1_000_000)
 
+def is_normal(t):
+    """Syntactic normal-form check. Mirrors step() returning None exactly,
+    but never resolves anything (redex patterns compare hashes already
+    present in the materialized tree)."""
+    kind = t[0]
+    if kind in ("lit", "dis"): return True
+    if kind == "ref": return False                            # R-R always applies
+    f, a = t[1], t[2]
+    if is_glyph(f, I_H): return False                         # R-I
+    if f[0] == "app" and is_glyph(f[1], K_H): return False    # R-K
+    if f[0] == "app" and f[1][0] == "app" and is_glyph(f[1][1], S_H):
+        return False                                          # R-S
+    return is_normal(f) and is_normal(a)
+
 def eval_hash(h, atp, store, limits=None):
     """eval(term_hash, atp) -> (result_term, atp_spent).
     Canonical outcomes: normal form | DISSONANCE(ATP Exhausted) | DISSONANCE(Unresolved Reference).
+    Budget check precedes firing (Book I s3.4): spent never exceeds atp, and
+    exhaustion is decided before any resolve of the next step. A failed firing
+    (resolve failure mid-step) is not charged. Total: never leaks Unresolved.
     Resource limit breach -> ResourceFault (local, non-canonical)."""
     limits = limits or DEFAULT_LIMITS
     stats = {"fetches": 0}
@@ -140,18 +157,15 @@ def eval_hash(h, atp, store, limits=None):
     while True:
         if depth(t) > limits["max_node_depth"] or size(t) > limits["max_materialized_nodes"]:
             raise ResourceFault("term growth")
+        if is_normal(t):
+            return t, spent
+        if spent >= atp:
+            return ("dis", R_ATP), spent
         try:
-            nt = step(t, store, stats, limits)
+            t = step(t, store, stats, limits)                 # not None: t is not normal
         except Unresolved:
             return ("dis", R_UNRES), spent
-        if nt is None:
-            return t, spent                                   # normal form
         spent += 1
-        t = nt
-        if spent >= atp and step(t, store, stats, limits) is not None:
-            return ("dis", R_ATP), spent
-        if spent > atp:
-            return ("dis", R_ATP), spent
 
 
 

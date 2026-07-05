@@ -17,8 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.4.3"  # Book I version these vectors conform to
-BOOK1_ANCHOR = "fcac54034aaecefcddd2cb2859ff3dc162e7f5ed467ab1b92594552c4c32d40d"
+SPEC_VERSION = "0.4.5"   # Book I document version these vectors conform to
+SUITE_VERSION = "0.4.5"  # conformance-suite package (release) version
+BOOK1_ANCHOR = "6ca303f30889a9a52117f7558e4a8b44ce5b42a0303cd6da381594d792ea2cfb"
 
 store = sg.Store()
 objects = {}
@@ -137,6 +138,27 @@ ghost = sg.sha(b"this node was never stored")
 h_missing = put(sg.ser(sg.APPLY, 0x06, left=sg.I_H, right=ghost))
 eval_vector("EV-TV8-MISSING-CHILD", "TV-8: APPLY(I, <absent hash>) -> Unresolved Reference", h_missing, 10)
 
+h_k_dead = put(sg.ser(sg.APPLY, 0x06, left=sg.FALSE_H, right=ghost))
+eval_vector("EV-K-DEAD-MISSING",
+            "s3.5: eager materialization is normative in 0.4.x — APPLY(APPLY(K,I), <absent>) -> Unresolved Reference, NOT I (dead argument must exist; lazy spine = ADR-003)",
+            h_k_dead, 10)
+
+r_ghost = put(sg.ser(sg.REF, sg.F_ATOM, atom=ghost))
+eval_vector("EV-REF-MISSING-ATP0",
+            "s3.4: exhaustion is decided BEFORE any resolve of the next step — REF(<absent>) at budget 0 -> ATP Exhausted, not Unresolved",
+            r_ghost, 0)
+eval_vector("EV-REF-MISSING-ATP1",
+            "s3.4: a failed firing is not charged — REF(<absent>) at budget 1 -> Unresolved Reference, 0 ATP",
+            r_ghost, 1)
+
+h_i_ref = put_tree(A(Ig, ("ref", ghost)))
+eval_vector("EV-I-REF-MISSING-ATP1",
+            "s3.4 totality + precedence: APPLY(I, REF(<absent>)) at exact budget 1 -> R-I fires, then exhaustion wins over the pending unresolvable R-R",
+            h_i_ref, 1)
+eval_vector("EV-I-REF-MISSING-ATP2",
+            "s3.4 totality: same term at budget 2 -> canonical Unresolved Reference (never a raw error), only the completed R-I is charged",
+            h_i_ref, 2)
+
 h_root_missing = sg.sha(b"absent root")
 eval_vector("EV-ROOT-MISSING", "root hash absent from store -> Unresolved Reference, 0 ATP", h_root_missing, 10)
 
@@ -163,6 +185,7 @@ doc = {
     "format": "sigma-glyph-conformance",
     "format_version": 1,
     "spec_version": SPEC_VERSION,
+    "suite_version": SUITE_VERSION,
     "book1_anchor": BOOK1_ANCHOR,
     "oracle": "impl/sigma_glyph.py",
     "notes": [
