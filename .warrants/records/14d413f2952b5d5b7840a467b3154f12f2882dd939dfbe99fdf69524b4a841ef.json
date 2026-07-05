@@ -1,0 +1,38 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "The spec's own test vector, filed as a decision record whose proof re-runs: eval(C1[lxy.x] S K, 20 ATP) = S under Book I v0.5. Verified at filing time by the warrant tool itself; re-verified by CI on every push. cmd@v1 proves to whoever trusts the runner; this proves to anyone with the blobs."
+      },
+      {
+        "check": "0c30960435e9c9302a6a1538682e5864f2a754475369979bd3d635543976b2ad",
+        "kind": "check",
+        "runtime": "ski@v1",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [],
+    "subject": {
+      "hash": "97a2eedea8d8b3419dac73f1685814e7a7ccd85f232f3d1e085fb1f1917611ad",
+      "note": "Executable law: TV-10 as a ski@v1 reason (first in this store)"
+    },
+    "ts": 1783274170,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "f529c151a96466a66e0f750c47fd8eb817b3376b0b15e7ac46c1bbf5aea8f14720e26c5501d8e8328142007c169f51cda553280676b803f32f889f701da3db0b"
+    }
+  ]
+}
