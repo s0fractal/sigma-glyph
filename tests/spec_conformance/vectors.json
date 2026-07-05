@@ -1,0 +1,401 @@
+{
+  "format": "sigma-glyph-conformance",
+  "format_version": 1,
+  "spec_version": "0.4.3",
+  "book1_anchor": "fcac54034aaecefcddd2cb2859ff3dc162e7f5ed467ab1b92594552c4c32d40d",
+  "oracle": "impl/sigma_glyph.py",
+  "notes": [
+    "objects: hex canonical bytes to preload into the CAS, keyed by their SHA-256 NodeHash.",
+    "kind=object: serializing the described node MUST yield these bytes and this hash.",
+    "kind=deserialize: these bytes MUST fail s4.1 validation and materialize the Canonical Invalid Object.",
+    "kind=eval: eval(term, atp) MUST yield result_hash with atp_spent under tree semantics.",
+    "outcome is informative; result_hash and atp_spent are the normative observables."
+  ],
+  "objects": {
+    "0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198": "020677e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf651d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",
+    "0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211": "020677e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf677e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf6",
+    "14569c72e742f7a1173598767fb09b7759c9ec5b9909e9fb9ac056a430c1a8c4": "020655f38cdcc00b28cc506a3982816fbf5609303f16a1d4488d39ffd69248f94fd2bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+    "1c74a239eb29e7d0601bb018d43838220a52b4b704195ba75c67edbe6416c583": "02062f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162d4b1057a38927a8b97d214200b2f67ff09832148155f93b6f0c0d5aa5f4ba123",
+    "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162": "0001a83dd0ccbffe39d071cc317ddf6e97f5c6b1c87af91919271f9fa140b0508c6c",
+    "3e2d2c140be19790380ccc4b10c0e4fbd79fa83a48fc586d80b7ab5570ea9345": "0101e84bd1deaad7f7dc7f7b26065db7eba744249a0fc19b90e1250f68333421c5a1",
+    "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e": "02062f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+    "55f38cdcc00b28cc506a3982816fbf5609303f16a1d4488d39ffd69248f94fd2": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+    "65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098": "0206bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "77e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf6": "0206d3f257e81d7b46f2dfa2f36eb4047c07aaaadbd206e9521f2578a47a689c66fd2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6": "00018de0b3c47f112c59745f717a626932264c422a7563954872e237b223af4ad643",
+    "89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798": "0206bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486cbc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+    "9420a0acc6b4da8edc2f4d27d0dfed49adb68abcc72d0c15b164bfca6bbc42f4": "ff0126e080a47902df86e16a0b221e67d5c58736eeb968e42abeb6228a62076d7239",
+    "97a2eedea8d8b3419dac73f1685814e7a7ccd85f232f3d1e085fb1f1917611ad": "0206c004c81972ff1f9b517157a44bb7ee266ae74de5ea94088ce17037072896c9c1bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+    "9d30eeacd08446c0e835b4c8564888e6c7ca36683abf06c67add4db277944573": "02062f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f41620755e9fe09abe5fcf62f95ffdd2ddfeeea9a9b9fdebc70b51da2f2b369f3c442",
+    "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c": "000186be9a55762d316a3026c2836d044f5fc76e34da10e1b45feee5f18be7edb177",
+    "bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d": "0206d1b6a6982b4a8c4b04c83d3adbf7aba04f587891f67b5ddb81d95bcd83cb68432f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "c004c81972ff1f9b517157a44bb7ee266ae74de5ea94088ce17037072896c9c1": "0206bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6",
+    "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc": "020614569c72e742f7a1173598767fb09b7759c9ec5b9909e9fb9ac056a430c1a8c42f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "d1b6a6982b4a8c4b04c83d3adbf7aba04f587891f67b5ddb81d95bcd83cb6843": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a689bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798",
+    "d3f257e81d7b46f2dfa2f36eb4047c07aaaadbd206e9521f2578a47a689c66fd": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a62f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "d4b1057a38927a8b97d214200b2f67ff09832148155f93b6f0c0d5aa5f4ba123": "03020000000000000000000000000000000000000000000000000000000000000000",
+    "e84bd1deaad7f7dc7f7b26065db7eba744249a0fc19b90e1250f68333421c5a1": "0101bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c"
+  },
+  "vectors": [
+    {
+      "id": "OBJ-I",
+      "kind": "object",
+      "note": "genesis axiom I = LITERAL(SHA-256('I'))",
+      "bytes": "0001a83dd0ccbffe39d071cc317ddf6e97f5c6b1c87af91919271f9fa140b0508c6c",
+      "expected": {
+        "hash": "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162"
+      }
+    },
+    {
+      "id": "OBJ-K",
+      "kind": "object",
+      "note": "genesis axiom K = LITERAL(SHA-256('K'))",
+      "bytes": "000186be9a55762d316a3026c2836d044f5fc76e34da10e1b45feee5f18be7edb177",
+      "expected": {
+        "hash": "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c"
+      }
+    },
+    {
+      "id": "OBJ-S",
+      "kind": "object",
+      "note": "genesis axiom S = LITERAL(SHA-256('S'))",
+      "bytes": "00018de0b3c47f112c59745f717a626932264c422a7563954872e237b223af4ad643",
+      "expected": {
+        "hash": "887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6"
+      }
+    },
+    {
+      "id": "OBJ-FALSE",
+      "kind": "object",
+      "note": "first theorem FALSE = APPLY(K,I)",
+      "bytes": "0206bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+      "expected": {
+        "hash": "65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098"
+      }
+    },
+    {
+      "id": "OBJ-INVALID",
+      "kind": "object",
+      "note": "Canonical Invalid Object (Book I s4.2)",
+      "bytes": "ff017cc62bcc7c921683532cec1c1c331ca81d76b001e0c7f407a4078df7f696efe8",
+      "expected": {
+        "hash": "af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507"
+      }
+    },
+    {
+      "id": "OBJ-DIS-ATP-EXHAUSTED",
+      "kind": "object",
+      "note": "canonical DISSONANCE node for reason 'Atp Exhausted'",
+      "bytes": "ff01dc435a08513893bacd07abd802b9c526e92ae57ca6db40c1c8f369fd7032e090",
+      "expected": {
+        "hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176"
+      }
+    },
+    {
+      "id": "OBJ-DIS-UNRESOLVED-REFERENCE",
+      "kind": "object",
+      "note": "canonical DISSONANCE node for reason 'Unresolved Reference'",
+      "bytes": "ff0175daae55453d9a98bfadb847d70b73fdd0be91d3b6ef8511d22fc42aa2c7c8e2",
+      "expected": {
+        "hash": "3b399e1936bc9acbbbf60ec7bd2e5846ea23f2e9e20003b65c0fde19fbf36262"
+      }
+    },
+    {
+      "id": "OBJ-DIS-INVALID-OBJECT",
+      "kind": "object",
+      "note": "canonical DISSONANCE node for reason 'Invalid Object'",
+      "bytes": "ff017cc62bcc7c921683532cec1c1c331ca81d76b001e0c7f407a4078df7f696efe8",
+      "expected": {
+        "hash": "af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507"
+      }
+    },
+    {
+      "id": "INV-EMPTY",
+      "kind": "deserialize",
+      "note": "empty buffer",
+      "bytes": "",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "INV-SHORT",
+      "kind": "deserialize",
+      "note": "single byte, no flags",
+      "bytes": "00",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "INV-FLAGS-HIGH",
+      "kind": "deserialize",
+      "note": "flags with bits outside 0x07",
+      "bytes": "00090000000000000000000000000000000000000000000000000000000000000000",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "INV-OP-RESERVED",
+      "kind": "deserialize",
+      "note": "opcode 0x03 (Era-1 LAMBDA) is invalid in V2",
+      "bytes": "03020000000000000000000000000000000000000000000000000000000000000000",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "INV-OP-UNKNOWN",
+      "kind": "deserialize",
+      "note": "unknown opcode 0x7f",
+      "bytes": "7f010000000000000000000000000000000000000000000000000000000000000000",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "INV-FLAGS-MISMATCH",
+      "kind": "deserialize",
+      "note": "LITERAL with APPLY flags",
+      "bytes": "000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "INV-LEN-LONG",
+      "kind": "deserialize",
+      "note": "APPLY with one extra byte",
+      "bytes": "02060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "INV-LEN-SHORT",
+      "kind": "deserialize",
+      "note": "APPLY truncated to one child",
+      "bytes": "02060000000000000000000000000000000000000000000000000000000000000000",
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "EV-LIT",
+      "kind": "eval",
+      "note": "a lone LITERAL is a normal form; 0 ATP",
+      "term": "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+      "atp": 10,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+        "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-DIS-INERT",
+      "kind": "eval",
+      "note": "a stored DISSONANCE node is a normal form; 0 ATP",
+      "term": "9420a0acc6b4da8edc2f4d27d0dfed49adb68abcc72d0c15b164bfca6bbc42f4",
+      "atp": 10,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "9420a0acc6b4da8edc2f4d27d0dfed49adb68abcc72d0c15b164bfca6bbc42f4",
+        "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-TV4-IK",
+      "kind": "eval",
+      "note": "TV-4: I K -> K in 1 ATP (R-I)",
+      "term": "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",
+      "atp": 1,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+        "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-TV4-IK-ATP0",
+      "kind": "eval",
+      "note": "TV-4: budget 0 with a redex present -> ATP Exhausted",
+      "term": "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",
+      "atp": 0,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-TV5-SKKI",
+      "kind": "eval",
+      "note": "TV-5: S K K I -> I in 2 ATP",
+      "term": "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc",
+      "atp": 10,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+        "atp_spent": 2
+      }
+    },
+    {
+      "id": "EV-TV5-EXACT",
+      "kind": "eval",
+      "note": "TV-5: exact budget 2 still reaches the normal form",
+      "term": "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc",
+      "atp": 2,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+        "atp_spent": 2
+      }
+    },
+    {
+      "id": "EV-TV5-UNDER",
+      "kind": "eval",
+      "note": "TV-5: budget 1 -> ATP Exhausted",
+      "term": "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc",
+      "atp": 1,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-TV6-DUP",
+      "kind": "eval",
+      "note": "TV-6: S I I (I K) -> APPLY(K,K); tree-semantics ATP is normative (5, not 4)",
+      "term": "0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198",
+      "atp": 100,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798",
+        "atp_spent": 5
+      }
+    },
+    {
+      "id": "EV-TV6-EXACT",
+      "kind": "eval",
+      "note": "TV-6: exact budget 5 reaches the normal form",
+      "term": "0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198",
+      "atp": 5,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798",
+        "atp_spent": 5
+      }
+    },
+    {
+      "id": "EV-TV6-UNDER",
+      "kind": "eval",
+      "note": "TV-6: budget 4 (graph-semantics cost) MUST exhaust under tree semantics",
+      "term": "0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198",
+      "atp": 4,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 4
+      }
+    },
+    {
+      "id": "EV-TV7-OMEGA",
+      "kind": "eval",
+      "note": "TV-7: Omega = SII(SII) never terminates; deterministic exhaustion",
+      "term": "0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211",
+      "atp": 50,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 50
+      }
+    },
+    {
+      "id": "EV-TV7-OMEGA-0",
+      "kind": "eval",
+      "note": "TV-7: Omega with budget 0",
+      "term": "0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211",
+      "atp": 0,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-TV8-MISSING-CHILD",
+      "kind": "eval",
+      "note": "TV-8: APPLY(I, <absent hash>) -> Unresolved Reference",
+      "term": "9d30eeacd08446c0e835b4c8564888e6c7ca36683abf06c67add4db277944573",
+      "atp": 10,
+      "expected": {
+        "outcome": "unresolved_reference",
+        "result_hash": "3b399e1936bc9acbbbf60ec7bd2e5846ea23f2e9e20003b65c0fde19fbf36262",
+        "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-ROOT-MISSING",
+      "kind": "eval",
+      "note": "root hash absent from store -> Unresolved Reference, 0 ATP",
+      "term": "d13b75e55c6347e7278a97121f1ab4a6848a64e316e491e5cd48204c97839946",
+      "atp": 10,
+      "expected": {
+        "outcome": "unresolved_reference",
+        "result_hash": "3b399e1936bc9acbbbf60ec7bd2e5846ea23f2e9e20003b65c0fde19fbf36262",
+        "atp_spent": 0
+      }
+    },
+    {
+      "id": "EV-TV9-REF-CHAIN",
+      "kind": "eval",
+      "note": "TV-9: REF -> REF -> K unwraps one level per step; 2 ATP",
+      "term": "3e2d2c140be19790380ccc4b10c0e4fbd79fa83a48fc586d80b7ab5570ea9345",
+      "atp": 10,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
+        "atp_spent": 2
+      }
+    },
+    {
+      "id": "EV-TV9-REF-UNDER",
+      "kind": "eval",
+      "note": "TV-9: budget 1 stops between the two unwraps -> ATP Exhausted",
+      "term": "3e2d2c140be19790380ccc4b10c0e4fbd79fa83a48fc586d80b7ab5570ea9345",
+      "atp": 1,
+      "expected": {
+        "outcome": "atp_exhausted",
+        "result_hash": "8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176",
+        "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-BAD-BYTES-CHILD",
+      "kind": "eval",
+      "note": "s3.5(b): resolve() returns bytes failing s4.1 -> Canonical Invalid Object materialized; R-I then yields it",
+      "term": "1c74a239eb29e7d0601bb018d43838220a52b4b704195ba75c67edbe6416c583",
+      "atp": 10,
+      "expected": {
+        "outcome": "invalid_object",
+        "result_hash": "af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507",
+        "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-TV10-C1-K",
+      "kind": "eval",
+      "note": "TV-10: C1[\\xy.x] S K -> S (compiler output behaves as K)",
+      "term": "97a2eedea8d8b3419dac73f1685814e7a7ccd85f232f3d1e085fb1f1917611ad",
+      "atp": 16,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6",
+        "atp_spent": 4
+      }
+    }
+  ]
+}

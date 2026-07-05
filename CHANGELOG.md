@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.4 (2026-07)
+- **New: `tests/spec_conformance/`** — machine-readable conformance suite (Sonnet 4.5 P3.2, the highest-priority deferred item).
+  - `vectors.json` (format v1): 23 CAS objects + 34 vectors — genesis/serialization, 8 negative validation cases, eval vectors covering TV-4…TV-10 with exact-budget and under-budget boundaries, root-missing, bad-bytes-child (§3.5b), inert stored DISSONANCE. Normative observables: `result_hash` + `atp_spent` (tree semantics); dissonance outcomes compare uniformly via canonical DISSONANCE hashes.
+  - `generate.py` — vectors are **computed from the oracle** (`impl/sigma_glyph.py`), never hand-written; regeneration is deterministic (byte-identical JSON).
+  - `run_reference.py` — replays vectors against the oracle; doubles as runner-semantics documentation for Rust/Zig/other implementations.
+  - `test_properties.py` — seeded stdlib-only property tests (1929 checks): serialization canonicity round-trip, deser totality under fuzz, eval determinism, ATP exactness (budget = spent reaches NF; spent−1 exhausts), normal forms are 0-ATP fixed points, C1 output purity + determinism.
+- CI: regen-freshness gate (`generate.py` must produce no diff), conformance replay, property suite — all required on every push/PR.
+- ANCHORS.txt: v0.4.4 section; `vectors.json` is now anchored alongside the Books (executable law gets an anchor too). Books unchanged — their anchors carry over from v0.4.3, and per the LORE precedent document versions bump only when the document changes.
+
+**Impact:** Additive only. No spec text changes. No breaking changes. Multi-language implementations can now claim Book I conformance by passing `vectors.json`.
+
 ## v0.4.3 (2026-07)
 - Book I §3.4: ATP budget width made normative — `uint32` canonical; ATP > 2³²−1 implementation-defined (MAY reject/clamp); only the three canonical outcomes are consensus-critical. Closes P1 (Claude Sonnet 4.5 finding).
 - Book I §3.5: `resolve(h)` failure modes made explicit — missing hash → DISSONANCE(Unresolved Reference); bytes failing §4.1 → Canonical Invalid Object. (Sonnet P2.1.)

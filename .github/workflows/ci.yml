@@ -7,7 +7,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Conformance suite (Book I, TV-1..TV-10 + negatives)
+      - name: Reference test vectors (Book I, TV-1..TV-10 + negatives)
         run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
+      - name: Conformance vectors are fresh (regenerate == no diff)
+        run: python3 tests/spec_conformance/generate.py && git diff --exit-code tests/spec_conformance/vectors.json
+      - name: Conformance suite (vectors.json vs oracle)
+        run: python3 tests/spec_conformance/run_reference.py
+      - name: Property-based suite (seeded, stdlib-only)
+        run: python3 tests/spec_conformance/test_properties.py
       - name: Verify Specification Anchors
         run: python3 tools/verify_anchors.py
