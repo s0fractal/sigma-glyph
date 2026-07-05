@@ -1,0 +1,44 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Verdict accepted: hash-leaf model, genesis intrinsic, ADR-002 all confirmed with zero P0/P1; adversarial S-chain attack correctly fails (delta=0 < cost=2). One substantive correction on top: DeepSeek's recommended rounding pin (half away from zero) contradicts the ADR's own worked-example formula on negative ties (avg(-1,-2): -1 vs -2) - pinned floor-division formula instead, with a mandatory negative-tie wave vector. Review quota met (3 families); v0.5 proceeds to the implementation gate."
+      },
+      {
+        "check": "c3c1b51fd6b0a2d9f80c3f93935d8caeb5649ae3e1b0bfcc020a80d65f8901dd",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "b29ac2555535c1f8ec022ede2a2721efd7672ed972d7173a7f6609cc17882166",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "e9b36ce1a1bd8a1e72a3e8e4ae61476a58fc5c53922f3ea522f96c3690c53aca",
+      "b29ac2555535c1f8ec022ede2a2721efd7672ed972d7173a7f6609cc17882166"
+    ],
+    "prior": [
+      "130ab3b3fd6428873897de49872a98300d31f0551d44173b14544557a7375780"
+    ],
+    "subject": {
+      "hash": "b20c194430e87e0b610142ac8b41f5ec22a80eb1b69a6b2dd61748ef98571643",
+      "note": "DeepSeek v4 Pro ADR gate review (3 of 3) - all candidates CONFIRMED"
+    },
+    "ts": 1783270254,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "ebc71fb3a812ce9c0787bfd61b396b3b144c8f43dc4356cd28d9258eb6e04d1f894bd2749affe6e93e46d1434ac92e65a345fe3570d4a393610699f505989602"
+    }
+  ]
+}

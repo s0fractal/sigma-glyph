@@ -42,6 +42,10 @@ Book II §5.1 currently states that self-application preserves phase **and entro
 
 Adopting the arithmetic without rewriting §5.1 would ship contradictory normative prose. Both change together or neither.
 
+## Pinned rounding (2026-07-05, DeepSeek review P2 + maintainer correction)
+
+`div_round_half_up(n, d)` ≜ `⌊(n + ⌊d/2⌋) / d⌋` with **floor division** (round half toward +∞), integer `n`, positive integer `d`. This is the exact function the worked examples were computed with. Round-half-**away-from-zero** is a near-miss trap: it agrees on the whole worked table and inside the clamps, but diverges on negative ties in open range (`avg(−1,−2)`: floor → −1, away-from-zero → −2; `avg(−65535,2)`: −32767 vs −32768) — two conforming implementations would silently disagree on stored entropy. The wave vector set MUST include a negative-tie case.
+
 ## Adoption checklist
 
 1. Rewrite Book II §5.1 + the settled point (above).

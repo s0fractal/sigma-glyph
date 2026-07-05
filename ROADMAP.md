@@ -44,7 +44,9 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 
 **Planned adoption:** some subset of ADR-001 / ADR-002 / ADR-003 (all breaking).
 
-**Gate status (2 of ≥3 dedicated reviews done — Codex + Gemini, 2026-07-05):**
+**Gate status: REVIEWS COMPLETE — 3 of 3 (Codex + Gemini + DeepSeek, 2026-07-05). All three decision candidates CONFIRMED.** Remaining before adoption: the implementation gate — hash-thunk oracle, fresh vector set (incl. negative-tie wave vector and Codex's boundary vectors), Book I/II text rewrites with anchor forks and a migration guide. History of the gate below:
+
+**(archived) Gate status (2 of ≥3 dedicated reviews done — Codex + Gemini, 2026-07-05):**
 - **ADR-002:** both reviews say adopt with the §5.1 Resonance Identity supersession + pinned wave vectors (atomically). Damping-floor question closed (linear drift to −32768 *is* crystallization). Adoption PR may be drafted; merges after review 3.
 - **ADR-001 + ADR-003:** composition conflict resolved to a **proved decision candidate — Hash-Leaf Size Model** (unresolved hash leaf = size 1; R-S never forces what it copies; R-R pays for exactly what it materializes; `growth < cost` global). Option 2 is broken by construction (`(S K K) T` attack). Under the hash-thunk machine, R-R prices per materialized node, dissolving the preflight-OOM problem. Genesis Intrinsic Rule (I/K/S axioms only; FALSE is a theorem, constructible) is the concurring candidate for the availability question. Remaining before adoption: review 3, hash-thunk reference implementation, fresh vector set.
 
