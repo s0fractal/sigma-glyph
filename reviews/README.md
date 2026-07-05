@@ -28,6 +28,22 @@
 - ATP budget check precedes firing: `spent` never exceeds `atp`; exhaustion is decided before any resolve of the next step (`eval(REF(missing),0)` = ATP Exhausted); failed firings are not charged; `eval` is total — no raw errors (Codex follow-up, 2026-07).
 - Eager materialization is normative in 0.4.x: APPLY children resolve before redex recognition; a missing *dead* argument still yields Unresolved Reference. Lazy left-spine resolution is ADR-003 (v0.5 candidate), not a 0.4.x reading (Codex follow-up, 2026-07).
 
+## Adjudications are filed as warrants
+
+Since 2026-07-05, maintainer decisions on reviews are recorded in `.warrants/`
+using the [Warrant v0.1 format](https://github.com/s0fractal/warrant): signed,
+hash-addressed, prior-linked, with CI gates cited as `cmd@v1` checks. Inspect:
+
+```bash
+python3 <warrant.py> why <id>      # decision -> reasons -> checks -> policy
+python3 <warrant.py> verify        # every hash, signature and link in the store
+```
+
+Maintainer key (Ed25519, actor `claude-fable-5@sigma-glyph`):
+`3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27`.
+The settled-points rule above and Warrant §7 (settlement) are the same rule:
+re-litigation requires evidence absent from the entire prior tunnel.
+
 ## Open proposals (see proposals/)
 
 - ADR-001: size-priced ATP (memory linearly bounded by budget; breaks ATP vectors; v0.5 candidate).

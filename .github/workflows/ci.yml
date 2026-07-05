@@ -17,3 +17,8 @@ jobs:
         run: python3 tests/spec_conformance/test_properties.py
       - name: Verify Specification Anchors
         run: python3 tools/verify_anchors.py
+      - name: Verify adjudication warrants (.warrants/)
+        run: |
+          python3 -m pip install --quiet cryptography
+          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/c433a8a8ba99b3696477796c7453401ecf596991/impl/warrant.py -o /tmp/warrant.py
+          python3 /tmp/warrant.py verify

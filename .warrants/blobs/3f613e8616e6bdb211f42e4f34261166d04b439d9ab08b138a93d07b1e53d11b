@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Run vectors.json against the reference implementation.
+
+This is both (a) the self-check that vectors.json matches the oracle, and
+(b) executable documentation of runner semantics for other-language
+implementations: preload `objects` into your CAS, then replay `vectors`.
+
+    python3 tests/spec_conformance/run_reference.py
+"""
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "impl"))
+import sigma_glyph as sg  # noqa: E402
+
+doc = json.loads((Path(__file__).resolve().parent / "vectors.json").read_text())
+
+store = sg.Store()
+for h_hex, b_hex in doc["objects"].items():
+    b = bytes.fromhex(b_hex)
+    assert sg.node_hash(b).hex() == h_hex, f"CAS key mismatch for {h_hex}"
+    store.put(b)
+
+ok = []
+
+
+def chk(vid, cond, detail=""):
+    ok.append(cond)
+    print(("OK  " if cond else "FAIL"), vid, detail if not cond else "")
+
+
+for v in doc["vectors"]:
+    kind, exp = v["kind"], v["expected"]
+    if kind == "object":
+        got = sg.node_hash(bytes.fromhex(v["bytes"])).hex()
+        chk(v["id"], got == exp["hash"], f"got {got}")
+    elif kind == "deserialize":
+        got = sg.deser(bytes.fromhex(v["bytes"]))
+        chk(v["id"], (got is None) == (not exp["valid"]), f"got {got}")
+    elif kind == "eval":
+        r, spent = sg.eval_hash(bytes.fromhex(v["term"]), v["atp"], store)
+        got_hash = sg.term_hash(r).hex()
+        chk(v["id"], got_hash == exp["result_hash"] and spent == exp["atp_spent"],
+            f"got {got_hash} / {spent} ATP, want {exp['result_hash']} / {exp['atp_spent']} ATP")
+    else:
+        chk(v["id"], False, f"unknown kind {kind}")
+
+n = len(ok)
+print(f"\n{'CONFORMANCE: ALL PASS' if all(ok) else 'CONFORMANCE: FAILURES PRESENT'} ({sum(ok)}/{n})")
+sys.exit(0 if all(ok) else 1)

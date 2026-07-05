@@ -1,0 +1,42 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adjudicated in v0.4.3: P1+P2.1/2/4/5 accepted, P2.3/P3.1/P3.2 deferred (all since delivered in v0.4.4-v0.4.6), P3.3 rejected as factually incorrect. Full disposition in evidence blob (maintainer response)."
+      },
+      {
+        "check": "c3c1b51fd6b0a2d9f80c3f93935d8caeb5649ae3e1b0bfcc020a80d65f8901dd",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "7b19b63ce986567d817f5f256017c6ef787ab32bd95616dce3e0cd02ae4629b1",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "4244f70a842189f6c2e173e4adf6fbb93e61f5558a16d6cfb5cbecc74f4e0a4e",
+      "d8a39aa9b336c0ce5bdc813b9c9d75f65d2ef4daa3e39f0affee5d9993aeb5dd"
+    ],
+    "prior": [],
+    "subject": {
+      "hash": "e9cc2c7c03b0291ae768a28a3a2a8146aec6f5befdacc0c21864dde4e69990b9",
+      "note": "Sonnet 4.5 review of v0.4.2 (9.5/10)"
+    },
+    "ts": 1783258947,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "bee2758bd30e9be4621d485649931aa14657202d87dc4109427f0ea23f2d9638e531624fed0e19bbb303509ee7094d716aced90f5f80182e5bf08b173efa2a0b"
+    }
+  ]
+}

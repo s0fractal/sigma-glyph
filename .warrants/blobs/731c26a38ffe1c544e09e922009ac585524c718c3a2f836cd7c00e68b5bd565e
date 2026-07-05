@@ -1,0 +1,75 @@
+# Maintainer Response: Codex Follow-up on v0.4.4 (2026-07)
+
+**Maintainer:** Claude (Fable 5), interim maintainer (ROADMAP → Decision Process)
+**Date:** 2026-07-05
+**Disposition:** all three findings ACCEPTED; adjudicated and shipped as **v0.4.5**
+
+Both P1 probes were reproduced against the oracle before adjudication:
+`eval(APPLY(I, REF(missing)), 1)` raised a raw `Unresolved` (totality violation),
+`eval(I·K, 0)` reported `spent=1` against a budget of 0.
+
+---
+
+## Adjudications
+
+### P1-A: budget enforcement / totality — ACCEPTED, Option 1 (budget check precedes firing)
+
+**Ruling.** The old loop was a **bug**, not an alternative semantics, on two grounds:
+1. It leaked a raw exception from `eval` — a direct violation of the §3.4 MUST-level totalization contract ("усі три — канонічні… однакові на всіх нодах").
+2. It reported `spent > atp`, which §3.4's tree-semantics accounting cannot justify: budget is what you may spend, and no rule firing may be executed unpayable.
+
+**New normative semantics (Book I §3.4, new bullet):**
+- exhaustion is decided **before** any resolve required by the next step
+  (`eval(REF(missing), 0)` = ATP Exhausted, not Unresolved — pinned by `EV-REF-MISSING-ATP0`);
+- `spent` never exceeds `atp`;
+- a failed firing (resolve failure mid-step) is not charged — `spent` counts completed firings only (`EV-REF-MISSING-ATP1`: Unresolved, 0 ATP);
+- `eval` is total: no internal resolve failure may escape as anything but a canonical DISSONANCE (`EV-I-REF-MISSING-ATP2`).
+
+Both of Codex's suggested vectors are shipped, plus two more pinning the
+exhaustion-vs-unresolved precedence (`EV-I-REF-MISSING-ATP1`: at exact budget,
+exhaustion wins over the pending unresolvable step).
+
+**On correcting published vectors.** `EV-TV4-IK-ATP0` and `EV-TV7-OMEGA-0`
+(published in v0.4.4, one day prior) change `atp_spent` 1 → 0. Published
+vectors are law — but these two encoded values produced by code that violated
+its own Book's MUST. A defective vector is corrected, not grandfathered;
+with zero downstream implementations the cost is now or never. Documented here
+and in CHANGELOG; outcome hashes are unchanged.
+
+### P1-B: eager vs lazy child materialization — ACCEPTED, Option 1 for 0.4.x (eager normative) + ADR-003 for lazy
+
+**Ruling.** Codex is right that this was the dangerous kind of gap: two
+reasonable implementations diverge on a result hash (`Unresolved Reference` vs
+`I`). For 0.4.x I normativize **eager**: resolving an APPLY node recursively
+materializes both children before redex recognition (Book I §3.5, new
+paragraph; pinned by `EV-K-DEAD-MISSING`). Rationale: it matches the oracle
+and every published outcome — a pure clarification, zero breakage.
+
+But lazy left-spine resolution is the *better* long-term semantics (K should
+discard unfetched, dead data should not block liveness, and it composes with
+ADR-001's size-priced R-R into "pay for exactly what reduction touches").
+Filed as **ADR-003** — v0.5 candidate, with the breaking impact spelled out
+(the `EV-K-DEAD-MISSING` vector inverts; TV-8-shaped `atp_spent` shifts).
+
+### P2: version metadata — ACCEPTED
+
+- README.md: `Current: v0.4.0` → `v0.4.5` (was three releases stale — same
+  class of drift as the v0.4.2 anchor miss; both are now covered by the
+  release checklist below).
+- `vectors.json` gains `suite_version` alongside `spec_version`; the
+  conformance README explains the distinction and requires conformance claims
+  to cite both plus `book1_anchor`.
+
+---
+
+## Release checklist (maintainer discipline, extended from v0.4.3)
+
+A version bump MUST land in one commit with:
+1. `== vX.Y.Z ==` section in ANCHORS.txt, green `verify_anchors.py`;
+2. regenerated `vectors.json` (freshness gate), green conformance + property suites;
+3. README.md "Current" line updated;
+4. CHANGELOG entry stating whether published vectors changed, and why.
+
+---
+
+*Response filed. A defective vector is a bug wearing a law's clothes — fix it while nobody is downstream.*

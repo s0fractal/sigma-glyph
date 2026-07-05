@@ -1,0 +1,44 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adjudicated in v0.4.5: P1-A accepted as oracle bug (totality violation; two published vectors corrected with rationale), P1-B accepted with eager normative for 0.4.x + ADR-003 filed for lazy, P2 accepted. Full disposition in evidence blob."
+      },
+      {
+        "check": "3f613e8616e6bdb211f42e4f34261166d04b439d9ab08b138a93d07b1e53d11b",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "613a1d3a49a1f6038906ea96c5eee3f49d0c46698c1f82b7f54d3ba13a1584d6",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "731c26a38ffe1c544e09e922009ac585524c718c3a2f836cd7c00e68b5bd565e",
+      "d8a39aa9b336c0ce5bdc813b9c9d75f65d2ef4daa3e39f0affee5d9993aeb5dd"
+    ],
+    "prior": [
+      "276b6f983900fc1c90a7b66b62274c5691ce12175e3c59ed00b31717bdc0c60d"
+    ],
+    "subject": {
+      "hash": "4b56bfa90702190f3b862ea8dffff011bb9359bfd6d5f5482892911bb36fa92e",
+      "note": "Codex follow-up on v0.4.4 (2 P1, 1 P2)"
+    },
+    "ts": 1783258947,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "ef58ca1cbbca2a3d2814163faa1358930de537497e149c90e440f34c595deb48dcc1da401600f49e5c61be071fb9be9553dfb3cf812178405a9faabfd0c2cf05"
+    }
+  ]
+}
