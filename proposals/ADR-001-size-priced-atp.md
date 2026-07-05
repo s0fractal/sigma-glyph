@@ -69,7 +69,7 @@ R-S pricing needs `size(z)`; ADR-003's purpose is never fetching dead data. Thes
 2. **Lazy demand-priced R-S** — small fixed R-S cost, thunks charged when forced; memory-bound theorem must be rewritten for thunked terms.
 3. **Hash-leaf size model** — unresolved hash counts as size 1 until forced; preserves laziness, changes the meaning of tree sizes, needs fresh vectors.
 
-Maintainer leaning: option 3 (it keeps a bound *and* liveness), but this is not a decision — v0.5 needs one shared abstract machine specified before either ADR becomes law. **Do not adopt ADR-001 and ADR-003 together until this section is replaced by a decision.**
+**Decision candidate (upgraded 2026-07-05, Gemini ADR-gate review): option 3 — Hash-Leaf Size Model.** Gemini supplied what upgrades this from a leaning to a candidate: (a) an attack breaking option 2 (`(S K K) T` with pre-materialized large `T`: growth `size(T)−1` at constant demand-cost — the bound collapses), and (b) a proof that option 3 preserves `growth < cost` globally: R-S pays `1 + size(z)` with unresolved hash leaves counting as 1 (copying a leaf adds exactly 1 node); R-R pays for precisely what it materializes. Maintainer refinement: under the hash-thunk machine R-R materializes **one node at a time**, so its cost is a small per-node increment — which dissolves the bounded-preflight problem above (no unbounded measurement remains; the preflight section stays as the fallback for eager implementations). Final adoption still gated on review 3 of ≥3 + reference implementation + fresh vectors.
 
 ## Decision needed
 

@@ -32,7 +32,7 @@ Coupling constant 128 gives a ±256 swing (~0.8% of the int16 range per event) �
 - (+) Entropy becomes a function of coherence — Gravity ("information flows toward En<0") finally has a mechanism, not just a slogan: repeated constructive resonance literally crystallizes structure.
 - (+) Zero new state; reuses `r` already on hand; integer-exact and deterministic.
 - (−) Changes interfere() outputs → any published wave-annotation vectors would need re-pinning (Book II anchor fork).
-- (−) Needs a saturation analysis: long constructive chains drive en → −32768 (frozen order). Possibly desirable (crystallization), possibly needs a floor-approach damping.
+- (−) ~~Needs a saturation analysis: long constructive chains drive en → −32768 (frozen order). Possibly desirable (crystallization), possibly needs a floor-approach damping.~~ **Closed (2026-07-05, Gemini ADR-gate review, maintainer-verified):** drift is linear (−256/step), −32768 is a true fixed point, and the clamp *is* the crystallization mechanism — no damping floor, no new state.
 
 ## Breaking: this ADR replaces the Resonance Identity (added per Codex ADR-gate review, 2026-07)
 

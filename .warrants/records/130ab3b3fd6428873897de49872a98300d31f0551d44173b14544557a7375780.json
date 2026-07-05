@@ -1,0 +1,44 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "All findings accepted after verification: ADR-002 drift arithmetic re-run exactly ([-256..-1280], -32768 fixed point); option-2 attack validated analytically ((S K K) T growth size(T)-1 at constant cost); option-3 proof audited. Composition upgraded from leaning to proved decision candidate (hash-leaf size model); genesis-intrinsic rule recorded with FALSE-is-a-theorem scoping correction; ADR-002 damping question closed. Gemini's adopt-now verdict NOT actioned as written - adoption waits for review 3 + impl gate per Decision Process."
+      },
+      {
+        "check": "c3c1b51fd6b0a2d9f80c3f93935d8caeb5649ae3e1b0bfcc020a80d65f8901dd",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "b29ac2555535c1f8ec022ede2a2721efd7672ed972d7173a7f6609cc17882166",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "ce8fccc1283ac67763008999d16c79fc9f90a80c7e4f16392e0f286061303702",
+      "b29ac2555535c1f8ec022ede2a2721efd7672ed972d7173a7f6609cc17882166"
+    ],
+    "prior": [
+      "0a1589f079cb5ef1ec0ba72f652630c67a20539f37831308bd1df901e68d3fb8"
+    ],
+    "subject": {
+      "hash": "a2678272700cd06a8ca8213a738684463f7f66e55e507df2cba3d5d32058f6b3",
+      "note": "Gemini 3.1 Pro ADR gate review (pipeline-produced, 2 of >=3)"
+    },
+    "ts": 1783268522,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "a3e6e9b21e3d18fab117d6c3b4d626b7ae90cc2d5bc64675b790970cfa236d9d5171d978afa87b3d09d70faac53b0b550b303a977aa001a2788b97b637036806"
+    }
+  ]
+}

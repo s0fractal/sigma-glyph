@@ -44,7 +44,9 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 
 **Planned adoption:** some subset of ADR-001 / ADR-002 / ADR-003 (all breaking).
 
-**Gate status (Codex ADR-gate review, 2026-07-05):** none adoptable as written. ADR-002 is closest — needs the Resonance Identity rewrite (§5.1) + pinned wave vectors, both in its adoption PR. ADR-001 and ADR-003 are individually promising but **conflict on `cost(R-S)=1+size(z)` vs never-fetch-dead-data**; one shared abstract machine must be specified before either becomes law (see "Composition" sections in both ADRs). ADR-001 additionally needs bounded cost measurement (preflight) so pricing itself can't OOM.
+**Gate status (2 of ≥3 dedicated reviews done — Codex + Gemini, 2026-07-05):**
+- **ADR-002:** both reviews say adopt with the §5.1 Resonance Identity supersession + pinned wave vectors (atomically). Damping-floor question closed (linear drift to −32768 *is* crystallization). Adoption PR may be drafted; merges after review 3.
+- **ADR-001 + ADR-003:** composition conflict resolved to a **proved decision candidate — Hash-Leaf Size Model** (unresolved hash leaf = size 1; R-S never forces what it copies; R-R pays for exactly what it materializes; `growth < cost` global). Option 2 is broken by construction (`(S K K) T` attack). Under the hash-thunk machine, R-R prices per materialized node, dissolving the preflight-OOM problem. Genesis Intrinsic Rule (I/K/S axioms only; FALSE is a theorem, constructible) is the concurring candidate for the availability question. Remaining before adoption: review 3, hash-thunk reference implementation, fresh vector set.
 
 ### ADR-001: Size-Priced ATP
 

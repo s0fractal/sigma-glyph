@@ -18,6 +18,11 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 git clone -q "$REPO" "$T/repo"
 cd "$T/repo"
+# Isolation: the origin remote points at the live checkout; a reviewer with
+# broad permissions has been observed following it and writing to the live
+# repo directly. Remove the breadcrumb and pin the reviewer to this directory.
+git remote remove origin
+LIVE_STATE=$(git -C "$REPO" status --porcelain)
 
 PROMPT="You are an independent adversarial reviewer of this repository.
 
@@ -40,6 +45,8 @@ RULES:
 - Give concrete text proposals for every P1/P2.
 - Write the COMPLETE review to reviews/$OUT and nothing else: do not modify any
   other file, do not commit, do not push.
+- Work ONLY inside the current working directory ($T/repo). Never touch any
+  other checkout of this project, even if you know one exists.
 "
 
 case "$CLI" in
@@ -56,6 +63,9 @@ case "$CLI" in
     ;;
 esac
 
+if [ "$(git -C "$REPO" status --porcelain)" != "$LIVE_STATE" ]; then
+    echo "WARNING: live checkout changed during review — inspect git status before trusting it" >&2
+fi
 test -s "reviews/$OUT" || { echo "reviewer did not write reviews/$OUT" >&2; exit 1; }
 cp "reviews/$OUT" "$REPO/reviews/$OUT"
 echo "review delivered: reviews/$OUT"

@@ -71,11 +71,13 @@ The v0.5 vector set MUST include both a direct-K and an S-composed dead argument
 
 ## Hash-thunk machine + genesis constants — OPEN
 
-The abstract evaluator operates on hash thunks: a thunk MAY be compared against `I_H/K_H/S_H` without fetching bytes; a thunk is resolved only when it becomes the demanded root/spine position for the next transition. Open question the spec must answer: are genesis glyphs **intrinsic constants** (implementations may materialize I/K/S bytes from the spec by hash) or must every hash — including a result hash like bare `K_H` — resolve in the local store before being reported as a normal form? Codex recommendation on the table: genesis intrinsic; non-genesis result hashes must resolve unless syntactically constructed by a completed rewrite. Needs a decision plus vectors either way.
+The abstract evaluator operates on hash thunks: a thunk MAY be compared against `I_H/K_H/S_H` without fetching bytes; a thunk is resolved only when it becomes the demanded root/spine position for the next transition.
 
-## Composition with ADR-001 — OPEN, blocks joint adoption
+**Decision candidate (2026-07-05, Codex + Gemini concurring): Genesis Intrinsic Rule.** The three *axioms* I/K/S (Book I §5.1) are intrinsic constants: implementations MUST NOT produce Unresolved Reference for their canonical hashes — their bytes are spec-pinned and derivable from the glyph names. Scoping correction (maintainer): FALSE is the First Theorem (§5.2), not an axiom, and needs no intrinsic status — its canonical bytes `0206‖H(K)‖H(I)` are constructible from intrinsic hashes without any store. Non-genesis hashes in the demanded spine MUST resolve in the store to be reported as part of a normal form, unless syntactically constructed by a completed rewrite. Needs vectors: bare `REF(K_H)` with empty store → K; bare unknown hash root → Unresolved.
 
-See ADR-001 → "Composition with lazy resolution": `cost(R-S)=1+size(z)` wants to measure what this ADR refuses to fetch. One shared abstract machine must be specified before both become law.
+## Composition with ADR-001 — decision candidate: Hash-Leaf Size Model
+
+See ADR-001 → "Composition with lazy resolution": resolved to a proved candidate (2026-07-05, Gemini ADR-gate review) — `size(t)` counts materialized nodes with unresolved hash leaves as 1; R-S never forces what it copies; R-R pays for exactly what it materializes; `growth < cost` holds globally. Final adoption gated on review 3 + hash-thunk reference implementation + vectors.
 
 ## Adoption criteria
 
