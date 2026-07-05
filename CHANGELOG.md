@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.6 (2026-07)
+- **New: `spec/appendix-a-complexity.md`** (NON-NORMATIVE) — per-rule size deltas (only R-S/R-R grow, each by < the duplicated size), O(2^ATP) worst-case envelope with the honest empirical note that Omega grows *linearly* (~1 node / 8 steps; the exponential bound needs crafted duplication towers), time/space bounds for v0.4.x vs ADR-001, fetch accounting. Closes Sonnet 4.5 P3.1 — the last deferred finding from that review.
+- **New: `tools/complexity_metrics.py`** — regenerates the appendix table; integer-deterministic, machine-independent. Table vs tool: tool wins.
+- **Oracle robustness (self-found, P1-class):** a term of depth 1500 — well within the promised `max_node_depth=4096` — crashed `eval` with a raw `RecursionError` (Python stack ceiling ~1000; same leak class as the Codex P1-A totality bug). Fixed: `eval_hash` scopes the interpreter recursion limit to the configured depth and maps residual `RecursionError` → `ResourceFault` (§3.6 local fault). Two new oracle tests: depth-1500 within limits → canonical outcome; depth-4500 beyond limits → ResourceFault, never a raw crash.
+- ANCHORS.txt: v0.4.6 section; appendix anchored alongside the Books. Book I/II, LORE and vectors.json unchanged — anchors carry over (published vectors: **no changes**).
+
+**Impact:** Additive doc + local-fault robustness fix. No spec text changes, no vector changes, no consensus-observable changes.
+
 ## v0.4.5 (2026-07)
 - **Oracle bug fix (Codex follow-up P1):** `eval` could (a) leak a raw `Unresolved` exception through the post-step lookahead — violating the §3.4 totalization MUST — and (b) report `atp_spent > atp` by firing a rule it could not pay for. New loop: exhaustion is decided **before** any resolve of the next step; `spent` never exceeds `atp`; failed firings are not charged; `eval` is total.
 - Book I §3.4: new normative bullet pinning the above (budget check precedes firing; `eval(REF(missing),0)` = ATP Exhausted, not Unresolved).

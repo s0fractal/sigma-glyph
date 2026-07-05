@@ -6,6 +6,7 @@ evaluator with ATP accounting, resolution contract, resource guards.
 No waves. No pantheon. No agents. (Book II is another milestone.)
 """
 import hashlib
+import sys
 
 sha = lambda b: hashlib.sha256(b).digest()
 
@@ -151,21 +152,31 @@ def eval_hash(h, atp, store, limits=None):
     Resource limit breach -> ResourceFault (local, non-canonical)."""
     limits = limits or DEFAULT_LIMITS
     stats = {"fetches": 0}
-    t = load(h, store, stats, limits)
-    if t is None: return ("dis", R_UNRES), 0
-    spent = 0
-    while True:
-        if depth(t) > limits["max_node_depth"] or size(t) > limits["max_materialized_nodes"]:
-            raise ResourceFault("term growth")
-        if is_normal(t):
-            return t, spent
-        if spent >= atp:
-            return ("dis", R_ATP), spent
-        try:
-            t = step(t, store, stats, limits)                 # not None: t is not normal
-        except Unresolved:
-            return ("dis", R_UNRES), spent
-        spent += 1
+    # load/step/depth/size/is_normal recurse to term depth; give Python enough
+    # stack for the promised max_node_depth, and map any residual RecursionError
+    # to a local ResourceFault (s3.6) — it must never escape raw.
+    old_rl = sys.getrecursionlimit()
+    sys.setrecursionlimit(max(old_rl, 3 * limits["max_node_depth"] + 2000))
+    try:
+        t = load(h, store, stats, limits)
+        if t is None: return ("dis", R_UNRES), 0
+        spent = 0
+        while True:
+            if depth(t) > limits["max_node_depth"] or size(t) > limits["max_materialized_nodes"]:
+                raise ResourceFault("term growth")
+            if is_normal(t):
+                return t, spent
+            if spent >= atp:
+                return ("dis", R_ATP), spent
+            try:
+                t = step(t, store, stats, limits)             # not None: t is not normal
+            except Unresolved:
+                return ("dis", R_UNRES), spent
+            spent += 1
+    except RecursionError:
+        raise ResourceFault("python recursion depth") from None
+    finally:
+        sys.setrecursionlimit(old_rl)
 
 
 
@@ -284,6 +295,27 @@ def run_tests():
         chk("resource fault raised", False)
     except ResourceFault:
         chk("resource fault raised (non-canonical)", True)
+
+    # Deep left spine WITHIN max_node_depth must not leak RecursionError
+    hd = I_H
+    for _ in range(1500):
+        hd = st.put(ser(APPLY, 0x06, left=hd, right=I_H))
+    try:
+        r, sp = eval_hash(hd, 3, st)
+        chk("depth-1500 spine -> canonical outcome", r == ("dis", R_ATP) and sp == 3)
+    except RecursionError:
+        chk("depth-1500 spine -> canonical outcome", False)
+
+    # Deep spine BEYOND max_node_depth -> ResourceFault, never RecursionError
+    for _ in range(3000):
+        hd = st.put(ser(APPLY, 0x06, left=hd, right=I_H))
+    try:
+        eval_hash(hd, 3, st)
+        chk("depth-4500 spine -> resource fault", False)
+    except ResourceFault:
+        chk("depth-4500 spine -> resource fault (non-canonical)", True)
+    except RecursionError:
+        chk("depth-4500 spine -> resource fault", False)
 
     print("\nALL PASS" if all(ok) else "\nFAILURES PRESENT")
     return all(ok)

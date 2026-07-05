@@ -1,7 +1,7 @@
 # Σ-GLYPH
 
 **Topological Compute Engine / Decentralized Wave Resonator**
-Current: **v0.4.5** — DRAFT STANDARD, verified test vectors, reference implementation, machine-readable conformance suite ([`tests/spec_conformance/`](tests/spec_conformance/)).
+Current: **v0.4.6** — DRAFT STANDARD, verified test vectors, reference implementation, machine-readable conformance suite ([`tests/spec_conformance/`](tests/spec_conformance/)).
 
 Content-addressed SKI computation core with a bit-exact determinism guarantee, plus a wave/coordinate navigation layer that is strictly a *view* over identity — never part of it.
 
