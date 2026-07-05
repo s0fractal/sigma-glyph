@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adopted per Decision Process: 3/3 reviews confirmed; hash-thunk oracle implements it; memory bound (size-1 <= spent) is a normative invariant, property-tested (P7) and enforced as a free size guard. Preflight-OOM dissolved by per-node R-R pricing. Normative text: Book I s3.4."
+      },
+      {
+        "check": "ef73be8b24813e6b6794489a88eb31896300f4b15beee3429970774fa200c751",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "dc18ab3bb5a8136307b2d81cc56bfdba076457617a8e3faa688446cb6fca7dc3",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "dc18ab3bb5a8136307b2d81cc56bfdba076457617a8e3faa688446cb6fca7dc3"
+    ],
+    "prior": [
+      "5b4645acce13720ffbd2fe92132c10523362e8549b1e38b7623c21ec5bad4528"
+    ],
+    "subject": {
+      "hash": "a7e8b7bb18386449f76a0a148da131b30f7f96c15748215f2e26af87b37597e7",
+      "note": "ADOPT ADR-001 in v0.5.0 (size-priced ATP, hash-leaf model)"
+    },
+    "ts": 1783272477,
+    "under": [
+      "5278627d12b23a52560b58b34d53450fef525fe9cdd084e0f1db71866cb4a26e"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "1f76c1ea3cc411ab7a3abbd4fbc9da4b470ce975f3ec23ffbe681943fef521960458d195e8f57e683a100c85b8aae7e115ee257c9261490ccf89a46ca2bba701"
+    }
+  ]
+}

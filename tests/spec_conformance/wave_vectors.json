@@ -1,0 +1,184 @@
+{
+  "format": "sigma-glyph-wave-conformance",
+  "format_version": 1,
+  "spec_version": "0.5.0",
+  "lut_arbiter": "c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2",
+  "notes": [
+    "interfere() per Book II v0.5 (entropy-coherence coupling adopted).",
+    "div_round_half_up is round-half-AWAY-FROM-ZERO (Book II \u00a73).",
+    "expected values computed by impl/sigma_wave.py; regenerate: python3 impl/sigma_wave.py gen"
+  ],
+  "vectors": [
+    {
+      "id": "WV-CONSTRUCTIVE",
+      "note": "full constructive alignment: order created (delta_en = -256)",
+      "w1": {
+        "ph": 0,
+        "am": 65535,
+        "en": 0
+      },
+      "w2": {
+        "ph": 0,
+        "am": 65535,
+        "en": 0
+      },
+      "expected": {
+        "ph": 0,
+        "am": 65535,
+        "en": -256
+      }
+    },
+    {
+      "id": "WV-ORTHOGONAL",
+      "note": "orthogonal: entropy-neutral, amplitude halves",
+      "w1": {
+        "ph": 0,
+        "am": 65535,
+        "en": 0
+      },
+      "w2": {
+        "ph": 16384,
+        "am": 65535,
+        "en": 0
+      },
+      "expected": {
+        "ph": 0,
+        "am": 32768,
+        "en": 0
+      }
+    },
+    {
+      "id": "WV-DESTRUCTIVE",
+      "note": "full destructive: disorder created (delta_en = +256), amplitude annihilates",
+      "w1": {
+        "ph": 0,
+        "am": 65535,
+        "en": 0
+      },
+      "w2": {
+        "ph": 32768,
+        "am": 65535,
+        "en": 0
+      },
+      "expected": {
+        "ph": 0,
+        "am": 0,
+        "en": 256
+      }
+    },
+    {
+      "id": "WV-CLAMP-LOW",
+      "note": "constructive at minimum entropy: clamp holds, {am=65535,en=-32768} is the fixed point",
+      "w1": {
+        "ph": 0,
+        "am": 65535,
+        "en": -32768
+      },
+      "w2": {
+        "ph": 0,
+        "am": 65535,
+        "en": -32768
+      },
+      "expected": {
+        "ph": 0,
+        "am": 65535,
+        "en": -32768
+      }
+    },
+    {
+      "id": "WV-CLAMP-HIGH",
+      "note": "destructive at maximum entropy: clamp holds",
+      "w1": {
+        "ph": 0,
+        "am": 65535,
+        "en": 32767
+      },
+      "w2": {
+        "ph": 32768,
+        "am": 65535,
+        "en": 32767
+      },
+      "expected": {
+        "ph": 0,
+        "am": 0,
+        "en": 32767
+      }
+    },
+    {
+      "id": "WV-SELF-MAX",
+      "note": "self-application at max amplitude: phase kept, amplitude stable, entropy drifts -256",
+      "w1": {
+        "ph": 12345,
+        "am": 65535,
+        "en": 0
+      },
+      "w2": {
+        "ph": 12345,
+        "am": 65535,
+        "en": 0
+      },
+      "expected": {
+        "ph": 12345,
+        "am": 65535,
+        "en": -256
+      }
+    },
+    {
+      "id": "WV-SELF-PARTIAL",
+      "note": "self-application at 0.75 amplitude: quadratic decay (Resonance Identity, amplitude part)",
+      "w1": {
+        "ph": 0,
+        "am": 49151,
+        "en": 0
+      },
+      "w2": {
+        "ph": 0,
+        "am": 49151,
+        "en": 0
+      },
+      "expected": {
+        "ph": 0,
+        "am": 36863,
+        "en": -256
+      }
+    },
+    {
+      "id": "WV-NEG-TIE",
+      "note": "negative odd-sum tie: avg(-1,-2) MUST round away from zero to -2 (Book II \u00a73); floor-division implementations yield -257 instead of -258 here and are NONCONFORMING",
+      "w1": {
+        "ph": 0,
+        "am": 65535,
+        "en": -1
+      },
+      "w2": {
+        "ph": 0,
+        "am": 65535,
+        "en": -2
+      },
+      "expected": {
+        "ph": 0,
+        "am": 65535,
+        "en": -258
+      }
+    },
+    {
+      "id": "WV-LEFT-DOMINANCE",
+      "note": "phase is w1's, amplitude and entropy symmetric",
+      "w1": {
+        "ph": 8192,
+        "am": 30000,
+        "en": 100
+      },
+      "w2": {
+        "ph": 40960,
+        "am": 20000,
+        "en": -100
+      },
+      "expected": {
+        "ph": 8192,
+        "am": 0,
+        "en": 256
+      }
+    }
+  ]
+}

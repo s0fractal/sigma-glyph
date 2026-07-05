@@ -1,82 +1,70 @@
 # Σ-GLYPH — Appendix A: Complexity (NON-NORMATIVE)
 
-**Version:** 0.4.6 (accompanies Book I 0.4.5)
-**Status:** NON-NORMATIVE. Nothing here is a contract between nodes. Bounds describe the v0.4.x semantics (tree accounting, eager materialization); consensus lives in Book I only.
-**Origin:** Claude Sonnet 4.5 review 2026-07, P3.1.
+**Version:** 0.5.0 (accompanies Book I 0.5.0)
+**Status:** NON-NORMATIVE. Nothing here is a contract between nodes. Bounds describe the v0.5 semantics (hash-thunk machine, size-priced ATP, hash-leaf sizes); consensus lives in Book I only.
+**Origin:** Claude Sonnet 4.5 review 2026-07, P3.1; rewritten for v0.5.
 
 ---
 
-## 1. Per-rule size dynamics (exact, tree semantics)
+## 1. Per-action dynamics (exact, hash-leaf model)
 
-Let `s(t)` be node count. Each rule fires for exactly 1 ATP in v0.4.x:
+Let `s(t)` be the hash-leaf size (Book I §3.4). Every action strictly earns its cost:
 
-| Rule | Rewrite | Δsize |
-|------|---------|-------|
-| R-I | `(I a) → a` | −2 |
-| R-K | `((K x) y) → x` | −(3 + s(y)) |
-| R-S | `(((S x) y) z) → ((x z) (y z))` | **+ s(z) − 1** |
-| R-R | `REF(h) → resolve(h)` | **+ s(resolve(h)) − 1** |
+| Action | Cost | Δsize | Δsize < cost |
+|--------|------|-------|--------------|
+| force LITERAL/DISSONANCE | 1 | 0 (leaf for leaf) | ✓ |
+| force REF | 2 | +1 | ✓ |
+| force APPLY | 3 | +2 | ✓ |
+| R-R (REF unwrap) | 1 | −1 | ✓ |
+| R-I | 1 | ≤ −2 | ✓ |
+| R-K | 1 | ≤ −(3 + s(y)) | ✓ |
+| R-S | 1 + s(z) | + s(z) − 1 | ✓ |
 
-Only R-S and R-R grow the term, and each by strictly less than the size of the
-node they duplicate/materialize. This is the seed of ADR-001's linear memory
-bound: under size-priced ATP, `Δsize < cost` per step.
+**Memory bound (normative in Book I §3.4, verified here):** by induction over the table, `s(t) − 1 ≤ spent` along any evaluation. ATP is now a joint work-AND-memory bound — the v0.4 O(2^ATP) blow-up is gone by construction, and with it the preflight-OOM concern: forcing materializes one node at a time, each priced 1–3.
 
-## 2. Worst-case growth is O(2^ATP) — but must be crafted
+## 2. Time
 
-R-S can duplicate an argument that previous R-S firings already doubled:
-`s_{n+1} ≤ 2·s_n`, hence `s_n ≤ s_0 · 2^n`. The bound is tight only for
-deliberate duplication towers (each S feeding its own output back as `z`).
-
-**Omega is NOT the worst case.** Measured (tool: `tools/complexity_metrics.py`,
-integer-deterministic, machine-independent):
-
-| term                | budget | spent | size_0 | size_max | depth_0 | depth_max | fetches | outcome       |
-|---------------------|--------|-------|--------|----------|---------|-----------|---------|---------------|
-| TV-4  I K           | 10     | 1     | 3      | 3        | 2       | 2         | 3       | normal form   |
-| TV-5  S K K I       | 10     | 2     | 7      | 7        | 4       | 4         | 7       | normal form   |
-| TV-6  S I I (I K)   | 100    | 5     | 9      | 11       | 4       | 4         | 9       | normal form   |
-| TV-7  Omega, 200    | 200    | 200   | 11     | 87       | 4       | 23        | 11      | ATP Exhausted |
-| TV-7  Omega, 1000   | 1000   | 1000  | 11     | 187      | 4       | 48        | 11      | ATP Exhausted |
-| TV-9  REF→REF→K     | 10     | 2     | 1      | 1        | 1       | 1         | 3       | normal form   |
-| TV-10 C1[λxy.x] S K | 16     | 4     | 11     | 11       | 6       | 6         | 11      | normal form   |
-
-Omega's duplicated argument is the fixed subterm `S I I` (size 5), so growth is
-**linear** (~1 node per 8 steps), not exponential. Real programs compiled via
-C1 behave closer to TV-10 than to adversarial towers. The exponential envelope
-matters for validator sizing, not for typical cost estimation.
-
-## 3. Time
-
-One step = leftmost-outermost redex search + rebuild, both O(size of the
-current term). Whole evaluation:
+One action = leftmost-outermost search (O(size of the materialized spine), with
+O(1) glyph checks by hash) + O(1)–O(s(z)) rebuild. Whole evaluation:
 
 ```text
-time(eval) = O( Σ_k size_k )  ⊆  O( ATP · size_max )
-           ⊆  O( ATP · s_0 · 2^ATP )              worst case, v0.4.x
-           →  O( ATP · (s_0 + ATP) )              under ADR-001 (size_max ≤ s_0 + ATP)
+time(eval) = O( Σ_k size_k )  ⊆  O( spent² )     // size_k ≤ 1 + spent_k
 ```
 
-ATP bounds *work* (rule firings). It bounds neither memory nor wall-time
-directly in v0.4.x — that is exactly the §3.6 quarantine and the ADR-001
-motivation.
+Quadratic worst case in the budget, linear memory — a validator can size both
+from `atp` alone before evaluating anything.
 
-## 4. Space and fetches
+## 3. What you pay to look
 
-- **Peak term size:** `size_max ≤ s_0 · 2^ATP` (v0.4.x); `≤ s_0 + ATP` under ADR-001.
-- **Eager materialization (§3.5):** peak memory also includes the *full closure*
-  of the root hash, resolved before reduction — even dead branches. ADR-003
-  (lazy left-spine) would shrink this to the reduction-touched spine.
-- **Fetches:** the reference oracle fetches the root closure once per `eval`
-  plus one fetch per R-R firing (see `fetches` column; TV-9: 1 root + 2 R-R).
+Confirming a stored term normal requires forcing it — priced like everything
+else. `eval(huge_tree_hash, small_atp)` exhausts deterministically instead of
+materializing the tree: **the eager-verification DoS of v0.4.x is closed by
+pricing, not by guards.** Conversely, dead branches are never forced (§3.3), so
+`S (K I) (K K) missing` reaches ⟨K⟩ having paid nothing for `missing`.
+
+## 4. Measured (deterministic, machine-independent)
+
+Tool: `tools/complexity_metrics.py`. Note Omega: materialized size is now
+*paid for* — 67 nodes at 500 ATP, 139 at 2000, `size−1 ≤ spent` throughout.
+
+| term                  | budget | spent | size_max | depth_max | fetches | size-1<=spent | outcome       |
+|-----------------------|--------|-------|----------|-----------|---------|---------------|---------------|
+| TV-4  I K             | 100    | 4     | 3        | 2         | 1       | yes           | normal form   |
+| TV-5  S K K I         | 100    | 12    | 7        | 4         | 3       | yes           | normal form   |
+| TV-6  S I I (I K)     | 100    | 21    | 7        | 4         | 5       | yes           | normal form   |
+| TV-7  Omega, 500      | 500    | 500   | 67       | 18        | 33      | yes           | ATP Exhausted |
+| TV-7  Omega, 2000     | 2000   | 1998  | 139      | 36        | 71      | yes           | ATP Exhausted |
+| TV-9  REF->REF->K     | 100    | 6     | 2        | 1         | 2       | yes           | normal form   |
+| TV-10 C1[\xy.x] S K   | 100    | 20    | 11       | 5         | 5       | yes           | normal form   |
+| TV-11 S(KI)(KK) ghost | 100    | 20    | 9        | 4         | 5       | yes           | normal form   |
 
 ## 5. Implementation faults (§3.6 reminder)
 
-Depth/size/fetch limits are local faults, never DISSONANCE. As of v0.4.6 the
-reference oracle also maps host recursion exhaustion (`RecursionError`) to
-`ResourceFault`: a term within `max_node_depth` MUST evaluate to a canonical
-outcome, and a term beyond it MUST fault — never crash raw. Implementations in
-languages with bounded call stacks should either recurse-proof their walkers
-or size their stack to the advertised depth limit.
+Depth/fetch limits remain local faults, never DISSONANCE. The size guard is
+free (`1 + spent > limit`); the depth guard needs a traversal and MAY be
+amortized — its cadence is an implementation choice, since it can never change
+a canonical outcome. The reference oracle maps host recursion exhaustion
+(`RecursionError`) to `ResourceFault`.
 
 ---
 

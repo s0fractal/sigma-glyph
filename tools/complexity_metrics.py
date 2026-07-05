@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Deterministic complexity metrics for the appendix (spec/appendix-a-complexity.md).
 
-Steps through eval manually, tracking size/depth/fetch dynamics under tree
-semantics. All numbers are integer and machine-independent — regenerating this
-table on any host yields identical output.
+Steps through the v0.5 hash-thunk evaluation, tracking size/depth/fetch
+dynamics under the hash-leaf size model. All numbers are integer and
+machine-independent — regenerating this table on any host yields identical
+output.
 
     python3 tools/complexity_metrics.py
 """
@@ -32,40 +33,48 @@ def put_tree(t):
 def metrics(name, h, atp):
     limits = dict(sg.DEFAULT_LIMITS)
     stats = {"fetches": 0}
-    t = sg.load(h, st, stats, limits)
-    s0, d0 = sg.size(t), sg.depth(t)
-    smax, dmax, spent = s0, d0, 0
+    t, spent = ("thunk", h), 0
+    smax, dmax = 1, 1
+    bound_ok = True
     while True:
-        if sg.is_normal(t):
-            outcome = "normal form"
-            break
-        if spent >= atp:
+        try:
+            r = sg.step5(t, atp - spent, st, stats, limits)
+        except sg.BudgetExhausted:
             outcome = "ATP Exhausted"
             break
-        try:
-            t = sg.step(t, st, stats, limits)
         except sg.Unresolved:
             outcome = "Unresolved"
             break
-        spent += 1
+        if r is None:
+            outcome = "normal form"
+            break
+        t = r[0]
+        spent += r[1]
         smax = max(smax, sg.size(t))
         dmax = max(dmax, sg.depth(t))
-    return (name, atp, spent, s0, smax, d0, dmax, stats["fetches"], outcome)
+        bound_ok = bound_ok and (sg.size(t) - 1 <= spent)
+    return (name, atp, spent, smax, dmax, stats["fetches"],
+            "yes" if bound_ok else "VIOLATED", outcome)
 
 
 rows = [
-    metrics("TV-4  I K",            put_tree(A(Ig, Kg)), 10),
-    metrics("TV-5  S K K I",        put_tree(A(A(A(Sg, Kg), Kg), Ig)), 10),
+    metrics("TV-4  I K",            put_tree(A(Ig, Kg)), 100),
+    metrics("TV-5  S K K I",        put_tree(A(A(A(Sg, Kg), Kg), Ig)), 100),
     metrics("TV-6  S I I (I K)",    put_tree(A(A(A(Sg, Ig), Ig), A(Ig, Kg))), 100),
-    metrics("TV-7  Omega, 200",     put_tree(A(A(A(Sg, Ig), Ig), A(A(Sg, Ig), Ig))), 200),
-    metrics("TV-7  Omega, 1000",    put_tree(A(A(A(Sg, Ig), Ig), A(A(Sg, Ig), Ig))), 1000),
+    metrics("TV-7  Omega, 500",     put_tree(A(A(A(Sg, Ig), Ig), A(A(Sg, Ig), Ig))), 500),
+    metrics("TV-7  Omega, 2000",    put_tree(A(A(A(Sg, Ig), Ig), A(A(Sg, Ig), Ig))), 2000),
 ]
 r1 = st.put(sg.ser(sg.REF, sg.F_ATOM, atom=sg.K_H))
-rows.append(metrics("TV-9  REF->REF->K", st.put(sg.ser(sg.REF, sg.F_ATOM, atom=r1)), 10))
+rows.append(metrics("TV-9  REF->REF->K", st.put(sg.ser(sg.REF, sg.F_ATOM, atom=r1)), 100))
 ck = sg.c1(("lam", "x", ("lam", "y", ("var", "x"))))
-rows.append(metrics("TV-10 C1[\\xy.x] S K", put_tree(A(A(ck, Sg), Kg)), 16))
+rows.append(metrics("TV-10 C1[\\xy.x] S K", put_tree(A(A(ck, Sg), Kg)), 100))
+ghost = sg.sha(b"this node was never stored")
+inner = put_tree(A(A(Sg, A(Kg, Ig)), A(Kg, Kg)))
+rows.append(metrics("TV-11 S(KI)(KK) ghost",
+                    st.put(sg.ser(sg.APPLY, 0x06, left=inner, right=ghost)), 100))
 
-hdr = ("term", "budget", "spent", "size_0", "size_max", "depth_0", "depth_max", "fetches", "outcome")
+hdr = ("term", "budget", "spent", "size_max", "depth_max", "fetches",
+       "size-1<=spent", "outcome")
 w = [max(len(str(r[i])) for r in rows + [hdr]) for i in range(len(hdr))]
 line = lambda r: "| " + " | ".join(str(r[i]).ljust(w[i]) for i in range(len(hdr))) + " |"
 print(line(hdr))

@@ -1,9 +1,14 @@
-"""Sigma-GLYPH v0.4.5 — Reference Implementation, Book I (Milestone 1).
+"""Sigma-GLYPH v0.5.0 — Reference Implementation, Book I.
 
 Scope: SigmaNodeV2 canonical serialization/deserialization, validation,
-SHA-256 NodeHash, CAS object store, genesis I/K/S, normal-order SKI
-evaluator with ATP accounting, resolution contract, resource guards.
-No waves. No pantheon. No agents. (Book II is another milestone.)
+SHA-256 NodeHash, CAS object store, genesis I/K/S (intrinsic), and the
+v0.5 HASH-THUNK evaluator: lazy left-spine resolution (ADR-003) with
+size-priced ATP under the hash-leaf size model (ADR-001 composition).
+Every materialization is a priced step; unresolved hashes count as
+size 1; genesis axioms are recognized by hash without any store.
+Serialization and NodeHashes are UNCHANGED from v0.4.x — only
+evaluation semantics and ATP accounting changed (see CHANGELOG v0.5.0
+migration guide). Waves live in impl/sigma_wave.py (Book II).
 """
 import hashlib
 import sys
@@ -66,23 +71,11 @@ class Store:
 class ResourceFault(Exception):
     """Local, NON-canonical implementation fault (limits breached). Not a DISSONANCE."""
 
-# ---------- Terms (tree semantics) ----------
-# term := ("lit", atom) | ("ref", h) | ("app", t, t) | ("dis", reason)
-def load(h, store, stats, limits):
-    stats["fetches"] += 1
-    if stats["fetches"] > limits["max_store_fetches"]: raise ResourceFault("fetches")
-    b = store.get(h)
-    if b is None: return None
-    n = deser(b)
-    if n is None: return ("dis", R_INVALID)  # malformed bytes in store
-    op = n["op"]
-    if op == LITERAL:    return ("lit", n["atom"])
-    if op == REF:        return ("ref", n["atom"])
-    if op == DISSONANCE: return ("dis", n["atom"])
-    l = load(n["left"], store, stats, limits)
-    r = load(n["right"], store, stats, limits)
-    if l is None or r is None: return None
-    return ("app", l, r)
+# ---------- Terms (hash-thunk machine, v0.5) ----------
+# term := ("thunk", h)                        unresolved hash (size 1)
+#       | ("lit", atom) | ("ref", h) | ("dis", reason)
+#       | ("app", t, t)                       children may be thunks
+GENESIS = {I_H: I_BYTES, K_H: K_BYTES, S_H: S_BYTES}   # intrinsic axioms (Book I §5.1)
 
 def term_bytes(t):
     if t[0] == "lit": return ser(LITERAL, F_ATOM, atom=t[1])
@@ -90,89 +83,131 @@ def term_bytes(t):
     if t[0] == "dis": return ser(DISSONANCE, F_ATOM, atom=t[1])
     return ser(APPLY, F_LEFT | F_RIGHT, left=term_hash(t[1]), right=term_hash(t[2]))
 
-def term_hash(t): return node_hash(term_bytes(t))
+def term_hash(t):
+    if t[0] == "thunk": return t[1]           # hash-transparent
+    return node_hash(term_bytes(t))
 
 def size(t):
-    return 1 if t[0] != "app" else 1 + size(t[1]) + size(t[2])
+    """Hash-leaf size model (ADR-001×003): materialized nodes count 1 each,
+    an unresolved hash leaf counts exactly 1, a materialized REF counts 2
+    (node + target thunk)."""
+    k = t[0]
+    if k == "app": return 1 + size(t[1]) + size(t[2])
+    if k == "ref": return 2
+    return 1                                   # thunk, lit, dis
+
 def depth(t):
     return 1 if t[0] != "app" else 1 + max(depth(t[1]), depth(t[2]))
 
-def is_glyph(t, gh): return term_hash(t) == gh   # Identity by Hash, even in semantics
+def is_glyph(t, gh): return term_hash(t) == gh   # Identity by Hash (general, recursive)
 
-# ---------- Normal-order stepper ----------
+def glyph_eq(t, gh):
+    """O(1) glyph check for redex patterns: a thunk carries its hash; a
+    materialized LITERAL hashes in constant time; APPLY/REF/DISSONANCE cannot
+    equal a LITERAL's NodeHash short of a SHA-256 collision (out of scope)."""
+    if t[0] == "thunk": return t[1] == gh
+    if t[0] == "lit":   return node_hash(ser(LITERAL, F_ATOM, atom=t[1])) == gh
+    return False
+
+# ---------- Hash-thunk stepper (v0.5: lazy left-spine, size-priced ATP) ----------
 class Unresolved(Exception): pass
+class BudgetExhausted(Exception): pass
 
-def step(t, store, stats, limits):
-    """One leftmost-outermost step. Returns new term or None (normal form)."""
+def force(h, store, stats, limits):
+    """Materialize ONE node from hash h; children stay thunks. Genesis axioms
+    are intrinsic — synthesized without the store (Book I §5.1). Bytes failing
+    §4.1 materialize the Canonical Invalid Object (§3.5b)."""
+    stats["fetches"] += 1
+    if stats["fetches"] > limits["max_store_fetches"]: raise ResourceFault("fetches")
+    b = GENESIS.get(h)
+    if b is None: b = store.get(h)
+    if b is None: raise Unresolved()
+    n = deser(b)
+    if n is None: return ("dis", R_INVALID)
+    op = n["op"]
+    if op == LITERAL:    return ("lit", n["atom"])
+    if op == REF:        return ("ref", n["atom"])
+    if op == DISSONANCE: return ("dis", n["atom"])
+    return ("app", ("thunk", n["left"]), ("thunk", n["right"]))
+
+def step5(t, remaining, store, stats, limits):
+    """One priced action, leftmost-outermost with lazy spine resolution.
+    Returns (new_term, cost) with cost <= remaining, or None (normal form).
+    Raises BudgetExhausted if the demanded action is unaffordable (checked
+    BEFORE the action; a minimum-cost check of 1 precedes even the fetch,
+    so exhaustion at budget 0 is decided without touching the store).
+    Raises Unresolved if the demanded hash is absent (not charged)."""
     kind = t[0]
-    if kind == "ref":
-        nt = load(t[1], store, stats, limits)
-        if nt is None: raise Unresolved()
-        return nt                                            # R-R, 1 ATP
+    if kind == "thunk":
+        if t[1] in GENESIS: return None                      # NF leaf by hash
+        if remaining < 1: raise BudgetExhausted()
+        v = force(t[1], store, stats, limits)                # may raise Unresolved
+        c = size(v)                                          # 1 (lit/dis) / 2 (ref) / 3 (app)
+        if c > remaining: raise BudgetExhausted()            # fetched bytes discarded
+        return v, c
+    if kind == "ref":                                        # R-R: unwrap one level
+        if remaining < 1: raise BudgetExhausted()
+        return ("thunk", t[1]), 1
     if kind == "app":
         f, a = t[1], t[2]
-        if is_glyph(f, I_H):                                  # R-I
-            return a
-        if f[0] == "app" and is_glyph(f[1], K_H):             # R-K
-            return f[2]
-        if (f[0] == "app" and f[1][0] == "app"
-                and is_glyph(f[1][1], S_H)):                  # R-S
-            x, y, z = f[1][2], f[2], a
-            return ("app", ("app", x, z), ("app", y, z))
-        nf = step(f, store, stats, limits)
-        if nf is not None: return ("app", nf, a)
-        na = step(a, store, stats, limits)
-        if na is not None: return ("app", f, na)
+        if glyph_eq(f, I_H):                                 # R-I (O(1) hash comparison)
+            if remaining < 1: raise BudgetExhausted()
+            return a, 1
+        if f[0] == "app":
+            if glyph_eq(f[1], K_H):                          # R-K: argument NEVER forced
+                if remaining < 1: raise BudgetExhausted()
+                return f[2], 1
+            if f[1][0] == "app" and glyph_eq(f[1][1], S_H):  # R-S: size-priced
+                x, y, z = f[1][2], f[2], a
+                c = 1 + size(z)                              # hash leaves in z count 1, never forced
+                if c > remaining: raise BudgetExhausted()
+                return ("app", ("app", x, z), ("app", y, z)), c
+        r = step5(f, remaining, store, stats, limits)        # descend left spine (demand)
+        if r is not None: return ("app", r[0], a), r[1]
+        r = step5(a, remaining, store, stats, limits)        # f normal: demand argument
+        if r is not None: return ("app", f, r[0]), r[1]
         return None
-    return None  # lit / dis are normal forms
+    return None                                              # lit / dis are normal forms
 
 DEFAULT_LIMITS = dict(max_node_depth=4096, max_materialized_nodes=1_000_000,
                       max_store_fetches=1_000_000)
 
-def is_normal(t):
-    """Syntactic normal-form check. Mirrors step() returning None exactly,
-    but never resolves anything (redex patterns compare hashes already
-    present in the materialized tree)."""
-    kind = t[0]
-    if kind in ("lit", "dis"): return True
-    if kind == "ref": return False                            # R-R always applies
-    f, a = t[1], t[2]
-    if is_glyph(f, I_H): return False                         # R-I
-    if f[0] == "app" and is_glyph(f[1], K_H): return False    # R-K
-    if f[0] == "app" and f[1][0] == "app" and is_glyph(f[1][1], S_H):
-        return False                                          # R-S
-    return is_normal(f) and is_normal(a)
-
 def eval_hash(h, atp, store, limits=None):
     """eval(term_hash, atp) -> (result_term, atp_spent).
     Canonical outcomes: normal form | DISSONANCE(ATP Exhausted) | DISSONANCE(Unresolved Reference).
-    Budget check precedes firing (Book I s3.4): spent never exceeds atp, and
-    exhaustion is decided before any resolve of the next step. A failed firing
-    (resolve failure mid-step) is not charged. Total: never leaks Unresolved.
+    v0.5 discipline (Book I §3.4): every action — rule firing OR thunk
+    materialization — is priced; an unaffordable action yields ATP Exhausted
+    BEFORE it happens; spent never exceeds atp; a failed action (resolve
+    failure) is not charged; eval is total over canonical outcomes.
+    The memory bound is semantic: materialized size - initial size < spent.
     Resource limit breach -> ResourceFault (local, non-canonical)."""
     limits = limits or DEFAULT_LIMITS
     stats = {"fetches": 0}
-    # load/step/depth/size/is_normal recurse to term depth; give Python enough
-    # stack for the promised max_node_depth, and map any residual RecursionError
-    # to a local ResourceFault (s3.6) — it must never escape raw.
     old_rl = sys.getrecursionlimit()
     sys.setrecursionlimit(max(old_rl, 3 * limits["max_node_depth"] + 2000))
     try:
-        t = load(h, store, stats, limits)
-        if t is None: return ("dis", R_UNRES), 0
+        t = ("thunk", h)
         spent = 0
+        steps = 0
         while True:
-            if depth(t) > limits["max_node_depth"] or size(t) > limits["max_materialized_nodes"]:
+            # Size guard is FREE via the ADR-001 memory bound: size <= 1 + spent.
+            # Depth guard needs a traversal — amortize it (non-canonical local
+            # fault, so its check cadence is an implementation choice, s3.6).
+            if 1 + spent > limits["max_materialized_nodes"]:
                 raise ResourceFault("term growth")
-            if is_normal(t):
-                return t, spent
-            if spent >= atp:
-                return ("dis", R_ATP), spent
+            steps += 1
+            if steps % 256 == 0 and depth(t) > limits["max_node_depth"]:
+                raise ResourceFault("term depth")
             try:
-                t = step(t, store, stats, limits)             # not None: t is not normal
+                r = step5(t, atp - spent, store, stats, limits)
+            except BudgetExhausted:
+                return ("dis", R_ATP), spent
             except Unresolved:
                 return ("dis", R_UNRES), spent
-            spent += 1
+            if r is None:
+                return t, spent
+            t = r[0]
+            spent += r[1]
     except RecursionError:
         raise ResourceFault("python recursion depth") from None
     finally:
@@ -233,17 +268,29 @@ def run_tests():
     chk("invalid object bytes",     INVALID_OBJECT.hex() ==
         "ff01" + R_INVALID.hex())
 
-    # TV2-4: APPLY(I,K) -> K in 1 ATP; budget 0 -> ATP Exhausted
+    # Bare genesis thunk: NF by hash, zero cost, no store needed
+    r, sp = eval_hash(I_H, 10, Store())
+    chk("bare genesis I -> NF, 0 ATP, empty store", term_hash(r) == I_H and sp == 0)
+
+    # Genesis intrinsic: REF(K_H) on an EMPTY store resolves (force 2 + R-R 1)
+    st_empty = Store()
+    refk = st_empty.put(ser(REF, F_ATOM, atom=K_H))
+    r, sp = eval_hash(refk, 10, st_empty)
+    chk("genesis intrinsic: REF(K_H), empty store -> K (3 ATP)", term_hash(r) == K_H and sp == 3)
+
+    # TV-4: APPLY(I,K) -> K: force root (3) + R-I (1) = 4 ATP
     h = put_tree(A(Ig, Kg))
-    r, sp = eval_hash(h, 1, st);  chk("I·K -> K (1 ATP)", term_hash(r) == K_H and sp == 1)
-    r, sp = eval_hash(h, 0, st);  chk("I·K budget 0 -> ATP",  r == ("dis", R_ATP))
+    r, sp = eval_hash(h, 4, st);  chk("I·K -> K (4 ATP)", term_hash(r) == K_H and sp == 4)
+    r, sp = eval_hash(h, 0, st);  chk("I·K budget 0 -> ATP, 0 spent (no fetch)", r == ("dis", R_ATP) and sp == 0)
+    r, sp = eval_hash(h, 3, st);  chk("I·K budget 3 -> ATP after root force", r == ("dis", R_ATP) and sp == 3)
+    r, sp = eval_hash(h, 2, st);  chk("I·K budget 2 -> ATP, fetch discarded", r == ("dis", R_ATP) and sp == 0)
 
-    # TV2-5: SKK·I -> I in 2 ATP
+    # TV-5: SKK·I -> I: 3 forces (9) + R-S (1+size(z)=2) + R-K (1) = 12 ATP
     h = put_tree(A(A(A(Sg, Kg), Kg), Ig))
-    r, sp = eval_hash(h, 10, st); chk("SKK·I -> I (2 ATP)", term_hash(r) == I_H and sp == 2)
-    r, sp = eval_hash(h, 1, st);  chk("SKK·I budget 1 -> ATP", r == ("dis", R_ATP))
+    r, sp = eval_hash(h, 100, st); chk("SKK·I -> I (12 ATP)", term_hash(r) == I_H and sp == 12)
+    r, sp = eval_hash(h, 11, st);  chk("SKK·I budget 11 -> ATP", r == ("dis", R_ATP))
 
-    # TV2-6 (new): duplication cost — T = S I I (I K), tree semantics
+    # TV-6: duplication — S I I (I K); hash-leaf pricing; NF unchanged from v0.4
     T = A(A(A(Sg, Ig), Ig), A(Ig, Kg))
     hT = put_tree(T)
     r, sp = eval_hash(hT, 100, st)
@@ -252,29 +299,52 @@ def run_tests():
         ser(APPLY, 0x06, left=K_H, right=K_H)) else nf.hex(), "| ATP =", sp,
         "| T hash =", hT.hex())
     chk("SII(IK) normal form APPLY(K,K)", nf == node_hash(ser(APPLY, 0x06, left=K_H, right=K_H)))
+    chk("SII(IK) size-priced cost = 21", sp == 21)
 
-    # TV2-7 (new): Omega = SII(SII) — non-terminating, deterministic exhaustion
+    # TV-7: Omega — non-terminating, deterministic exhaustion at any budget
     W = A(A(Sg, Ig), Ig)
     Om = A(W, W)
     hO = put_tree(Om)
-    r, sp = eval_hash(hO, 50, st)
+    r, sp = eval_hash(hO, 500, st)
     print("      Omega hash =", hO.hex(), "| result:", "ATP Exhausted" if r == ("dis", R_ATP) else r)
-    chk("Omega -> ATP Exhausted", r == ("dis", R_ATP))
+    chk("Omega -> ATP Exhausted", r == ("dis", R_ATP) and sp <= 500)
 
-    # TV2-8 (new): unresolved child — APPLY(I, missing)
+    # TV-8: unresolved child — APPLY(I, missing): R-I fires lazily, THEN the
+    # missing hash becomes the demanded root and fails to force
     ghost = sha(b"this node was never stored")
     hb = st.put(ser(APPLY, 0x06, left=I_H, right=ghost))
     r, sp = eval_hash(hb, 10, st)
-    chk("missing child -> Unresolved Reference", r == ("dis", R_UNRES))
+    chk("missing child -> Unresolved Reference (4 spent: force+R-I)", r == ("dis", R_UNRES) and sp == 4)
 
-    # REF chain: REF -> REF -> K, costs 2 ATP
+    # TV-9: REF chain: force ref2 (2) + R-R (1) + force ref1 (2) + R-R (1) = 6
     r1 = st.put(ser(REF, F_ATOM, atom=K_H))
     r2 = st.put(ser(REF, F_ATOM, atom=r1))
     r, sp = eval_hash(r2, 10, st)
-    chk("REF chain -> K (2 ATP)", term_hash(r) == K_H and sp == 2)
+    chk("REF chain -> K (6 ATP)", term_hash(r) == K_H and sp == 6)
+    r, sp = eval_hash(r2, 1, st)
+    chk("REF chain budget 1 -> ATP, 0 spent (force costs 2)", r == ("dis", R_ATP) and sp == 0)
+
+    # ADR-003 divergence class: dead missing arguments MUST NOT block reduction
+    hkd = st.put(ser(APPLY, 0x06, left=FALSE_H, right=ghost))       # (K I) ghost
+    r, sp = eval_hash(hkd, 100, st)
+    chk("K-dead-missing -> I (lazy; was Unresolved in v0.4)", term_hash(r) == I_H and sp == 7)
+    inner = put_tree(A(A(Sg, A(Kg, Ig)), A(Kg, Kg)))
+    hsd = st.put(ser(APPLY, 0x06, left=inner, right=ghost))         # S (K I) (K K) ghost
+    r, sp = eval_hash(hsd, 100, st)
+    chk("S(KI)(KK)-dead-missing -> K (divergence class)", term_hash(r) == K_H and sp == 20)
+
+    # Memory bound (ADR-001): materialized size - 1 < spent along any evaluation
+    limits = dict(DEFAULT_LIMITS)
+    stats = {"fetches": 0}
+    t, spent, smax = ("thunk", hT), 0, 1
+    while True:
+        rr = step5(t, 10_000, st, stats, limits)
+        if rr is None: break
+        t = rr[0]; spent += rr[1]; smax = max(smax, size(t))
+    chk("memory bound: size_max - 1 <= spent", smax - 1 <= spent)
 
 
-    # TV2-10 (C1 canonical compiler)
+    # TV-10 (C1 canonical compiler)
     lam_id = ("lam", "x", ("var", "x"))
     chk("C1[lx.x] = I", term_hash(c1(lam_id)) == I_H)
     lam_k = ("lam", "x", ("lam", "y", ("var", "x")))
@@ -284,9 +354,8 @@ def run_tests():
     print("      C1[lxy.x] hash =", term_hash(ck).hex())
     # behaves as K: (C1[lxy.x] S) K -> S
     ht = put_tree(A(A(ck, Sg), Kg))
-    r, sp = eval_hash(ht, 16, st)
-    chk("C1[lxy.x] S K -> S", term_hash(r) == S_H)
-    print("      C1 K-behavior ATP =", sp)
+    r, sp = eval_hash(ht, 64, st)
+    chk("C1[lxy.x] S K -> S (20 ATP)", term_hash(r) == S_H and sp == 20)
 
     # Resource guard: tiny depth limit trips as FAULT, not dissonance
     try:
@@ -296,26 +365,29 @@ def run_tests():
     except ResourceFault:
         chk("resource fault raised (non-canonical)", True)
 
-    # Deep left spine WITHIN max_node_depth must not leak RecursionError
+    # Deep left spine: materialization is PRICED, so a small budget exhausts
+    # deterministically instead of materializing the whole spine (ADR-001 point)
     hd = I_H
     for _ in range(1500):
         hd = st.put(ser(APPLY, 0x06, left=hd, right=I_H))
     try:
         r, sp = eval_hash(hd, 3, st)
-        chk("depth-1500 spine -> canonical outcome", r == ("dis", R_ATP) and sp == 3)
+        chk("depth-1500 spine, atp 3 -> exhausted after root force", r == ("dis", R_ATP) and sp == 3)
     except RecursionError:
-        chk("depth-1500 spine -> canonical outcome", False)
+        chk("depth-1500 spine, atp 3 -> exhausted after root force", False)
 
-    # Deep spine BEYOND max_node_depth -> ResourceFault, never RecursionError
-    for _ in range(3000):
-        hd = st.put(ser(APPLY, 0x06, left=hd, right=I_H))
+    # Deep spine BEYOND max_node_depth with a big budget -> ResourceFault,
+    # never RecursionError (s3.6 guard still the second fence; tight custom
+    # limits keep the O(depth^2) spine walk fast)
+    tight = dict(max_node_depth=512, max_materialized_nodes=10**6,
+                 max_store_fetches=10**6)
     try:
-        eval_hash(hd, 3, st)
-        chk("depth-4500 spine -> resource fault", False)
+        eval_hash(hd, 100_000, st, limits=tight)
+        chk("depth-1500 spine, depth limit 512 -> resource fault", False)
     except ResourceFault:
-        chk("depth-4500 spine -> resource fault (non-canonical)", True)
+        chk("depth-1500 spine, depth limit 512 -> resource fault (non-canonical)", True)
     except RecursionError:
-        chk("depth-4500 spine -> resource fault", False)
+        chk("depth-1500 spine, depth limit 512 -> resource fault", False)
 
     print("\nALL PASS" if all(ok) else "\nFAILURES PRESENT")
     return all(ok)

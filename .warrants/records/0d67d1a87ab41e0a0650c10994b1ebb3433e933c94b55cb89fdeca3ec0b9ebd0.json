@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adopted jointly with ADR-001 via the Hash-Leaf Size Model composition (Gemini proof, DeepSeek re-derivation). Divergence class normative (EV-K-DEAD-*, EV-S-KI-KK-DEAD-Z flipped and pinned); Genesis Intrinsic Rule in Book I s5.1 (I/K/S axioms; FALSE is a theorem). Normative text: Book I s3.3/s3.5."
+      },
+      {
+        "check": "ef73be8b24813e6b6794489a88eb31896300f4b15beee3429970774fa200c751",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "dc18ab3bb5a8136307b2d81cc56bfdba076457617a8e3faa688446cb6fca7dc3",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "dc18ab3bb5a8136307b2d81cc56bfdba076457617a8e3faa688446cb6fca7dc3"
+    ],
+    "prior": [
+      "d64ab6f2b69c790e37b5d34f05eaf731f633ab83ba8ea253879e091741ccb523"
+    ],
+    "subject": {
+      "hash": "4f4294007a198165e0c41cdabeb241b540b8f624b4f43500a9ff0ab1b47cf640",
+      "note": "ADOPT ADR-003 in v0.5.0 (lazy left-spine, jointly with ADR-001)"
+    },
+    "ts": 1783272477,
+    "under": [
+      "5278627d12b23a52560b58b34d53450fef525fe9cdd084e0f1db71866cb4a26e"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "51b1ff468248fbf59ceafaf38cd17547d1b021c0249ae502381f0bdea1fd537a6e65ae78aef9d029d73c38b68607766f63e12c2ae047be406a9a090dd830770d"
+    }
+  ]
+}

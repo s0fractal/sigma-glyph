@@ -1,7 +1,15 @@
 Sigma-GLYPH Specification Anchors (detached)
 Anchor = NodeHash(LITERAL, atom=SHA-256(document_bytes))
 
-== v0.4.6 ==
+== v0.5.0 ==
+0c4f39ccccca99ae2c409d64085aabc82d446a1f6ea1fa5692ad0acb09d4668d  spec/book-1-truth.md
+e05f789055acde32b255cb778946d92b47cd2fd0b13eb98ab749adaf60ecd5e4  spec/book-2-navigation.md
+9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
+2df9194b15734a98b185e1f42472ddc52b03597cd6fd48a8a6fbf50799091021  spec/appendix-a-complexity.md
+c55c2c40989f72b77db03483a22ab38aec8c81d9fbef4e7ac8e5e1cf5cb6f6f4  tests/spec_conformance/vectors.json
+02b5b7ffa74a219ed9769de3cfa3a75e8495f4b07ad317487f4e093f6fdbbf1b  tests/spec_conformance/wave_vectors.json
+
+== v0.4.6 (ancestors) ==
 6ca303f30889a9a52117f7558e4a8b44ce5b42a0303cd6da381594d792ea2cfb  spec/book-1-truth.md
 7d96151872cf258223f452b77c5c0a584e06d05f0c9b27982cad9c345416b836  spec/book-2-navigation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md

@@ -7,8 +7,10 @@ Properties are drawn from the multi-model reviews (Sonnet 4.5 P3.2):
   P3  eval is deterministic: same (hash, atp) -> same (result, spent), twice
   P4  ATP exactness: budget == spent reaches the same normal form;
       budget == spent-1 exhausts (when spent > 0)
-  P5  normal forms are fixed points: re-eval of a result spends 0 ATP
+  P5  normal forms are fixed points: re-eval of a result yields the same hash
   P6  C1 output is pure SKI (no var/lam) and compilation is deterministic
+  P7  memory bound (Book I s3.4, v0.5): materialized size - 1 <= spent at
+      every step of every evaluation
 
     python3 tests/spec_conformance/test_properties.py
 """
@@ -90,8 +92,21 @@ for i in range(2000):
         chk(f"P2[{i}] fuzz round-trip", rt == b, b.hex())
 chk("P2 deser total (no crash on 2000 fuzz buffers)", True)
 
-# ---------- P3/P4/P5: eval determinism, ATP exactness, fixed points ----------
-BUDGET = 200
+# ---------- P3/P4/P5/P7: determinism, exactness, fixed points, memory bound ----------
+BUDGET = 5000
+
+
+def put_result_tree(t, st):
+    """Store a result term that may contain thunks (their targets are already
+    in the store or intrinsic)."""
+    if t[0] == "app":
+        put_result_tree(t[1], st)
+        put_result_tree(t[2], st)
+    if t[0] != "thunk":
+        st.put(sg.term_bytes(t))
+    return sg.term_hash(t)
+
+
 for i in range(150):
     st = sg.Store()
     t = rand_ski(rng.randrange(1, 6))
@@ -103,6 +118,19 @@ for i in range(150):
         continue  # local fault, non-canonical; not this test's subject
     chk(f"P3[{i}] eval deterministic",
         sg.term_hash(r1) == sg.term_hash(r2) and s1 == s2)
+    # P7: memory bound along the whole evaluation
+    tt, spent, ok_bound = ("thunk", h), 0, True
+    stats = {"fetches": 0}
+    while True:
+        try:
+            rr = sg.step5(tt, BUDGET - spent, st, stats, sg.DEFAULT_LIMITS)
+        except (sg.BudgetExhausted, sg.Unresolved):
+            break
+        if rr is None:
+            break
+        tt = rr[0]; spent += rr[1]
+        ok_bound = ok_bound and (sg.size(tt) - 1 <= spent)
+    chk(f"P7[{i}] memory bound size-1 <= spent", ok_bound)
     if r1 == ("dis", sg.R_ATP):
         continue  # exhausted at BUDGET; exactness below needs a normal form
     r3, s3 = sg.eval_hash(h, s1, st)
@@ -111,10 +139,10 @@ for i in range(150):
     if s1 > 0:
         r4, _ = sg.eval_hash(h, s1 - 1, st)
         chk(f"P4[{i}] budget spent-1 exhausts", r4 == ("dis", sg.R_ATP))
-    hr = put_tree(r1, st)
+    hr = put_result_tree(r1, st)
     r5, s5 = sg.eval_hash(hr, BUDGET, st)
-    chk(f"P5[{i}] normal form is a fixed point (0 ATP)",
-        sg.term_hash(r5) == sg.term_hash(r1) and s5 == 0)
+    chk(f"P5[{i}] normal form is a fixed point (same hash on re-eval)",
+        sg.term_hash(r5) == sg.term_hash(r1))
 
 # ---------- P6: C1 compiles closed lambda terms to pure SKI, deterministically ----------
 def pure_ski(t):

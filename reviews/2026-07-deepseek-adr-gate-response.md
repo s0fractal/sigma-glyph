@@ -38,6 +38,8 @@ Two conforming Book II implementations following the two readings would silently
 
 This is the review process compounding: review 3's P2 was load-bearing, and verifying it produced a sharper pin than the review itself proposed.
 
+**CORRECTION (same day, before the v0.5 forge).** The pin above is wrong. Book II §3 has normatively defined `div_round_half_up` as **round-half-away-from-zero** since v0.4.x — DeepSeek's assumption was spec-correct (impressively, without Book II in its briefing pack), and the floor formula I pinned came from a verification snippet, not from the Book. The trap is real, the sides were swapped: floor-based implementations are the nonconforming ones. ADR-002's rounding section now simply inherits Book II §3, and the wave vector set gets a negative odd-sum case to catch floor implementations. Maintainer error, caught by re-reading the primary source before implementing — recorded here because response documents that quietly become correct are worse than ones that visibly got corrected.
+
 ## Gate status: REVIEWS COMPLETE (3 of 3)
 
 Per the Decision Process, what remains before v0.5 adoption is the **implementation gate**:

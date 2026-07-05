@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.5.0 — "Priced Reality" (2026-07) — BREAKING
+
+Adopts ADR-001 + ADR-003 (composed via the Hash-Leaf Size Model) and ADR-002, after 3/3 dedicated model reviews (Codex, Gemini, DeepSeek) and 5 adjudication warrants. **Serialization, validation, NodeHashes and C1 are unchanged — every v0.4 hash remains valid.** What changed is evaluation semantics and ATP accounting.
+
+**Book I (0.4.5 → 0.5.0):**
+- §3.3: the **hash-thunk machine** — terms are graphs of materialized nodes over unresolved hashes (thunks); redex patterns compare hashes without forcing; leftmost-outermost search forces only what it demands; genesis thunks are normal-form leaves. Divergence class normative: undemanded unresolved subtrees never affect results.
+- §3.4: **size-priced ATP, hash-leaf model** — force costs 1/2/3 (atom/REF/APPLY), R-I/R-K/R-R cost 1, R-S costs `1 + size(z)` with thunks counting 1 and never forced. New normative invariant: `materialized size − 1 ≤ spent` (the memory bound). Exhaustion decided before every action; min-cost 1 check precedes even the fetch.
+- §3.5: **lazy left-spine materialization normative** (eager was 0.4.x); §3.6 updated (size guard now free via the bound).
+- §5.1: **Genesis Intrinsic** — I/K/S resolve without a store; FALSE is a theorem, constructible.
+- §7: TV costs re-pinned (TV-4: 4 ATP; TV-5: 12; TV-6: 21; TV-9: 6; TV-10: 20); new TV-11 (divergence class) and TV-12 (genesis intrinsic).
+
+**Book II (0.4.2 → 0.5.0):**
+- §5: **entropy–coherence coupling** — `delta_en = div_round_half_up(−r, 128)`; constructive interference creates order, destructive creates disorder.
+- §5.1: **Resonance Identity rewritten** — entropy drifts −256 per constructive self-application; the unique non-zero full-WaveVector fixed point is `{am=65535, en=−32768}` (crystallization; the Gravity mechanism).
+
+**Vectors and implementations:**
+- `vectors.json` format v2 (46 vectors): all eval expectations re-pinned; `store_subset` field for isolation vectors; flips vs v0.4: `EV-K-DEAD-MISSING` → I (was Unresolved), `EV-REF-MISSING-ATP1` → Exhausted (force priced). ghost bytes pinned: SHA-256("this node was never stored").
+- **New `impl/sigma_wave.py`** (Book II oracle: LUT arbiter-checked, interfere with coupling) + `wave_vectors.json` (9 vectors incl. `WV-NEG-TIE` — catches floor-rounding implementations: `avg(−1,−2)` MUST be −2, away-from-zero per Book II §3).
+- Property suite: +P7 memory bound (2103 checks); appendix A rewritten (time O(spent²), memory O(spent), "you pay to look").
+
+**Migration from v0.4.x:**
+1. Hashes, stores and blobs need no migration — identity layer untouched.
+2. Re-budget every eval call: costs are ~2–4× step counts for small terms (materialization is priced). Rule of thumb: `3×(nodes to touch) + old step count + size of duplicated args`.
+3. Terms relying on eager verification ("whole closure must exist") now reduce past dead missing branches — if you depended on Unresolved Reference as an availability check, check availability explicitly instead.
+4. Wave annotations: recompute entropies; self-resonant structures drift to en=−32768 by design.
+5. Anchors: Book I `0c4f39cc…`, Book II re-anchored; v0.4.6 anchors remain valid ancestors.
+
 ## v0.4.6 (2026-07)
 - **New: `spec/appendix-a-complexity.md`** (NON-NORMATIVE) — per-rule size deltas (only R-S/R-R grow, each by < the duplicated size), O(2^ATP) worst-case envelope with the honest empirical note that Omega grows *linearly* (~1 node / 8 steps; the exponential bound needs crafted duplication towers), time/space bounds for v0.4.x vs ADR-001, fetch accounting. Closes Sonnet 4.5 P3.1 — the last deferred finding from that review.
 - **New: `tools/complexity_metrics.py`** — regenerates the appendix table; integer-deterministic, machine-independent. Table vs tool: tool wins.

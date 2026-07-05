@@ -26,7 +26,9 @@
 - ATP budget width: `uint32` is the canonical API contract; ATP > 2³²−1 is implementation-defined (MAY reject or clamp). Only the three canonical outcomes are consensus-critical (Claude Sonnet 4.5, 2026-07).
 - `resolve(h)` failure modes are explicit and distinct: hash not found → DISSONANCE(Unresolved Reference); bytes failing §4.1 → Canonical Invalid Object (Claude Sonnet 4.5, 2026-07).
 - ATP budget check precedes firing: `spent` never exceeds `atp`; exhaustion is decided before any resolve of the next step (`eval(REF(missing),0)` = ATP Exhausted); failed firings are not charged; `eval` is total — no raw errors (Codex follow-up, 2026-07).
-- Eager materialization is normative in 0.4.x: APPLY children resolve before redex recognition; a missing *dead* argument still yields Unresolved Reference. Lazy left-spine resolution is ADR-003 (v0.5 candidate), not a 0.4.x reading (Codex follow-up, 2026-07).
+- ~~Eager materialization is normative in 0.4.x~~ **Superseded in v0.5.0** (the settlement rule working as designed — new evidence: three ADR-gate reviews): lazy left-spine is normative; undemanded unresolved subtrees never affect results; genesis axioms I/K/S are intrinsic (FALSE is a theorem).
+- v0.5 ATP is size-priced under the hash-leaf model: every materialization is a priced action; `materialized size − 1 ≤ spent` is a normative invariant (ADR-001×003 composition; Gemini proof, DeepSeek re-derivation, 2026-07).
+- Entropy couples to coherence (ADR-002): Resonance Identity v0.5 = phase kept, amplitude squared, entropy −256 per constructive self-application; unique non-zero fixed point `{am=65535, en=−32768}`. `div_round_half_up` is round-half-AWAY-FROM-ZERO (Book II §3) — floor variants fail `WV-NEG-TIE`.
 
 ## Adjudications are filed as warrants
 

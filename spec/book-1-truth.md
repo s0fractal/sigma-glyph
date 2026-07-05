@@ -1,6 +1,6 @@
 # Σ-GLYPH — Book I: TRUTH
 
-**Version:** 0.4.5
+**Version:** 0.5.0
 **Type:** Bit-Exact Computational Core
 **Status:** DRAFT STANDARD
 **Scope:** Цей документ визначає все — і лише те — що необхідно двом незалежним нодам для консенсусу щодо хеша результату обчислення. Все інше (навігація, координати, лор) — в окремих документах, які MUST NOT впливати на цю Книгу.
@@ -54,45 +54,63 @@ R-S:  APPLY(APPLY(APPLY(⟨S⟩,x),y), z)  →  APPLY(APPLY(x,z), APPLY(y,z))
 R-R:  REF(h)                           →  resolve(h)
 ```
 
-**R-R розгортає рівно один рівень за крок (MUST).** Ланцюг `REF→REF→…→T` довжини n коштує n кроків (n ATP). Якщо після витрати бюджету терм не в нормальній формі — результат `DISSONANCE(ATP Exhausted)`, незалежно від того, скільки рівнів REF лишилося. Транзитивне розгортання в один крок заборонене.
+**R-R розгортає рівно один рівень за крок (MUST).** Транзитивне розгортання в один крок заборонене. Під тарифікацією v0.5 (§3.4) ланцюг `REF→REF→…→T` довжини n коштує n·(2+1) = 3n ATP: force кожного REF-вузла (2) + його розгортання (1); конформанс: вектор `EV-TV9`. Якщо бюджету не стає — `DISSONANCE(ATP Exhausted)`, незалежно від того, скільки рівнів лишилося.
 
 ### 3.2. Розпізнавання комбінаторів (MUST)
 
 Вузол є I/K/S тоді й лише тоді, коли його NodeHash дорівнює відповідній константі §5.1. Identity by Hash.
 
-### 3.3. Порядок редукції (MUST)
+### 3.3. Машина хеш-товків та порядок редукції (MUST)
 
-Normal order, leftmost-outermost. На кожному кроці — єдиний редекс:
+Абстрактна машина v0.5 оперує **хеш-товками** (hash thunks): терм у процесі редукції — граф матеріалізованих вузлів, чиї діти — або матеріалізовані вузли, або нерозв'язані хеші (товки). Товк порівнюється з ⟨I⟩/⟨K⟩/⟨S⟩ за хешем без матеріалізації; товк матеріалізується лише коли його вимагає leftmost-outermost пошук. Кожна дія машини — спрацювання правила АБО матеріалізація одного вузла — тарифікується (§3.4).
 
 ```text
-step(t):
-  if t = REF(h):                           fire R-R
-  elif t matches R-I|R-K|R-S at root:      fire that rule
+step(t):                                            // одна тарифікована дія
+  if t = thunk(h):
+      if h ∈ {H(I),H(K),H(S)}: none                 // NF-лист за хешем, §5.1
+      else: force(h)                                // матеріалізація одного вузла
+  elif t = REF(h):                fire R-R          // → thunk(h), один рівень
+  elif t matches R-I|R-K|R-S at root: fire          // патерни — порівняння хешів,
+                                                    // аргументи НЕ форсуються
   elif t = APPLY(f,a):
-      if step(f) exists: reduce in f
-      elif step(a) exists: reduce in a
-      else: none                            // normal form
-  else: none                                // LITERAL, DISSONANCE
+      if step(f) exists: act in f                   // спуск лівим хребтом
+      elif step(a) exists: act in a                 // f нормальний → вимога a
+      else: none                                    // normal form
+  else: none                                        // LITERAL, DISSONANCE
 ```
 
-### 3.4. ATP (MUST)
+**Клас розбіжностей закрито нормативно:** нерозв'язане піддерево, яке leftmost-outermost редукція не вимагає — включно з deadness, що з'являється лише після переписувань — MUST NOT впливати на результат. `APPLY(APPLY(⟨K⟩, x), missing)` → `x`, а не Unresolved Reference; `S (K I) (K K) missing` → ⟨K⟩. (ADR-003; знахідки Codex + Gemini + DeepSeek, 2026-07.)
 
-* Кожне спрацювання R-I/R-K/R-S/R-R коштує рівно 1 ATP.
-* `eval(term_hash, atp: uint32)` → нормальна форма | `DISSONANCE(ATP Exhausted)` | `DISSONANCE(Unresolved Reference)`. Усі три — канонічні, детерміновані, однакові на всіх нодах.
-* ATP-бюджет — `uint32` (діапазон 0..2³²−1). Для викликів з ATP > 2³²−1 поведінка implementation-defined: реалізація MAY відхилити виклик або clamp'нути бюджет — це локальний API-контракт, не консенсус. Консенсус-критичними є лише канонічні результати цього параграфа; вони не залежать від ширини цілого, якою реалізація представляє бюджет. (Знахідка: Claude Sonnet 4.5 review, 2026-07.)
-* **Перевірка вичерпання передує спрацюванню.** Якщо терм не в нормальній формі і `spent == atp`, результат — `DISSONANCE(ATP Exhausted)` зі звітованим `spent == atp`. Реалізація MUST NOT виконувати спрацювання понад бюджет; звітований `spent` MUST NOT перевищувати `atp`. Пріоритет: вичерпання вирішується **до** будь-якого `resolve`, потрібного наступному кроку (`eval(REF(missing), 0)` = ATP Exhausted, не Unresolved Reference). Невдале спрацювання — відмова `resolve` посеред кроку — не тарифікується: `spent` рахує лише завершені спрацювання. `eval` тотальний над канонічними результатами: жодна внутрішня відмова resolve MUST NOT покидати `eval` інакше, ніж як канонічний `DISSONANCE`. (Знахідка: Codex follow-up review, 2026-07.)
-* Нормативна модель обліку — **tree semantics**. Graph reduction зі спільними підтермами MAY застосовуватись, але спостережуваний результат і звітований ATP MUST збігатися з tree semantics (конформанс: TV-6).
-* Результат — вузол; його NodeHash — канонічна адреса результату: `result_hash = eval(term_hash, atp)`.
+### 3.4. ATP: size-priced, hash-leaf model (MUST)
+
+**Розмір** (hash-leaf model): кожен матеріалізований вузол рахується як 1; нерозв'язаний хеш-лист рахується **рівно 1** незалежно від того, що він позначає; матеріалізований REF рахується 2 (вузол + товк цілі); `size(APPLY) = 1 + size(лівого) + size(правого)`.
+
+**Ціни дій:**
+
+```text
+cost(force h)  = size(матеріалізованого вузла з товк-дітьми)
+                 = 1 (LITERAL, DISSONANCE) | 2 (REF) | 3 (APPLY)
+cost(R-R)      = 1        // REF-вузол → товк цілі, один рівень за крок
+cost(R-I)      = 1
+cost(R-K)      = 1        // відкинутий аргумент НЕ форсується і НЕ тарифікується
+cost(R-S)      = 1 + size(z)   // z у поточній матеріалізації; товки в z = 1, не форсуються
+```
+
+* `eval(term_hash, atp: uint32)` → нормальна форма | `DISSONANCE(ATP Exhausted)` | `DISSONANCE(Unresolved Reference)`. Усі три — канонічні, детерміновані, однакові на всіх нодах. Результат — вузол; його NodeHash — канонічна адреса результату.
+* ATP-бюджет — `uint32`; ATP > 2³²−1 — implementation-defined (MAY відхилити/clamp); консенсус-критичні лише канонічні результати. Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined.
+* **Перевірка вичерпання передує дії.** Дія з ціною `c > atp − spent` не виконується: результат `DISSONANCE(ATP Exhausted)` зі `spent` без змін. Мінімальна ціна будь-якої дії — 1, тому при `spent == atp` вичерпання вирішується **до** будь-якого звернення до сховища (`eval(REF(missing), 0)` = ATP Exhausted). Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано. Невдала дія (відмова resolve) не тарифікується. `eval` тотальний: жодна внутрішня відмова MUST NOT покидати `eval` інакше, ніж канонічним `DISSONANCE`. (Дисципліна v0.4.5, успадкована зі змінними цінами.)
+* **Семантична межа пам'яті (теорема, нормативний інваріант):** уздовж будь-якого виконання `materialized_size(t) − 1 ≤ spent`. Кожна дія коштує строго більше, ніж додає розміру. Реалізація MAY використовувати це для безкоштовного size-guard. (ADR-001 + композиція ADR-003, hash-leaf model; доказ: Gemini review; незалежна передеривація: DeepSeek review, 2026-07.)
+* Нормативна модель обліку — tree semantics над матеріалізованим графом: шаринг MAY застосовуватись у виконанні, але звітований ATP MUST збігатися з tree-обліком.
 
 ### 3.5. Resolution Contract (MUST)
 
-`resolve(h)` — єдина операція отримання вузла за хешем: для кореня, для R-R, для дітей APPLY при пошуку редекса. Два режими відмови розрізняються явно: (a) `resolve(h)` не може знайти `h` у сховищі → `DISSONANCE(Unresolved Reference)`; (b) `resolve(h)` повертає байти, що не проходять валідацію §4.1 → матеріалізується Canonical Invalid Object (§4.2).
+`resolve(h)`/`force(h)` — єдина операція матеріалізації вузла за хешем. Два режими відмови розрізняються явно: (a) `h` не знаходиться у сховищі **і не є intrinsic-аксіомою §5.1** → `DISSONANCE(Unresolved Reference)`; (b) байти не проходять валідацію §4.1 → матеріалізується Canonical Invalid Object (§4.2), дія тарифікується як force вузла DISSONANCE (1).
 
-**Матеріалізація — eager (нормативно в 0.4.x).** Резолюція вузла APPLY рекурсивно матеріалізує **обох** дітей до розпізнавання редексів. Терм, чиє повне дерево не резолвиться, дає `DISSONANCE(Unresolved Reference)` незалежно від того, чи потрібна відсутня гілка редукції: `APPLY(APPLY(K, I), missing)` → Unresolved Reference, а не `I` — мертвий аргумент теж мусить існувати. Лінива резолюція лівого хребта (нормальний порядок аж до рівня сховища) — кандидат v0.5, див. ADR-003. (Знахідка: Codex follow-up review, 2026-07.)
+**Матеріалізація — лінива, за вимогою пошуку (нормативно з v0.5).** Форсується лише товк, що його вимагає leftmost-outermost пошук: лівий хребет для розпізнавання редексів, аргумент — лише коли функціональна частина нормальна. Мертві гілки не форсуються ніколи (§3.3). Історична довідка: у 0.4.x нормативною була eager-матеріалізація; зміна результатів для термів із мертвими відсутніми гілками — свідомий breaking change v0.5 (ADR-003).
 
 ### 3.6. Канонічні відмови vs локальні faults (MUST)
 
-Канонічні результати — лише три з §3.4. Порушення локальних ресурсних лімітів реалізації (глибина, кількість матеріалізованих вузлів, кількість fetch, розміри) — **implementation fault**: відмова виконання, яка MUST NOT серіалізуватися як DISSONANCE. Мотивація: R-S подвоює підтерм за 1 ATP, розмір росте до O(2^ATP); ATP обмежує роботу, не пам'ять. Конкретні ліміти та їх значення — поза цією Книгою (implementation notes).
+Канонічні результати — лише три з §3.4. Порушення локальних ресурсних лімітів реалізації (глибина, кількість fetch) — **implementation fault**: відмова виконання, яка MUST NOT серіалізуватися як DISSONANCE. З v0.5 пам'ять обмежена семантично (§3.4: розмір ≤ 1 + spent), тож size-фолти досяжні лише за бюджетів порядку ліміту; guards лишаються другим парканом. Конкретні ліміти — поза цією Книгою (implementation notes).
 
 ### 3.7. Tooling (MAY, non-consensus)
 
@@ -126,6 +144,8 @@ Hash:  af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507
 | S | `0001`+SHA-256("S") | `887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6` |
 
 Повні 32-байтні значення SHA-256("I"/"K"/"S") — в `impl/sigma_glyph.py` (TV-1); тут вони навмисно не дублюються, щоб не створювати друге джерело істини.
+
+**Genesis intrinsic (MUST, з v0.5).** Три аксіоми I, K, S — intrinsic-константи: конформна реалізація MUST обслуговувати `resolve/force` їхніх канонічних хешів без залежності від наявності цих байтів у сховищі — байти задані цим параграфом, синтез детермінований. `DISSONANCE(Unresolved Reference)` для H(I)/H(K)/H(S) MUST NOT виникати. Товк із intrinsic-хешем — нормальна форма без матеріалізації (§3.3). FALSE (§5.2) — теорема, не аксіома: intrinsic-статусу не потребує, її байти конструюються з H(K), H(I) без сховища. (Кандидатура: Codex + Gemini; підтвердження без розбіжностей: DeepSeek, 2026-07.)
 
 ### 5.2. Перша теорема
 
@@ -170,19 +190,25 @@ A(x, (M N))  = APPLY(APPLY(⟨S⟩, A(x,M)), A(x,N))
 
 **TV-3 (DISSONANCE ATP):** Bytes `ff01dc435a08513893bacd07abd802b9c526e92ae57ca6db40c1c8f369fd7032e090`; Hash `8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176`.
 
-**TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`; `eval(·,1)=⟨K⟩`, 1 ATP; `eval(·,0)=DISSONANCE(ATP Exhausted)`.
+Ціни нижче — v0.5 (size-priced, hash-leaf, §3.4). Вичерпний машинний набір — `tests/spec_conformance/vectors.json` (нормативний; при розбіжності з прозою виграє оракул `impl/sigma_glyph.py`).
 
-**TV-5 (SKK·I):** hash `c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc`; `eval(·,2)=⟨I⟩`, 2 ATP; проміжна форма кроку 1 = `APPLY(⟨FALSE⟩,⟨FALSE⟩)`, hash `b45355fc…4eaba133`.
+**TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`; `eval(·,4)=⟨K⟩`, **4 ATP** (force кореня 3 + R-I 1); `eval(·,0)` = ATP Exhausted, spent 0 — без жодного звернення до сховища; `eval(·,2)` = ATP Exhausted, spent 0 — байти кореня відкинуті (force коштує 3 > 2); `eval(·,3)` = ATP Exhausted, spent 3.
 
-**TV-6 (Duplication Stress):** `S I I (I·K)` hash `0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198`; нормальна форма `APPLY(⟨K⟩,⟨K⟩)`; рівно **5 ATP** tree (шаринг дав би 4; звіт MUST = 5).
+**TV-5 (SKK·I):** hash `c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc`; `eval(·,12)=⟨I⟩`, **12 ATP** (3 force по 3 + R-S 2 + R-K 1).
+
+**TV-6 (Duplication Stress):** `S I I (I·K)` hash `0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198`; нормальна форма `APPLY(⟨K⟩,⟨K⟩)`; рівно **21 ATP**; уздовж виконання `size − 1 ≤ spent` (семантична межа пам'яті, §3.4).
 
 **TV-7 (Omega):** `Ω = (SII)(SII)` hash `0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211`; `∀n: eval(Ω,n) = DISSONANCE(ATP Exhausted)`.
 
-**TV-8 (Unresolved Child):** `APPLY(⟨I⟩, ghost)` при відсутньому ghost → `DISSONANCE(Unresolved Reference)`.
+**TV-8 (Unresolved Child):** `APPLY(⟨I⟩, ghost)` при відсутньому ghost → `DISSONANCE(Unresolved Reference)`, spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується.
 
-**TV-9 (REF chain):** store: `r1=REF(H(K))`, `r2=REF(r1)`; `eval(r2, 2)=⟨K⟩`, рівно 2 ATP; `eval(r2, 1)=DISSONANCE(ATP Exhausted)`.
+**TV-9 (REF chain):** store: `r1=REF(H(K))`, `r2=REF(r1)`; `eval(r2, 6)=⟨K⟩`, рівно **6 ATP** (2 force по 2 + 2 R-R по 1); `eval(r2, 1)` = ATP Exhausted, spent 0 (force коштує 2).
 
-**TV-10 (C1 compiler):** `C1[λx.x] = ⟨I⟩`. `C1[λx.λy.x] = APPLY(APPLY(⟨S⟩,APPLY(⟨K⟩,⟨K⟩)),⟨I⟩)`, hash `bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d`; `eval(APPLY(APPLY(C1[λxy.x],⟨S⟩),⟨K⟩), 16) = ⟨S⟩`.
+**TV-10 (C1 compiler):** `C1[λx.x] = ⟨I⟩`. `C1[λx.λy.x] = APPLY(APPLY(⟨S⟩,APPLY(⟨K⟩,⟨K⟩)),⟨I⟩)`, hash `bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d`; `eval(APPLY(APPLY(C1[λxy.x],⟨S⟩),⟨K⟩), 20) = ⟨S⟩`, 20 ATP.
+
+**TV-11 (Divergence class, v0.5):** ghost = SHA-256(ASCII `this node was never stored`), відсутній у сховищі. `APPLY(⟨FALSE⟩, ghost)` (= `(K I) ghost`) → ⟨I⟩, 7 ATP; `APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP. У 0.4.x обидва давали Unresolved Reference — це свідомий breaking change (ADR-003).
+
+**TV-12 (Genesis intrinsic, v0.5):** `REF(H(K))` на **порожньому** сховищі → ⟨K⟩, 3 ATP. Голий intrinsic-товк: `eval(H(I), n)` = ⟨I⟩, 0 ATP, сховище не потрібне.
 
 **Негативні:** flags поза 0x07; невідповідність Flags опкоду; опкод 0x03; довжина ≠ expected — усе → Canonical Invalid Object.
 

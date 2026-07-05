@@ -1,7 +1,7 @@
 # Σ-GLYPH
 
 **Topological Compute Engine / Decentralized Wave Resonator**
-Current: **v0.4.6** — DRAFT STANDARD, verified test vectors, reference implementation, machine-readable conformance suite ([`tests/spec_conformance/`](tests/spec_conformance/)).
+Current: **v0.5.0 "Priced Reality"** — DRAFT STANDARD. Hash-thunk evaluation (lazy left-spine), size-priced ATP with a semantic memory bound, entropy–coherence coupling. Machine-readable conformance suites for both Books ([`tests/spec_conformance/`](tests/spec_conformance/)).
 
 Content-addressed SKI computation core with a bit-exact determinism guarantee, plus a wave/coordinate navigation layer that is strictly a *view* over identity — never part of it.
 
@@ -17,14 +17,15 @@ result_hash = eval(term_hash, atp)     // deterministic, integer-only, total
 | [`spec/book-2-navigation.md`](spec/book-2-navigation.md) | Normative | **nodes** (annotation layer) — WaveVectorQ as detached annotation, pinned LUT (SHA-256 arbitrated), `interfere()` with the Law of Left Dominance, coordinate pins, Mass, CP-24 |
 | [`spec/LORE.md`](spec/LORE.md) | Non-normative | **humans & agents** — why the glyphs are named, why FALSE sits at 270°, why the wave left the hash, and what deliberately isn't here yet |
 
-Core invariants, in one breath: **hash is identity; phase is a coordinate; wave is a view; aggregate is never a field; ATP prices work, not memory; canonical failures are deterministic, local faults are not canonical.**
+Core invariants, in one breath: **hash is identity; phase is a coordinate; wave is a view; aggregate is never a field; ATP prices work AND memory (size − 1 ≤ spent); dead branches are never fetched; canonical failures are deterministic, local faults are not canonical.**
 
 ## Reference implementation
 
-`impl/sigma_glyph.py` — Book I, Milestone 1: serialization, validation, CAS, normal-order evaluator with ATP accounting, C1 λ→SKI compiler, full conformance suite (TV-1…TV-10 + negatives).
+`impl/sigma_glyph.py` — Book I: serialization, validation, CAS, the v0.5 hash-thunk evaluator (lazy left-spine, size-priced ATP, genesis intrinsic), C1 λ→SKI compiler. `impl/sigma_wave.py` — Book II: arbiter-checked LUT, interfere() with entropy–coherence coupling.
 
 ```bash
 python3 impl/sigma_glyph.py    # expected: ALL PASS
+python3 impl/sigma_wave.py     # expected: WAVE: ALL PASS
 ```
 
 ## For AI reviewers

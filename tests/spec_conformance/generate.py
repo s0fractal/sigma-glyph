@@ -17,9 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.4.5"   # Book I document version these vectors conform to
-SUITE_VERSION = "0.4.5"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "6ca303f30889a9a52117f7558e4a8b44ce5b42a0303cd6da381594d792ea2cfb"
+SPEC_VERSION = "0.5.0"   # Book I document version these vectors conform to
+SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
+BOOK1_ANCHOR = "0c4f39ccccca99ae2c409d64085aabc82d446a1f6ea1fa5692ad0acb09d4668d"
 
 store = sg.Store()
 objects = {}
@@ -61,8 +61,17 @@ def deser_vector(vid, note, buf):
     })
 
 
-def eval_vector(vid, note, h, atp):
-    r, spent = sg.eval_hash(h, atp, store)
+def eval_vector(vid, note, h, atp, subset=None):
+    """subset: optional list of object hashes (hex) — the vector runs against a
+    fresh store containing ONLY those objects (format v2; genesis-intrinsic and
+    availability vectors need a store the shared preload would contaminate)."""
+    if subset is None:
+        st = store
+    else:
+        st = sg.Store()
+        for hx in subset:
+            st.put(bytes.fromhex(objects[hx]))
+    r, spent = sg.eval_hash(h, atp, st)
     if r == ("dis", sg.R_ATP):
         outcome = "atp_exhausted"
     elif r == ("dis", sg.R_UNRES):
@@ -71,7 +80,7 @@ def eval_vector(vid, note, h, atp):
         outcome = "invalid_object"
     else:
         outcome = "normal_form"
-    vectors.append({
+    v = {
         "id": vid, "kind": "eval", "note": note,
         "term": h.hex(), "atp": atp,
         "expected": {
@@ -79,7 +88,10 @@ def eval_vector(vid, note, h, atp):
             "result_hash": sg.term_hash(r).hex(),
             "atp_spent": spent,
         },
-    })
+    }
+    if subset is not None:
+        v["store_subset"] = sorted(subset)
+    vectors.append(v)
 
 
 # ---------- objects: genesis + canonical constants ----------
@@ -108,82 +120,106 @@ deser_vector("INV-FLAGS-MISMATCH", "LITERAL with APPLY flags", bytes([0x00, 0x06
 deser_vector("INV-LEN-LONG", "APPLY with one extra byte", bytes([0x02, 0x06]) + b"\x00" * 65)
 deser_vector("INV-LEN-SHORT", "APPLY truncated to one child", bytes([0x02, 0x06]) + b"\x00" * 32)
 
-# ---------- eval: TV-4 .. TV-10 + boundaries ----------
-h_I = sg.I_H
-eval_vector("EV-LIT", "a lone LITERAL is a normal form; 0 ATP", h_I, 10)
+# ---------- eval: v0.5 hash-thunk machine, size-priced ATP ----------
+eval_vector("EV-GENESIS-BARE", "bare intrinsic thunk: eval(H(I)) is NF by hash; 0 ATP, no store access", sg.I_H, 10)
+
+lit_dummy = put(sg.ser(sg.LITERAL, sg.F_ATOM, atom=sg.sha(b"dummy blob")))
+eval_vector("EV-LIT-FORCE", "non-genesis LITERAL: one force (1 ATP), then NF", lit_dummy, 10)
 
 dis_custom = put(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=sg.sha(b"custom reason")))
-eval_vector("EV-DIS-INERT", "a stored DISSONANCE node is a normal form; 0 ATP", dis_custom, 10)
+eval_vector("EV-DIS-INERT", "a stored DISSONANCE node forces (1 ATP) into a normal form", dis_custom, 10)
 
 h_ik = put_tree(A(Ig, Kg))
-eval_vector("EV-TV4-IK", "TV-4: I K -> K in 1 ATP (R-I)", h_ik, 1)
-eval_vector("EV-TV4-IK-ATP0", "TV-4: budget 0 with a redex present -> ATP Exhausted", h_ik, 0)
+eval_vector("EV-TV4-IK", "TV-4: I K -> K; force root (3) + R-I (1) = 4 ATP", h_ik, 100)
+eval_vector("EV-TV4-IK-ATP0", "TV-4: budget 0 -> ATP Exhausted, spent 0, decided before any store access", h_ik, 0)
+eval_vector("EV-TV4-IK-ATP2", "TV-4: budget 2 -> root force (3) unaffordable; fetched bytes discarded, spent 0", h_ik, 2)
+eval_vector("EV-TV4-IK-ATP3", "TV-4: budget 3 -> root forced, R-I unaffordable; spent 3", h_ik, 3)
 
 h_skki = put_tree(A(A(A(Sg, Kg), Kg), Ig))
-eval_vector("EV-TV5-SKKI", "TV-5: S K K I -> I in 2 ATP", h_skki, 10)
-eval_vector("EV-TV5-EXACT", "TV-5: exact budget 2 still reaches the normal form", h_skki, 2)
-eval_vector("EV-TV5-UNDER", "TV-5: budget 1 -> ATP Exhausted", h_skki, 1)
+eval_vector("EV-TV5-SKKI", "TV-5: S K K I -> I; 3 forces (9) + R-S (1+size(z)=2) + R-K (1) = 12 ATP", h_skki, 100)
+eval_vector("EV-TV5-EXACT", "TV-5: exact budget 12 reaches the normal form", h_skki, 12)
+eval_vector("EV-TV5-UNDER", "TV-5: budget 11 -> ATP Exhausted", h_skki, 11)
 
 h_tv6 = put_tree(A(A(A(Sg, Ig), Ig), A(Ig, Kg)))
-eval_vector("EV-TV6-DUP", "TV-6: S I I (I K) -> APPLY(K,K); tree-semantics ATP is normative (5, not 4)", h_tv6, 100)
-eval_vector("EV-TV6-EXACT", "TV-6: exact budget 5 reaches the normal form", h_tv6, 5)
-eval_vector("EV-TV6-UNDER", "TV-6: budget 4 (graph-semantics cost) MUST exhaust under tree semantics", h_tv6, 4)
+eval_vector("EV-TV6-DUP", "TV-6: S I I (I K) -> APPLY(K,K); size-priced duplication; NF hash unchanged from v0.4", h_tv6, 100)
+eval_vector("EV-TV6-EXACT", "TV-6: exact budget reaches the normal form", h_tv6, 21)
+eval_vector("EV-TV6-UNDER", "TV-6: one under exact -> ATP Exhausted", h_tv6, 20)
 
 W = A(A(Sg, Ig), Ig)
 h_omega = put_tree(A(W, W))
-eval_vector("EV-TV7-OMEGA", "TV-7: Omega = SII(SII) never terminates; deterministic exhaustion", h_omega, 50)
-eval_vector("EV-TV7-OMEGA-0", "TV-7: Omega with budget 0", h_omega, 0)
+eval_vector("EV-TV7-OMEGA", "TV-7: Omega = SII(SII) never terminates; deterministic exhaustion; size-1 <= spent throughout", h_omega, 500)
+eval_vector("EV-TV7-OMEGA-0", "TV-7: Omega with budget 0 -> Exhausted, 0 spent, no store access", h_omega, 0)
 
 ghost = sg.sha(b"this node was never stored")
 h_missing = put(sg.ser(sg.APPLY, 0x06, left=sg.I_H, right=ghost))
-eval_vector("EV-TV8-MISSING-CHILD", "TV-8: APPLY(I, <absent hash>) -> Unresolved Reference", h_missing, 10)
+eval_vector("EV-TV8-MISSING-CHILD",
+            "TV-8: APPLY(I, <absent>): R-I fires lazily WITHOUT forcing the argument; the absent hash then becomes the demanded root -> Unresolved Reference, spent 4",
+            h_missing, 10)
 
 h_k_dead = put(sg.ser(sg.APPLY, 0x06, left=sg.FALSE_H, right=ghost))
 eval_vector("EV-K-DEAD-MISSING",
-            "s3.5: eager materialization is normative in 0.4.x — APPLY(APPLY(K,I), <absent>) -> Unresolved Reference, NOT I (dead argument must exist; lazy spine = ADR-003)",
-            h_k_dead, 10)
+            "TV-11/ADR-003: APPLY(APPLY(K,I), <absent>) -> I. Dead missing argument no longer blocks reduction (v0.4.x: Unresolved Reference — deliberate v0.5 breaking change). ghost = SHA-256('this node was never stored')",
+            h_k_dead, 100)
+
+h_ki = put_tree(A(Kg, Ig))
+h_ii = put(sg.ser(sg.APPLY, 0x06, left=sg.I_H, right=ghost))
+h_k_dead_nested = put(sg.ser(sg.APPLY, 0x06, left=h_ki, right=h_ii))
+eval_vector("EV-K-DEAD-NESTED-MISSING",
+            "TV-11: APPLY(APPLY(K,I), APPLY(I,<absent>)) -> I; deadness through a nested unresolvable subtree",
+            h_k_dead_nested, 100)
+
+h_ski_inner = put_tree(A(A(Sg, A(Kg, Ig)), A(Kg, Kg)))
+h_s_dead = put(sg.ser(sg.APPLY, 0x06, left=h_ski_inner, right=ghost))
+eval_vector("EV-S-KI-KK-DEAD-Z",
+            "TV-11: S (K I) (K K) <absent> -> K; the argument is duplicated by R-S as a hash leaf and discarded by both Ks without ever being forced (divergence class, reviews Codex+Gemini+DeepSeek)",
+            h_s_dead, 100)
 
 r_ghost = put(sg.ser(sg.REF, sg.F_ATOM, atom=ghost))
 eval_vector("EV-REF-MISSING-ATP0",
-            "s3.4: exhaustion is decided BEFORE any resolve of the next step — REF(<absent>) at budget 0 -> ATP Exhausted, not Unresolved",
+            "s3.4: exhaustion decided before any store access — REF(<absent>) at budget 0 -> ATP Exhausted, 0",
             r_ghost, 0)
 eval_vector("EV-REF-MISSING-ATP1",
-            "s3.4: a failed firing is not charged — REF(<absent>) at budget 1 -> Unresolved Reference, 0 ATP",
+            "s3.4: force of a REF costs 2 -> unaffordable at budget 1; ATP Exhausted, 0 (v0.4.5 gave Unresolved here — v0.5 prices the materialization itself)",
             r_ghost, 1)
-
-h_i_ref = put_tree(A(Ig, ("ref", ghost)))
-eval_vector("EV-I-REF-MISSING-ATP1",
-            "s3.4 totality + precedence: APPLY(I, REF(<absent>)) at exact budget 1 -> R-I fires, then exhaustion wins over the pending unresolvable R-R",
-            h_i_ref, 1)
-eval_vector("EV-I-REF-MISSING-ATP2",
-            "s3.4 totality: same term at budget 2 -> canonical Unresolved Reference (never a raw error), only the completed R-I is charged",
-            h_i_ref, 2)
+eval_vector("EV-REF-MISSING-ATP2",
+            "force REF (2), then R-R unaffordable -> ATP Exhausted, spent 2",
+            r_ghost, 2)
+eval_vector("EV-REF-MISSING-ATP3",
+            "force (2) + R-R (1) leave remaining 0; exhaustion is decided BEFORE the next force attempt, so the absence of the target is never discovered -> ATP Exhausted, spent 3 (s3.4 precedence)",
+            r_ghost, 3)
+eval_vector("EV-REF-MISSING-ATP4",
+            "with remaining budget the demanded force is attempted and the target is absent -> Unresolved Reference, spent 3 (failed force not charged)",
+            r_ghost, 4)
 
 h_root_missing = sg.sha(b"absent root")
 eval_vector("EV-ROOT-MISSING", "root hash absent from store -> Unresolved Reference, 0 ATP", h_root_missing, 10)
 
 r1 = put(sg.ser(sg.REF, sg.F_ATOM, atom=sg.K_H))
 r2 = put(sg.ser(sg.REF, sg.F_ATOM, atom=r1))
-eval_vector("EV-TV9-REF-CHAIN", "TV-9: REF -> REF -> K unwraps one level per step; 2 ATP", r2, 10)
-eval_vector("EV-TV9-REF-UNDER", "TV-9: budget 1 stops between the two unwraps -> ATP Exhausted", r2, 1)
+eval_vector("EV-TV9-REF-CHAIN", "TV-9: REF -> REF -> K: 2 forces (2 each) + 2 R-R (1 each) = 6 ATP; one level per step", r2, 100)
+eval_vector("EV-TV9-REF-UNDER", "TV-9: budget 1 -> first force (2) unaffordable; Exhausted, 0", r2, 1)
+
+eval_vector("EV-GENESIS-INTRINSIC",
+            "TV-12/s5.1: REF(H(K)) on a store containing ONLY the REF node -> K, 3 ATP; genesis axioms materialize without storage",
+            r1, 10, subset=[r1.hex()])
 
 malformed = bytes([0x03, 0x02]) + b"\x00" * 32  # Era-1 LAMBDA opcode, invalid in V2
 h_malformed = put(malformed)
 h_apply_bad = put(sg.ser(sg.APPLY, 0x06, left=sg.I_H, right=h_malformed))
 eval_vector("EV-BAD-BYTES-CHILD",
-            "s3.5(b): resolve() returns bytes failing s4.1 -> Canonical Invalid Object materialized; R-I then yields it",
+            "s3.5(b): force root (3) + R-I (1) + force of invalid bytes materializes the Canonical Invalid Object (1) -> its hash, spent 5",
             h_apply_bad, 10)
 
 ck = sg.c1(("lam", "x", ("lam", "y", ("var", "x"))))  # C1[\xy.x] = S (K K) I
 h_c1 = put_tree(A(A(ck, Sg), Kg))
-eval_vector("EV-TV10-C1-K", "TV-10: C1[\\xy.x] S K -> S (compiler output behaves as K)", h_c1, 16)
+eval_vector("EV-TV10-C1-K", "TV-10: C1[\\xy.x] S K -> S (compiler output behaves as K); 20 ATP size-priced", h_c1, 100)
 
 # ---------- sanity: recorded expectations match a fresh oracle run ----------
 assert all(v["kind"] != "eval" or "result_hash" in v["expected"] for v in vectors)
 
 doc = {
     "format": "sigma-glyph-conformance",
-    "format_version": 1,
+    "format_version": 2,
     "spec_version": SPEC_VERSION,
     "suite_version": SUITE_VERSION,
     "book1_anchor": BOOK1_ANCHOR,
@@ -192,8 +228,10 @@ doc = {
         "objects: hex canonical bytes to preload into the CAS, keyed by their SHA-256 NodeHash.",
         "kind=object: serializing the described node MUST yield these bytes and this hash.",
         "kind=deserialize: these bytes MUST fail s4.1 validation and materialize the Canonical Invalid Object.",
-        "kind=eval: eval(term, atp) MUST yield result_hash with atp_spent under tree semantics.",
+        "kind=eval: eval(term, atp) MUST yield result_hash with atp_spent under the v0.5 hash-thunk machine (Book I s3.3-3.4: lazy left-spine, size-priced ATP, hash-leaf sizes, genesis intrinsic).",
+        "format v2: an eval vector MAY carry store_subset (list of object hashes) - run it against a fresh store containing ONLY those objects.",
         "outcome is informative; result_hash and atp_spent are the normative observables.",
+        "memory bound (normative invariant, property-tested): materialized size - 1 <= atp_spent at every step.",
     ],
     "objects": dict(sorted(objects.items())),
     "vectors": vectors,

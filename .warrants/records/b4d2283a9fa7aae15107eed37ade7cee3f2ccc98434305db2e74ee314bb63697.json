@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adopted atomically with the Book II s5.1 Resonance Identity rewrite (crystallization to {am=65535,en=-32768}) and 9 pinned wave vectors incl. WV-NEG-TIE guarding the away-from-zero rounding of Book II s3. Oracle: impl/sigma_wave.py, LUT arbiter-checked."
+      },
+      {
+        "check": "6c8839d944e51837d99b753cb5f5333b37591f3b97f627fd546cb6f8b005d6d3",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "dc18ab3bb5a8136307b2d81cc56bfdba076457617a8e3faa688446cb6fca7dc3",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "dc18ab3bb5a8136307b2d81cc56bfdba076457617a8e3faa688446cb6fca7dc3"
+    ],
+    "prior": [
+      "0d67d1a87ab41e0a0650c10994b1ebb3433e933c94b55cb89fdeca3ec0b9ebd0"
+    ],
+    "subject": {
+      "hash": "7328e527e12c9f2940f3a552f4547e6afe9172caca9d34f6bebfbcf7b1591975",
+      "note": "ADOPT ADR-002 in v0.5.0 (entropy-coherence coupling)"
+    },
+    "ts": 1783272477,
+    "under": [
+      "5278627d12b23a52560b58b34d53450fef525fe9cdd084e0f1db71866cb4a26e"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "66bdd1a36cce4ca6755ef92d68db06503836d629c9052c20192dbd21ad379befcfa301158288abe3bdf823fc2925a1bb92a0cad67acc324926bc51e5dc594c00"
+    }
+  ]
+}
