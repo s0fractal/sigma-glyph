@@ -23,6 +23,8 @@
 - Self-application needs no standing-wave rule: interfere(w,w) already yields quadratic amplitude decay with MAX as the unique non-zero fixed point (Book II, Resonance Identity).
 - LITERAL validation timing: normative behavior is on-demand at `resolve(h)` (materialize Invalid Object if blob mismatch); eager validation is implementation MAY. Closes on-put vs on-get ambiguity (DeepSeek, 2026-07).
 - C1 compiler FV() is explicitly defined (capture-avoiding substitution); normative annex is self-contained (DeepSeek, 2026-07).
+- ATP budget width: `uint32` is the canonical API contract; ATP > 2³²−1 is implementation-defined (MAY reject or clamp). Only the three canonical outcomes are consensus-critical (Claude Sonnet 4.5, 2026-07).
+- `resolve(h)` failure modes are explicit and distinct: hash not found → DISSONANCE(Unresolved Reference); bytes failing §4.1 → Canonical Invalid Object (Claude Sonnet 4.5, 2026-07).
 
 ## Open proposals (see proposals/)
 

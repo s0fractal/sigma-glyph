@@ -1,7 +1,8 @@
-# ADR-001: Size-Priced ATP (candidate for v0.5)
+# ADR-001: Size-Priced ATP — node-count semantics (candidate for v0.5)
 
 **Status:** PROPOSED (breaking: changes all ATP accounting; do not merge into 0.4.x)
 **Origin:** Qwen review 2026-07 (OOM-before-ATP DoS vector)
+**Definition up front:** everywhere in this ADR, `size(t)` = **node count under tree semantics** (the accounting model TV-6 makes normative) — not byte length, not depth. Deterministic by construction. (Clarity: Claude Sonnet 4.5 review, 2026-07.)
 
 ## Problem
 

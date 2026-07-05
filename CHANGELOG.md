@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.3 (2026-07)
+- Book I §3.4: ATP budget width made normative — `uint32` canonical; ATP > 2³²−1 implementation-defined (MAY reject/clamp); only the three canonical outcomes are consensus-critical. Closes P1 (Claude Sonnet 4.5 finding).
+- Book I §3.5: `resolve(h)` failure modes made explicit — missing hash → DISSONANCE(Unresolved Reference); bytes failing §4.1 → Canonical Invalid Object. (Sonnet P2.1.)
+- Book I §5.1: truncated-hash footnote replaced with explicit pointer to `impl/sigma_glyph.py` TV-1 — one source of truth. (Sonnet P2.2.)
+- ADR-001: retitled "node-count semantics"; `size(t)` definition moved into the header block. (Sonnet P2.4.)
+- ROADMAP.md: new "Decision Process" section — multi-model review → impl gate → maintainer decision with written rationale → planned collective governance. (Sonnet P2.5.)
+- **Anchor drift fixed:** v0.4.2 shipped without refreshing ANCHORS.txt (`verify_anchors.py` was failing). v0.4.2 anchors reconstructed retroactively and filed as ancestors; v0.4.3 anchors forged; `verify_anchors.py` now checks only the current section and green verification is a release gate.
+- reviews/: Claude Sonnet 4.5 review filed (9.5/10); maintainer response with per-finding disposition (incl. one factual rejection: LORE is versioned since v0.4.1); settled points updated.
+
+**Impact:** Clarifications only. No breaking changes. Reference impl unchanged. v0.4.3 is drop-in compatible with v0.4.2.
+
 ## v0.4.2 (2026-07)
 - Book I §1.1: LITERAL validation timing clarified — normalize on on-demand validation at `resolve(h)`, eager validation is MAY. Closes P1 spec gap (DeepSeek finding).
 - Book I §5.3: RESERVED hash bridge sentence — "reason hash, not opcode; doesn't affect deserialization."

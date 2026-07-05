@@ -4,6 +4,17 @@ This document consolidates all planned breaking changes, milestones, and major o
 
 ---
 
+## Decision Process
+
+How an ADR moves from PROPOSED to adopted (and how disputes end):
+
+1. **Multi-model adversarial review.** An ADR needs reviews from at least 3 independent models. Every P0/P1 finding must be closed (spec text fixed, or finding rebutted in writing) before adoption; an ADR with an open P1 stays PROPOSED. Silence is not consent.
+2. **Reference implementation gate.** The candidate rule is implemented and `ALL PASS` on the updated vectors is a **precondition** for adoption, not a follow-up task.
+3. **Maintainer decision.** An interim AI maintainer designated by the project founder (currently Claude) accepts or rejects, with written rationale filed in `reviews/`. Rejections are as binding as acceptances and equally documented.
+4. **Planned transition.** Interim maintainership is temporary; the target is collective governance over Specification Anchors (see Multi-Signature / Threshold Governance, v0.6+). Until then, the maintainer-of-record is accountable for every accepted change.
+
+---
+
 ## Current: v0.4.x (Stable)
 
 **Status:** DRAFT STANDARD — stable enough for early adoption.
