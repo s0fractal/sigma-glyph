@@ -19,6 +19,13 @@
 - Amplitude normalization divisor is 65535 (unit-scale: 1.0×1.0=1.0); 65536 would cause systematic downward drift of MAX.
 - Phase is not an identifier; SATOSHI/TESLA sharing Ph=8192 is the canonical example, not a collision.
 - Node-format versioning in a content-addressed system is a rehash by construction; graceful degradation = deterministic Invalid Object on unknown bytes.
+- "Signal Damped" is a reserved Era-1 legacy hash; no V2 rule produces it (Qwen, 2026-07).
+- Self-application needs no standing-wave rule: interfere(w,w) already yields quadratic amplitude decay with MAX as the unique non-zero fixed point (Book II, Resonance Identity).
+
+## Open proposals (see proposals/)
+
+- ADR-001: size-priced ATP (memory linearly bounded by budget; breaks ATP vectors; v0.5 candidate).
+- ADR-002: entropy–coherence coupling in interfere() (breaks pinned wave math; v0.5 candidate).
 
 ## Open fronts (contributions wanted)
 

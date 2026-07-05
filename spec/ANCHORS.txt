@@ -1,6 +1,12 @@
-Sigma-GLYPH v0.4.0 Specification Anchors (detached)
+Sigma-GLYPH Specification Anchors (detached)
 Anchor = NodeHash(LITERAL, atom=SHA-256(document_bytes))
 
+== v0.4.1 ==
+99c365072a1efc0f33ac549e2a28a0cb9257704bcbeb194860c7a0aebc5b5a0f  spec/book-1-truth.md
+ccf837f8b0e629051fd35f82368bb4ed3053391699deeea67bc2dcbb0fb37b08  spec/book-2-navigation.md
+9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
+
+== v0.4.0 (ancestors) ==
 8e1d5b3b330b49a90828b715cb268d9f6fae5a49f4c2f97695d4a9f60c8415c0  spec/book-1-truth.md
 47f71234212e04fb752b2f08ebe54bc0ba2a0dd087b91bf366baeef1831292e5  spec/book-2-navigation.md
 efdddc3b9c9a8341bfc18cf86cbf18206dc30bf672897953f36568d80d08e3c5  spec/LORE.md

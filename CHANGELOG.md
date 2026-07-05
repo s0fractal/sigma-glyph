@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.1 (2026-07)
+- Book I: "Signal Damped" demoted to Reserved (Era-1 legacy) — dead normative hash found by Qwen.
+- Book II: Resonance Identity (self-application = quadratic amplitude map; MAX is the unique non-zero fixed point); 65534 range explanation.
+- LORE: standing waves & self-reflection; Pantheon cultural-fork note.
+- proposals/: ADR-001 (size-priced ATP, with computed vectors and memory bound), ADR-002 (entropy–coherence coupling, with worked integer examples).
+- reviews/: Qwen review filed; settled points updated.
+
 ## v0.4.0 — "Cold Books" (2026-07)
 - Restructured into three documents: Book I (Truth, hermetic core), Book II (Navigation, pure math), LORE (non-normative warmth). Per Kimi review.
 - Canonical λ→SKI compiler profile C1 (normative annex; implemented, TV-10).
