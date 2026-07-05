@@ -1,0 +1,372 @@
+# Review: Codex v0.5 ADR gate - 2026-07-05
+
+## Verdict
+
+Do not adopt ADR-001/002/003 as written.
+
+ADR-002 is adoptable after a small but explicit Book II rewrite. ADR-001 and
+ADR-003 are individually promising, but together they currently leave an open
+P1: size-priced ATP needs `size(z)` / `size(resolve(h))`, while lazy spine
+resolution wants not to resolve dead data. v0.5 needs one shared abstract
+machine before either rule becomes law.
+
+## Verified vectors statement
+
+I ran the current v0.4.x suite before reviewing the proposals:
+
+```bash
+python3 impl/sigma_glyph.py
+python3 tests/spec_conformance/run_reference.py
+python3 tests/spec_conformance/test_properties.py
+python3 tests/spec_conformance/generate.py && git diff --exit-code tests/spec_conformance/vectors.json
+python3 tools/verify_anchors.py
+python3 tools/complexity_metrics.py
+```
+
+Results:
+
+- `impl/sigma_glyph.py`: `ALL PASS`
+- conformance replay: `CONFORMANCE: ALL PASS (39/39)`
+- property suite: `PROPERTIES: ALL PASS (1929/1929, seed=0x516)`
+- regenerated `vectors.json`: no diff
+- anchors verified
+- ADR-001 worked costs for TV-4/5/6/Omega-200 reproduce exactly: `1, 3, 8, 637`
+
+## Findings By Severity
+
+### P1 - ADR-001 does not close OOM-before-ATP for R-R unless cost measurement is bounded
+
+ADR-001 prices R-R as:
+
+```text
+cost(R-R) = size(resolve(h))
+```
+
+and claims "OOM DoS is closed at the semantic level." That claim is not yet
+true for R-R. To know that a REF target costs more than the remaining budget,
+an implementation may first have to resolve and size the target. If the target
+is the attack payload, the validator can still run out of memory during cost
+calculation before it can canonicalize the outcome as ATP Exhausted.
+
+Concrete attack vector:
+
+```text
+T = REF(HUGE)
+atp = 1
+HUGE = a stored, valid, deeply nested APPLY tree with size >> local memory
+```
+
+If `size(resolve(HUGE))` means "fully materialize then count", ADR-001 has only
+moved the OOM from the rewrite to the pricing preflight.
+
+Required closure:
+
+- Define a consensus-visible bounded measurement operation, e.g.
+  `measure(h, cap = remaining_atp + 1)`, which traverses canonical bytes and
+  stops as soon as `size > cap`.
+- If measurement exceeds the cap, return `DISSONANCE(ATP Exhausted)` with
+  unchanged `spent`, without materializing the full target.
+- Missing hash during measurement remains `DISSONANCE(Unresolved Reference)`.
+- Invalid bytes during measurement materialize Canonical Invalid Object.
+
+Suggested vectors:
+
+```text
+EV-RR-SIZE-UNDER:
+  root = REF(APPLY(I,K))       // target size = 3
+  atp = 2
+  expected = DISSONANCE(ATP Exhausted), spent = 0
+
+EV-RR-SIZE-EXACT-REDUCIBLE:
+  root = REF(APPLY(I,K))       // target size = 3, target has a redex
+  atp = 3
+  expected = DISSONANCE(ATP Exhausted), spent = 3
+  rationale: R-R completed, but no ATP remains for R-I.
+
+EV-RR-SIZE-EXACT-NORMAL:
+  root = REF(K)                // target size = 1, target normal
+  atp = 1
+  expected = K, spent = 1
+```
+
+The second vector is important because v0.4.x already says exhaustion is
+checked before the next firing; v0.5 must preserve that boundary with variable
+costs.
+
+### P1 - ADR-001 and ADR-003 conflict on `cost(R-S) = 1 + size(z)`
+
+ADR-001 requires R-S to know `size(z)`. ADR-003's purpose is that dead branches
+are never fetched. Those goals conflict when `z` is syntactically duplicated by
+R-S but later discarded by K before it is ever demanded.
+
+Concrete attack vector:
+
+```text
+T = APPLY(APPLY(APPLY(S, APPLY(K,I)), APPLY(K,K)), missing)
+  = S (K I) (K K) missing
+```
+
+Current eager v0.4.x:
+
+```text
+T -> DISSONANCE(Unresolved Reference), spent = 0
+```
+
+Lazy normal-order reasoning:
+
+```text
+S (K I) (K K) z
+-> (K I z) (K K z)
+-> I (K K z)       // first K discards z
+-> K K z
+-> K               // second K discards z
+```
+
+So with ADR-003, `missing` is dead and the expected result hash is `H(K)`.
+But with ADR-001 as written, R-S wants `size(z)` before the first step. If
+computing `size(z)` resolves `missing`, lazy dies before proving `z` dead. If
+it does not compute `size(z)`, ADR-001's stated R-S cost is not being applied.
+
+This is the main v0.5 gate blocker.
+
+Required closure:
+
+Define one of these semantics explicitly:
+
+1. **Strict size-priced R-S:** `z` is measured before R-S; ADR-003 liveness is
+   weakened, and `S (K I) (K K) missing` remains Unresolved.
+2. **Lazy demand-priced R-S:** R-S itself has a small fixed cost; duplicated
+   thunks are charged only when forced. Then ADR-001's memory-bound theorem
+   must be rewritten for thunked terms, not materialized trees.
+3. **Hash-leaf size model:** unresolved child hashes count as size 1 until
+   forced. This preserves laziness but changes the meaning of tree semantics
+   and needs fresh vectors.
+
+Do not adopt ADR-001 and ADR-003 together until this is settled.
+
+### P1 - ADR-003 has lazy/eager hash divergences beyond the listed direct K case
+
+ADR-003 lists:
+
+```text
+APPLY(APPLY(K, I), missing) -> I
+```
+
+That is the minimal divergence, but not the full class. Missing data can be
+dead even when the source term is not syntactically a direct `K` application.
+
+Additional hash-divergence vectors:
+
+```text
+EV-K-DEAD-NESTED-MISSING
+  T = APPLY(APPLY(K, I), APPLY(I, missing))
+
+  eager v0.4.x:
+    resolving the dead argument recursively sees `missing`
+    -> DISSONANCE(Unresolved Reference), spent = 0
+
+  lazy ADR-003:
+    R-K fires without descending into the dead argument
+    -> I, spent = 1
+```
+
+```text
+EV-S-KI-KK-DEAD-Z
+  T = APPLY(APPLY(APPLY(S, APPLY(K,I)), APPLY(K,K)), missing)
+
+  eager v0.4.x:
+    -> DISSONANCE(Unresolved Reference), spent = 0
+
+  lazy ADR-003:
+    -> K
+```
+
+I reproduced the eager side with the current oracle:
+
+```text
+S(KI)(KK)missing root =
+  1cec91b4784c218c9b6ab8c75c05a25f4d2838def7f5d014f0656ee635b737a9
+eager result =
+  DISSONANCE(Unresolved Reference), spent = 0
+lazy expected result =
+  K = bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c
+```
+
+The ADR does not need to list every member of the class, but it should name the
+class:
+
+> Any unresolved subtree that is not demanded by leftmost-outermost evaluation
+> MUST NOT affect the result, even when that deadness appears only after one or
+> more rewrites.
+
+### P1 - ADR-003 needs to define whether result hashes require local bytes
+
+ADR-003 says redex recognition needs only hashes already present in materialized
+nodes, because `is_glyph` is a hash comparison. That is the right direction, but
+it creates a storage-availability question:
+
+```text
+root bytes = APPLY(I_H, K_H)
+store contains root only; I_BYTES and K_BYTES are absent
+```
+
+Possible outcomes:
+
+1. R-I can fire because `I_H` is a hash-known glyph; result hash is `K_H`.
+2. R-I cannot fire because the left child must resolve to bytes first; result
+   is Unresolved Reference.
+3. R-I fires, but the result root `K_H` must then resolve and fails; result is
+   Unresolved Reference.
+
+ADR-003 currently points toward 1 for redex recognition, but the "root MUST
+resolve" rule points toward 3 after the step. v0.5 must choose. I recommend:
+
+- Genesis glyphs are intrinsic constants; implementations may materialize
+  I/K/S bytes from the spec by hash.
+- Non-genesis result hashes must resolve before being reported as normal forms,
+  unless they are syntactically constructed by a completed rewrite.
+
+If that is too permissive, state the stricter alternative and add vectors.
+
+### P1 - ADR-002 silently breaks Resonance Identity
+
+The arithmetic in ADR-002's worked examples is correct:
+
+```text
+delta 0     r  32767   delta_en -256
+delta 10923 r  16383   delta_en -128
+delta 16384 r      0   delta_en 0
+delta 32768 r -32767   delta_en +256
+```
+
+The problem is not the math. The problem is that Book II currently states, as
+the Resonance Identity, that self-application preserves phase and entropy and
+squares amplitude. ADR-002 changes that:
+
+```text
+w = { ph = 0, am = 65535, en = 0 }
+interfere(w,w):
+  avg(en,en) = 0
+  r = 32767
+  delta_en = -256
+  new_en = -256
+```
+
+So self-application no longer preserves entropy. A max-amplitude wave is no
+longer a fixed point unless `en == -32768`:
+
+```text
+{ ph = 0, am = 65535, en = 32767 } self-applies to en = 32511
+{ ph = 0, am = 65535, en = -32768 } self-applies to en = -32768
+```
+
+This may be desirable. It makes repeated constructive self-resonance
+crystallize toward minimum entropy. But then Book II §5.1 and the settled-point
+wording must change. The new statement is approximately:
+
+> Under ADR-002, self-application preserves phase and applies the same
+> amplitude square law, but entropy drifts by -256 per self-application until
+> clamped at -32768. The only non-zero full WaveVector fixed point is
+> `{am=65535, en=-32768}` for a pinned phase.
+
+Without this update, v0.5 would contain contradictory normative prose.
+
+### P2 - ADR-001 needs uint32 overflow and unaffordable-cost wording
+
+Book I now says `spent` must never exceed `atp`. ADR-001 should explicitly
+inherit that with variable costs:
+
+```text
+if cost(next_step) > atp - spent:
+    return DISSONANCE(ATP Exhausted), spent
+else:
+    fire the step and spent += cost
+```
+
+Also define costs larger than `2^32 - 1`. Since canonical budgets are uint32,
+any single step whose measured cost exceeds the maximum budget is unaffordable
+for all canonical calls. That should be ATP Exhausted, not implementation
+defined, after bounded measurement succeeds.
+
+### P2 - ADR-002 needs pinned v0.5 wave vectors
+
+ADR-002 is Book II-only and does not affect hashes, but it changes outputs of
+`interfere()`. Before adoption it needs a small machine-readable wave vector
+set analogous to Book I's conformance file:
+
+- constructive: `en 0,0 -> -256`
+- orthogonal: `en 0,0 -> 0`
+- destructive: `en 0,0 -> +256`
+- clamp low: `en -32768,-32768` constructive -> `-32768`
+- clamp high: `en 32767,32767` destructive -> `32767`
+- self-application at max amplitude: document the new entropy drift
+
+### P3 - Roadmap still says v0.5 planned adoption is ADR-001/002 only
+
+`ROADMAP.md` has ADR-001 and ADR-002 in the v0.5 section, but ADR-003 is now
+also a v0.5 candidate. This is not a semantic blocker, but the gate issue and
+roadmap should agree before review status is summarized.
+
+## Concrete Text Proposals
+
+### ADR-001
+
+Add a "Budget preflight" subsection:
+
+```text
+Before a rewrite fires, compute its cost up to cap = remaining_atp + 1.
+If cost > remaining_atp, eval returns DISSONANCE(ATP Exhausted) and the term is
+not rewritten. This preflight MUST NOT require materializing more than cap
+nodes. Missing hashes during preflight produce DISSONANCE(Unresolved Reference);
+invalid bytes materialize Canonical Invalid Object.
+```
+
+Add a "Composition with lazy resolution" subsection saying either:
+
+- ADR-001 assumes eager/full materialization and is not compatible with
+  ADR-003 as written; or
+- R-S charges only demanded thunks, with a rewritten bound.
+
+### ADR-002
+
+Add:
+
+```text
+This ADR intentionally replaces Book II's current Resonance Identity. Under the
+new rule, self-application preserves phase and the amplitude square law, but
+entropy changes by -256 for perfect constructive alignment and clamps at
+-32768. Therefore the only non-zero full WaveVector fixed point is max
+amplitude at minimum entropy.
+```
+
+### ADR-003
+
+Add:
+
+```text
+The lazy/eager divergence class is all unresolved subtrees not demanded by
+leftmost-outermost evaluation, including subtrees that become dead only after
+earlier rewrites. The v0.5 vector set MUST include both a direct K dead argument
+and an S-composed dead argument.
+```
+
+Add:
+
+```text
+The abstract evaluator operates on hash thunks. A hash thunk may be compared to
+I_H/K_H/S_H without fetching bytes. A thunk is resolved only when it becomes the
+demanded root/spine position required by the next transition. The spec must say
+whether genesis constants are intrinsic or must exist in the local store.
+```
+
+## Adoption Recommendation
+
+- **ADR-001:** keep PROPOSED until bounded cost measurement and ADR-003
+  composition are specified.
+- **ADR-002:** accept after rewriting Resonance Identity and adding wave
+  vectors.
+- **ADR-003:** accept directionally, but keep PROPOSED until the divergence
+  class, hash-thunk machine, and ADR-001 interaction are pinned by vectors.
+
+There are no P0 findings. The open P1s are specification gaps, not evidence
+that the proposals are bad ideas.

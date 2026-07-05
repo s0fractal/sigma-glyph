@@ -1,0 +1,44 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "All findings accepted after independent reproduction: S(KI)(KK)missing divergence verified (eager Unresolved/0; lazy reaches K in 4 steps never demanding z), ADR-002 vs Book II s5.1 contradiction confirmed. Gate verdict adopted: ADR-001/002/003 all remain PROPOSED; ADR-001xADR-003 composition is the main v0.5 blocker. All three ADR texts amended per review's concrete proposals; ROADMAP gate status updated. Review counts as dedicated ADR review 1 of >=3."
+      },
+      {
+        "check": "c3c1b51fd6b0a2d9f80c3f93935d8caeb5649ae3e1b0bfcc020a80d65f8901dd",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "b29ac2555535c1f8ec022ede2a2721efd7672ed972d7173a7f6609cc17882166",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "fea1d69234c390865186fdda5c419e258ff1ebb6bbb1b972e18ae5f755ee35ce",
+      "b29ac2555535c1f8ec022ede2a2721efd7672ed972d7173a7f6609cc17882166"
+    ],
+    "prior": [
+      "f05aac92447c4813c0c508be21621705d447dc6032b9135eaa68e38c8d3a3d8b"
+    ],
+    "subject": {
+      "hash": "b453cbdbbf0e7df72b5d7a191d2dbe03d12d34076cfe02ddfe1ac98e1a50758f",
+      "note": "Codex v0.5 ADR gate review (no P0, 5 P1)"
+    },
+    "ts": 1783263782,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.1"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "2b0839ea3d8d201626fecd1cc8f88215cb7b7b3f8293a58aad8f52e6c0a0ec1736e13ab1b2f96eb94df7f4c9e80f8f6816b752c184656a29d6435a19a928a102"
+    }
+  ]
+}

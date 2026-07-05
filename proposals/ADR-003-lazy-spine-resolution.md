@@ -52,6 +52,31 @@ Size-priced ATP charges `cost(R-R) = size(resolve(h))`. Under eager materializat
 - (−) Implementations must interleave resolution with search (thunks/hash-children); the reference oracle needs a representation change.
 - (−) "Is this term evaluable?" is no longer equivalent to "is its full closure present?" — tooling that prefetches closures must not assume completeness is required.
 
+## The divergence class (added per Codex ADR-gate review, 2026-07)
+
+The direct-K case above is the *minimal* lazy/eager hash divergence, not the class. The class is:
+
+> Any unresolved subtree that is not demanded by leftmost-outermost evaluation MUST NOT affect the result — including subtrees whose deadness appears only after one or more rewrites.
+
+Verified members beyond direct K (oracle-checked on the eager side; lazy side derived and cross-checked with a present-value surrogate that the reduction never demands):
+
+```text
+EV-K-DEAD-NESTED-MISSING:  APPLY(APPLY(K,I), APPLY(I,missing))
+  eager -> Unresolved Reference, 0 ATP;  lazy -> I, 1 ATP
+EV-S-KI-KK-DEAD-Z:         S (K I) (K K) missing
+  eager -> Unresolved Reference, 0 ATP;  lazy -> K (4 ATP: R-S, R-K, R-I, R-K)
+```
+
+The v0.5 vector set MUST include both a direct-K and an S-composed dead argument, and MUST pin the exact bytes of the `missing` hash (the root hash depends on it).
+
+## Hash-thunk machine + genesis constants — OPEN
+
+The abstract evaluator operates on hash thunks: a thunk MAY be compared against `I_H/K_H/S_H` without fetching bytes; a thunk is resolved only when it becomes the demanded root/spine position for the next transition. Open question the spec must answer: are genesis glyphs **intrinsic constants** (implementations may materialize I/K/S bytes from the spec by hash) or must every hash — including a result hash like bare `K_H` — resolve in the local store before being reported as a normal form? Codex recommendation on the table: genesis intrinsic; non-genesis result hashes must resolve unless syntactically constructed by a completed rewrite. Needs a decision plus vectors either way.
+
+## Composition with ADR-001 — OPEN, blocks joint adoption
+
+See ADR-001 → "Composition with lazy resolution": `cost(R-S)=1+size(z)` wants to measure what this ADR refuses to fetch. One shared abstract machine must be specified before both become law.
+
 ## Adoption criteria
 
-Per ROADMAP → Decision Process: ≥3 independent model reviews, reference impl with updated vectors ALL PASS, maintainer adjudication with written rationale.
+Per ROADMAP → Decision Process: ≥3 independent model reviews, reference impl with updated vectors ALL PASS, maintainer adjudication with written rationale. Additionally blocked on: divergence-class vectors, hash-thunk machine decision, ADR-001 composition.

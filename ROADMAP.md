@@ -42,7 +42,9 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 
 ## Next: v0.5.0 (Breaking)
 
-**Planned adoption:** ADR-001 and/or ADR-002 (both are independent, both are breaking).
+**Planned adoption:** some subset of ADR-001 / ADR-002 / ADR-003 (all breaking).
+
+**Gate status (Codex ADR-gate review, 2026-07-05):** none adoptable as written. ADR-002 is closest — needs the Resonance Identity rewrite (§5.1) + pinned wave vectors, both in its adoption PR. ADR-001 and ADR-003 are individually promising but **conflict on `cost(R-S)=1+size(z)` vs never-fetch-dead-data**; one shared abstract machine must be specified before either becomes law (see "Composition" sections in both ADRs). ADR-001 additionally needs bounded cost measurement (preflight) so pricing itself can't OOM.
 
 ### ADR-001: Size-Priced ATP
 

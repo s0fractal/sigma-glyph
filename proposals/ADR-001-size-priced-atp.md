@@ -45,6 +45,32 @@ Materialized term size is **linearly** bounded by budget. OOM DoS is closed at t
 - (−) Breaks every published ATP vector (TV-4..TV-9 renumber); requires v0.5 fork with new Specification Anchor.
 - (−) Budgeting becomes term-shape-dependent; agents must estimate sizes, not just steps. (Arguably a feature: it prices reality.)
 
+## Budget preflight — bounded cost measurement (added per Codex ADR-gate review, 2026-07)
+
+`cost(R-R) = size(resolve(h))` as originally written only *moves* the OOM from the rewrite to the pricing preflight: sizing an attack payload can itself exhaust memory before ATP Exhausted can be canonicalized. Closure:
+
+```text
+Before a rewrite fires, compute its cost up to cap = remaining_atp + 1.
+If cost > remaining_atp: eval returns DISSONANCE(ATP Exhausted), spent unchanged,
+and the term is not rewritten. The preflight MUST NOT materialize more than cap
+nodes. Missing hash during measurement -> DISSONANCE(Unresolved Reference);
+invalid bytes during measurement -> Canonical Invalid Object.
+```
+
+This inherits Book I §3.4's v0.4.5 discipline under variable costs: `spent` never exceeds `atp`; an unaffordable step is Exhausted *before* any full materialization. A step whose bounded measurement exceeds `2^32 − 1` is unaffordable for every canonical budget → ATP Exhausted (not implementation-defined).
+
+Candidate vectors: `EV-RR-SIZE-UNDER` (REF(APPLY(I,K)), atp 2 → Exhausted, spent 0), `EV-RR-SIZE-EXACT-REDUCIBLE` (same, atp 3 → Exhausted, spent 3 — R-R completes, no budget for R-I), `EV-RR-SIZE-EXACT-NORMAL` (REF(K), atp 1 → K, spent 1).
+
+## Composition with lazy resolution (ADR-003) — OPEN, blocks joint adoption
+
+R-S pricing needs `size(z)`; ADR-003's purpose is never fetching dead data. These conflict when z is duplicated by R-S and then discarded by K before being demanded (`S (K I) (K K) missing`: lazy reaches `K` without touching z; measuring `size(z)` kills that). Options on the table (Codex ADR-gate review):
+
+1. **Strict size-priced R-S** — measure z always; ADR-003 liveness weakened.
+2. **Lazy demand-priced R-S** — small fixed R-S cost, thunks charged when forced; memory-bound theorem must be rewritten for thunked terms.
+3. **Hash-leaf size model** — unresolved hash counts as size 1 until forced; preserves laziness, changes the meaning of tree sizes, needs fresh vectors.
+
+Maintainer leaning: option 3 (it keeps a bound *and* liveness), but this is not a decision — v0.5 needs one shared abstract machine specified before either ADR becomes law. **Do not adopt ADR-001 and ADR-003 together until this section is replaced by a decision.**
+
 ## Decision needed
 
-Adopt for v0.5 / reject / adopt with different coefficients (e.g., `1 + ceil(size(z)/k)`).
+Adopt for v0.5 / reject / adopt with different coefficients (e.g., `1 + ceil(size(z)/k)`). Blocked on: bounded-measurement wording above (resolved in principle) and the ADR-003 composition question (open).
