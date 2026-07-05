@@ -1,18 +1,28 @@
 #!/bin/sh
 # ai-review.sh — run an external AI reviewer over a DISPOSABLE clone of this repo.
 #
-#   tools/ai-review.sh agy   2026-07-gemini-adr-gate.md  "focus text..."
-#   tools/ai-review.sh codex 2026-07-codex-foo.md        "focus text..."
+#   tools/ai-review.sh agy        2026-07-gemini-adr-gate.md  "focus text..."
+#   tools/ai-review.sh codex      2026-07-codex-foo.md        "focus text..."
+#   tools/ai-review.sh openrouter 2026-07-<model>-foo.md      "focus text..."
+#     (openrouter needs OPENROUTER_MODEL + a funded key; the model cannot run
+#      code, so tools/or_review.py ships gate transcripts in a briefing pack
+#      and uses a two-pass blind protocol; runs against the live repo READ-ONLY)
 #
 # The reviewer works in a throwaway clone (never the live checkout); the ONLY
 # artifact copied back is reviews/<outfile>. The maintainer then verifies the
 # review's claims independently and adjudicates (response doc + warrant).
 # Model override: AGY_MODEL env (default "Gemini 3.1 Pro (High)").
 set -eu
-CLI=${1:?usage: ai-review.sh <agy|codex> <outfile.md> [focus...]}
+CLI=${1:?usage: ai-review.sh <agy|codex|openrouter> <outfile.md> [focus...]}
 OUT=${2:?missing output review filename}
 shift 2
 FOCUS=${*:-"Full adversarial spec review."}
+
+# OpenRouter backend: no clone needed — or_review.py only reads sources and
+# writes reviews/$OUT; the model never gets filesystem access at all.
+if [ "$CLI" = "openrouter" ]; then
+    exec python3 "$(dirname "$0")/or_review.py" "$OUT" "$FOCUS"
+fi
 REPO=$(git rev-parse --show-toplevel)
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
