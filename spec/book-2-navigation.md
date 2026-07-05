@@ -1,6 +1,6 @@
 # Σ-GLYPH — Book II: NAVIGATION
 
-**Version:** 0.4.1
+**Version:** 0.4.2
 **Type:** Wave / Coordinate Annotation Layer
 **Status:** DRAFT STANDARD
 **Scope Guard (MUST):** цей документ — інтерпретаційний шар поверх Книги I. Ніщо тут не змінює редукцію, серіалізацію чи хешування; при конфлікті Книга I має пріоритет. Семантичні мотивації та лор — у Σ-GLYPH LORE, не тут.
@@ -38,7 +38,7 @@ clamp_i16(x): clamp до [-32768, 32767]
 
 ## 4. LUT (MUST)
 
-* Генерація: `LUT_COS[d] = round_half_away_from_zero(32767·cos(π·d/32768))`, `d ∈ [0..32768]`; обчислення з точністю ≥ 80-bit extended.
+* Генерація: `LUT_COS[d] = round_half_away_from_zero(32767·cos(π·d/32768))`, `d ∈ {0, 1, ..., 32768}` (integer inclusive range); обчислення з точністю ≥ 80-bit extended.
 * Format: 32769 × int16 BE; size = 65538 bytes.
 * Range `[-32767..32767]`; `-32768` не виникає.
 * Anchors: `[0]=32767`, `[16384]=0`, `[32768]=-32767`; контрольні: `[1]=32767`, `[8192]=23170`, `[16383]=3`, `[16385]=-3`, `[24576]=-23170`, `[32767]=-32767`.

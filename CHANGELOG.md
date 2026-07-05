@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.2 (2026-07)
+- Book I §1.1: LITERAL validation timing clarified — normalize on on-demand validation at `resolve(h)`, eager validation is MAY. Closes P1 spec gap (DeepSeek finding).
+- Book I §5.3: RESERVED hash bridge sentence — "reason hash, not opcode; doesn't affect deserialization."
+- Book I §6: Explicit FV() definition for C1 compiler — normative annex now self-contained.
+- Book II §4: LUT_COS range notation clarified — `d ∈ {0, 1, ..., 32768}` (integer inclusive).
+- ROADMAP.md: Consolidated all pending breaking changes (ADR-001, ADR-002), v0.5 milestone, release discipline.
+- reviews/: DeepSeek review filed (9.2/10); settled points updated.
+
+**Impact:** Clarifications only. No breaking changes. Reference impl unchanged. v0.4.2 is drop-in compatible with v0.4.1.
+
 ## v0.4.1 (2026-07)
 - Book I: "Signal Damped" demoted to Reserved (Era-1 legacy) — dead normative hash found by Qwen.
 - Book II: Resonance Identity (self-application = quadratic amplitude map; MAX is the unique non-zero fixed point); 65534 range explanation.

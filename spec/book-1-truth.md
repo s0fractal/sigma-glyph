@@ -1,6 +1,6 @@
 # Σ-GLYPH — Book I: TRUTH
 
-**Version:** 0.4.1
+**Version:** 0.4.2
 **Type:** Bit-Exact Computational Core
 **Status:** DRAFT STANDARD
 **Scope:** Цей документ визначає все — і лише те — що необхідно двом незалежним нодам для консенсусу щодо хеша результату обчислення. Все інше (навігація, координати, лор) — в окремих документах, які MUST NOT впливати на цю Книгу.
@@ -29,6 +29,8 @@ enum OpCode : uint8 { LITERAL=0x00, REF=0x01, APPLY=0x02, DISSONANCE=0xFF }
 Біти `Flags` поза маскою `0x07` MUST be zero.
 
 **LITERAL — інертний commitment.** Канонічний вузол містить digest, не blob. Для редукції blob не потрібен ніколи: LITERAL — нормальна форма, комбінатори розпізнаються за NodeHash (§3.2). Отримання та валідація blob (`SHA-256(blob) == atom` MUST) — контракт сховища поза цією Книгою.
+
+Нормативна поведінка `resolve(h)` для LITERAL: fetch blob, валідувати `SHA-256(blob) == atom`, і якщо валідація невдала — матеріалізувати Canonical Invalid Object (§4.2). Реалізації MAY валідувати eagerly при зберіганні або кешувати валідовані blobs, але зовнішньо спостережувана поведінка `eval()` MUST бути ідентичною до on-demand validation.
 
 ### 1.2. Невалідні опкоди та формат-версіонування
 
@@ -133,11 +135,13 @@ SHA-256("ATP Exhausted")        = dc435a08513893bacd07abd802b9c526e92ae57ca6db40
 SHA-256("Unresolved Reference") = 75daae55453d9a98bfadb847d70b73fdd0be91d3b6ef8511d22fc42aa2c7c8e2
 ```
 
-**Reserved (Era-1 legacy):** `SHA-256("Signal Damped") = 7dc48fe882dc426083223e5fb26889ace68aa8f54abd4e37690b72327b87748c`. Жодне правило V2 не породжує цей DISSONANCE; хеш зарезервовано для можливого мережевого шару (damping) і MUST NOT використовуватись реалізаціями Книги I. (Знахідка: Qwen review, 2026-07.)
+**Reserved (Era-1 legacy):** `SHA-256("Signal Damped") = 7dc48fe882dc426083223e5fb26889ace68aa8f54abd4e37690b72327b87748c`. Це зарезервований *reason hash*, не опкод; не впливає на десеріалізацію. Жодне правило V2 не породжує цей DISSONANCE; хеш зарезервовано для можливого мережевого шару (damping) і MUST NOT використовуватись реалізаціями Книги I. (Знахідка: Qwen review, 2026-07.)
 
 ## 6. Canonical Lambda→SKI Compiler, Profile C1 (Normative Annex)
 
 Consensus layer приймає лише SKI-терми. Для міжлюдської сумісності визначено рівно один канонічний компілятор. Вхід — лямбда-терм без вільних змінних; вихід — SKI-терм Книги I.
+
+**Вільні змінні (FV)** визначаються в звичайному capture-avoiding sense: `FV(x) = {x}`, `FV(M N) = FV(M) ∪ FV(N)`, `FV(λx.M) = FV(M) \ {x}`. Компілятор MUST NOT зв'язувати змінну, що вільна в її тілі.
 
 ```text
 C1[x]        = x
