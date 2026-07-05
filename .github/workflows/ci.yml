@@ -1,0 +1,13 @@
+name: conformance
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Conformance suite (Book I, TV-1..TV-10 + negatives)
+        run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
+      - name: Verify Specification Anchors
+        run: python3 tools/verify_anchors.py

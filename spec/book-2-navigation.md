@@ -1,0 +1,128 @@
+# Σ-GLYPH — Book II: NAVIGATION
+
+**Version:** 0.4.0
+**Type:** Wave / Coordinate Annotation Layer
+**Status:** DRAFT STANDARD
+**Scope Guard (MUST):** цей документ — інтерпретаційний шар поверх Книги I. Ніщо тут не змінює редукцію, серіалізацію чи хешування; при конфлікті Книга I має пріоритет. Семантичні мотивації та лор — у Σ-GLYPH LORE, не тут.
+
+**Axiom (MUST):** Phase is not an identifier. Identity is defined ONLY by NodeHash. Фаза — координата; спільна фаза кількох об'єктів — легальний density cluster.
+
+## 1. WaveAnnotation
+
+```text
+struct WaveVectorQ { ph: uint16; am: uint16; en: int16; }   // Big-Endian
+WaveAnnotation: (NodeHash: 32 bytes) → WaveVectorQ           // окремо від вузла
+```
+
+Розбіжність анотацій одного вузла між нодами — не форк обчислення; це предмет федеративного узгодження (протокол — окремий майбутній документ).
+
+## 2. Пріоритет анотацій (MUST): Pin > Derived
+
+1. **Pin** — координата, явно призначена в таблицях §6.
+2. **Derived** — `wave(APPLY(f,a)) = interfere(wave(f), wave(a))`.
+
+Pin перекриває Derived. Приклад: FALSE має Pin 270°, хоча інтерференція успадкувала б фазу K (180°).
+
+## 3. Fixed-Point примітиви (MUST)
+
+```text
+div_round_half_up(n, d):    # round-half-away-from-zero; d > 0
+  s = -1 if n<0 else 1; a = |n|; q = a//d; r = a%d
+  if 2r >= d: q += 1
+  return s*q
+
+clamp_i16(x): clamp до [-32768, 32767]
+```
+
+Ширина (MUST): `ph`,`en` → int32 перед ±; `am` → uint64 перед ×; проміжні добутки int64/uint64; signed overflow заборонений; касти до множення.
+
+## 4. LUT (MUST)
+
+* Генерація: `LUT_COS[d] = round_half_away_from_zero(32767·cos(π·d/32768))`, `d ∈ [0..32768]`; обчислення з точністю ≥ 80-bit extended.
+* Format: 32769 × int16 BE; size = 65538 bytes.
+* Range `[-32767..32767]`; `-32768` не виникає.
+* Anchors: `[0]=32767`, `[16384]=0`, `[32768]=-32767`; контрольні: `[1]=32767`, `[8192]=23170`, `[16383]=3`, `[16385]=-3`, `[24576]=-23170`, `[32767]=-32767`.
+* Арбітр: `SHA-256(LUT_BLOB) = c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2`; невідповідність → FAIL FAST.
+
+## 5. interfere() (MUST)
+
+```text
+interfere(w1, w2, LUT_COS):
+  new_ph = w1.ph                                        // Left Dominance, §5.1
+  new_en = clamp_i16(div_round_half_up(int32(w1.en)+int32(w2.en), 2))
+  x = int32(w1.ph) - int32(w2.ph);  d32 = |x|;  delta = min(d32, 65536-d32)
+  r = int32(LUT_COS[delta])
+  amp_factor = div_round_half_up(int64(r+32767)*65535, 65534)          // 0..65535
+  prod01 = div_round_half_up(uint64(w1.am)*uint64(w2.am), 65535)
+  new_am = div_round_half_up(uint64(prod01)*uint64(amp_factor), 65535)
+  return { new_ph, uint16(new_am), int16(new_en) }
+```
+
+**Нормалізація 65535 (не 65536) — навмисна (MUST).** Шкала unit-scaled: 65535 ≡ 1.0, тож `1.0×1.0 = 65535·65535/65535 = 65535` — точно 1.0, максимум амплітуди стабільний під множенням. Дільник 65536 давав би систематичний дрейф униз, і границя `Amplitude → MAX` була б недосяжною.
+
+### 5.1. Law of Left Dominance (MUST)
+
+`interfere(A,B).ph = A.ph`. Амплітуда й ентропія симетричні; фаза — ні. Інтерференція моделює застосування, а застосування некомутативне: функція визначає напрямок результату, аргумент модулює силу та впорядкованість. Симетризація фази MUST NOT. Конвенція (SHOULD): для `APPLY(f,a)` — `interfere(wave(f), wave(a))`, функція ліворуч.
+
+## 6. Канонічні координати (Pins)
+
+Це нормативні дані. Семантичні значення колонок ("Truth", "Choice" тощо) — у LORE.
+
+### 6.1. Trinity
+
+| Glyph | Ph | Am | En | NodeHash (Книга I §5.1) |
+| ----- | --: | --: | --: | --- |
+| I | 0     | 65535 | -32768 | `2f33694d…330f4162` |
+| S | 16384 | 65535 | -32768 | `887045bc…95b1f8a6` |
+| K | 32768 | 65535 | -32768 | `bc0c2fe2…bb0a486c` |
+
+### 6.2. Grand Cross
+
+| Entity | Ph | NodeHash |
+| ------ | --: | --- |
+| TRUE ≡ K | 32768 | (=K) |
+| FALSE ≡ APPLY(K,I) | 49152 | `65cd957f…38a32098` |
+| V (VOID/PAIR) | 16384 | — (координата сектора; ділить сектор із S) |
+
+### 6.3. Time Anchor
+
+| Entity | Ph | Atom | NodeHash |
+| ------ | --: | --- | --- |
+| SATOSHI | 8192 | BTC Genesis Block Hash (32 raw bytes) | `11c856acd4b6868a91c2cc2cf6331d57bf268f56adcae0c0f3070c4ec00ed3c7` |
+
+### 6.4. Pantheon
+
+Метод форжування (нормативний): `NodeHash = SHA-256(0x00 0x01 ‖ SHA-256(ASCII-ім'я))`. Призначення фаз — aesthetic pins (обґрунтування в LORE), нормативним є лише сам список:
+
+| Giant | Ph | NodeHash |
+| ----- | --: | --- |
+| TESLA | 8192 | `193e0542…d9de3748` |
+| TURING | 20480 | `f7864d5e…f6850375` |
+| BACH | 21845 | `878c08d8…221e50c2` |
+| LEIBNIZ | 24576 | `06696f7a…5ab412cd` |
+| GODEL | 40960 | `d5f715d7…e467eb96` |
+| HEGEL | 57344 | `5654c5dc…8054a186` |
+
+(SATOSHI і TESLA ділять фазу 8192 — прямий приклад Axiom'и цього документа: density cluster, не колізія.)
+
+## 7. Mass (обчислювана)
+
+Для фазового вікна `W = [ph₀, ph₀+w) mod 65536` над множиною анотацій A:
+
+```text
+Mass(W, A) = Σ { am(n) : n ∈ A, ph(n) ∈ W }
+```
+
+Проста амплітудно-зважена щільність сектора; uint64 акумулятор; детермінована за фіксованого A. Агенти MAY використовувати Mass для ранжування секторів; Mass MUST NOT впливати на Книгу I.
+
+## 8. Chromatic Projection CP-24
+
+`Color = NodeHash[0..2] → RGB`. MUST NOT впливати на семантику. **Колізійність (MUST warn):** 24-bit простір; birthday bound ≈ 4823 об'єкти для ~50% ймовірності колізії. Колір придатний лише для попередньої фільтрації з обов'язковою верифікацією за повним хешем; будь-яке рішення, прийняте за кольором без верифікації, — порушення Axiom'и цього документа.
+
+## 9. Specification Anchor
+
+Як у Книзі I §8: `SpecAnchor = NodeHash(LITERAL, atom=SHA-256(document_bytes))`, публікується detached.
+
+---
+
+*Ця Книга — математика орієнтування. Чому сектори названі іменами гігантів — питання не до неї.*
