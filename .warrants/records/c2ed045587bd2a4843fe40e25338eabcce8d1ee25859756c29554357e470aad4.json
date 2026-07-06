@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "All findings confirmed by independent reproduction. P1 (LITERAL blob validation prose/oracle split) confirmed and sharpened: Book I s1.1 contradicts itself across two adjacent paragraphs, oracle+EV-LIT-FORCE implement the blob-outside-eval paragraph; disposition ADR-004 PROPOSED with both options, maintainer leaning Option 2 (a conforming blob store cannot contain a mismatched blob under its atom, so mismatch is local corruption which settled law forbids canonizing; reduction never demands the blob) contra the reviewer's Option 1 preference \u2014 review gate decides; interim law per s7 supremacy: eval MUST NOT depend on blob material in v0.5.x. P2 verifier-absent fixed: tools/warrant_verify.py shipped (ids, Ed25519 sigs, blob hashes, priors, DAG roots), README documents the two-root DAG topology. P2 selftest label fixed: 36864 -> 36863, assertion and WV-SELF-PARTIAL were already correct. Focus areas 1/2/4 clean; reviewer's own dead-malformed-data and duplication-chain probes accepted as correct attack shapes."
+      },
+      {
+        "check": "df72b424c8e811004fcd60b3e1a0a41433da7dd65dfedb91ae0c1f37deedc714",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "3bc211faa6d7ac7b8ea4a15072189f7b4dd10e47ca50ca3161ce6911885c3460",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "cd538824b53c8fc1707e1f8ac0a66ad8ad93ca7bf5a1a02df3bbb3a25cd396ef"
+    ],
+    "prior": [
+      "ecd319bf24285a7d90b90dfc707de800f828afb5b04fdb3a3bf122426d670585"
+    ],
+    "subject": {
+      "hash": "441311ececc3bd1f6bbf35a02f3d33c8dfa952d65432336b3790d6f1b18f749d",
+      "note": "Codex post-release audit of v0.5.0 (no P0, 1 P1, 2 P2) \u2014 audit review 1 of the post-v0.5.0 cycle"
+    },
+    "ts": 1783352421,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "30b257590cd3e121dbb800d4ff291b16e0d922b5b3da1bb0fb1a456d60d4ba31b9dabd558cf5ab2c95681300a735c149eb625d5b305e5741dbffbd134ff4a900"
+    }
+  ]
+}

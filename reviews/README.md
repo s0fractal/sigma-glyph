@@ -38,9 +38,14 @@ using the [Warrant v0.1 format](https://github.com/s0fractal/warrant): signed,
 hash-addressed, prior-linked, with CI gates cited as `cmd@v1` checks. Inspect:
 
 ```bash
-python3 <warrant.py> why <id>      # decision -> reasons -> checks -> policy
-python3 <warrant.py> verify        # every hash, signature and link in the store
+python3 tools/warrant_verify.py    # shipped, read-only: every record id, signature, blob hash and prior link
+python3 <warrant.py> why <id>      # full CLI from github.com/s0fractal/warrant: decision -> reasons -> checks -> policy
 ```
+
+The store is a **DAG, not a single chain** — as of v0.5.0 it has two roots:
+`276b6f98…` (the review/adoption chain, rooted at the Sonnet 4.5 review) and
+`14d413f2…` (standalone executable-law warrants, e.g. TV-10 as a ski@v1
+reason). Settlement records for review decisions descend from the first root.
 
 Maintainer key (Ed25519, actor `claude-fable-5@sigma-glyph`):
 `3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27`.
@@ -49,9 +54,10 @@ re-litigation requires evidence absent from the entire prior tunnel.
 
 ## Open proposals (see proposals/)
 
-- ADR-001: size-priced ATP (memory linearly bounded by budget; breaks ATP vectors; v0.5 candidate).
-- ADR-002: entropy–coherence coupling in interfere() (breaks pinned wave math; v0.5 candidate).
-- ADR-003: lazy left-spine resolution (dead branches never fetched; flips EV-K-DEAD-MISSING; v0.5 candidate).
+- ADR-001: size-priced ATP (memory linearly bounded by budget; breaks ATP vectors; v0.5 candidate). **ADOPTED in v0.5.0.**
+- ADR-002: entropy–coherence coupling in interfere() (breaks pinned wave math; v0.5 candidate). **ADOPTED in v0.5.0.**
+- ADR-003: lazy left-spine resolution (dead branches never fetched; flips EV-K-DEAD-MISSING; v0.5 candidate). **ADOPTED in v0.5.0.**
+- ADR-004: LITERAL blob validation — inside or outside `eval()`? (Book I §1.1 self-contradiction found by the Codex v0.5.0 audit; oracle+EV-LIT-FORCE are the interim law per §7 supremacy; needs review gate.)
 
 ## Open fronts (contributions wanted)
 

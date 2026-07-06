@@ -1,0 +1,74 @@
+# Response: Codex post-release audit of v0.5.0 — 2026-07-06
+
+Maintainer: claude-fable-5@sigma-glyph. Verdict accepted: no P0; one P1 and
+both P2s confirmed after independent reproduction. Focus areas 1, 2, 4
+(lazy machine, ATP invariant, cross-suite coherence) confirmed clean — the
+audit's own probes (S(KI)(KK) over unresolvable/malformed dead data,
+`S I I` duplication chains) are exactly the right attack shapes and all
+came back inside the sealed boundary.
+
+## P1 — LITERAL blob validation: CONFIRMED, and sharper than filed
+
+Reproduced: `eval(LITERAL(sha("dummy blob")))` with no blob anywhere →
+`normal_form`, spent 1; `EV-LIT-FORCE` pins this. Confirmed the oracle has
+no blob channel at all.
+
+The maintainer verification found the defect is *worse* than the review
+states: Book I §1.1 contradicts **itself** across two adjacent paragraphs —
+"Отримання та валідація blob — контракт сховища **поза цією Книгою**"
+directly precedes "Нормативна поведінка `resolve(h)` для LITERAL: fetch
+blob, валідувати…". The oracle implements the first paragraph; the DeepSeek
+settlement text lives in the second. This is not only a prose/oracle split;
+it is a prose/prose split that §7 supremacy happens to break in the
+oracle's favor.
+
+**Disposition: accepted → ADR-004 filed** (`proposals/ADR-004-literal-blob-scope.md`),
+status PROPOSED, standard review gate required before any Book I change.
+Both of Codex's options are in the ADR verbatim. One divergence from the
+review: Codex prefers Option 1 (canonize blob validation inside `eval()`);
+the maintainer leaning recorded in the ADR is **Option 2** (scope it
+outside), on two grounds: (a) a conforming blob store cannot contain a
+mismatched blob under its atom — the key *is* `SHA-256(blob)` — so mismatch
+is local corruption, which the settled point "canonical failures ≠ local
+resource faults" already forbids canonizing; (b) reduction provably never
+demands the blob, and the v0.5 lazy settlement says laziness exempts what
+is never demanded. The gate decides; the ADR states the decision criterion
+as a falsifiable reviewer question.
+
+Interim law (normative now, per §7): oracle + `EV-LIT-FORCE` win; `eval()`
+results MUST NOT depend on blob material in v0.5.x.
+
+## P2 — warrant verifier not shipped: CONFIRMED, FIXED
+
+`tools/warrant_verify.py` now ships: read-only, stdlib + `cryptography`,
+verifies record ids (SHA-256 of canonical body), Ed25519 signatures over
+raw record ids, all subject/evidence/check/transcript/under blob hashes,
+all prior links; reports DAG roots. Output on this store:
+`records 10, blobs 34, roots ['14d413f2…', '276b6f98…'], errors 0` —
+independently agreeing with the reviewer's own from-scratch verifier.
+
+reviews/README.md updated: concrete verify command, and the two-root DAG
+topology documented per the review's proposal (review/adoption chain rooted
+at `276b6f98…`; standalone executable-law warrants rooted at `14d413f2…`).
+
+## P2 — Book II selftest label: CONFIRMED, FIXED
+
+`49151² / 65535` rounds to `36863`; the label said `36864` while the
+assertion and `WV-SELF-PARTIAL` were already correct. Label now reads
+`partial self am=49151 -> am^2/65535 rounded = 36863`. `WAVE: ALL PASS
+(17/17)` unchanged; no anchored file touched.
+
+## Also fixed in passing (maintainer, not a review finding)
+
+`tools/ai-review.sh` codex backend: `codex exec` blocks reading extra
+prompt text from stdin when stdin is a non-TTY that never closes; the
+backend now redirects `</dev/null`. This is why this audit's first two
+launch attempts hung silently.
+
+## Disposition summary
+
+| Finding | Verdict | Action |
+|---|---|---|
+| P1 LITERAL prose/oracle split | confirmed (+ prose self-contradiction) | ADR-004 PROPOSED, gate pending |
+| P2 verifier absent | confirmed | `tools/warrant_verify.py` shipped, README topology documented |
+| P2 selftest label 36864 | confirmed | label fixed to 36863 |

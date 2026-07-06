@@ -66,7 +66,9 @@ case "$CLI" in
         --print-timeout 45m -p "$PROMPT"
     ;;
   codex)
-    codex exec --sandbox workspace-write "$PROMPT"
+    # </dev/null: codex exec reads extra prompt text from stdin when it is not
+    # a TTY and blocks until EOF — fatal for background runs that keep stdin open
+    codex exec --sandbox workspace-write "$PROMPT" </dev/null
     ;;
   *)
     echo "unknown reviewer CLI: $CLI" >&2; exit 2

@@ -1,0 +1,510 @@
+# Review: Codex post-release audit of v0.5.0 "Priced Reality" - 2026-07-06
+
+## Verdict
+
+No P0 found in the v0.5.0 hash-thunk machine, size-priced ATP model, or Book II
+wave oracle. The lazy materialization boundary is coherent with Book I
+§3.3/§3.5 and the shipped lazy-edge vectors; I did not find a new dangling
+result or dead-branch counterexample. The size-priced invariant survived both
+the shipped property suite and additional duplication probes.
+
+I found one P1 conformance-surface defect outside the named lazy/ATP path but
+inside a settled normative point: Book I now requires observable on-demand
+LITERAL blob validation, while the v0.5 oracle and vectors still have no blob
+channel and accept a LITERAL commitment without any blob. I also found two P2
+auditability/coherence issues: the Warrant verifier is not shipped in this
+checkout despite the review protocol telling auditors to run it, and a Book II
+selftest label says `36864` while the oracle/vector value is `36863`.
+
+## Verified-vectors statement
+
+I read `reviews/README.md` first, then ran the required commands before reading
+the implementation/specs in detail.
+
+```bash
+python3 impl/sigma_glyph.py
+```
+
+Observed: all checks printed `OK`, including the v0.5 lazy and size-priced
+checks; final line was:
+
+```text
+ALL PASS
+```
+
+```bash
+python3 tests/spec_conformance/run_reference.py
+```
+
+Observed: all 46 vectors printed `OK`; final line was:
+
+```text
+CONFORMANCE: ALL PASS (46/46)
+```
+
+```bash
+python3 tools/verify_anchors.py
+```
+
+Observed current v0.5.0 anchors for Book I, Book II, LORE, appendix A,
+`vectors.json`, and `wave_vectors.json` all printed `OK`; final line was:
+
+```text
+anchors verified
+```
+
+Additional checks I ran:
+
+```bash
+python3 impl/sigma_wave.py
+python3 tests/spec_conformance/test_properties.py
+python3 tools/check_lazy_edges.py
+```
+
+Observed:
+
+```text
+WAVE: ALL PASS (17/17)
+PROPERTIES: ALL PASS (2103/2103, seed=0x516)
+lazy edges sealed
+```
+
+## Findings by severity
+
+### P0
+
+None.
+
+### P1 - LITERAL blob validation is normative but untestable and unimplemented by the oracle
+
+Book I §1.1 now says the normative behavior of `resolve(h)` for `LITERAL` is to
+fetch the blob, validate `SHA-256(blob) == atom`, and materialize Canonical
+Invalid Object if validation fails. That settled the old DeepSeek timing issue:
+on-demand validation is the externally visible rule.
+
+The v0.5 reference oracle, however, has only a node-byte CAS:
+
+- `Store.put(b)` stores canonical node bytes under `NodeHash(b)`.
+- `force()` parses a LITERAL node and immediately returns `("lit", atom)`.
+- There is no BlobStore, no blob lookup, and no path that can turn a mismatched
+  or missing LITERAL blob into Canonical Invalid Object.
+
+I checked the current behavior directly:
+
+```bash
+python3 - <<'PY'
+import sys
+sys.path.insert(0,'impl')
+import sigma_glyph as sg
+st=sg.Store()
+h=st.put(sg.ser(sg.LITERAL, sg.F_ATOM, atom=sg.sha(b'dummy blob')))
+r,sp=sg.eval_hash(h,10,st)
+print('literal_without_blob', sg.term_hash(r).hex(), sp, r[0])
+print('invalid_hash', sg.node_hash(sg.INVALID_OBJECT).hex())
+PY
+```
+
+Output:
+
+```text
+literal_without_blob 18e4bb3e3e3d90536f0709bc6ae7e08c489d2fe1dd38d82578e7dd444b2e31af 1 lit
+invalid_hash af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507
+```
+
+This is also canonized by `EV-LIT-FORCE`, which says a non-genesis LITERAL
+forces in 1 ATP and returns normal form. The vector supplies only node bytes,
+not the committed blob.
+
+Impact: implementers have two plausible "conformance" targets that disagree on
+observable behavior for LITERALs with missing or mismatched blob material: the
+prose rule and the executable oracle. Because Book I §7 says the machine vector
+set/oracle wins when prose and vectors diverge, this is not just missing
+coverage; it is a spec/oracle split. It does not affect the hash-thunk lazy
+machine itself, but it is a consensus-surface gap if LITERAL blob validation is
+really part of `eval()`.
+
+Concrete proposal:
+
+Choose one rule and make both prose and oracle match.
+
+If LITERAL blob validation is intended to be consensus-visible, add a blob store
+to the reference oracle and vector format, then add at least:
+
+```text
+EV-LIT-BLOB-OK:
+  node = LITERAL(SHA-256("dummy blob"))
+  blob store has "dummy blob"
+  expected: normal_form node hash, spent 1
+
+EV-LIT-BLOB-MISMATCH:
+  node = LITERAL(atom)
+  blob store returns bytes whose SHA-256 != atom
+  expected: Canonical Invalid Object hash, spent 1
+
+EV-LIT-BLOB-MISSING:
+  node = LITERAL(atom)
+  blob absent
+  expected: choose and pin either Unresolved Reference or Canonical Invalid Object
+```
+
+If LITERAL blob validation is intended to remain a storage-layer contract outside
+Book I evaluation, replace the current §1.1 paragraph with:
+
+```text
+LITERAL blob validation is outside `eval()`: Book I validates only SigmaNodeV2
+canonical node bytes. A LITERAL node is a normal form whose `atom` commits to
+external data; absence or mismatch of that external data MUST NOT change the
+Book I result hash. Blob retrieval APIs MAY report storage faults or invalid
+blob material, but those outcomes are not canonical Book I eval results.
+```
+
+I prefer the first option because it preserves the v0.4.2 settlement as written.
+
+### P2 - The warrant store verifies, but the documented verifier is absent
+
+`reviews/README.md` tells auditors to inspect warrants with:
+
+```bash
+python3 <warrant.py> why <id>
+python3 <warrant.py> verify
+```
+
+This checkout contains `.warrants/` but no `warrant.py` or equivalent local
+tool. I wrote a read-only verifier from the visible records and checked:
+
+```bash
+python3 - <<'PY'
+import json, hashlib, glob, os
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.exceptions import InvalidSignature
+KEY='3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27'
+pub=Ed25519PublicKey.from_public_bytes(bytes.fromhex(KEY))
+records={os.path.basename(f)[:-5]: f for f in glob.glob('.warrants/records/*.json')}
+blobs={os.path.basename(f): f for f in glob.glob('.warrants/blobs/*')}
+errs=[]
+roots=[]
+for rid,f in sorted(records.items()):
+    data=json.load(open(f))
+    body=data['body']
+    canon=json.dumps(body, sort_keys=True, separators=(',',':')).encode()
+    if hashlib.sha256(canon).hexdigest()!=rid:
+        errs.append(f'{rid}: record id mismatch')
+    if not body.get('prior'):
+        roots.append(rid)
+    for p in body.get('prior',[]):
+        if p not in records:
+            errs.append(f'{rid}: missing prior {p}')
+    refs=[]
+    subj=body.get('subject',{})
+    if 'hash' in subj: refs.append(('subject',subj['hash']))
+    refs += [('evidence',x) for x in body.get('evidence',[])]
+    refs += [('under',x) for x in body.get('under',[])]
+    for b in body.get('because',[]):
+        if b.get('kind')=='check':
+            if b.get('check'): refs.append(('check', b.get('check')))
+            if b.get('transcript'): refs.append(('transcript', b.get('transcript')))
+    for kind,h in refs:
+        if h not in blobs:
+            errs.append(f'{rid}: missing {kind} blob {h}')
+            continue
+        content=open(blobs[h],'rb').read()
+        got=hashlib.sha256(content).hexdigest()
+        if got!=h:
+            errs.append(f'{rid}: {kind} blob hash mismatch {h} got {got}')
+    for sig in data.get('sigs',[]):
+        if sig.get('key') != KEY:
+            errs.append(f'{rid}: unexpected key {sig.get("key")}')
+            continue
+        try:
+            pub.verify(bytes.fromhex(sig['sig']), bytes.fromhex(rid))
+        except InvalidSignature:
+            errs.append(f'{rid}: invalid signature over record id')
+print('records', len(records))
+print('blobs', len(blobs))
+print('roots', roots)
+print('errors', len(errs))
+for e in errs:
+    print('ERR', e)
+PY
+```
+
+Observed:
+
+```text
+records 10
+blobs 34
+roots ['14d413f2952b5d5b7840a467b3154f12f2882dd939dfbe99fdf69524b4a841ef', '276b6f983900fc1c90a7b66b62274c5691ce12175e3c59ed00b31717bdc0c60d']
+errors 0
+```
+
+So the store itself is internally consistent under the inferred Warrant v0.1
+rules:
+
+- all 10 record filenames equal `sha256(json.dumps(body, sort_keys=True, separators=(',', ':')))`;
+- all referenced subject/evidence/check/transcript/under blobs exist and hash
+  to their filenames;
+- all prior links resolve;
+- all signatures verify over the raw record id using the README Ed25519 key.
+
+The hostile-auditor problem is reproducibility: the release asks reviewers to
+trust an external or placeholder verifier while the adjudication chain is being
+used as settlement evidence. There are also two roots: the main review/adoption
+chain rooted at Sonnet 4.5, and a separate `Executable law: TV-10 as a ski@v1
+reason` root. That may be valid Warrant DAG behavior, but the README calls it a
+"chain" and does not explain the second root.
+
+Concrete proposal:
+
+Add a local verifier and make the topology explicit:
+
+```text
+tools/warrant.py verify MUST verify:
+  - record id = SHA-256(canonical JSON body);
+  - each Ed25519 signature over the raw record id;
+  - every subject/evidence/check/transcript/under blob hash;
+  - every prior link.
+
+The `.warrants/` store is a DAG, not necessarily a single chain. As of v0.5.0
+it has two roots:
+`276b6f983900fc1c90a7b66b62274c5691ce12175e3c59ed00b31717bdc0c60d`
+and `14d413f2952b5d5b7840a467b3154f12f2882dd939dfbe99fdf69524b4a841ef`.
+Settlement records for review decisions descend from the first root;
+standalone executable-law warrants may be separate roots.
+```
+
+### P2 - Book II selftest label contradicts the oracle/vector value
+
+The Book II math and vector are coherent, but one executable message is wrong.
+I checked:
+
+```bash
+python3 - <<'PY'
+import sys, json
+sys.path.insert(0,'impl')
+import sigma_wave as sw
+r=sw.interfere(sw.W(0,49151,0), sw.W(0,49151,0))
+print('interfere(49151,49151)=', r)
+print('direct_round=', sw.div_round_half_up(49151*49151,65535))
+wv=json.load(open('tests/spec_conformance/wave_vectors.json'))
+print('WV-SELF-PARTIAL expected=', [v for v in wv['vectors'] if v['id']=='WV-SELF-PARTIAL'][0]['expected'])
+PY
+```
+
+Output:
+
+```text
+interfere(49151,49151)= {'ph': 0, 'am': 36863, 'en': -256}
+direct_round= 36863
+WV-SELF-PARTIAL expected= {'ph': 0, 'am': 36863, 'en': -256}
+```
+
+But `python3 impl/sigma_wave.py` prints:
+
+```text
+OK   0.75 self -> 0.5625 (36864)
+```
+
+This is only a human-label error; the assertion uses the correct computed value
+and `wave_vectors.json` is coherent. It is still a cross-suite coherence papercut
+because `49151` is not exactly `0.75 * 65535`, and the exact integer result is
+`36863`, not `36864`.
+
+Concrete proposal:
+
+Change the selftest label to one of:
+
+```text
+0.75-ish self -> quadratic decay (36863 for am=49151)
+```
+
+or:
+
+```text
+partial self -> am^2/65535 rounded = 36863
+```
+
+## Focus-area notes
+
+### 1. Hash-thunk lazy machine vs Book I §3.3/§3.5
+
+I did not find a new materialization-timing divergence beyond the settled TV-8
+and TV-11 family.
+
+The shipped `tools/check_lazy_edges.py` verifies:
+
+```text
+OK  EV-K-DEAD-MISSING -> normal_form, spent 7
+OK  EV-K-DEAD-NESTED-MISSING -> normal_form, spent 7
+OK  EV-S-KI-KK-DEAD-Z -> normal_form, spent 20
+OK  EV-TV8-MISSING-CHILD -> unresolved_reference, spent 4
+CONFORMANCE: ALL PASS (46/46)
+lazy edges sealed
+```
+
+I also probed unpinned variants:
+
+```bash
+python3 - <<'PY'
+import sys
+sys.path.insert(0,'impl')
+import sigma_glyph as sg
+st=sg.Store()
+A=lambda l,r:('app',l,r)
+Ig,Kg,Sg=('lit',sg.sha(b'I')),('lit',sg.sha(b'K')),('lit',sg.sha(b'S'))
+def put_tree(t):
+    if t[0]=='app': put_tree(t[1]); put_tree(t[2])
+    return st.put(sg.term_bytes(t))
+for b in (sg.I_BYTES, sg.K_BYTES, sg.S_BYTES, sg.FALSE_BYTES): st.put(b)
+ghost=sg.sha(b'this node was never stored')
+inner=put_tree(A(A(Sg,A(Kg,Ig)),A(Kg,Kg)))
+h_nested_z=st.put(sg.ser(sg.APPLY, sg.F_LEFT|sg.F_RIGHT, left=sg.I_H, right=ghost))
+h_term=st.put(sg.ser(sg.APPLY, sg.F_LEFT|sg.F_RIGHT, left=inner, right=h_nested_z))
+r,sp=sg.eval_hash(h_term,100,st)
+print('S(KI)(KK)(I ghost)', sg.term_hash(r).hex(), sp, 'is_K', sg.term_hash(r)==sg.K_H)
+h_bad=st.put(bytes([0x03,0x02])+b'\x00'*32)
+h_term2=st.put(sg.ser(sg.APPLY, sg.F_LEFT|sg.F_RIGHT, left=inner, right=h_bad))
+r,sp=sg.eval_hash(h_term2,100,st)
+print('S(KI)(KK)(bad-bytes)', sg.term_hash(r).hex(), sp, 'is_K', sg.term_hash(r)==sg.K_H)
+h_demand_bad=st.put(sg.ser(sg.APPLY, sg.F_LEFT|sg.F_RIGHT, left=sg.I_H, right=h_bad))
+r,sp=sg.eval_hash(h_demand_bad,100,st)
+print('I bad-bytes', sg.term_hash(r).hex(), sp, 'is_invalid', sg.term_hash(r)==sg.node_hash(sg.INVALID_OBJECT))
+PY
+```
+
+Output:
+
+```text
+S(KI)(KK)(I ghost) bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c 20 is_K True
+S(KI)(KK)(bad-bytes) bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c 20 is_K True
+I bad-bytes af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507 5 is_invalid True
+```
+
+That is the right boundary: dead malformed/unresolvable data is not forced, but
+the same bad bytes materialize Canonical Invalid Object when demanded as the
+answer.
+
+### 2. Size-priced ATP invariant
+
+No counterexample found.
+
+The deterministic property suite already checks P7 over generated terms:
+
+```text
+PROPERTIES: ALL PASS (2103/2103, seed=0x516)
+```
+
+I also traced constructed duplication candidates:
+
+```bash
+python3 - <<'PY'
+import sys
+sys.path.insert(0,'impl')
+import sigma_glyph as sg
+st=sg.Store(); A=lambda l,r:('app',l,r)
+Ig,Kg,Sg=('lit',sg.sha(b'I')),('lit',sg.sha(b'K')),('lit',sg.sha(b'S'))
+def put_tree(t):
+    if t[0]=='app': put_tree(t[1]); put_tree(t[2])
+    return st.put(sg.term_bytes(t))
+for b in (sg.I_BYTES, sg.K_BYTES, sg.S_BYTES, sg.FALSE_BYTES): st.put(b)
+def trace(h, budget=10000):
+    t=('thunk',h); spent=0; smax=sg.size(t); steps=0; stats={'fetches':0}
+    try:
+        while True:
+            rr=sg.step5(t,budget-spent,st,stats,sg.DEFAULT_LIMITS)
+            if rr is None: return 'nf', sg.term_hash(t).hex(), spent, smax, steps, smax-1<=spent
+            t=rr[0]; spent+=rr[1]; steps+=1; smax=max(smax,sg.size(t))
+    except sg.BudgetExhausted:
+        return 'atp', sg.node_hash(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=sg.R_ATP)).hex(), spent, smax, steps, smax-1<=spent
+    except sg.Unresolved:
+        return 'unres', sg.node_hash(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=sg.R_UNRES)).hex(), spent, smax, steps, smax-1<=spent
+candidates=[]
+T=A(A(A(Sg,Ig),Ig),A(Ig,Kg)); candidates.append(('TV6 S I I (I K)', T))
+W=A(A(Sg,Ig),Ig); candidates.append(('Omega prefix budget 500', A(W,W)))
+payload=A(Ig,Kg)
+for n in range(1,5):
+    term=A(A(A(Sg,Ig),Ig),payload)
+    candidates.append((f'dup-chain-{n}', term))
+    payload=term
+for name,t in candidates:
+    h=put_tree(t)
+    budget=500 if 'Omega' in name else 10000
+    print(name, trace(h,budget))
+PY
+```
+
+Output:
+
+```text
+TV6 S I I (I K) ('nf', '89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798', 21, 7, 10, True)
+Omega prefix budget 500 ('atp', '8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176', 500, 67, 178, True)
+dup-chain-1 ('nf', '89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798', 21, 7, 10, True)
+dup-chain-2 ('nf', 'bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c', 34, 11, 16, True)
+dup-chain-3 ('nf', '89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798', 81, 15, 38, True)
+dup-chain-4 ('nf', 'bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c', 94, 19, 44, True)
+```
+
+The attempted attack shape was repeated `S I I payload` duplication. Under the
+hash-leaf model, R-S duplicates hash leaves cheaply but not for free, and later
+forcing pays per materialization. The observed `smax - 1 <= spent` stayed true.
+
+### 3. Book II implementation vs spec
+
+The LUT arbiter, controls, entropy coupling, left dominance, clamps, and
+negative-tie rounding all pass:
+
+```text
+WAVE: ALL PASS (17/17)
+```
+
+I did not find a numerical divergence from `spec/book-2-navigation.md`. The only
+issue is the P2 selftest label above.
+
+### 4. Cross-suite coherence
+
+`vectors.json` replays against `impl/sigma_glyph.py`; `wave_vectors.json` replays
+inside `impl/sigma_wave.py`; `tools/verify_anchors.py` confirms both anchored
+suite files in the v0.5.0 section. I did not run the generators because they
+write into the repository and this review was instructed to modify only this
+file.
+
+### 5. `.warrants/` chain
+
+The warrant data verifies under the inferred rules, including signatures. The
+auditability defect is packaging/documentation, not data integrity.
+
+## Relation to prior reviews
+
+Agreement:
+
+- I agree with the ADR-gate reviews that the hash-leaf size model is the right
+  composition of ADR-001 and ADR-003.
+- I agree with the peer-Claude lazy-edge response: dangling result hashes do not
+  escape, and the TV-8/TV-11 pair pins both sides of the boundary.
+- I agree with the DeepSeek/Gemini/maintainer Book II conclusion that
+  round-half-away-from-zero is the correct Book II rule and that `WV-NEG-TIE`
+  catches floor variants.
+
+Disagreement:
+
+- I do not treat LITERAL validation as fully settled in the shipped v0.5.0
+  artifact. The timing question is settled in prose, but the oracle and vectors
+  still cannot express the settled behavior. That is new evidence, not a
+  re-litigation of DeepSeek's original point.
+
+New relative to prior reviews:
+
+- The concrete v0.5.0 oracle/vector mismatch for LITERAL blob validation:
+  `EV-LIT-FORCE` accepts a commitment without a blob and there is no BlobStore
+  path to produce Canonical Invalid Object for blob mismatch.
+- A mechanical warrant verification result for this checkout: records/blobs/
+  priors/signatures verify, but no local verifier is shipped and the topology is
+  a two-root DAG.
+- The Book II selftest message typo (`36864` label vs `36863` actual/vector).
+
+## Closing
+
+Post-release v0.5.0 is technically sound on the requested priced-lazy core. The
+one issue I would fix before calling the release audit-clean is the LITERAL
+prose/oracle split, because the project explicitly uses the oracle and vectors
+as executable law. The warrant verifier packaging is next: settlement evidence
+should be locally reproducible by the same standard as the spec vectors.

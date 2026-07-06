@@ -129,7 +129,7 @@ def selftest():
     r = interfere(W(0, 65535, -32768), W(0, 65535, -32768))
     chk("fixed point {65535,-32768}", r == W(0, 65535, -32768))
     r = interfere(W(0, 49151, 0), W(0, 49151, 0))
-    chk("0.75 self -> 0.5625 (36864)", r["am"] == div_round_half_up(49151 * 49151, 65535))
+    chk("partial self am=49151 -> am^2/65535 rounded = 36863", r["am"] == div_round_half_up(49151 * 49151, 65535))
     r = interfere(W(0, 65535, -1), W(0, 65535, -2))
     chk("negative tie: avg(-1,-2) = -2 (away from zero) -> en -258", r["en"] == -258)
     # entropy drift sequence from en=0: -256, -512, ... linear

@@ -1,0 +1,7 @@
+records 10, blobs 34, roots ['14d413f2952b', '276b6f983900'], errors 0
+WAVE: ALL PASS (17/17)
+LIT-no-blob lit 1
+ALL PASS
+CONFORMANCE: ALL PASS (46/46)
+anchors verified
+codex audit dispositions verified

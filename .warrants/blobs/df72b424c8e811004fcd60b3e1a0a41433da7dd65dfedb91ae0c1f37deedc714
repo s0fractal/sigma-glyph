@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Adjudication check for the Codex v0.5.0 post-release audit (run from repo root).
+Verifies the two P2 fixes and pins the P1 interim law that ADR-004 addresses."""
+import subprocess, sys
+
+ok = True
+
+def run(cmd):
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    return r.returncode, r.stdout + r.stderr
+
+# P2 fix 1: shipped warrant verifier passes on this store
+rc, out = run([sys.executable, "tools/warrant_verify.py"])
+line = out.strip().splitlines()[-1]
+print(line)
+ok &= rc == 0 and "errors 0" in line
+
+# P2 fix 2: wave selftest passes and the 36864 label is gone
+rc, out = run([sys.executable, "impl/sigma_wave.py"])
+print(out.strip().splitlines()[-1])
+ok &= rc == 0 and "WAVE: ALL PASS" in out and "36864" not in out and "36863" in out
+
+# P1 interim law (Book I §7 supremacy, pending ADR-004): LITERAL forces to
+# normal form in 1 ATP with no blob material anywhere
+probe = (
+    "import sys; sys.path.insert(0,'impl'); import sigma_glyph as sg;"
+    "st=sg.Store();"
+    "h=st.put(sg.ser(sg.LITERAL, sg.F_ATOM, atom=sg.sha(b'dummy blob')));"
+    "r,sp=sg.eval_hash(h,10,st);"
+    "print('LIT-no-blob', r[0], sp)"
+)
+rc, out = run([sys.executable, "-c", probe])
+print(out.strip())
+ok &= rc == 0 and "LIT-no-blob lit 1" in out
+
+# full gates unchanged
+for cmd, want in ((["impl/sigma_glyph.py"], "ALL PASS"),
+                  (["tests/spec_conformance/run_reference.py"], "ALL PASS (46/46)"),
+                  (["tools/verify_anchors.py"], "anchors verified")):
+    rc, out = run([sys.executable] + cmd)
+    print(out.strip().splitlines()[-1])
+    ok &= rc == 0 and want in out
+
+print("codex audit dispositions verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)
