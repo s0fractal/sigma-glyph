@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Adjudication check for the Kimi k2.6 v0.5.0 audit (run from repo root).
+Reproduces the confirmed Book II findings, the refutation arithmetic for the
+'Synthetic Exclusion Lemma' claim, and re-runs the standing gates."""
+import subprocess, sys
+
+sys.path.insert(0, "impl")
+import sigma_wave as sw
+
+ok = True
+
+# CONFIRMED: derived FALSE = interfere(K, I) is amplitude-zero (en = -32512,
+# correcting the review's -32768 slip); the cascade follows from prod01
+r = sw.interfere(sw.W(32768, 65535, -32768), sw.W(0, 65535, -32768))
+print("interfere(K,I) =", r)
+ok &= r == {"ph": 32768, "am": 0, "en": -32512}
+cascade = sw.interfere(sw.W(0, 65535, 0), sw.W(*r.values()))
+print("ancestor of am=0 ->", cascade["am"])
+ok &= cascade["am"] == 0
+
+# CONFIRMED: iterated self-interference decays 49151 -> 0 (no vector pins this)
+w, seq = sw.W(0, 49151, 0), [49151]
+while w["am"]:
+    w = sw.interfere(w, w)
+    seq.append(w["am"])
+print("decay:", seq)
+ok &= seq == [49151, 36863, 20735, 6560, 657, 7, 0]
+
+# REFUTED: 'Synthetic Exclusion Lemma' — under the s3.4 metric (synthetic
+# nodes counted), R-S net growth = size(z) - 1 while cost = 1 + size(z);
+# growth < cost for every z, so the invariant needs no exclusion lemma
+for size_z in (1, 2, 5, 100):
+    growth, cost = size_z - 1, 1 + size_z
+    ok &= growth < cost
+print("R-S growth < cost for all probed size(z): OK")
+
+# standing gates
+for cmd, want in ((["tests/spec_conformance/test_properties.py"], "PROPERTIES: ALL PASS"),
+                  (["impl/sigma_wave.py"], "WAVE: ALL PASS"),
+                  (["impl/sigma_glyph.py"], "ALL PASS"),
+                  (["tools/warrant_verify.py"], "errors 0")):
+    p = subprocess.run([sys.executable] + cmd, capture_output=True, text=True)
+    last = p.stdout.strip().splitlines()[-1]
+    print(last)
+    ok &= p.returncode == 0 and want in last
+
+print("kimi audit dispositions verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

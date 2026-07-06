@@ -1,0 +1,44 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Mixed dispositions after independent oracle reproduction of every checkable claim. ACCEPTED: ADR-004 criterion answered in the negative (blob never in eval's node-CAS transitive closure; Option 1 = P0-class divergence surface) - recorded as gate review 1 of >=3 for Option 2. CONFIRMED -> ADR-005 (wave totality): derived FALSE = interfere(K,I) is amplitude-zero (oracle: {ph=32768, am=0, en=-32512}; review's en=-32768 is a slip, am=0 exact) and silence cascades to all ancestors; Ph-only pins in Book II s6.2-6.4 lack field-level override semantics; no base-case wave for unpinned LITERALs; iterated decay 49151->36863->20735->6560->657->7->0 reproduced and unpinned by any vector (s5.1 already states quadratic decay - the 'crystallization narrative contradiction' framing corrected, suite gap adopted). REFUTED: 'Synthetic Exclusion Lemma' proof-gap - Book I s3.4 formally defines the metric (hash leaf=1, REF=2, APPLY recursive, synthetic nodes counted) and the R-S counterexample uses the v0.4 price; under v0.5 cost(R-S)=1+size(z) vs net growth size(z)-1, growth<cost holds with no exclusion lemma; budget-ordering already settled law. ACCEPTED (P3): governance failure modes filed upstream as s0fractal/warrant issues #5 #6 #7 with one precedent correction (ADR-004 opening shows the operative settlement standard is new demonstrable consequence, not new bytes). Blind pass-1 preserved as evidence."
+      },
+      {
+        "check": "2a5c1833735f253e1a12b2e1e7deb691b5e301728c05634d90840747e60468bf",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "b2a6a55c1f0a6ad5d9b5c82186527a5a02e6f57cb86c8e8f0e590000a0145728",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "ae82735272259cb62788f915f0ec33b13c2751bb8d9ba9b29aab793022df9bde",
+      "422e5090f1bfc333cfbb4106c2fb83e5a999993adb450895bab2fdd0841b8cb6"
+    ],
+    "prior": [
+      "c2ed045587bd2a4843fe40e25338eabcce8d1ee25859756c29554357e470aad4"
+    ],
+    "subject": {
+      "hash": "41d1b5637ad99482599445bf6884b41dfdf7cf94cc2490b86b361c355d4e1903",
+      "note": "Kimi k2.6 post-release audit of v0.5.0 (analytical; 2 new P1 confirmed, 1 P1 refuted, ADR-004 gate review 1, governance P3)"
+    },
+    "ts": 1783380154,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "5a0da3ea08a00c99440e2d1de806a9ab6493571dbad345d8de166e43c7eb31a7e1488b5ee938da66973b3b38ea293031273be0dd773c3a05a1194a8c205de004"
+    }
+  ]
+}

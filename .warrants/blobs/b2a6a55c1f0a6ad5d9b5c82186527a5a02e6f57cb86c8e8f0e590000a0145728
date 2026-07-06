@@ -1,0 +1,9 @@
+interfere(K,I) = {'ph': 32768, 'am': 0, 'en': -32512}
+ancestor of am=0 -> 0
+decay: [49151, 36863, 20735, 6560, 657, 7, 0]
+R-S growth < cost for all probed size(z): OK
+PROPERTIES: ALL PASS (2103/2103, seed=0x516)
+WAVE: ALL PASS (17/17)
+ALL PASS
+records 11, blobs 38, roots ['14d413f2952b', '276b6f983900'], errors 0
+kimi audit dispositions verified

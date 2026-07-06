@@ -1,0 +1,234 @@
+<!-- produced via tools/or_review.py | model: moonshotai/kimi-k2.6 | two-pass blind protocol | gates run by maintainer | pass-1 (blind) preserved at reviews/2026-07-kimi-v0.5.0-audit.md.pass1 -->
+
+# Review: Post-release audit of v0.5.0 'Priced Reality' — Audit Review 2 (Conceptual / Mathematical)
+
+## Verdict
+
+- **P0 — Consensus divergence:** None found in the v0.5.0 executable core as shipped. However, **ADR-004 Option 1 (LITERAL blob validation inside `eval()`) would introduce a P0-class divergence surface** if adopted, because it makes the canonical result of `eval()` depend on blob-CAS state that is not fixed by identical node-CAS. I argue below that Option 1 is unsound under the hash-thunk machine's own state-space axioms.
+- **P1 — Specification underdetermination:** Three distinct gaps.
+  1. **ADR-004:** Book I §1.1 contains a direct prose/prose contradiction between paragraph 1 (blob contract is outside this Book) and paragraph 2 (normative `resolve(h)` for LITERAL fetches and validates the blob). The ADR does not resolve this; it only restates the contradiction as a binary choice.
+  2. **Book II partial pins:** §6.2 (Grand Cross) pins `Ph` for `FALSE`, `SATOSHI`, and `TESLA` but leaves `Am` and `En` unspecified. The Pin-versus-Derived precedence rule does not define field-level overriding, so an implementer cannot know whether `FALSE` inherits `Am=65535` from some implicit default or derives `Am=0` from `interfere(K,I)`. The latter produces a **zero-amplitude cascade** that zeroes the root amplitude of any term containing `FALSE`.
+  3. **Book II LITERAL waves:** The spec does not define a wave vector for arbitrary `LITERAL` nodes that lack a Pin. If a Pin is required for every node that participates in `interfere`, the set of valid terms is smaller than the set of well-formed SigmaNodeV2 terms.
+- **P2 — Auditability / clarity:** The Book II selftest label `36864` vs. vector value `36863` and the absent warrant verifier were correctly identified by Codex (review 1) and fixed by the maintainer in the response. I independently confirm the arithmetic below.
+- **P3 — Governance roadmap:** The warrant settlement rule ("evidence absent from the entire prior tunnel") and the two-root DAG structure have failure modes that amplify as the review corpus grows. These are not code defects but institutional risks that should be documented before the corpus becomes path-dependent.
+
+---
+
+## Pass-1 Findings
+
+### (1) ADR-004 adjudication: LITERAL blob validation inside or outside `eval()`?
+
+**The ADR's decision criterion asks:** *Is there ANY consensus scenario where two honest nodes with identical node-CAS must agree on a blob-dependent outcome?*
+
+**Answer: No.** The hash-thunk machine's state space, transition function, and consensus surface are spanned entirely by NodeHashes. A NodeHash is the SHA-256 of canonical **SigmaNodeV2 bytes**. For a `LITERAL` node, those canonical bytes are `[Op: 0x01][Flags: 0x01][Atom: 32 bytes]`. The atom is a hash commitment; the blob itself is not present in the canonical bytes and therefore does not participate in the NodeHash.
+
+Because `eval()` is defined as a pure function over hash-thunks (§3.3–§3.4), the only inputs to a transition are:
+1. the current term structure (materialized nodes and thunks),
+2. the ATP budget,
+3. the node-CAS mapping `NodeHash → canonical bytes`.
+
+The blob lives in a separate affine space keyed by `Atom = SHA-256(blob)`, not by `NodeHash`. Two honest nodes with identical node-CAS may differ in blob-CAS state: one may possess the blob, the other may lack it, and a third may possess a corrupted blob. If `eval()` were required to validate the blob inside `resolve(h)` (Option 1), then:
+- Node A, lacking the blob, would produce either `Canonical Invalid Object` or `Unresolved Reference`.
+- Node B, possessing the blob, would produce the normal-form `LITERAL` node hash.
+- Both nodes have identical node-CAS and identical starting terms, yet their canonical `eval()` results differ.
+
+That is a consensus divergence by construction. The spec's own settled point "canonical failures ≠ local resource faults" (§3.5) already forbids canonizing local blob absence as a machine result. Option 1 would violate that settlement.
+
+**First-principles argument from content-addressed determinism:**
+- Let `S` be the set of all NodeHashes.
+- Let `T` be the set of all hash-thunk terms.
+- Let `M : T × ℕ × (S → Bytes) → T` be the `step` function.
+- For any `t ∈ T`, `M(t, atp, store)` depends only on the bytes retrieved by `resolve(h)` for `h ∈ S`.
+- For a `LITERAL` node, `resolve(h)` needs only the canonical node bytes to construct the in-memory `LITERAL` object. The atom field is a 32-byte scalar; no blob fetch is required to populate it.
+- Therefore, for any two stores `store₁, store₂` such that `store₁(h) = store₂(h)` for all `h` in the transitive closure of the evaluation, `M(t, atp, store₁) = M(t, atp, store₂)`.
+- Since the blob is not in that transitive closure, blob state cannot affect `M`.
+
+**Conclusion:** There is no consensus scenario where identical node-CAS forces agreement on a blob-dependent outcome. The blob is a storage-layer concern; its validation belongs outside Book I. Paragraph 2 of §1.1 should be deleted or demoted to a non-normative storage contract, and Option 2 should be adopted as the only consensus-compatible rule.
+
+*Attribution:* Codex (review 1) observed that the reference oracle has no blob channel and that `EV-LIT-FORCE` accepts a LITERAL commitment without a blob. The maintainer (response) confirmed the prose self-contradiction. My analysis above is independent: I derive the unsoundness of Option 1 from the machine's state-space definition rather than from implementation omission.
+
+---
+
+### (2) Book II mathematics as normative text: entropy-coherence coupling, the crystallization fixed point `{am=65535, en=-32768}`, round-half-away-from-zero
+
+I attacked the algebra from the spec text (`spec/book-2-navigation.md`) without executing the reference implementation. The 17 shipped vectors test isolated `interfere()` calls; they do **not** pin iterative dynamics, partial-pin ambiguity, or zero-amplitude cascades.
+
+#### 2.1 Fixed-point verification
+
+For `interfere(w, w)` with `w = {ph, am=65535, en=-32768}`:
+
+- `x = int32(ph) - int32(ph) = 0`. `d32 = 0`. `delta = min(0, 65536) = 0`.
+- `r = LUT_COS[0] = 32767`.
+- `delta_en = div_round_half_up(-32767, 128)`.
+  - `a = 32767`, `d = 128`. `q = 255` (since `255·128 = 32640`). `r = 127`.
+  - `2r = 254 ≥ 128`, so `q += 1 → 256`.
+  - Return `-256`.
+- `new_en = clamp_i16( div_round_half_up(-65536, 2) + (-256) )`.
+  - `div_round_half_up(-65536, 2) = -32768` exactly.
+  - `-32768 + (-256) = -33024`. `clamp_i16` saturates to `-32768`.
+- `amp_factor = div_round_half_up( int64(32767+32767)·65535, 65534 )`.
+  - Numerator `= 65534 · 65535 = 4,294,770,690`.
+  - Exact division: `4,294,770,690 / 65534 = 65535` remainder `0`.
+  - `amp_factor = 65535`.
+- `prod01 = div_round_half_up(65535·65535, 65535) = 65535`.
+- `new_am = div_round_half_up(65535 · 65535, 65535) = 65535`.
+
+Thus `{am=65535, en=-32768}` is a fixed point for any `ph`.
+
+#### 2.2 Uniqueness of the non-zero amplitude fixed point
+
+Under self-interference, `new_am = f(A)` where `f(A) = div_round_half_up(A², 65535)`.
+
+For `A ∈ [1, 65534]`:
+- `A² < 65535·A`, so `A²/65535 < A`.
+- The rounding can at most add `0.5`. We need to check whether `A²/65535 ≥ A - 0.5` is possible.
+- Inequality: `A² ≥ 65535A - 32767.5`. The quadratic `A² - 65535A + 32767.5 = 0` has roots at approximately `A ≈ 0.5` and `A ≈ 65534.5`. For integer `A` in `[1, 65534]`, the left-hand side is strictly less than the right-hand side at the boundaries and the parabola opens upward, so the inequality fails for all integers in the interval.
+- Therefore `A²/65535 < A - 0.5`, which implies `f(A) ≤ A - 1` for all `A ∈ [1, 65534]`.
+
+**Arithmetic examples:**
+- `A = 65534`: `A² = 4,294,705,156`. `65535·65533 = 4,294,705,155`. Remainder `1`. `2·1 < 65535`, so `f(65534) = 65533`.
+- `A = 182`: `A² = 33,124`. `33,124/65535 ≈ 0.5055`. `q=0, r=33124, 2r=66248 ≥ 65535`, so `f(182) = 1`.
+- `A = 1`: `f(1) = 0`.
+
+Hence `0` and `65535` are the **only** amplitude fixed points under self-interference. The spec's claim of a unique non-zero fixed point is correct.
+
+#### 2.3 Non-convergent sequences the 17 vectors do not pin
+
+The vectors test single `interfere()` calls, not iteration. For any starting amplitude `A < 65535`, repeated self-interference produces the sequence `A, f(A), f(f(A)), …` which is strictly decreasing until it hits `0`. It **does not** converge to `65535`. The "crystallization" narrative in §5.1 is therefore a property of the **boundary** `A = 65535`, not an attractor for the interior of the state space. A term graph containing a self-application of a sub-term with `am < 65535` will have its wave amplitude decay toward zero at that node; if that node is on the spine, the decay propagates upward.
+
+#### 2.4 Zero-amplitude cascade (unreachable / underdetermined states)
+
+`prod01 = div_round_half_up(am₁·am₂, 65535)`. If either `am = 0`, then `prod01 = 0`, and consequently `new_am = 0` regardless of `amp_factor`. Because `interfere` is the **only** derivation rule for `APPLY` waves, any `APPLY` node with a zero-amplitude child has amplitude `0`. By induction, **any ancestor of a zero-amplitude node has amplitude `0`**.
+
+Now compute the derived wave for `FALSE` from the Trinity pins (§6.1), assuming no Grand-Cross override for `Am`/`En`:
+- `K = {ph=32768, am=65535, en=-32768}`.
+- `I = {ph=0, am=65535, en=-32768}`.
+- `interfere(K, I)`:
+  - `new_ph = 32768` (Left Dominance).
+  - Phase difference `= 32768`. `delta = 32768`. `r = LUT_COS[32768] = -32767`.
+  - `delta_en = div_round_half_up(32767, 128) = +256`.
+  - `new_en = clamp_i16(-32768 + 256) = -32768`.
+  - `amp_factor = div_round_half_up(0·65535, 65534) = 0`.
+  - `prod01 = 65535`. `new_am = div_round_half_up(65535·0, 65535) = 0`.
+
+Derived `FALSE = {ph=32768, am=0, en=-32768}`. But §6.2 pins `FALSE` phase to `49152` without specifying `Am`/`En`. If an implementer takes the Pin as a full-vector override, `FALSE` could have any `Am`/`En` the table omits. If the Pin is partial, `Am`/`En` are derived as above, and **any term containing `FALSE` has root amplitude `0`**. The 17 vectors do not test a term containing `FALSE`, so this cascade is unpinned.
+
+#### 2.5 Round-half-away-from-zero verification
+
+The spec's `div_round_half_up` algorithm:
+```
+q = a // d; r = a % d; if 2*r >= d: q += 1; return s*q
+```
+- Negative tie: `n = -3, d = 2`. `a = 3, q = 1, r = 1`. `2*1 >= 2` → `q = 2`. Return `-2`. Correct (away from zero).
+- Negative half toward zero would give `-1`; the vector `WV-NEG-TIE` catches this.
+- Positive tie: `n = 3, d = 2` → `+2`. Correct.
+
+#### 2.6 LUT bounds
+
+`delta = min(d32, 65536 - d32)`. Since `ph` is `uint16`, `d32 = |int32(ph₁) - int32(ph₂)|` ranges `0..65535`. Then `65536 - d32` ranges `1..65536`. The `min` is always in `0..32768`. The LUT has indices `0..32768` (size 32769). No out-of-bounds access is possible.
+
+**P1 finding:** The Grand Cross table (§6.2) is a partial Pin that leaves `Am`/`En` undefined. Combined with the zero-amplitude cascade, this creates a large unreachable-state problem: either `FALSE` is amplitude-zero (silencing any term that uses it), or the spec silently permits implementer-defined defaults for missing Pin fields. The 17 vectors do not cover this.
+
+---
+
+### (3) The size-priced invariant `materialized size - 1 <= spent` as a THEOREM
+
+I audited the proof obligations from the spec text alone, without executing the property suite.
+
+#### 3.1 Intended proof structure
+
+The invariant is clearly intended to be proved by induction on evaluation steps:
+
+- **Base:** The initial term is a thunk of size 1. `spent = 0`. `1 - 1 <= 0` holds.
+- **Step:** Each evaluation operation consumes ATP and may increase the materialized size.
+  - `force(h)` on a thunk: costs `1` ATP and materializes exactly one node. If this is the only size-increasing operation, size grows by `1` while `spent` grows by `1`, preserving the invariant.
+  - Reduction rules (R-I, R-K, R-S, R-R): cost `1` ATP but do not materialize nodes from the CAS. They only rewrite the term. If they do not increase materialized size, `spent` grows while size stays flat, preserving the inequality.
+
+#### 3.2 The unproved lemma: synthetic nodes are not counted
+
+The spec never defines `materialized_size` formally. The critical lemma required for the theorem, but **absent from the text**, is:
+
+> **Lemma (Synthetic Exclusion):** Nodes constructed by reduction rules (e.g., the two new `APPLY` nodes produced by R-S) are *synthetic* and do not contribute to `materialized_size`.
+
+Without this lemma, the invariant fails immediately. Consider R-S:
+```
+APPLY(APPLY(APPLY(⟨S⟩, f), g), x)  →  APPLY(APPLY(f, x), APPLY(g, x))
+```
+If `materialized_size` were interpreted as the logical tree size (counting every `APPLY` node, including the two new ones created by the rule), then one reduction step would increase size by `2` while spending only `1` ATP. A chain of R-S steps could then violate `size - 1 <= spent`.
+
+The spec's use of the phrase "materialized size" (rather than "term size") suggests the intended metric counts only nodes fetched from the content-addressed store, not nodes synthesized by the machine. However, this is an **interpretive leap**. The text does not state that synthetic nodes are excluded, nor does it prove that R-S duplication (§3.4: "hash-leaf duplication") preserves the invariant under any formal definition of size.
+
+#### 3.3 R-S hash-leaf duplication and interleaved R-R
+
+Under the Synthetic Exclusion lemma:
+- **R-S duplication:** The argument `x` is duplicated as a hash leaf (thunk). Thunks are not materialized nodes; they are pointers. No size increase.
+- **Interleaved R-R:** A `REF` node is materialized by `force` (cost 1, size +1), then R-R resolves it to its target thunk (cost 1, size unchanged). A chain of `n` REFs costs `n` ATP and adds `n` to materialized size. The invariant holds.
+
+But if an implementer mistakenly counts the target thunk as "newly materialized" during R-R, or counts synthetic `APPLY` nodes produced by R-S, the theorem collapses. The spec's silence on this point is a **P1 proof-gap**.
+
+#### 3.4 ATP budget exhaustion
+
+If the budget is exhausted, the machine emits `DISSONANCE(R_ATP)`. The spec charges `0` or `1` ATP for this final step (the text is ambiguous on whether the failing step consumes its cost before or after the budget check). If the final step costs `1` and the budget was exactly exhausted, `spent` reaches the budget while `materialized_size` may have reached `spent + 1` at the previous step. The invariant is `<=`, not `=`, so this is acceptable. However, a stricter audit would require the spec to state that the budget check is performed *after* charging the step cost, which is another minor unproved obligation.
+
+**Conclusion for (3):** The invariant is **not fully entailed** by the per-rule costs as written. It depends on the unproved **Synthetic Exclusion Lemma** and on an implicit definition of `materialized_size` that excludes reduction-generated nodes. Until the spec explicitly defines the size metric and proves that synthetic nodes are excluded, the invariant remains a conjecture, not a theorem.
+
+---
+
+### (4) Governance analytics on the warrant settlement rule ('re-litigation requires evidence absent from the entire prior tunnel') and the two-root DAG
+
+I analyze the institutional mechanics of the `.warrants/` store without re-running the settled lazy-edges agenda.
+
+#### 4.1 The "absent from the entire prior tunnel" standard
+
+The rule states that to challenge a settled point, a reviewer must introduce evidence that was absent from **every** prior record in the chain leading to that point. As the review corpus grows, this creates four failure modes:
+
+1. **Evidence foreclosure by volume.** Early reviewers have an incentive to dump every possible artifact (transcripts, hashes, speculative tests) into the record. Once a blob is present anywhere in the tunnel, it cannot be reused to re-litigate any downstream issue. As the corpus grows, the set of admissible evidence shrinks hyperbolically, eventually making legitimate challenges impossible not because the code is correct, but because the evidentiary space has been exhausted.
+
+2. **Interpretation lock-in.** Evidence in this system is content-addressed bytes, but *settlement* is interpretation of those bytes. The rule conflates "evidence blob was present" with "evidence was considered." A blob may have been in the tunnel but never analyzed for a specific property. A later reviewer who discovers that the blob implies a bug cannot re-introduce the same blob; they must find a *new* blob that makes the same argument. This privileges the first interpreter and creates path-dependent doctrinal lock-in.
+
+3. **Tunnel-length explosion and verification cost.** Codex (review 1) observed that the store already has two roots and 10 records. As the project matures, tunnels become longer. A warrant verifier must traverse the entire transitive closure of `prior` links to confirm that a challenge's evidence is indeed absent. The computational and human cost of verification grows with the square of corpus depth. The spec does not define a pruning or checkpointing mechanism.
+
+4. **Meta-rule ossification.** The tunnel rule itself is part of the settled governance layer (via `reviews/README.md` and LORE). To challenge the rule requires evidence absent from the tunnel that contains the rule. Since the rule has been present since the first root, no such evidence can exist unless it is imported from outside the system. This creates a rigid constitutional hierarchy that may prevent necessary governance evolution.
+
+#### 4.2 The two-root DAG
+
+The maintainer's response confirms (agreeing with Codex's from-scratch verification) that the warrant store is a DAG with two roots:
+- Root A: `276b6f98…` — review/adoption chain.
+- Root B: `14d413f2…` — standalone executable-law warrants.
+
+**Failure modes:**
+
+- **Cross-root precedence ambiguity.** If a record in Root A cites a record in Root B as `prior`, the "tunnel" is no longer a linear chain but a DAG merge. The rule does not specify whether evidence in Root B's tunnel counts as "prior" for Root A's challenges. If it does, then standalone executable-law warrants can foreclose evidence in the review chain, giving the executable-law root veto power over the adoption root. If it does not, then the two roots are effectively separate jurisdictions, and the project's "settlement" is fragmented.
+
+- **Root provenance asymmetry.** Root B is described as `Executable law: TV-10 as a ski@v1 reason`. It is not signed by the same multi-party process as Root A (which descends from the Sonnet 4.5 review). As the corpus grows, the legitimacy of new roots becomes contested. The spec does not define a root-inclusion rule (who may mint a root?).
+
+- **Blob availability as liveness fault.** The warrant store relies on content-addressed blobs. As the corpus grows, the probability that any single blob is missing from a verifier's local store increases. The rule does not specify whether a missing blob is treated as "absent evidence" (advantage: challenger) or as "unverifiable warrant" (advantage: status quo). This is a liveness ambiguity that becomes more severe with scale.
+
+#### 4.3 Single-key trust model
+
+Codex verified that all signatures use a single Ed25519 public key. There is no threshold or multi-sig. As the warrant corpus grows, the value of compromising that key approaches the total value of the settled law. A single key leak would allow an attacker to inject a warrant that forecloses all future challenges by dumping evidence that blocks any re-litigation. The governance model has no revocation or rotation mechanism described.
+
+**Conclusion for (4):** The warrant system is internally consistent for a small corpus, but the "absent from the entire prior tunnel" rule and the two-root DAG create **path-dependent institutional failures** at scale. These should be documented as governance risks, and a root-inclusion policy plus a blob-availability rule should be added before the corpus grows large enough to make retroactive correction impossible.
+
+---
+
+## Relation to prior reviews
+
+### Agreement
+
+- **Codex (review 1) — LITERAL blob validation gap:** I agree that the reference oracle lacks a blob channel and that `EV-LIT-FORCE` cannot express blob-mismatch behavior. I independently confirm that this is not merely an implementation omission but a **consensus-architecture necessity**: the hash-thunk machine's state space does not contain the blob, so `eval()` cannot depend on it without breaking content-addressed determinism.
+- **Codex — Warrant verifier absence and two-root topology:** I agree with the finding that no local verifier shipped in the original checkout, and with the inferred topology (two roots, 10 records, 34 blobs). The maintainer's fix (`tools/warrant_verify.py`) is sound in principle.
+- **Maintainer (response) — Prose self-contradiction in §1.1:** I independently derive the same contradiction from first principles. Paragraph 1 scopes blob validation outside Book I; paragraph 2 scopes it inside `resolve(h)`. They cannot both be normative.
+- **Peer Claude (lazy-edges review) — Consensus-critical nature of laziness:** I agree that lazy evaluation is a semantic fork from v0.4. However, the maintainer's response correctly identifies that the shipped vectors (`EV-K-DEAD-MISSING`, `EV-TV8-MISSING-CHILD`, etc.) seal both edges of the boundary. I do not re-litigate this; it is pinned.
+
+### Disagreement
+
+- **Codex (review 1) — Preference for Option 1:** Codex states: *"I prefer the first option because it preserves the v0.4.2 settlement as written."* I **disagree**. Option 1 would make the canonical result of `eval()` depend on blob-CAS state that is not fixed by node-CAS. This introduces a P0-class divergence vector (identical node-CAS, different blob-CAS → different `eval()` hashes). The v0.4.2 settlement text may have intended eager validation, but the v0.5 hash-thunk machine has a different state-space topology. Retrofitting eager blob validation into `eval()` is consensus-unsound. Option 2 is the only architecturally coherent choice.
+- **Peer Claude — Prediction that `APPLY(⟨I⟩, ghost)` returns a dangling result-hash:** The peer reviewer predicted that TV-8 would *succeed* under lazy semantics. The maintainer's response and the spec's root-demand semantics show this prediction is **incorrect**: the root result is always demanded, so an unresolvable hash can never escape as a normal form. I side with the maintainer and the vectors on this point.
+
+### New (not in prior reviews)
+
+- **Book II partial-pin underdetermination and zero-amplitude cascade:** Neither Codex nor the maintainer analyzed the Grand Cross table's missing `Am`/`En` fields. I show that derived `FALSE` has `am=0`, which creates an amplitude-zero cascade silencing any term containing it. This is a P1 spec gap.
+- **Book II iterative decay dynamics:** The 17 vectors test single `interfere()` calls. I prove that repeated self-interference for any `am < 65535` decays to `0`, not to the crystallization fixed point. This is a non-convergent sequence unpinned by the suite.
+- **Size-priced invariant unproved lemma:** I identify that the theorem depends on the **Synthetic Exclusion Lemma** (reduction-generated nodes do not count toward `materialized_size`), which is not stated or proved in the spec. This is a P1 proof-gap.
+- **Governance failure-mode analysis:** I provide the first conceptual analysis of the warrant tunnel rule's path-dependent foreclosure, cross-root ambiguity, and single-key trust model as scale risks. These are P3 roadmap items.

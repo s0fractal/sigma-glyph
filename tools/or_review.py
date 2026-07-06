@@ -30,19 +30,22 @@ PRIMARY_SOURCES = [
     "reviews/README.md",
     "ROADMAP.md",
     "spec/book-1-truth.md",
+    "spec/book-2-navigation.md",
     "spec/appendix-a-complexity.md",
-    "proposals/ADR-001-size-priced-atp.md",
-    "proposals/ADR-002-entropy-coherence-coupling.md",
-    "proposals/ADR-003-lazy-spine-resolution.md",
+    "proposals/ADR-004-literal-blob-scope.md",
 ]
-PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-v0.5-adr-gate.md",
-                      "reviews/2026-07-codex-v0.5-adr-gate-response.md",
-                      "reviews/2026-07-gemini-adr-gate.md",
-                      "reviews/2026-07-gemini-adr-gate-response.md"]
+PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-v0.5.0-audit.md",
+                      "reviews/2026-07-codex-v0.5.0-audit-response.md",
+                      "reviews/2026-07-claude-v0.5-lazy-edges.md",
+                      "reviews/2026-07-claude-v0.5-lazy-edges-response.md"]
 GATES = [
     ["python3", "impl/sigma_glyph.py"],
+    ["python3", "impl/sigma_wave.py"],
     ["python3", "tests/spec_conformance/run_reference.py"],
+    ["python3", "tests/spec_conformance/test_properties.py"],
     ["python3", "tools/verify_anchors.py"],
+    ["python3", "tools/check_lazy_edges.py"],
+    ["python3", "tools/warrant_verify.py"],
 ]
 
 
@@ -70,7 +73,15 @@ def call(model, messages, max_tokens=16000):
         out = json.load(r)
     if "error" in out:
         sys.exit(f"openrouter error: {out['error']}")
-    return out["choices"][0]["message"]["content"]
+    choice = out["choices"][0]
+    msg = choice["message"]
+    # some models (reasoning variants, truncated runs) return content=None
+    content = msg.get("content") or msg.get("reasoning")
+    if not content:
+        sys.exit("openrouter returned empty content; finish_reason="
+                 f"{choice.get('finish_reason')} native={choice.get('native_finish_reason')}\n"
+                 f"raw choice: {json.dumps(choice)[:2000]}")
+    return content
 
 
 def list_models():
@@ -129,23 +140,33 @@ def main():
          "Write your findings now. You have NOT been shown prior reviews - "
          "form your own judgment."}])
 
-    print("[or-review] pass 2 (comparison)...", file=sys.stderr)
+    pass1_path = ROOT / "reviews" / (out_name + ".pass1")
+    pass1_path.write_text(pass1.strip() + "\n")
+    print(f"[or-review] pass 1 saved: reviews/{out_name}.pass1; pass 2 (comparison)...",
+          file=sys.stderr)
     pass2 = call(model, [
         {"role": "system", "content":
          "Same reviewer, second pass. You will now see prior reviews of the "
          "same subject. Produce the FINAL review document in markdown: your "
          "pass-1 findings (edited for clarity, arithmetic shown), then a "
          "'Relation to prior reviews' section: agree / disagree / new, with "
-         "reasons. Keep verdicts your own - do not defer."},
+         "reasons. Keep verdicts your own - do not defer. The FOCUS items are "
+         "the assigned scope: every numbered FOCUS item MUST get its own "
+         "section with your full analysis — do not compress them out; a "
+         "review that skips a FOCUS item is nonconforming. Evidence "
+         "discipline: you cannot run code, so never present transcript or "
+         "prior-review data as your own observation — attribute it."},
         {"role": "user", "content":
-         f"YOUR PASS-1 FINDINGS:\n\n{pass1}\n\nPRIOR REVIEWS AND MAINTAINER "
+         f"FOCUS (assigned scope): {focus}\n\nYOUR PASS-1 FINDINGS:\n\n{pass1}"
+         f"\n\nPRIOR REVIEWS AND MAINTAINER "
          f"RESPONSES:\n\n{pack(PRIOR_REVIEWS_GLOB)}\n\n"
          "Emit the final review document now, starting with a '# Review:' "
          "heading and a '## Verdict' section."}])
 
     out = ROOT / "reviews" / out_name
     header = (f"<!-- produced via tools/or_review.py | model: {model} | "
-              f"two-pass blind protocol | gates run by maintainer -->\n\n")
+              f"two-pass blind protocol | gates run by maintainer | "
+              f"pass-1 (blind) preserved at reviews/{out_name}.pass1 -->\n\n")
     out.write_text(header + pass2.strip() + "\n")
     print(f"review delivered: reviews/{out_name}")
 

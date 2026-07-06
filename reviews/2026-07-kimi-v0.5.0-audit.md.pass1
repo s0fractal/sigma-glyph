@@ -1,0 +1,328 @@
+The user wants an independent adversarial review of the Σ-GLYPH v0.5.0 specification, focusing on four numbered priorities. I need to attack the mathematics and specification text, do arithmetic myself, and provide concrete text proposals for P1/P2 findings. Severity ladder: P0 = consensus divergence, P1 = spec silent where implementers must guess, P2 = clarity, P3 = roadmap.
+
+Let me analyze each priority:
+
+**(1) ADR-004 adjudication: LITERAL blob validation inside or outside eval()?**
+- Need to answer: Is there ANY consensus scenario where two honest nodes with identical node-CAS must agree on a blob-dependent outcome?
+- Argue from first principles, don't vote.
+- I need to look at the spec carefully. Book I §1.1 says blob validation is "contract сховища поза цією Книгою" but also says resolve(h) for LITERAL must validate blob.
+- The key is: if two nodes have identical node-CAS (content addressed store), they already agree on the node bytes. For a LITERAL, the node bytes contain just the hash (atom). The blob itself is not part of the node-CAS if the key is the hash.
+- Wait: if the node-CAS stores the SigmaNodeV2 bytes, then `LITERAL` nodes contain only the SHA-256 hash of the blob. If two nodes have identical node-CAS, they have identical node bytes. They may or may not have the blob data in a separate blob store.
+- The question asks: must they agree on a blob-dependent outcome?
+- Under current v0.5.0 spec (Book I §3.4): `eval(term_hash, atp)` returns a NodeHash. The machine operates on NodeHashes. For a LITERAL, it's a leaf. Does the machine ever need the blob? No, because LITERAL is normal form. The blob is never needed for reduction.
+- The only place blob matters is if `resolve(h)` is called on a LITERAL hash. But `resolve` is only called via R-R (REF) or force. Forcing a LITERAL produces... wait, look at §3.3: `step(t)` where `t = thunk(h)`: if h matches I/K/S, none; else force(h). If h is a LITERAL hash, and it's not intrinsic, it gets forced. But the spec says in §1.1: "LITERAL — інертний commitment... Для редукції blob не потрібен ніколи". And §3.3 says: if t = thunk(h), and h is not I/K/S, then force(h). What does force(h) do? It materializes the node. If the node is LITERAL, it materializes to a LITERAL node, which costs 1 ATP, and doesn't require the blob to do so? Or does it?
+- Actually, §3.3 says `force(h)` is матеріалізація одного вузла. But where does the bytes come from? `resolve(h)` or `force(h)` fetches bytes. For a REF node, forcing materializes a REF node. For a LITERAL node, materializing requires knowing it's LITERAL. But the hash is of the canonical bytes. The canonical bytes of a LITERAL node include the opcode, flags, and atom. To validate that a hash maps to a LITERAL node, you need the node bytes, not the blob bytes. The blob is only needed if you want to validate `SHA-256(blob) == atom`.
+- So if the node-CAS has the SigmaNodeV2 bytes, then `force(h)` on a LITERAL hash just retrieves the node bytes (which include the atom hash), constructs the LITERAL node, and costs 1 ATP. No blob needed.
+- If the node-CAS is strictly storing nodes, and the blob is in a separate CAS, then two nodes with identical node-CAS will see the same thing regardless of blob presence. The outcome of `eval()` (a NodeHash) is independent of blob availability.
+- However, what if someone passes a LITERAL hash to `eval`? `eval(term_hash, atp)` where term_hash is a LITERAL node? Then `step` would be called on the root. Is the root a thunk or materialized? `eval` starts with a thunk? Actually, the spec says the machine operates on hash-thunks. At start, `eval(term_hash)` presumably starts with a thunk. Then it forces it if needed. But if the term is a LITERAL, it's NF. So forcing it would materialize it. But materialization requires node bytes.
+- Wait: §3.3 says `step(t)`: if `t = thunk(h)`, and `h ∈ {H(I),H(K),H(S)}`, none; else force(h). So ANY thunk that is not intrinsic I/K/S gets forced. That includes LITERAL thunks. But after force, you have a materialized LITERAL node. Then `step` returns none (normal form). The cost is 1 ATP (for force of LITERAL/DISSONANCE per §3.4).
+- Crucially, force(h) requires materializing the node from the CAS. The CAS contains the canonical bytes of the node. The blob is NOT needed to materialize the SigmaNodeV2 structure because the canonical bytes of a LITERAL node are just `[Op:1][Flags:1][Atom:32]`. The blob itself is separate data.
+- Therefore, two honest nodes with identical node-CAS (storing SigmaNodeV2 canonical bytes) will always agree on eval outcomes, because eval never touches the blob. The blob is only relevant for external validation of the commitment.
+- But what about DISSONANCE from blob mismatch? The spec says in §1.1 paragraph 2 that resolve(h) for LITERAL fetches blob and validates. If validation fails → Canonical Invalid Object. But if the blob store is separate and not part of node-CAS, one node could have a corrupted blob (mismatching hash) while another has no blob or a correct blob. However, the spec also says canonical failures ≠ local faults. A mismatched blob in a content-addressed store is a local corruption. The spec already says local resource faults MUST NOT serialize as DISSONANCE.
+- Also, §3.5 says: "(b) байти не проходять валідацію §4.1 → матеріалізується Canonical Invalid Object". §4.1 validates the node bytes format, not the blob. So validation of LITERAL blob is not part of §4.1.
+- The "resolve(h) for LITERAL" paragraph seems to describe a storage contract, not an eval contract.
+- So from first principles: Consensus is about NodeHashes. NodeHash is computed from SigmaNodeV2 canonical bytes. Those bytes for LITERAL do not contain the blob. Therefore, the result of eval(), which is a NodeHash, cannot depend on the blob without breaking the content-addressed invariant: if the node bytes are identical, the hash is identical, and the eval trace on those bytes (which only sees the atom hash, never the blob) is deterministic.
+- If two nodes have identical node-CAS, they agree on all node bytes. Since eval() is a pure function of node bytes (and ATP budget), blob availability cannot affect eval outcomes. Any blob-dependent outcome would imply that the same node hash yields different eval results on different nodes, which is consensus divergence (P0).
+- The ADR asks: is there ANY consensus scenario where two honest nodes with identical node-CAS must agree on a blob-dependent outcome? The answer is no, because identical node-CAS already fixes all eval inputs. The blob is external to the node-CAS. If the blob were part of the node-CAS, then the node bytes would include the blob, but they don't; the atom is a hash, not the blob.
+- However, I should consider: what if the node-CAS is defined as containing both the node bytes AND the blob bytes, keyed by the same hash? The spec says "LITERAL: atom = SHA-256(DataBLOB)". In a strict content-addressed system, the store key is the hash of the content. If DataBLOB is the content, then the key is SHA-256(blob). But the NodeHash is SHA-256(Op+Flags+Atom). So the node-CAS and blob-CAS are separate. Identical node-CAS means identical node bytes, not necessarily identical blob availability.
+- Could there be a scenario where the node-CAS stores both? If so, identical node-CAS would imply identical blob availability. But the spec explicitly scopes blob validation "поза цією Книгою" in paragraph 1. So the node-CAS in Book I is the node-byte CAS.
+- Therefore, the answer to the ADR's decision criterion is NO. There is no consensus scenario where two honest nodes with identical node-CAS must agree on a blob-dependent outcome, because the eval machine is defined entirely over node bytes, and the LITERAL blob is never required for reduction. Demand for the blob would be a storage-layer concern outside consensus.
+- But I need to be careful: is there an edge case where `resolve(h)` on a LITERAL hash is called inside eval? Let's trace: `step(t)` when `t = thunk(h)`. If h is a LITERAL node hash, and we force it, we need to fetch the canonical bytes associated with h. If the store doesn't have those bytes (because only the blob is stored under that hash?), then it's Unresolved Reference. Wait: in a content-addressed store, the hash of the node bytes is the key. If someone only has the blob and not the node, or vice versa, the CAS could be considered "identical" if both nodes have the same mapping from hash to bytes. But if the hash is the node hash, the bytes are the node bytes. The blob is stored under blob hash = atom. The node is stored under node hash = SHA-256(node bytes). These are different hashes. So identical node-CAS doesn't say anything about blob-CAS.
+- If the spec requires `resolve(h)` for LITERAL to fetch the blob, then force(h) on a LITERAL hash would require looking up the blob under `atom`, not under `h`. But `resolve(h)` takes `h`, which is the node hash. So how would it find the blob? It would need to first materialize the node bytes to get the `atom`, then look up the blob by `atom`. Let's check if this is described. §1.1 says: "Нормативна поведінка `resolve(h)` для LITERAL: fetch blob, валідувати `SHA-256(blob) == atom`". This implies resolve materializes the node first (to get atom), then fetches blob by atom. But if the node-CAS doesn't have the node bytes, it's Unresolved Reference. If it does, you get atom. Then you check the blob store.
+- Under Option 1, if the blob is missing or mismatched, the result is Canonical Invalid Object. But this is a function of blob store state, not node-CAS state. Two nodes with identical node-CAS but different blob store states (one missing blob, one having it) would diverge on eval results. But are they both "honest"? If the blob store is separate and not consensus-bound, then this is by design not a consensus issue.
+- The spec's " settle points" say: "LITERAL validation timing: normative behavior is on-demand at resolve(h) (materialize Invalid Object if blob mismatch); eager validation is implementation MAY." This is the DeepSeek settlement. The question is whether this settlement creates a consensus dependency on blob state.
+- Actually, if the blob is missing, is that a "local resource fault" or an "Unresolved Reference"? The spec says unresolved reference is when h is not found in store. If the node bytes are found but blob is missing, what happens? Option 1 says Canonical Invalid Object or maybe Unresolved Reference. But if node bytes are found, it's not unresolved for the node. The blob is separate.
+- Let's think about "identical node-CAS". If node-CAS means the mapping from NodeHash to SigmaNodeV2 bytes, then both nodes agree on which nodes exist. They may not agree on whether the blobs exist. If Option 1 makes eval() depend on blob existence, then two honest nodes with identical node-CAS can disagree. That would be a P0 bug in Option 1. Option 1 essentially extends the consensus surface to include the blob store.
+- Option 2 keeps consensus pure to node bytes.
+- So from first principles: Option 1 breaks the abstraction boundary and introduces a consensus divergence vector (or at least requires a global blob-CAS to be part of consensus). Since the question asks whether there is ANY consensus scenario where they MUST agree on a blob-dependent outcome, the answer is that requiring such agreement would itself be unsound because blob availability is outside the node-CAS. Unless the blob is canonically part of the node-CAS, but the spec explicitly distinguishes them.
+- Therefore, the adjudication should favor Option 2: scope blob validation outside eval(). The spec text in §1.1 paragraph 2 should be deleted or clarified as non-normative for Book I.
+- Let me formulate this as a P1 or P0. The contradiction in §1.1 is a P1 (spec silent/ambiguous). But the implications reach P0 if Option 1 is adopted. However, the question is to answer the decision criterion. So my finding will be: No, there is no such consensus scenario, because the hash-thunk machine's state space is spanned entirely by node hashes; identical node-CAS implies identical enumerable states and identical transitions; blob data is in a different affine space (content-addressed by atom, not node hash) and never participates in a transition. Therefore, Option 1 has no sound foundation in the consensus model and would introduce a divergence surface; Option 2 demotes paragraph 2 to storage-layer advisory.
+- I should show the arithmetic/state space reasoning more formally.
+
+**(2) Book II mathematics: entropy-coherence coupling, crystallization fixed point {am=65535, en=-32768}, round-half-away-from-zero — attack the algebra, look for unreachable states or non-convergent sequences the 17 vectors don't pin; show your arithmetic.**
+
+Let's analyze the `interfere()` function carefully.
+
+First, understand the fixed point claim. The spec claims: "повний WaveVector має єдину ненульову нерухому точку `{am=65535, en=−32768}` для запіненої фази".
+
+Let's verify this.
+
+`interfere(w, w)`:
+- new_ph = w1.ph (Left Dominance). Since same, ph stays.
+- x = int32(w1.ph) - int32(w2.ph) = 0.
+- d32 = |0| = 0.
+- delta = min(0, 65536 - 0) = 0. Wait, what is the range of d32? Ph is uint16, so difference as int32. |x| where x = ph1 - ph2. If ph1=0, ph2=65535, x = -65535, |x|=65535. 65536 - 65535 = 1. min(65535,1) = 1. Wait, the formula is `delta = min(d32, 65536-d32)`. But d32 is |x| as int32. x can be from -65535 to +65535 (since ph ranges 0..65535). Actually ph is uint16 0..65535. ph1-ph2 as int32 ranges -65535..65535. |x| ranges 0..65535. Then `65536 - d32` ranges 1..65536. So `delta = min(d32, 65536-d32)`. Since d32 ≤ 65535, 65536-d32 ≥ 1. So min is always ≤ 32768? Let's see: if d32=32768, 65536-d32=32768, min=32768. If d32=32769, 65536-d32=32767, min=32767. So delta is symmetric around 180° (32768 units = π rad). Good.
+
+For self-interference (w1=w2): x=0, d32=0, delta=0.
+- r = LUT_COS[0] = 32767.
+- delta_en = div_round_half_up(-32767, 128).
+Compute: n = -32767, d=128. s = -1, a=32767. q = 32767 // 128 = 255 (since 255*128=32640, 256*128=32768). r = 32767 % 128 = 127. 2r = 254 >= d(128)? NO. So q stays 255. return s*q = -255.
+So delta_en = -255 for constructive self-interference (because r>0).
+
+Wait, the spec says "конструктивна (r>0) створює порядок (delta_en<0), деструктивна — безлад (delta_en>0), ортогональна нейтральна." And later: "entropy дрейфує на −256 за кожне конструктивне самозастосування". But my calculation shows -255, not -256! Let's double-check.
+
+div_round_half_up(n, d):
+- if n<0: s=-1, a=|n|=32767.
+- q = 32767 // 128 = 255. 255*128 = 32640.
+- r = 32767 - 32640 = 127.
+- 2r = 254.
+- Is 2r >= d? 254 >= 128? YES! Wait, 2*127 = 254. 254 >= 128 is true.
+- So q += 1 → q = 256.
+- return s*q = -256.
+
+Ah, I made an arithmetic error. Let's recalculate: 128*255 = 32640. 32767-32640 = 127. 2*127 = 254. 254 >= 128 is true. So round up to 256. Then -1 * 256 = -256. So delta_en = -256. Good, matches spec.
+
+- new_en = clamp_i16( div_round_half_up( int32(w1.en)+int32(w2.en), 2 ) + delta_en ).
+For fixed point en = -32768. int32(en)+int32(en) = -65536.
+div_round_half_up(-65536, 2):
+  s = -1, a = 65536.
+  q = 65536 // 2 = 32768.
+  r = 0.
+  2r = 0 >= 2? false.
+  return -32768.
+Then clamp_i16(-32768 + (-256)) = clamp_i16(-33024). But clamp_i16 clamps to [-32768, 32767]. So -33024 clamps to -32768. So en stays at -32768.
+
+- amp_factor = div_round_half_up(int64(r+32767)*65535, 65534).
+r = 32767. r+32767 = 65534.
+65534 * 65535 = let's compute.
+65534 * 65535 = (65535-1)*65535 = 65535² - 65535 = 4294901225 - 65535 = 4294835690.
+Wait, 65535² = 4294901225? Let's compute: 65536² = 4294967296. (65536-1)² = 65536² - 2*65536 + 1 = 4294967296 - 131072 + 1 = 4294836225. So 65535² = 4294836225. Then subtract 65535: 4294836225 - 65535 = 4294770690.
+Wait, let me compute directly: 65534 * 65535.
+65534 * 65535 = 65534 * (65536 - 1) = 65534*65536 - 65534 = (65534 << 16) - 65534.
+65534 in hex is 0xFFFE. <<16 => 0xFFFE0000 = 4294901760.
+Minus 65534 = 4294836226? Let's compute: 4294901760 - 65534 = 4294836226.
+But 65535*65535 = 4294836225. So 65534*65535 = 4294836225 + 65535? No.
+Let's do exact multiplication:
+65535 * 65535 = 4294836225.
+65534 * 65535 = 4294836225 - 65535 = 4294770690.
+Wait: 65535*65535 - 65535 = 65535*(65535-1) = 65535*65534. Yes. So 4294836225 - 65535 = 4294770690.
+Now divide by 65534.
+4294770690 / 65534 = ?
+65534 * 65535 = 65534*(65536-1) = 65534*65536 - 65534 = 4294901760 - 65534 = 4294836226.
+Wait, that's larger than the numerator 4294770690. So the quotient is less than 65535.
+65534 * 65534 = (65535-1)² = 4294836225 - 131070 + 1 = 4294705156? No.
+(a-b)² = a² - 2ab + b². (65536-2)² = 65536² - 4*65536 + 4 = 4294967296 - 262144 + 4 = 4294705156.
+Let's compute 65534 * 65534 precisely: 65534². 65530² = 429420900. No, that's too small. Let's compute carefully.
+65534 * 65534:
+= (65000 + 534)²
+= 65000² + 2*65000*534 + 534²
+= 4,225,000,000 + 69,420,000 + 285,156
+= 4,294,705,156.
+Yes. So 65534*65534 = 4,294,705,156.
+Our numerator is 4,294,770,690? Wait, I had 4294770690. That's larger than 4294705156. The difference is 65534. Wait: 4294770690 - 4294705156 = 65534. So numerator = 65534*65534 + 65534 = 65534*(65534+1) = 65534*65535. But that's 4294836226. No, my numerator was wrong. Let's recompute 65534*65535.
+65534 * 65535:
+= 65534 * (65000 + 535)
+= 65534*65000 + 65534*535
+= 4,259,710,000 + 35,060,690
+= 4,294,770,690. Ah! So 65534*65535 = 4,294,770,690.
+Now subtract 65535? No, that was for 65535*65534? Wait, multiplication is commutative. 65534*65535 = 65535*65534. But I computed 65535*65534 above as 4294836225-65535 = 4294770690. Let's check: 65535*65534 = 65535*(65535-1) = 65535² - 65535 = 4294836225 - 65535 = 4294770690. But my other calculation gave 4294770690? Wait, 4,294,770,690 vs 4,294,770,690? Let me count commas:
+4,259,710,000 + 35,060,690 = 4,294,770,690.
+And 4294836225 - 65535 = 4294770690. Are these the same number?
+4,294,770,690 vs 4,294,770,690? Wait, 4,294,770,690. The other is 4,294,770,690. Yes, they are identical! I misgrouped digits earlier. 65534*65535 = 4,294,770,690.
+Now divide by 65534. Since numerator = 65534*65535, the exact quotient is 65535 with remainder 0.
+But wait, the formula is `div_round_half_up(int64(r+32767)*65535, 65534)`. The numerator is (r+32767)*65535. With r=32767, numerator = 65534*65535 = 4294770690. Divide by 65534 exactly equals 65535. Remainder 0. So amp_factor = 65535.
+
+- prod01 = div_round_half_up(uint64(w1.am)*uint64(w2.am), 65535).
+If am = 65535, prod01 = div_round_half_up(65535*65535, 65535) = 65535 exactly.
+
+- new_am = div_round_half_up( uint64(prod01)*uint64(amp_factor), 65535 ).
+= div_round_half_up(65535*65535, 65535) = 65535.
+
+So {am=65535, en=-32768} is indeed a fixed point for interfere(w,w).
+
+But is it the unique non-zero fixed point? Let's test other amplitudes.
+Suppose am = A, en = -32768.
+amp_factor for self-interference: r=32767, so amp_factor = 65535 as computed.
+prod01 = div_round_half_up(A*A, 65535).
+new_am = div_round_half_up( prod01 * 65535, 65535 ) = prod01 (since prod01*65535 / 65535 = prod01 exactly, remainder 0).
+So new_am = div_round_half_up(A*A, 65535).
+For A to be fixed point: A = div_round_half_up(A², 65535).
+Let f(A) = div_round_half_up(A², 65535). A is in 1..65535 (uint16, but could be 0).
+If A=65535, A² = 4294836225. Divided by 65535 gives exactly 65535. Fixed.
+If A=0, new_am=0.
+Are there other fixed points?
+Let's check A=65534. A² = 4294836225 - 131069 + 1 = 4294705156? Wait, (65535-1)² = 65535² - 2*65535 + 1 = 4294836225 - 131070 + 1 = 4294705156.
+div_round_half_up(4294705156, 65535).
+Compute 4294705156 / 65535.
+65535 * 65534 = 65535*(65535-1) = 4294836225 - 65535 = 4294770690.
+Wait, that's LARGER than 4294705156. So quotient is less than 65534.
+65535 * 65533 = 4294770690 - 65535 = 4294705155.
+So A² = 4294705156 = 65533*65535 + 1.
+Dividing: q=65533, r=1. 2r=2 >= d(65535)? No. So round down. new_am = 65533.
+So starting from 65534, next amplitude is 65533. Not fixed.
+From A=65533: A² = (65535-2)² = 4294836225 - 262140 + 4 = 4294574089.
+65533*65535 = 4294705155 - 65535 = 4294639620? No, let's compute directly.
+Actually 65533*65535 = (65534-1)(65534+1) = 65534² - 1 = 4294705156 - 1 = 4294705155.
+A² = 4294574089. That's less. 65532*65535 = 4294705155 - 65535 = 4294639620. Still larger? No, 4294639620 > 4294574089. 65531*65535 = 4294639620 - 65535 = 4294574085. So A² = 4294574089 = 65531*65535 + 4.
+q=65531, r=4. 2r=8 < 65535. So new_am = 65531.
+So it decreases by 2 each time? Let's see general behavior.
+If A is large, A² / 65535 ≈ A - (65535-A)*A/65535... hmm.
+Actually the map f(A) = round(A²/65535) to nearest, half up. For A < 65535, A² < 65535², so f(A) ≤ 65534.
+For A=1: f(1) = div_round_half_up(1, 65535) = 0 (since 1/65535 < 0.5). So 1 → 0.
+For A=2: 4/65535 → 0.
+For A=181: 181²=32761. 32761/65535 ≈ 0.4999... < 0.5, so 0.
+For A=182: 33124/65535 ≈ 0.505... rounds to 1? Let's check: d=65535. a=33124. q=0, r=33124. 2r = 66248 >= 65535? Yes. So q becomes 1. So 182 → 1.
+For A=256: 65536/65535 = 1 remainder 1. 2r=2 < 65535? No, wait 2r=2, d=65535. 2 >= 65535 is false. So q=1, r=1, 2r=2 < d, so stays 1. So 256 → 1.
+For A=257: 66049/65535. q=1, r=514. 2r=1028 < d, so q=1.
+Actually, when does it become 2? Need 2*65535 = 131070 ≤ A². A ≥ 362.02. So A=363 → 2.
+So the only fixed points are likely 0 and 65535. Because for 0 < A < 65535, A² < 65535*A (since A < 65535). So A²/65535 < A. Thus f(A) ≤ A-1 for A in some range? Not necessarily: if A=65534, A²/65535 = 65534 - 65534/65535 ≈ 65533.999... So round half up gives 65534? Wait, 65534² = (65535-1)² = 65535² - 2*65535 + 1. Dividing by 65535: 65535 - 2 + 1/65535. That's 65533 + 1/65535. That's less than 65533.5. So round half up gives 65533. So indeed f(65534)=65533. For any A < 65535, A² = 65535*A - A*(65535-A). Actually A² / 65535 = (65535 - (65535-A))² / 65535 = (65535² - 2*65535*(65535-A) + (65535-A)²)/65535 = 65535 - 2*(65535-A) + (65535-A)²/65535. Let δ = 65535 - A > 0. Then A²/65535 = A - δ + δ²/65535. Since δ²/65535 < δ for δ < 65535 (which holds), A²/65535 < A. Also A²/65535 = A - δ + ε where ε < 1. So A²/65535 = A - δ + ε, where δ = 65535-A. This equals A - (65535-A) + (65535-A)²/65535. That's definitely less than A. Is it less than A - 0.5? For A close to 65535, δ is small. For A=65534, δ=1, result = 65534 - 1 + 1/65535 = 65533 + tiny. So less than 65533.5, rounds to 65533.
+For A=65533, δ=2, result = 65533 - 2 + 4/65535 = 65531 + tiny. Rounds to 65531.
+So yes, for A < 65535, f(A) ≤ A-2 for A near 65535? Actually for A=65534, f(A)=65533 (A-1). Wait, A-1 = 65533. So it decreases by 1? No, A=65534 gives 65533 = A-1. A=65533 gives 65531 = A-2. So the decrement grows.
+But anyway, 65535 and 0 are the only fixed points for amplitude under self-interference. Good.
+
+Now, what about other states? The spec says "повний WaveVector має єдину ненульову нерухому точку". For a fixed phase, yes. But what about other phases? Self-interference preserves phase, so any phase can be fixed. But the pins are specific. The fixed {am=65535, en=-32768} exists at any phase, but the claim is that this is the unique non-zero fixed point for the map w → interfere(w,w). The spec says "досконалий самопідтримний резонанс кристалізується до мінімальної ентропії". That's fine.
+
+But I need to look for unreachable states or non-convergent sequences that the 17 vectors don't pin. Let's examine the arithmetic of `interfere` more carefully.
+
+Potential issues:
+- `min(d32, 65536-d32)`: Is d32 computed correctly as |x|? x = int32(w1.ph) - int32(w2.ph). ph is uint16 0..65535. int32(ph) yields 0..65535. Difference ranges -65535..65535. |x| ranges 0..65535. 65536-d32: if d32=0, 65536. min(0,65536)=0. Good. But the LUT has indices 0..32768. What if delta > 32768? Let's check. d32 ranges 0..65535. 65536-d32 ranges 1..65536. min(d32, 65536-d32) is always ≤ 32768, because if d32 > 32768, then 65536-d32 < 32768. At d32=32768, min=32768. At d32=32769, min=32767. So delta ∈ [0, 32768]. Perfect match for LUT size (32769 entries, indices 0..32768). So no out-of-bounds.
+
+- `delta_en = div_round_half_up(-r, 128)`. r = LUT_COS[delta]. LUT_COS values are in [-32767..32767]. So -r is in [-32767..32767]. Dividing by 128 with round-half-away-from-zero. Range of delta_en: for r=32767, we computed -256. For r=-32767, 32767/128 = 255 rem 127? Wait, r can be negative. Let's compute r=-32767: n = -(-32767) = 32767? No, n = -r = 32767. Wait, if r = -32767, then n = -r = 32767. delta_en = div_round_half_up(32767, 128) = +256. So delta_en ∈ [-256, +256]. But the spec says "∈ [-256..+256]: когерентність". Wait, can it be +256? Let's check r = -32767. Is that in the LUT? LUT[32768] = -32767. So yes, when delta=32768 (anti-phase), r=-32767. Then delta_en = div_round_half_up(32767, 128) = +256. Good.
+Can delta_en be -256? Yes, when r=32767 (delta=0).
+What about r=0? Then delta_en = 0.
+So range is [-256, 256]. But wait: div_round_half_up(32767,128) gave 256. What about n=256*128=32768? But r max magnitude is 32767. So max |n| = 32767. div_round_half_up(32767,128) = 256 because remainder 127, 2r=254 >= 128. So q=256. So delta_en ranges [-256, +256]. Good.
+
+- `new_en = clamp_i16(div_round_half_up(int32(w1.en)+int32(w2.en), 2) + delta_en)`.
+Sum of two int16s: range [-65536, 65534]. int32 handles it. div_round_half_up(..., 2): let's check extremes.
+If sum = -65536: div_round_half_up(-65536,2) = -32768 exactly.
+If sum = 65534: div_round_half_up(65534,2). s=1, a=65534, q=32767, r=0, return 32767.
+If sum = -65535: div_round_half_up(-65535,2). s=-1, a=65535, q=32767, r=1. 2r=2 >= 2? Yes. q=32768. return -32768.
+If sum = 65535: not possible since max int16+int16 = 32767+32767=65534.
+If sum = 1: div_round_half_up(1,2). s=1, a=1, q=0, r=1. 2r=2 >= 2. q=1. return 1.
+Wait, 0.5 rounds away from zero to 1. Correct.
+If sum = -1: div_round_half_up(-1,2). s=-1, a=1, q=0, r=1. 2r=2 >=2. q=1. return -1. Correct.
+If sum = 3: 3/2=1.5 → 2. So avg(1,2)=2 (since (1+2)/2=1.5, round away from zero). Test vector WV-NEG-TIE: avg(-1,-2)= (-3)/2 = -1.5 → -2. Correct.
+Then add delta_en ∈ [-256,256]. So intermediate before clamp: [-32768-256, 32767+256] = [-33024, 33023]. So clamp_i16 is needed.
+
+- `amp_factor = div_round_half_up(int64(r+32767)*65535, 65534)`.
+r+32767 ranges 0..65534 (since r ∈ [-32767..32767]).
+Multiply by 65535: max 65534*65535 = 4294770690 (as computed).
+div_round_half_up(..., 65534).
+Since numerator = k * 65535, denominator 65534.
+When k=65534, numerator=65534*65535, quotient = 65535 exactly.
+When k=0, numerator=0, quotient=0.
+Does amp_factor ever exceed 65535? No, because max is 65535. Does it ever equal 65535 for other k?
+If k=65533: numerator = 65533*65535 = 4294705155. Divide by 65534.
+65534*65534 = 4294705156. Wait, that's larger than numerator by 1. So quotient is 65533. Remainder = 4294705155 - 65533*65534. 65533*65534 = (65534-1)*65534 = 65534² - 65534 = 4294705156 - 65534 = 4294639622. Remainder = 4294705155 - 4294639622 = 65533. 2r = 131066 >= 65534? Yes. So q += 1 → 65534. So amp_factor = 65534.
+So amp_factor ranges 0..65535 inclusive.
+But it's used as uint64 in multiplication. Fine.
+
+- `prod01 = div_round_half_up(uint64(w1.am)*uint64(w2.am), 65535)`.
+am is uint16 0..65535. product 0..4294836225. Divided by 65535. This is essentially rounding (am1*am2)/65535 to nearest integer, half away from zero. Since product and divisor are positive, it's just standard half-up rounding.
+Max prod01 = div_round_half_up(65535*65535, 65535) = 65535.
+Min = 0.
+Is prod01 used correctly? Then new_am = div_round_half_up(prod01 * amp_factor, 65535).
+Since amp_factor ≤ 65535, prod01 ≤ 65535, product ≤ ~4.29e9. Same divisor 65535. So new_am is roughly (am1*am2*amp_factor) / 65535², but rounded twice.
+This is an approximation of (am1*am2/65535) * (amp_factor/65535). Since amp_factor ≈ (r+32767)*65535/65534 ≈ r+32767 (plus rounding). Actually amp_factor = round( (r+32767) * 65535 / 65534 ). Since 65535/65534 ≈ 1.000015, amp_factor is basically r+32767 plus a tiny bit.
+So new_am ≈ am1*am2*(r+32767) / (65535*65535). In normalized terms: a1*a2*cos(theta), with appropriate scaling.
+Because r = 32767*cos(delta * π/32768). Actually LUT_COS[d] = round(32767 cos(π d/32768)). So r/32767 ≈ cos(...). Then (r+32767)/65534 ≈ (1+cos)/2? Wait, r+32767 ranges 0..65534. (r+32767)/65534 = (1 + r/32767) / 2. Since r = 32767 cos, this is (1+cos)/2 = cos²(θ/2). But amplitude multiplication in wave interference usually goes as |A1||A2|cos²(Δϕ/2) or something similar depending on interpretation. Anyway, not my concern.
+
+Now, what are non-convergent sequences?
+The spec claims the fixed point is unique non-zero. But what about sequences where amplitude goes to 0? If amplitude becomes 0, then further interference yields 0. So 0 is a sink.
+What about entropy? For self-interference, en → clamp(en - 256) (approximately). Since clamp at -32768, eventually any finite sequence of self-interferences will hit -32768 and stay there if amplitude remains non-zero. But if amplitude becomes 0, entropy no longer matters? The spec doesn't define 0-amplitude wave vectors as special, but interfere(0, anything) might produce certain results.
+Let's compute interfere(w_zero, w2) where w1.am=0, w1.en arbitrary.
+x = ph1 - ph2. delta same. r = LUT_COS[delta].
+delta_en = div_round_half_up(-r, 128) (independent of w1).
+new_ph = w1.ph.
+new_en = clamp_i16( div_round_half_up(w1.en + w2.en, 2) + delta_en ).
+amp_factor = as before.
+prod01 = div_round_half_up(0 * w2.am, 65535) = 0.
+new_am = div_round_half_up(0 * amp_factor, 65535) = 0.
+So zero amplitude stays zero, but entropy and phase can evolve! A zero-amplitude wave can have any phase and entropy, and when interfered with another wave, it dominates the phase (Left Dominance) and contributes half its entropy (averaged) plus delta_en. So zero amplitude is NOT a fixed point unless... it's not. The spec says "амплітудно 65535 лишається єдиною ненульовою нерухомою точкою". It doesn't claim 0 is a fixed point. But 0 is an absorbing state for amplitude. However, the entropy can still change. So the vector (am=0, en=anything) is not a fixed point because en changes (unless specific conditions). But the spec only talks about "unique non-zero fixed point". Zero is also a fixed point for amplitude in self-interference, but not for the full vector? Let's check interfere(w0, w0) where am=0.
+new_ph = ph.
+x = 0, delta=0, r=32767.
+delta_en = -256.
+new_en = clamp_i16( div_round_half_up(2*en,2) - 256 ) = clamp_i16( div_round_half_up(en,1) ??? Wait, div_round_half_up(2*en, 2) = en exactly (since 2*en is even if en is integer? en is int16, so 2*en is integer. div_round_half_up(2*en,2): if 2*en is even, no remainder, result = en. If en is not integer? en is int16, so integer. 2*en is even. Yes, exactly en.) So new_en = clamp_i16(en - 256). So en decreases by 256 each self-interference until it hits -32768. So (0, en) is NOT a fixed point unless en=-32768 and clamp(-32768 - 256) = -32768. But wait, if am=0 and en=-32768, that's a fixed point for self-interference? Let's see: new_en = clamp(-32768 - 256) = -32768. new_ph = ph. new_am = 0. So yes, {am=0, en=-32768, ph=arbitrary} is a fixed point for self-interference. But is it reachable from non-zero? Only if amplitude decays to 0 and entropy simultaneously at -32768. But amplitude decay: in destructive interference, amplitude could go to 0? Let's see. If two opposite-phase waves interfere: delta=32768, r=-32767. amp_factor = div_round_half_up(0 * 65535, 65534) = 0. prod01 = div_round_half_up(am1*am2, 65535). new_am = div_round_half_up(prod01 * 0, 65535) = 0. So yes, two opposite-phase perfect waves (am=65535) produce 0 amplitude. Then entropy? new_en = clamp_i16( avg(-32768,-32768) + div_round_half_up(32767,128) ) = clamp_i16(-32768 + 256) = clamp_i16(-33024) = -32768. Wait, for destructive interference (r=-32767), n = -r = 32767, delta_en = +256. So new_en = clamp_i16(-32768 + 256) = -32768. So after perfect destructive interference of two fully coherent waves, you get am=0, en=-32768, ph=left_ph. This is a fixed point for self-interference! But is it unique? There are many such states: any phase, am=0, en=-32768.
+The spec says: "повний WaveVector має єдину ненульову нерухому точку `{am=65535, en=−32768}`". That's correct: unique non-zero. But it doesn't discuss the zero-amplitude fixed points.
+
+Are there dynamics that fail to converge? The spec talks about "кристалізація" implying repeated self-application. But in practice, `interfere` is applied to pairs of annotations for APPLY nodes. A term graph can have cycles? No, terms are DAGs (content-addressed). So there is no infinite descent of self-interference in the term tree; it's a finite tree. So the " sequences" are defined by the structure of the term, not by iterative application to the result. Wait, the spec says "Самозастосування `APPLY(f,f)` анотується як `interfere(w,w)`". That is a term where a function is applied to itself. The interference is computed once for that APPLY node. It's not iterated unless the term has a structure that causes repeated self-application in its reduction (but annotations are on the static term graph, not the dynamic reduction trace? Let's check).
+
+Actually, Book II says: "Derived — `wave(APPLY(f,a)) = interfere(wave(f), wave(a))`". This is on the static term structure. So if a term is `APPLY(f,f)`, then its wave is `interfere(wave(f), wave(f))`. If wave(f) = {65535, -32768}, then wave(APPLY(f,f)) = same. So it's a fixed point of the tree annotation. But for other terms, it's computed bottom-up.
+
+But the spec in §5.1 says: "Самозастосування ... анотується як interfere(w,w): ... ентропія дрейфує на −256 за кожне конструктивне самозастосування до клемпу на −32768". This suggests iterating interfere(w,w) as if the wave were repeatedly self-applied. But in a finite tree, the number of self-APP nodes is finite. However, during reduction (Book I), a term can reduce to a copy of itself? For Omega = (SII)(SII), the term reproduces itself under reduction. But wave annotations are on the NodeHashes of the syntactic tree, not the dynamic reduction state? Actually, the spec says "WaveAnnotation: (NodeHash: 32 bytes) → WaveVectorQ". So each node hash has an annotation. For a node that represents a complex term, its annotation is derived from its children (if not pinned). So it's a fixed point on the DAG structure.
+
+But the spec's language about Gravity and "кристалізація" seems to suggest interpreting this as a dynamical system. The question asks to look for "unreachable states or non-convergent sequences the 17 vectors don't pin". So I should look for arithmetic edge cases that the test vectors might not cover.
+
+Potential issues:
+1. **The `delta = min(d32, 65536-d32)` with uint16 wrap**: Actually d32 is computed as `|int32(w1.ph) - int32(w2.ph)|`. Since int32 subtraction of uint16 values is correct. The absolute value of a negative int32 is positive int32. However, what if int32(x) where x is uint16? It's fine. But what if the difference is -65535? |x|=65535. 65536-65535=1. min=1. Good. But is there a case where x = -32768? |x|=32768. 65536-32768=32768. delta=32768. Good.
+2. **LUT bounds**: LUT has 32769 entries (0..32768). delta max is 32768. Good. But what if delta = 32768 exactly? That's valid.
+3. **Round-half-away-from-zero for negative ties**: The spec requires this. Does the formula `if 2r >= d: q += 1` implement round-half-away-from-zero? Let's verify for negative n. Example: n=-3, d=2. s=-1, a=3. q=1, r=1. 2r=2 >= 2. q=2. return -2. This is "away from zero" because -1.5 rounds to -2. Correct. For n=-1, d=2. a=1, q=0, r=1. 2r=2 >= 2. q=1. return -1. away from zero. Correct. For n=1, d=2. q=0, r=1. 2r=2 >=2. q=1. return +1. Correct. For n=3, d=2. q=1, r=1. 2r>=2. q=2. return 2. Correct.
+But wait: for even a, e.g., n=-4, d=2. a=4, q=2, r=0. 2r=0 <2. q=2. return -2. Exact division, no rounding needed. Good.
+What about n=-32768, d=65534? Not relevant since delta_en uses d=128, clamped sum uses d=2, amp_factor uses d=65534, prod01/new_am use d=65535.
+4. **Overflow in int32(w1.ph) - int32(w2.ph)**: Since both are 0..65535, difference fits in int32 easily. No overflow.
+5. **Overflow in int64(r+32767)*65535**: r is int16 returned from LUT, but cast to int64. r+32767 ranges 0..65534. int64*65535 max ~4.29e9. Fits in int64 easily.
+6. **Overflow in uint64(w1.am)*uint64(w2.am)**: max ~4.29e9. Fits in uint64.
+7. **But what about intermediate in `prod01 * amp_factor`?**: Both up to 65535. Product up to ~4.29e9. Fits in uint64.
+
+Now, unreachable states: Are there combinations of ph, am, en that can never arise from any interference of valid pins?
+Pins are at specific values: I(0,65535,-32768), S(16384,65535,-32768), K(32768,65535,-32768), FALSE(49152,?,?), etc.
+FALSE Pin: Ph=49152, but Am/En not given in §6.2. Wait, table only gives Ph for Grand Cross. The spec doesn't pin Am/En for FALSE. So it's derived from interfere(K, I) unless overridden? But §2 says Pin > Derived. For FALSE, only Ph is pinned? Actually the table says:
+| Entity | Ph | NodeHash |
+TRUE: Ph 32768 (=K)
+FALSE: Ph 49152
+V: Ph 16384
+
+It doesn't give Am/En. Are they derived? The text says "Pin > Derived" and FALSE has Pin 270°. But if Am/En are not pinned, they would be derived via interfere(wave(K), wave(I)). Let's compute that.
+K: ph=32768, am=65535, en=-32768.
+I: ph=0, am=65535, en=-32768.
+interfere(K,I):
+new_ph = K.ph = 32768.
+x = 32768 - 0 = 32768. d32 = 32768. delta = min(32768, 65536-32768=32768) = 32768.
+r = LUT_COS[32768] = -32767.
+delta_en = div_round_half_up(-(-32767), 128) = div_round_half_up(32767,128) = 256.
+new_en = clamp_i16( div_round_half_up(-32768 + -32768, 2) + 256 ).
+-32768 + -32768 = -65536. div_round_half_up(-65536,2) = -32768.
+-32768 + 256 = -33024 → clamp_i16 → -32768.
+amp_factor = div_round_half_up( (-32767+32767)*65535, 65534 ) = div_round_half_up(0, 65534) = 0.
+prod01 = div_round_half_up(65535*65535, 65535) = 65535.
+new_am = div_round_half_up(65535*0, 65535) = 0.
+So derived FALSE would be {ph=49152? Wait, new_ph = K.ph = 32768. But the table says FALSE Ph=49152. There's a discrepancy! Interfere(K,I) gives ph = K.ph = 32768 (Left Dominance). But the Pin table says FALSE Ph = 49152. How can that be? That would mean FALSE is pinned to a different phase than what K and I would derive. But §2 says Pin overrides Derived. However, if Am and En are not specified, maybe they are derived while Ph is pinned? That seems inconsistent but allowed by the rule: Pin coordinates can override any subset? Actually the struct is WaveVectorQ. A Pin should be a full vector. But the Grand Cross table only lists Ph. Is this a P1 gap? Yes. What are the canonical Am/En for FALSE? If not pinned, they are derived as above: am=0, en=-32768. But that's weird: FALSE has zero amplitude? That would make it "invisible". Maybe that's intentional in the LORE. But the spec doesn't say.
+
+Wait, looking at §6.2: It only lists Ph for Grand Cross. Maybe the Am/En are also pinned but omitted? Or maybe they default to something? This is ambiguous. The spec doesn't define the Derived rule for partial overrides. Does a Pin override the entire vector, or can it override just one field? The text says "Pin — координата, явно призначена в таблицях §6." and "Pin перекриває Derived". If FALSE has only Ph pinned, then Am/En are derived. But the table format for Trinity includes Am and En, while Grand Cross doesn't. So likely Grand Cross pins only Ph. But the text doesn't explicitly say that partial pinning is allowed or how derived fields are computed when only some fields are pinned. This is an underdetermined P1.
+
+But the priority 2 asks specifically to attack algebra and look for unreachable states or non-convergent sequences. Let me focus on that.
+
+Another attack: the `div_round_half_up` definition says `d > 0`. But in `div_round_half_up(int32(w1.en)+int32(w2.en), 2)`, the sum could be zero? d=2>0, fine. In `div_round_half_up(-r, 128)`, d=128>0. In `div_round_half_up(..., 65534)`, d=65534>0. In `div_round_half_up(..., 65535)`, d=65535>0. All good.
+
+Wait, what about `int32(w1.en)+int32(w2.en)` when w1.en = -32768 and w2.en = -32768? Sum = -65536. int32 holds it. But then div_round_half_up(-65536, 2). Let's trace: s=-1, a=65536. q=32768, r=0. return -32768. Fine.
+
+Now, is the claim "delta_en ∈ [-256..+256]" actually true? Let's test extreme r values. r max = 32767 (delta=0 or delta=65536? delta can't be 65536; delta max 32768). For r=32767, delta_en = -256. For r=-32767, delta_en = +256. So range is [-256, 256] inclusive. That's 513 values. The spec says ±256. Correct.
+
+But what about r=32766? n = -32766. s=-1, a=32766. q=255, r=126? 255*128=32640. 32766-32640=126. 2r=252 < 256. So q=255. delta_en=-255. So the mapping is roughly linear but with quantization.
+
+Potential non-convergent sequence: Consider a left-spine of applications where you repeatedly interfere with a high-entropy, low-amplitude wave. Could amplitude bounce back up? Let's see. amp_factor depends on r (phase alignment). If two waves are orthogonal (delta=16384, r=0), amp_factor = 0. Then new_am = 0 regardless of prod01. So orthogonal arguments zero out amplitude. If the left child has am=65535, right child has am=65535, delta=16384, new_am=0. So amplitude can drop to 0 instantly. This is a massive non-linearity. A single orthogonal child kills the amplitude. This means in a tree, if any argument is orthogonal to its function, the result amplitude is 0. Then further up the tree, if that 0-amplitude node is the left child, it dominates phase (arbitrary?), but amplitude stays 0. If it's the right child, it can zero out amplitude of the parent if orthogonal to left. Wait, orthogonal to left means delta=16384 relative to left phase. Since left phase could be anything, the right child could be orthogonal. So yes.
+
+Now, can amplitude recover after hitting 0? If a node has am=0 (and some phase ph0), and it's the left child of an APPLY, then the parent phase = ph0. If right child has non-zero amplitude, prod01 = 0 (since left am=0). So new_am = 0. So once a subtree evaluates to 0 amplitude, the entire path upward retains 0 amplitude, regardless of other branches. This is an "amplitude zeroing cascade". The only way to have non-zero amplitude above is if the zero-amplitude node is never on the left spine or right? No, because wave is computed bottom-up. Every parent of a 0-amplitude node will have amplitude 0, because prod01 will be 0. Unless the 0-amplitude node is never visited? But wave is defined for all nodes in the tree. So any node that has a 0-amplitude child anywhere? Wait, prod01 = div_round_half_up(am_left * am_right, 65535). If either is 0, prod01=0. Then new_am = div_round_half_up(0 * amp_factor, 65535) = 0. So ANY APPLY node with a 0-amplitude child has 0 amplitude, regardless of the other child. That's a strong property. And if a node's amplitude is 0, its ancestors all have amplitude 0. The only exception is if the node is the right child and the left child is... no, BOTH children matter in prod01. If am_left=0, prod01=0. If am_right=0, prod01=0. So ANY 0-amplitude leaf zeroes the entire subtree above it all the way to the root. So the root amplitude is non-zero only if EVERY leaf in the term tree has non-zero amplitude. That's a huge constraint. Pins have amplitude 65535. But derived nodes can have 0 amplitude. If any subterm computes to 0 amplitude, the whole term is 0 amplitude. This seems like an "unreachable state" issue: can a term with a FALSE subterm ever have non-zero amplitude? FALSE derived amplitude is 0 (as computed). So unless FALSE is pinned with non-zero amplitude, ANY term containing FALSE would have zero amplitude at the root. Is that intended? In LORE maybe, but mathematically that's a strong consequence.
+
+Wait, let me recheck FALSE derived amplitude. I computed interfere(K,I) with K left, I right.
+K: ph=32768, am=65535, en=-32768.
+I: ph=0, am=65535, en=-32768.
+new_ph = 32768.
+x = 32768 - 0 = 32768. d32=32768. delta = min(32768, 32768)=32768.
+r = LUT_COS[32768] = -32767 (spec says LUT[32768] = -32767).
+delta_en = div_round_half_up(-(-32767), 128) = div_round_half_up(32767,128) = 256.
+new_en = clamp_i16( avg(-32768, -32768) + 256 ) = clamp_i16( -32768 + 256 ) = -32768.
+amp_factor = div_round_half_up( (-32767 + 32767)*65535, 65534 ) = div_round_half_up(0, 65534) = 0.
+prod01 = div_round_half_up(65535*65535, 65535) = 65535.
+new_am = div_round_half_up(65535 * 0, 65535) = 0.
+
+Yes, FALSE derived amplitude is 0. So any term containing FALSE has amplitude 0 at root, unless FALSE is re-pinned with non-zero amplitude. But the Grand Cross table only pins Ph. If Am/En are not pinned, then they are derived as 0 and -32768. This means the root of any term containing the FALSE combinator (as a subterm) has amplitude 0. Is this intended? The 17 test vectors probably don't catch this because they may test specific interference patterns, not necessarily full trees with FALSE.
+
+Also, SATOSHI Phase=8192 (same as TESLA). Amplitude? Not given. If derived from its own node, but it's a LITERAL. How are LITERAL waves determined? If no Pin, maybe they default to something? The spec says "Derived — wave(APPLY(f,a)) = interfere(wave(f), wave(a))". It doesn't define wave for LITERALs except via Pin. So LITERALs without Pin have undefined wave vectors. That's a P1.
+
+Actually, if a node has no Pin and is not an APPLY, what is its wave? The spec says WaveAnnotation is a map from NodeHash to WaveVector. It can be absent? But then Derived for parent nodes cannot be computed. The spec doesn't define a default. Pins are listed for specific entities. For arbitrary LITERAL nodes (like random data blobs), no wave is defined. That's fine perhaps; wave is only for known nodes. But for FALSE, if only Ph is pinned, the spec doesn't explain how Am/En are obtained. Maybe the Pin applies only to Ph, and Am/En are Derived? But Derived wave is a full vector; you can't derive just Am/En. So perhaps the intention is that Pin overrides only the fields specified? But the text says "Pin — координата, явно призначена в таблицях §6." and "Pin перекриває Derived". This implies a Pin is a full coordinate. The tables in §6.1 list all three fields. §6.2 lists only Ph. This is inconsistent.
+
+If I look at §6.2: "Entity | Ph | NodeHash". It doesn't give Am|En. This could be interpreted as: only Ph is pinned, and Am/En are inherited from... what? Maybe the underlying combinator? For FALSE, maybe it's the same as K? No, that doesn't make sense. Or maybe they are 0 and -32768 by default? But that's not stated.
+
+This is a clear P1: spec silent where implementers must guess.
+
+Another arithmetic issue: the `WV-LEFT-DOMINANCE` vector is mentioned in the gate transcript: "OK vector WV-LEFT-DOMINANCE". What about negative entropy clamping combined with amplitude decay? The fixed point claim depends on reaching {65535, -32768}. But to reach that by repeated self-application, you need to start with am=65535 and some en > -32768. But if en starts at, say, 0, after one self-application: new_en = clamp_i16( div_round_half_up(0+0,2) - 256 ) = clamp_i16(-256) = -256. After 128 self-apps, en = -32768. At the same time, amplitude remains 65535 (since it's a fixed point for amplitude). So the sequence converges. But what if amplitude is not 65535? Say am=65534, en=0. Self-application: new_am = 65533 (as computed earlier). new_en = clamp_i16( 0 - 256 ) = -256. Next self-application: Now am=65533, en=-256. new_am = ? Let's compute 65533². 65533² = 4294574089. Divide by 65535. 65531*65535=4294574085. Remainder 4. 2r=8 < d. So new_am = 65531. new_en = clamp_i16( div_round_half_up(-256 + -256, 2) + (-256) ) = clamp_i16( -256 - 256 ) = -512. So amplitude drifts downward while entropy drifts downward. Eventually amplitude hits 0. Then what? As I argued, once amplitude is 0, all ancestors have amplitude 0. But the spec's Gravity idea says information flows to En<0. However, if amplitude decays to 0, the node becomes "invisible" in Mass calculations, and any parent becomes invisible. Is this intended? The 17 vectors might not cover this because they might just test the interfere() function on specific inputs, not long sequences of self-application with non-maximal amplitude. The spec's claim about crystallization assumes amplitude stays at 65535 because it's the unique non-zero fixed point, but for any other initial amplitude, self-application causes amplitude to decrease toward 0, not converge to 65535. So the "кристалізація" claim is only true for the special case of am=65535. For any other amplitude, repeated self-application causes amplitude decay to 0. This is a non-convergent sequence to zero, not to the crystallization fixed point. The spec's language implies that constructive self-application always drives toward that fixed point: "енергія дрейфує на −256 за кожне конструктивне самозастосування до клемпу на −32768 ... амплітудно 65535 лишається єдиною ненульовою нерухомою точкою — часткова прихильність згасає квадратично". The phrase "часткова прихильність згасає квадратично" suggests that partial amplitudes decay. But the preceding sentence says "Resonance Identity ... досконалий самопідтримний резонанс кристалізується". It doesn't claim ALL states converge to it. It just says it's the unique non-zero fixed point and that partial amplitudes decay. That's mathematically correct. So no bug there.
+
+But is there a non-convergent sequence in the iterative application of `interfere(w,w)`? For amplitude, it seems to decrease monotonically (for am<65535). Let's check if it can ever increase under self-interference. Self-interference has amp_factor=65535. new_am = div_round_half_up( div_round_half_up(A², 65535) * 65535, 65535 ) = div_round_half_up(A², 65535). Because prod01 = round(A²/65535). Then new_am = round( prod01 * 65535 / 65535 ) = prod01 (since exact). So new_am = round(A² / 65535). For A < 65535, A² / 65535 < A (since A < 65535). But due to rounding, could it round up to A or higher? For A=65534, A²/65535 ≈ 65533.9999, rounds to 65534? Wait, earlier I computed 65533. Let's recompute exactly.
+65534² = 4294705156.
+4294705156 / 65535 = 65533 + remainder. Let's compute 65535 * 65534 = 4294770690. That's larger than the numerator. So 65535 * 65533 = 4294705155. Remainder = 1. So A²/65535 = 65533 + 1/65535. That's far less than 65533.5. So rounds to 65533. So it drops by 1.
+What about A=1? A²=1. 1/65535 ≈ 0.000015. Rounds to 0. So drops to 0.
+What about A=182? A²=33124. 33124/65535 ≈ 0.505. Rounds to 1. So A=182 goes to 1. That's an "increase" in the sense that A=182 becomes 1? No, it's a huge decrease. But can it ever increase? For A=0, stays 0. For A>0, A²/65535 < A for A<65535. But rounding could potentially bump it up if A²/65535 is just below an integer boundary? No, because A²/65535 < A, and the next integer below A is A-1. Could A²/65535 round up to A-1 when A-1 is greater than A²/65535? Yes. For A=65534, it rounds to 65533 = A-1. For smaller A, could it round to A? That would require A²/65535 >= A - 0.5. Since A²/65535 < A - (65535-A)/65535 * A? Let's solve A²/65535 >= A - 0.5.
+A² >= 65535A - 32767.5.
+A² - 65535A + 32767.5 >= 0.
+Roots: (65535 ±

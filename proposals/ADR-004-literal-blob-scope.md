@@ -1,6 +1,7 @@
 # ADR-004: LITERAL blob validation — inside or outside `eval()`?
 
 **Status:** PROPOSED (2026-07-06) — needs the standard review gate before any Book I change
+**Gate reviews:** 1 of ≥3 — Kimi k2.6 (2026-07-07) answered the decision criterion in the negative: `eval()` is a pure function over the node-CAS transitive closure; the blob is never in that closure, so identical node-CAS can never force agreement on a blob-dependent outcome, and Option 1 would let blob-CAS state (possession/absence/corruption) split canonical results between honest nodes — a P0-class divergence surface. Verdict: Option 2 is the only consensus-compatible rule. (reviews/2026-07-kimi-v0.5.0-audit.md §1)
 **Origin:** Codex post-release audit of v0.5.0 (P1), 2026-07. New evidence over the DeepSeek 2026-07 settlement: the shipped artifact cannot express the settled behavior, and Book I §1.1 contradicts itself across two adjacent paragraphs.
 
 ## Problem
