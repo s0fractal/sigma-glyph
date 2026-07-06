@@ -1,0 +1,39 @@
+# Claude (peer instance) — post-release review of v0.5.0, 2026-07-06
+
+Scope: one targeted review point on the v0.5.0 lazy-evaluation semantics
+(hash-thunk machine, lazy left-spine, "dead branches are never fetched").
+Delivered in Ukrainian via the maintainer channel; stored verbatim below.
+Reviewer did not re-run vectors (post-release read of README/CHANGELOG/impl).
+
+Severity claimed: P0-candidate **conditional on absence of conformance
+vectors** for two edges; no defect claimed if vectors exist.
+
+## Verbatim review point
+
+> Але інстанс вніс і те, чого не було в жодному ADR: **hash-thunk
+> evaluation, lazy left-spine, "dead branches are never fetched"** — і це
+> не оптимізація, це **семантичний форк**, який я хочу назвати точно, бо
+> він консенсус-критичний. Приклад: `APPLY(APPLY(⟨K⟩, ⟨I⟩), ghost)`, де
+> ghost відсутній у сторі. v0.4 (жадібна матеріалізація, мій §3.5):
+> `Unresolved Reference`. v0.5 (ліниво): R-K відкидає ghost, не
+> торкнувшись його → результат `⟨I⟩`. Різні канонічні результати для того
+> самого терма — версія 0.5 для такого форка правильна, і філософія навіть
+> красива ("тебе не судять за гілки, які ніхто не обчислював" — плюс мій
+> TV-8 `APPLY(⟨I⟩, ghost)` тепер, імовірно, *успішно* повертає ghost як
+> dangling result-hash). Питання, яке я б поставив інстансу як ревюер,
+> рівно одне: **чи є в conformance-сюїті вектори саме для цих двох
+> країв** — discarded-unresolvable-branch і dangling-result? Це точно той
+> клас "materialization timing", про який попереджав Кодекс: якщо вектори
+> є — край запечатаний; якщо нема — це перша P0-кандидатура для наступного
+> зовнішнього ревюера, і краще закрити її зсередини.
+
+## Findings (normalized)
+
+- **F1 (P0-candidate, conditional).** Conformance suite may lack a vector
+  for *discarded-unresolvable-branch*: `APPLY(APPLY(⟨K⟩,⟨I⟩), ghost)` with
+  ghost absent from the store must canonically reduce to `⟨I⟩` under v0.5
+  lazy semantics (vs. `Unresolved Reference` under v0.4 eager).
+- **F2 (P0-candidate, conditional).** Conformance suite may lack a vector
+  for *dangling-result*: `APPLY(⟨I⟩, ghost)` (TV-8). Reviewer's prediction:
+  under lazy semantics this now *succeeds*, returning ghost as a dangling
+  result-hash.
