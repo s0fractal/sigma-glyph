@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Accepted in full. ADR-004: Codex was tasked to defend its Option 1 or concede; it conceded on the merits ('historical continuity cannot justify making a canonical result depend on blob state absent from node-CAS'), re-deriving the transitive-closure argument against its own prior position - with Kimi, Gemini and DeepSeek this closes the review gate at 4/>=3 for Option 2, zero dissent. No-blob-vectors rule adopted (blob vectors would reintroduce the external channel; strengthen EV-LIT-FORCE note + format note instead). ADR-005: R1 verdict with the missing technical substance - WavePin partial type (ph?/am?/en?), complete(interfere,pin) formulation, absent-wave semantics, five vectors; WV-FALSE-R1 {49152,0,-32512} and WV-FALSE-ANCESTOR-SILENT {49152,0,-32640} reproduced exactly against the oracle; wave-vector format extension need confirmed. Criterion answer counters Gemini's R2 use case: NodeHash/structural/phase addressing remains, zero mass is coherent, LORE non-normative."
+      },
+      {
+        "check": "33d991aa6f604074325ba599edb38db0f1a8dd90a086ef31c40ea80aa539275a",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "69091fd5d11338ee2da37847e6fdde46b489bb2603cc1dc74446fadd1205cfc3",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "2916da995c2845acffa3d197a2222e982f9690b4ccd00c87fe4ea781a247d747"
+    ],
+    "prior": [
+      "04a27b3371e7b79461df66fcf131f8507f6cb3ea2207e6833c096dfce9e4af53"
+    ],
+    "subject": {
+      "hash": "c1447a2b5a64fd3aa465f9b61ec562131c61bb0f86f887fc87abf125c6791891",
+      "note": "Codex ADR-004/005 gate review: Option 1 CONCEDED (004 gate closes at 4/>=3 Option 2); ADR-005 R1 + WavePin partial type"
+    },
+    "ts": 1783384835,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "ca4bcd6329df0df64a9839f165d9c2d0434f9dde310efa4f9174f6dc3d8e6282d29307ab50230f53154bf89db8c3babfc9eaf56b1eb0463c7fe9a9988527730a"
+    }
+  ]
+}

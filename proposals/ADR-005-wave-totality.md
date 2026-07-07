@@ -1,8 +1,13 @@
 # ADR-005: Book II wave totality — partial pins, base-case waves, iteration vectors
 
-**Status:** PROPOSED (2026-07-07) — needs the standard review gate; touches anchored `wave_vectors.json` and Book II §6, so adoption implies a release
+**Status:** REVIEW GATE CLOSED for **R1** (2026-07-07, 3 gate reviews, R1 2:1 over R2; maintainer adjudicated the split to R1) — awaiting adoption release: Book II §2 field-level pin semantics (`WavePin` partial type), §2.1 absent base case, §6.2 normative FALSE row `{ph=49152, am=0, en=−32512}`, pin-table layer in the wave oracle, new vectors (WV-FALSE-DERIVED, WV-FALSE-ANCESTOR-SILENT, WV-ITER-DECAY, WV-UNPINNED-ABSENT)
 **Origin:** Kimi k2.6 post-release audit of v0.5.0 (P1 ×2 + suite gap), 2026-07. All three claims verified against the oracle by the maintainer before filing.
-**Gate reviews:** 1 of ≥3 — Gemini 3.1 Pro (2026-07-07) answers the decision criterion decisively for **R2**: any boolean logic compiled to SKI contains FALSE ≡ `APPLY(K,I)` as a subterm, so under R1 every such compound term is wave-silent — erased from Mass-based routing and Gravity discovery; a boolean primitive must not render the overlying structure topologically invisible. Verdict: R2 (full-vector defaults `{Am=65535, En=-32768}` for partially pinned entities) + absent base case for unpinned LITERALs. Proposed vectors `WV-FALSE-R2-PIN` and `WV-ITERATED-DECAY-6560` (the latter reproduced exactly by the maintainer: `interfere({0,6560,0}, self) = {0, 657, -256}`). (reviews/2026-07-gemini-adr45-gate.md §2)
+**Gate reviews (3):**
+- Gemini 3.1 Pro — **R2**: any boolean logic compiled to SKI contains FALSE ≡ `APPLY(K,I)`, so under R1 such compound terms are wave-silent, erased from Mass routing and Gravity discovery. Verified the decay vector `interfere({0,6560,0}, self) = {0, 657, -256}` exactly.
+- Codex — **R1 with explicit partiality**: navigation still addresses FALSE-containing terms by NodeHash/structural index/phase coordinate; zero mass is coherent; R2 invents maximal amplitude for never-computed fields. Contributed the `WavePin` type (`ph?/am?/en?`), `complete(interfere, pin)` formulation, absent-wave semantics, and the vectors pinning the controversial consequence (`WV-FALSE-R1` `{49152,0,-32512}`, `WV-FALSE-ANCESTOR-SILENT` `{49152,0,-32640}` — both oracle-verified).
+- DeepSeek v4 Pro — **R1**: "none exists today" — wave layer is navigation-scoped; the phase pin stays visible as a coordinate; a future protocol needing non-silent FALSE adds a full-vector pin without breaking vectors. Contributed the normative §6.2 FALSE row with the En derivation and the Trinity-vs-MAX asymmetry argument against R2.
+
+**Maintainer adjudication of the split:** R1. Both R1 answers defeat the R2 use case on its own ground — the boolean-app-invisibility scenario has an R1-native remedy (phase visibility now; explicit full pins where a use case demands mass), while R2 asserts values nobody computed and contradicts Derived wherever derivation exists.
 
 ## Problem
 

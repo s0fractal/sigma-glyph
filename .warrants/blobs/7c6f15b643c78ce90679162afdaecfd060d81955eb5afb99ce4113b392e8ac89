@@ -1,0 +1,187 @@
+# ADR-004 Gate Review: LITERAL blob inside or outside `eval()`?
+
+## (a) Verification of underlying claims
+
+**Claim 1: Book I §1.1 self-contradiction.**  
+Direct quote from `spec/book-1-truth.md` (version 0.5.0) §1.1:
+
+> LITERAL — інертний commitment. Канонічний вузол містить digest, не blob. Для редукції blob не потрібен ніколи: LITERAL — нормальна форма, комбінатори розпізнаються за NodeHash (§3.2). Отримання та валідація blob (`SHA-256(blob) == atom` MUST) — контракт сховища **поза цією Книгою**.
+
+Immediately followed by:
+
+> Нормативна поведінка `resolve(h)` для LITERAL: fetch blob, валідувати `SHA-256(blob) == atom`, і якщо валідація невдала — матеріалізувати Canonical Invalid Object (§4.2). Реалізації MAY валідувати eagerly при зберіганні або кешувати валідовані blobs, але зовнішньо спостережувана поведінка `eval()` MUST бути ідентичною до on-demand validation.
+
+Paragraph (1) says blob validation is **outside** Book I; paragraph (2) says it is **inside** `resolve(h)`, which is part of the `eval()` machine (§3.5).  
+→ **Contradiction is real and direct:** two adjacent paragraphs assign opposite scopes. **P1** (spec silent where implementers must guess). No arithmetic needed for this.
+
+**Claim 2: oracle blob-channel absence.**  
+The submitted gate transcript confirms:
+
+```
+$ python3 tools/warrant_verify.py
+records 12, blobs 43, roots ['14d413f2952b', '276b6f983900'], errors 0
+```
+
+The warrant store manages node-CAS blobs (node byte records) — not application blobs. The oracle implementation (`impl/sigma_glyph.py`) passes `EV-LIT-FORCE` (a LITERAL node forces in 1 ATP without any blob fetch). The ADR states: “The v0.5 reference oracle implements (1): `Store` is a node-byte CAS with no blob channel; a LITERAL forces to normal form in 1 ATP with no blob present.” That matches the transcript (conformance vectors pass).  
+→ Claim is verified.
+
+**Claim 3: `EV-LIT-FORCE` is interim law.**  
+Per Book I §7: “при розбіжності з прозою виграє оракул `impl/sigma_glyph.py`.” Since the prose contradicts itself, the oracle indeed governs. The vector `EV-LIT-FORCE` pins behaviour that does not depend on a blob.  
+→ Claim verified.
+
+## (b) Decision criterion: consensus scenario where identical node-CAS forces agreement on a blob-dependent outcome
+
+Consider two honest conforming nodes A and B that have identical node-CAS — i.e., they hold exactly the same set of canonical node bytes (SigmaNodeV2 serialisations) keyed by NodeHash. Both nodes evaluate `eval(term_hash, budget)`.
+
+- `eval` only ever requests node bytes through `resolve(h)`, which fetches from the node-CAS. (The machine never retrieves user-blob data.)
+- A LITERAL node’s byte representation contains only the `Op=0x00`, `Flags=0x01`, and the 32-byte `Atom` (a SHA-256 of the user blob) — **never the blob itself**.
+- Whether a node possesses the user blob that produced that `Atom` is *irrelevant* to the reduction, because reduction never demands the blob content (combinators are recognised by NodeHash, and LITERAL is a normal form).
+- The only way a blob mismatch could surface inside `eval` would be if `resolve` were required to fetch the blob, validate it, and materially alter the result. But the machine has no step that reads the blob.
+- Therefore, for any two nodes with identical node-CAS, `eval(…, budget)` yields deterministic identical outcome (normal form, or one of the two canonical DISSONANCE reasons) **regardless of blob availability**.
+
+**Conclusion:** No consensus scenario exists where identical node-CAS must agree on a blob‑dependent outcome. The blob is external to the closed world of `eval()`. This matches the argument in Kimi’s review: `eval()` is a pure function over the node‑CAS transitive closure; the blob is never in that closure.
+
+## (c) Standing positions
+
+- **Codex prefers Option 1** (canonise blob validation inside `eval`). This would introduce a new divergence surface — two honest nodes with the same node‑CAS but different blob possession would get different canonical results. That is a **P0** regression. The DeepSeek settlement (which endorsed on‑demand blob validation inside `resolve`) predates the v0.5 oracle; the shipped artifact cannot express that settlement without the contradictory paragraph, so superseding is consistent with the warrant process.
+- **Kimi argues Option 2** on the grounds that `eval` never touches the blob. That analysis is correct.
+- **Maintainer leans Option 2.** That lean is well‑founded.
+
+My independent assessment: Option 2 eliminates a dead normative branch and closes a divergence surface that Option 1 would open. Option 1 would require `vectors.json` format changes, BV‑HC‑LI vectors, and would make `eval()` a function of both node‑CAS and blob‑CAS, contradicting the v0.5 hash‑leaf model and the lazy‑demand principle.
+
+## (d) Verdict: Adopt Option 2
+
+**Recommended normative text for Book I §1.1** (replace the two contradictory paragraphs with a single coherent statement):
+
+```markdown
+**LITERAL — інертний commitment.** Канонічний вузол містить digest, не blob. Для редукції blob не потрібен ніколи: LITERAL — нормальна форма, комбінатори розпізнаються за NodeHash (§3.2). Node‑storage зберігає лише канонічні байти SigmaNodeV2; отримання та валідація вмісту blob (`SHA‑256(blob) == atom` MUST) — зовнішній контракт сховища поза межами цієї Книги. `resolve(h)` для LITERAL не вимагає blob; матеріалізація завжди успішна (1 ATP), поки вузол десеріалізується коректно за §4.1. Жодна відмова blob‑рівня не впливає на результат `eval()`.
+```
+
+**Conformance vector addition:** no new vector needed — `EV-LIT-FORCE` already pins the behaviour. The ADR should note that deleting the second paragraph makes the prose match the existing oracle, so no anchor churn. A clarifying comment in `vectors.json` suffices.
+
+---
+
+# ADR-005 Gate Review: Wave totality — partial pins, base‑case, iteration
+
+## (a) Verification of underlying claims
+
+### Claim 1: `interfere(K,I)` → `am=0` and ancestor cascade
+
+Compute `interfere({ph=32768, am=65535, en=-32768}, {ph=0, am=65535, en=-32768})` using the normative rules of Book II §5 (v0.5). All intermediate types as specified.
+
+- `ph` difference: `|32768 - 0| = 32768`. `delta = min(32768, 65536-32768) = 32768`.
+- `LUT_COS[32768]` per Book II §4 anchor: `[32768]=-32767`. So `r = -32767`.
+- `amp_factor`:  
+  `r + 32767 = 0`;  
+  `amp_factor = div_round_half_up(0 * 65535, 65534) = 0`. (No rounding.)
+- `prod01`:  
+  `div_round_half_up(65535 * 65535, 65535)`.  
+  Integer exact: `65535² = 4294836225`.  
+  Division by `65535`: `4294836225 / 65535 = 65535` exactly (no remainder).  
+  `prod01 = 65535`.
+- `new_am`:  
+  `div_round_half_up(65535 * 0, 65535) = 0`.
+- So `am = 0`. **Variations:** if any child has `am=0`, `prod01` is 0, hence `new_am=0`. Therefore every ancestor of a `am=0` node inherits `am=0`. FALSE leads to wave silence. ✓
+
+### Claim 2: Ph‑only pins in §6.2–6.4 have undefined field semantics
+
+- §6.2 Grand Cross lists FALSE with `Ph=49152` (only).  
+- §2 states “Pin > Derived” without specifying whether a pin that omits Am/En still permits deriving those fields, or forces a whole‑vector override.
+- The definition of `Derived` in §2: “wave(APPLY(f,a)) = interfere(wave(f), wave(a))”. For a Ph‑only pin, `wave(f)` and `wave(a)` are known (they are Trinity pins with full vectors), so `interfere` could compute a vector with Ph overridden by the pin. The ambiguity is whether the pin **replaces** the vector entirely (Am/En unset → undefined) or only overrides the listed columns.
+- A conforming annotator cannot determine the wave of FALSE or any Pantheon entity — **gap is real, P1**. ✓
+
+### Claim 3: no base‑case wave for unpinned LITERALs
+
+- The spec defines `wave(APPLY(f,a))` (Derived) and lists pinned glyphs (§6).  
+- For an arbitrary non‑pinned LITERAL node (e.g., a user‑stored blob), there is no rule. The natural reading is that such nodes have **no** WaveAnnotation — the function is partial. But the spec does not say so explicitly, leaving implementers to guess. ✓
+
+### Claim 4: iterated decay chain is not pinned
+
+Self‑interference under v0.5 Resonance Identity (Book II §5.1) reduces amplitude as `am → div_round_half_up(am², 65535)` (with `amp_factor = 65535` when `delta=0`). Starting from `am=49151` (75% of maximum):
+
+- Step 1: `am₁ = div_round_half_up(49151², 65535)`.  
+  Compute `49151² = 2,415,820,801`.  
+  `65535 × 36863 = 2,415,820,705` (since `65535 × 36863 = 65535 × (36864‑1) = 65535×36864 – 65535`; `65535×36864 = 2,415,828,480`, minus `65535` = `2,415,762,945` — that doesn’t match. Let's compute exactly: `65535 × 36863`. Use division: `2,415,820,801 ÷ 65535`.  
+  `65535 × 36863 = 65535 × (36000 + 863) = 65535×36000 = 2,359,260,000; 65535×863 = 65535×800=52,428,000, plus 65535×63=4,128,705, total 56,556,705; sum = 2,415,816,705`. That's 4,096 short. Let's compute systematically:  
+  `65535 × 36863`.  
+  65535 × 30000 = 1,966,050,000  
+  65535 × 6000  =   393,210,000  
+  65535 × 800   =    52,428,000  
+  65535 × 60    =     3,932,100  
+  65535 × 3     =       196,605  
+  sum: 1,966,050,000+393,210,000=2,359,260,000; +52,428,000=2,411,688,000; +3,932,100=2,415,620,100; +196,605=2,415,816,705.  
+  So `2,415,820,801 - 2,415,816,705 = 4,096`.  
+  `2 * 4096 = 8192`. `65535 / 2 = 32767.5`. Since `8192 > 32767?` No, `8192 < 32767.5`, so round half up → **round down**? Wait: `2*r = 2*4096 = 8192`; divisor `d=65535`. We need `2r ≥ d` for rounding up. `8192 ≥ 65535` is false. So `q` stays at `36863`, remainder `4096`. No increment. So `am₁ = 36863`. **But the ADR says 36863**. So exactly matches. Good.
+- Step 2: `am₂ = div_round_half_up(36863², 65535)`. `36863² = 1,358,…` Let's compute: `36863² = (36864‑1)² = 36864² - 2*36864 + 1`. `36864 = 2^15 * 9/8?` Actually `36864 = 2^12 * 9 = 4096*9 = 36864`. So `36864² = 1,358,954,496`. Then minus `73728` plus `1` = `1,358,880,769`. Now divide by `65535`. `65535 * 20735`? 20735 * 65535. 20735 * 60000 = 1,244,100,000; 20735*5535 ≈? Actually compute: `20735 × 65535 = 20735 × (65536‑1) = 20735×65536 - 20735`. `20735×65536 = 20735 * 2^16 = 20735 * 65536 = 1,358,888,960`. Then minus 20735 = `1,358,868,225`. Our square is `1,358,880,769`. Difference: `1,358,880,769 - 1,358,868,225 = 12,544`. Now check rounding: `2*12544 = 25088`, divisor `65535`. `25088 < 65535`, so round down. So `am₂ = 20735`. Matches.
+- Step 3: `am₂=20735`. Square: `20735²`. `20735 = 65535 - 44800`? Simpler: `20735 × 65535` to find nearest multiple. ADR says next is `6560`. So `20735² / 65535` should round to `6560`. `20735² = 429,940,225`. Divide by `65535`: `65535 * 6560 = 65535*6000=393,210,000; 65535*560=36,699,600; sum=429,909,600`. Difference `429,940,225 - 429,909,600 = 30,625`. `2*30625 = 61250`, `65535` > `61250`, so round down to `6560`. Matches.
+- Step 4: `am₃=6560`. Square: `6560² = 43,033,600`. Divide by `65535`: `65535 * 657 = 65535*600=39,321,000; 65535*57=3,735,495; sum=43,056,495`. That's larger than square, so `q=656`. Actually `65535*656 = 43,056,495 - 65535 = 42,990,960`. Our square is `43,033,600`, difference `42,646`. `2*42646 = 85292`, `65535 < 85292`? No, `85292` is > `65535`, so round up to `657`. So `am₄ = 657`. Matches.
+- Step 5: `am₄=657`. Square: `657² = 431,649`. Division: `65535 * 7 = 458,745` too low, so `q=6` gives `393,210`, remainder > half? Compute: `65535*6 = 393,210`, remainder `431,649-393,210=38,439`. `2*38439=76878 ≥ 65535`, so round up to `7`. `am₅ = 7`. Matches.
+- Step 6: `am₅=7`. Square: `49`. Division: `49 / 65535` rounds to `0` because `49 < 32767.5`. So `am₆ = 0`. Matches.
+- **Iterated chain is correct** and not pinned by any vector. ✓
+
+## (b) Decision criterion: use where a FALSE‑containing term's wave must be non‑silent
+
+The wave layer is meant for navigation, not consensus. Amplitude zero for a term is a well‑defined signal: that term carries no “weight” in mass computations, and its phase contribution (if needed) could be carried by other terms. No concrete navigation protocol exists yet (federation/gossip is vapourware per ROADMAP v0.6+). In the absence of a protocol, we must ask whether silence breaks any invariant:
+
+- Mass accumulates amplitudes over a window; zero‑amplitude terms add zero — that is safe.
+- Phase‑based clustering still works because the phase is pinned (e.g., FALSE’s phase is 49152). Zero amplitude just means the term’s position is visible but weightless.
+- If some future protocol requires a non‑zero amplitude for falsehood to “flow” (e.g., consequence reasoning), it can assign a base amplitude differently; but that protocol is not defined now, and introducing default maximal amplitude for all Ph‑only entities would be arbitrary.
+
+**No use exists today that demands non‑silent FALSE.** The cascade is a derived property of the interfere function; making it a theorem rather than a bug is consistent with the spec’s statement: “Wave ∉ hash — це предмет федеративного узгодження”.
+
+## (c) Standing positions: R1 (field‑level pins) vs R2 (full‑vector defaults)
+
+- **Kimi** flagged the problem but didn’t prescribe R1/R2.
+- **Maintainer** is undecided.
+- **My analysis:**
+
+  **R2 (default Amp=65535, En=−32768):** This would make every Ph‑only entity carry maximum amplitude and minimum entropy, ignoring the actual wave composition of its children. For FALSE, that would mean `Am=65535` instead of the derived `0`. This contradicts “Pin > Derived” semantics: a pin that omits fields would implicitly set them to constants, making the Derived rule dead for those fields. It also introduces an unmotivated asymmetry — why is the Trinity pinned with exact amplitudes but others get MAX? A Ph‑only pin in a derived‑override system is naturally interpreted as “lock the phase, derive the rest”. The spec’s existing “Phase is not an identifier” axiom and the note that SATOSHI/TESLA share phase 8192 as a density cluster are consistent with phase‑only pins being sufficient for navigation; the amplitude and entropy then reflect the actual wave heritage.
+
+  **R1 (field‑level pins):** Retains the current structure: a pin entry overrides only the fields it explicitly lists; unlisted fields are left to derivation (for APPLY) or to “no wave” (for LITERALs). This preserves the Resonance Identity and the zero‑amplitude cascade for FALSE as emergent behaviour. It also keeps the door open for future full‑vector pins if desired.
+
+  **Recommendation: adopt R1.** It is the smaller, more conservative rule that respects the existing spec framework. R2 introduces an arbitrary default that conflicts with “Derived” and creates hidden complexity (why not also pin Pantheon with Am/En?).
+
+## (d) Verdict: R1 + base‑case clarification
+
+### Normative text proposals
+
+**1. Amend Book II §2 (“Пріоритет анотацій”) to define field‑level pin semantics:**
+
+```markdown
+Pin перекриває Derived **поле‑за‑полем**: для вузла з явною анотацією (Pin) кожне поле (ph, am, en) береться з Pin, якщо воно вказане; інакше — обчислюється за Derived, якщо це APPLY‑вузол. Якщо Derived не застосовне (не‑APPLY, або операнди без хвилі), анотація відсутня — `wave()` є частковою функцією, визначеною лише для носіїв анотацій. Відсутність хвилі дозволена; `interfere` з відсутнім операндом означає відсутню результуючу хвилю.
+```
+
+**2. In §6.2–6.4, add a note that omitting Am/En means those fields derive from child waves (if any), and for APPLY nodes like FALSE, the vector is computed by `interfere` with the Ph pin applied. Explicitly list the resulting vector for FALSE as normative to avoid ambiguity:**
+
+```markdown
+| FALSE ≡ APPLY(K,I) | 49152 | 0 | −32512 | `65cd957f…` | (виведено: Am=0 через ортогональність K/I, En=−32512)
+```
+
+(Note: En derivation: `avg_en = (−32768+−32768)/2 = −32768`; `delta_en = div_round_half_up(−(−32767),128) = div_round_half_up(32767,128) = 256` (as computed), sum `−32512`. All within range.)  
+And for other Ph‑only entities (VOID/PAIR, Pantheon), state that Am/En are undefined (no child waves) unless future pins provide them.
+
+**3. Base case:** Add after §2 or as a new §2.1:
+
+```text
+Для вузлів, які не є APPLY і не мають Pin, хвиля **відсутня**. Це включає всі непіновані LITERAL. Відсутність хвилі не впливає на консенсус Книги I і не обробляється `interfere` — спроба застосувати `interfere` до відсутнього операнда призводить до відсутньої результуючої хвилі.
+```
+
+**4. Iteration vector:** Add a wave vector `WV-ITER-DECAY` to `wave_vectors.json`:
+
+```json
+{
+  "id": "WV-ITER-DECAY",
+  "description": "Self-application amplitude decay chain (Resonance Identity). Initial am=49151, en=−32768.",
+  "input": { ... },
+  "expected": [49151, 36863, 20735, 6560, 657, 7, 0]
+}
+```
+
+And a vector for a FALSE‑composing term (e.g., `APPLY(FALSE, I)` or simply the vector of FALSE itself) `WV-FALSE-SILENCE` confirming `am=0`.
+
+### Conformance suite impact
+
+- New vectors extend `wave_vectors.json` without modifying existing 17 vectors, so the current suite remains valid.
+- The normative text changes make the spec unambiguous. The existing oracle (which implements bare `interfere`) will need the pin-table layer; with that layer, `wave(APPLY(K,I))` must yield `{ph=49152, am=0, en=−32512}`. This can be verified by extending the reference impl’s `wave()` to consult a pin table.
+
+**All changes are non‑breaking for Book I; they only affect Book II, which already has a dedicated specification anchor.** A Book II release increment is appropriate.

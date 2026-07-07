@@ -1,0 +1,44 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Accepted in full; step-by-step integer arithmetic (six-step decay with remainders, FALSE En = -32768+256 = -32512) matches the oracle exactly. ADR-004: fourth independent criterion-negative answer; DeepSeek's s1.1 replacement prose (keeps paragraph 1, deletes paragraph 2) taken as textual base for adoption, merged with Codex's MUST-NOT clauses; no new vector needed, EV-LIT-FORCE already pins the behavior. ADR-005: R1 - criterion answer 'none exists today' addresses Gemini's R2 use case head-on (wave layer is navigation-scoped; phase pin stays visible; future protocols can add full pins without breaking vectors). MAINTAINER ADJUDICATION OF THE SPLIT: R1 wins 2:1 - both R1 answers defeat the boolean-app-invisibility scenario within R1 (phase visibility + opt-in full pins), R2 invents values nobody computed (DeepSeek's Trinity-vs-MAX asymmetry point), maintainer position final: R1. Normative FALSE row {49152,0,-32512} verified and adopted; WV-FALSE-DERIVED/WV-ITER-DECAY merged with Codex's vector set; pin-table layer scheduled."
+      },
+      {
+        "check": "33d991aa6f604074325ba599edb38db0f1a8dd90a086ef31c40ea80aa539275a",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "69091fd5d11338ee2da37847e6fdde46b489bb2603cc1dc74446fadd1205cfc3",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "cd70c42388c2a1210d285e76576398bd0c49f3cb6c900f368ba7295f16b00290",
+      "7c6f15b643c78ce90679162afdaecfd060d81955eb5afb99ce4113b392e8ac89"
+    ],
+    "prior": [
+      "62c011dac2fdafa1e422edac1aafb5f2276c85cc1f42c07ed88ffcdf08603c2a"
+    ],
+    "subject": {
+      "hash": "d80d1405fe276e56039dddc7a08997743c7970c9ed2f7d0bc9e3ebc94287d4cd",
+      "note": "DeepSeek v4 Pro ADR-004/005 gate review: Option 2 (4th criterion-negative answer); R1 with normative FALSE row - ADR-005 decision candidate R1 at 2:1"
+    },
+    "ts": 1783384836,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "446553fba90e496bcbe4268b9610f26a90e2fbad5f67b67f846065b5026b25f6776632d7fdabcd92c4081c5e8717c28f2090909d2037980f3e9cd62be016b301"
+    }
+  ]
+}
