@@ -1,7 +1,9 @@
 # ADR-004: LITERAL blob validation — inside or outside `eval()`?
 
 **Status:** PROPOSED (2026-07-06) — needs the standard review gate before any Book I change
-**Gate reviews:** 1 of ≥3 — Kimi k2.6 (2026-07-07) answered the decision criterion in the negative: `eval()` is a pure function over the node-CAS transitive closure; the blob is never in that closure, so identical node-CAS can never force agreement on a blob-dependent outcome, and Option 1 would let blob-CAS state (possession/absence/corruption) split canonical results between honest nodes — a P0-class divergence surface. Verdict: Option 2 is the only consensus-compatible rule. (reviews/2026-07-kimi-v0.5.0-audit.md §1)
+**Gate reviews:** 2 of ≥3 — both answer the decision criterion in the negative and verdict Option 2.
+- Kimi k2.6 (2026-07-07): `eval()` is a pure function over the node-CAS transitive closure; the blob is never in that closure, so identical node-CAS can never force agreement on a blob-dependent outcome, and Option 1 would let blob-CAS state (possession/absence/corruption) split canonical results between honest nodes — a P0-class divergence surface. (reviews/2026-07-kimi-v0.5.0-audit.md §1)
+- Gemini 3.1 Pro (2026-07-07): concurs — Option 1 "bridges off-chain state into the deterministic eval() pure function"; explicitly rejects Codex's Option 1 as prioritizing legacy prose over content-addressed determinism. Contributes the candidate §1.1 replacement text (blob absence/corruption is a local storage event, MUST NOT change `eval()` results or generate DISSONANCE). (reviews/2026-07-gemini-adr45-gate.md §1)
 **Origin:** Codex post-release audit of v0.5.0 (P1), 2026-07. New evidence over the DeepSeek 2026-07 settlement: the shipped artifact cannot express the settled behavior, and Book I §1.1 contradicts itself across two adjacent paragraphs.
 
 ## Problem

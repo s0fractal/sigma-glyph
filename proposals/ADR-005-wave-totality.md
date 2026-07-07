@@ -2,6 +2,7 @@
 
 **Status:** PROPOSED (2026-07-07) — needs the standard review gate; touches anchored `wave_vectors.json` and Book II §6, so adoption implies a release
 **Origin:** Kimi k2.6 post-release audit of v0.5.0 (P1 ×2 + suite gap), 2026-07. All three claims verified against the oracle by the maintainer before filing.
+**Gate reviews:** 1 of ≥3 — Gemini 3.1 Pro (2026-07-07) answers the decision criterion decisively for **R2**: any boolean logic compiled to SKI contains FALSE ≡ `APPLY(K,I)` as a subterm, so under R1 every such compound term is wave-silent — erased from Mass-based routing and Gravity discovery; a boolean primitive must not render the overlying structure topologically invisible. Verdict: R2 (full-vector defaults `{Am=65535, En=-32768}` for partially pinned entities) + absent base case for unpinned LITERALs. Proposed vectors `WV-FALSE-R2-PIN` and `WV-ITERATED-DECAY-6560` (the latter reproduced exactly by the maintainer: `interfere({0,6560,0}, self) = {0, 657, -256}`). (reviews/2026-07-gemini-adr45-gate.md §2)
 
 ## Problem
 

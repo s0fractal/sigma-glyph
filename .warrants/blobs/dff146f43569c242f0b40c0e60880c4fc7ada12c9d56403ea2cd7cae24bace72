@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""Adjudication check for the Gemini ADR-004/005 gate review (run from repo root)."""
+import subprocess, sys
+sys.path.insert(0, "impl")
+import sigma_wave as sw
+
+ok = True
+# ADR-005 claims re-verified: derived FALSE silent; Gemini's decay vector exact
+ok &= sw.interfere(sw.W(32768,65535,-32768), sw.W(0,65535,-32768))["am"] == 0
+r = sw.interfere(sw.W(0,6560,0), sw.W(0,6560,0))
+print("WV-ITERATED-DECAY-6560 candidate:", r)
+ok &= r == sw.W(0,657,-256)
+# ADR-004 interim law: LITERAL forces without blob material
+sys.path.insert(0, ".")
+import importlib
+sg = importlib.import_module("sigma_glyph")
+st = sg.Store()
+h = st.put(sg.ser(sg.LITERAL, sg.F_ATOM, atom=sg.sha(b"dummy blob")))
+res, sp = sg.eval_hash(h, 10, st)
+print("LIT-no-blob:", res[0], sp)
+ok &= (res[0], sp) == ("lit", 1)
+# standing gates
+for cmd, want in ((["impl/sigma_glyph.py"], "ALL PASS"),
+                  (["impl/sigma_wave.py"], "WAVE: ALL PASS"),
+                  (["tools/verify_anchors.py"], "anchors verified")):
+    p = subprocess.run([sys.executable] + cmd, capture_output=True, text=True)
+    print(p.stdout.strip().splitlines()[-1])
+    ok &= p.returncode == 0 and want in p.stdout
+print("gemini gate dispositions verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

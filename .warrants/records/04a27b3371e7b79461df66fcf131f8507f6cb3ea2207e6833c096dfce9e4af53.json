@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Accepted in full. ADR-004: criterion answered 'none exists' via the same node-CAS transitive-closure argument as Kimi; Codex's Option 1 explicitly engaged and rejected; s1.1 replacement text recorded as leading normative candidate. ADR-005: criterion answered decisively for R2 - FALSE = APPLY(K,I) is a subterm of any SKI-compiled boolean logic, so R1 would make every such compound term wave-silent (invisible to Mass routing and Gravity discovery); maintainer moves from undecided to leaning R2. Both proposed vectors verified: WV-ITERATED-DECAY-6560 reproduced exactly against the oracle (interfere({0,6560,0}, self) = {0,657,-256}); WV-FALSE-R2-PIN definitional under R2. Zero dissent among criterion-engaged reviews so far."
+      },
+      {
+        "check": "dff146f43569c242f0b40c0e60880c4fc7ada12c9d56403ea2cd7cae24bace72",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "0cfced8b046b5d0ddbbd8ad107b59a299cc939850c3e783754b39d6e740d48b3",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "86b49bd96bd194b098194560eb61a34117be0bbdb5aa44b8b5be3f1e71fa71ce"
+    ],
+    "prior": [
+      "c9f946f1f5a83384c76eeacda9ee0bd3f1933e6a82b65cc8ffc77ff7df1d2a70"
+    ],
+    "subject": {
+      "hash": "7b824fa2e3cab677867b1f6ec13b8b4a94aa4873c98da2d08ac241a5f4ac4d58",
+      "note": "Gemini 3.1 Pro ADR-004/005 gate review (ADR-004 gate 2/>=3 Option 2; ADR-005 gate 1/>=3 R2 + absent base case)"
+    },
+    "ts": 1783384603,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "d22578b8a199107cc8e4e62c2b6fbe64974aaf4f12a0351549801477736f384007635e38c5d4a35b7b4cc7ca7534472f7fd5c11972f5daa3aa9335525a273c04"
+    }
+  ]
+}
