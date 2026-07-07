@@ -24,8 +24,9 @@ Core invariants, in one breath: **hash is identity; phase is a coordinate; wave 
 `impl/sigma_glyph.py` — Book I: serialization, validation, CAS, the v0.5 hash-thunk evaluator (lazy left-spine, size-priced ATP, genesis intrinsic), C1 λ→SKI compiler. `impl/sigma_wave.py` — Book II: arbiter-checked LUT, interfere() with entropy–coherence coupling.
 
 ```bash
-python3 impl/sigma_glyph.py    # expected: ALL PASS
-python3 impl/sigma_wave.py     # expected: WAVE: ALL PASS
+python3 impl/sigma_glyph.py         # expected: ALL PASS (Book I)
+python3 impl/sigma_wave.py          # expected: WAVE: ALL PASS (Book II)
+python3 impl/sigma_federation.py    # expected: FEDERATION: ALL PASS (Book III)
 ```
 
 ## For AI reviewers
