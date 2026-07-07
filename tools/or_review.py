@@ -33,11 +33,12 @@ PRIMARY_SOURCES = [
     "spec/book-2-navigation.md",
     "spec/appendix-a-complexity.md",
     "proposals/ADR-004-literal-blob-scope.md",
+    "proposals/ADR-005-wave-totality.md",
 ]
 PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-v0.5.0-audit.md",
                       "reviews/2026-07-codex-v0.5.0-audit-response.md",
-                      "reviews/2026-07-claude-v0.5-lazy-edges.md",
-                      "reviews/2026-07-claude-v0.5-lazy-edges-response.md"]
+                      "reviews/2026-07-kimi-v0.5.0-audit.md",
+                      "reviews/2026-07-kimi-v0.5.0-audit-response.md"]
 GATES = [
     ["python3", "impl/sigma_glyph.py"],
     ["python3", "impl/sigma_wave.py"],
