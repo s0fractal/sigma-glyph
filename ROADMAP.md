@@ -93,19 +93,24 @@ If both ADRs adopted:
 
 ---
 
-## Future: v0.6+ (Speculative)
+## v0.6: Federation (IN PROGRESS)
 
-### Federation / Gossip Protocol
+### Book III: FEDERATION — selection-only annotation federation
 
-**Motivation:** Book II defines wave vectors but not how nodes sync them. A wave annotation layer needs a propagation protocol.
+**Architecture decided** (ADR-006, gate 3/3 closed 2026-07-08, F1-strict):
+annotation assertions travel as Warrant v0.3 records; a jurisdiction's
+selection policy picks zero-or-one assertion per node (ties surface as
+ConflictSets that clients MUST NOT merge); `interfere()` is structural-only —
+the interference fold died at the gate to verified non-associativity.
+Trust/reputation = Warrant key state + policy thresholds; conflict
+resolution = settlement, not arithmetic.
 
-**Scope:**
-- Wave sync protocol (pub/sub over libp2p or similar)
-- Conflict resolution for competing annotations
-- Trust/reputation for wave publishers
-- Possibly a Book III: FEDERATION
-
-**Status:** Open front. No ADR yet.
+**Landed (v0.6.0-draft):** `spec/book-3-federation.md` (DRAFT, unanchored),
+`impl/sigma_federation.py` oracle, `federation_vectors.json` (14 vectors,
+in CI). **Next:** implementation-gate review of Book III + oracle (≥1
+adversarial pass), Book II §Federation paragraph, second implementation
+(Go, via warrant repo), transport profile (gossip cadence is explicitly an
+implementation profile, not spec) — then anchor Book III and tag v0.6.0.
 
 ---
 

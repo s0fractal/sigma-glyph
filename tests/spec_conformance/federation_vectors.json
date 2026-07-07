@@ -1,0 +1,639 @@
+{
+  "format": "sigma-glyph-federation-conformance",
+  "format_version": 1,
+  "spec_version": "0.6.0-draft",
+  "notes": [
+    "Book III (DRAFT) oracle: impl/sigma_federation.py; selection-only federation per ADR-006 gate 3/3 (F1-strict).",
+    "expected values computed by the oracle; regenerate: python3 impl/sigma_federation.py gen"
+  ],
+  "vectors": [
+    {
+      "id": "FV-ASSERT-VALID",
+      "kind": "validate_assertion",
+      "doc": {
+        "annotation": "sigma-glyph.wave-assertion@v1",
+        "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "epoch": 5,
+        "wave": {
+          "ph": 8192,
+          "am": 40000,
+          "en": -100
+        }
+      },
+      "expected": null,
+      "note": "well-formed complete assertion validates"
+    },
+    {
+      "id": "FV-ASSERT-UNKNOWN-FIELD",
+      "kind": "validate_assertion",
+      "doc": {
+        "annotation": "sigma-glyph.wave-assertion@v1",
+        "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "epoch": 5,
+        "wave": {
+          "ph": 8192,
+          "am": 40000,
+          "en": -100
+        },
+        "extra": 1
+      },
+      "expected": "assertion blob must have exactly {annotation, jurisdiction, node, epoch, wave}",
+      "note": "closed schema: unknown fields invalid"
+    },
+    {
+      "id": "FV-ASSERT-PARTIAL-WAVE",
+      "kind": "validate_assertion",
+      "doc": {
+        "annotation": "sigma-glyph.wave-assertion@v1",
+        "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "epoch": 5,
+        "wave": {
+          "ph": 1,
+          "am": 2
+        }
+      },
+      "expected": "wave must be a complete WaveVectorQ {ph, am, en}",
+      "note": "partial waves are Book II pin data, not federation assertions"
+    },
+    {
+      "id": "FV-POLICY-VALID",
+      "kind": "validate_policy",
+      "doc": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "epoch",
+            "dir": "desc"
+          },
+          {
+            "field": "warrant_id",
+            "dir": "asc"
+          }
+        ],
+        "max_age_epochs": 10
+      },
+      "expected": null,
+      "note": "machine-readable policy blob validates"
+    },
+    {
+      "id": "FV-POLICY-BAD-FIELD",
+      "kind": "validate_policy",
+      "doc": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "vibes",
+            "dir": "desc"
+          }
+        ],
+        "max_age_epochs": 10
+      },
+      "expected": "order field must be one of ('epoch', 'ts', 'warrant_id', 'actor')",
+      "note": "only mechanically verifiable order fields are legal"
+    },
+    {
+      "id": "FV-SELECT-LATEST",
+      "kind": "select",
+      "policy": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "epoch",
+            "dir": "desc"
+          },
+          {
+            "field": "warrant_id",
+            "dir": "asc"
+          }
+        ],
+        "max_age_epochs": 10
+      },
+      "epoch": 8,
+      "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "candidates": [
+        {
+          "warrant_id": "1111111111111111111111111111111111111111111111111111111111111111",
+          "actor": "a@x",
+          "ts": 100,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 5,
+            "wave": {
+              "ph": 8192,
+              "am": 40000,
+              "en": -100
+            }
+          }
+        },
+        {
+          "warrant_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "actor": "b@y",
+          "ts": 110,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 16384,
+              "am": 30000,
+              "en": 50
+            }
+          }
+        },
+        {
+          "warrant_id": "3333333333333333333333333333333333333333333333333333333333333333",
+          "actor": "c@z",
+          "ts": 120,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 20000,
+              "en": 0
+            }
+          }
+        },
+        {
+          "warrant_id": "4444444444444444444444444444444444444444444444444444444444444444",
+          "actor": "m@ev",
+          "ts": 130,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 65535,
+              "en": -32768
+            }
+          }
+        },
+        {
+          "warrant_id": "5555555555555555555555555555555555555555555555555555555555555555",
+          "actor": "d@w",
+          "ts": 140,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 1,
+            "wave": {
+              "ph": 0,
+              "am": 1000,
+              "en": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "selected",
+        "selected_warrant": "2222222222222222222222222222222222222222222222222222222222222222",
+        "conflict_set": []
+      },
+      "note": "epoch desc + warrant_id asc: epoch-7 pair resolved by id -> '2'*64"
+    },
+    {
+      "id": "FV-SELECT-REPLAY-REJECTED",
+      "kind": "select",
+      "policy": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "epoch",
+            "dir": "desc"
+          },
+          {
+            "field": "warrant_id",
+            "dir": "asc"
+          }
+        ],
+        "max_age_epochs": 10
+      },
+      "epoch": 8,
+      "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "candidates": [
+        {
+          "warrant_id": "1111111111111111111111111111111111111111111111111111111111111111",
+          "actor": "a@x",
+          "ts": 100,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 5,
+            "wave": {
+              "ph": 8192,
+              "am": 40000,
+              "en": -100
+            }
+          }
+        },
+        {
+          "warrant_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "actor": "b@y",
+          "ts": 110,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 16384,
+              "am": 30000,
+              "en": 50
+            }
+          }
+        },
+        {
+          "warrant_id": "3333333333333333333333333333333333333333333333333333333333333333",
+          "actor": "c@z",
+          "ts": 120,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 20000,
+              "en": 0
+            }
+          }
+        },
+        {
+          "warrant_id": "4444444444444444444444444444444444444444444444444444444444444444",
+          "actor": "m@ev",
+          "ts": 130,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 65535,
+              "en": -32768
+            }
+          }
+        },
+        {
+          "warrant_id": "5555555555555555555555555555555555555555555555555555555555555555",
+          "actor": "d@w",
+          "ts": 140,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 1,
+            "wave": {
+              "ph": 0,
+              "am": 1000,
+              "en": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "selected",
+        "selected_warrant": "2222222222222222222222222222222222222222222222222222222222222222",
+        "conflict_set": []
+      },
+      "note": "foreign-jurisdiction assertion (embedded root != J) never selectable"
+    },
+    {
+      "id": "FV-CONFLICT-TIE",
+      "kind": "select",
+      "policy": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "epoch",
+            "dir": "desc"
+          }
+        ]
+      },
+      "epoch": 8,
+      "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "candidates": [
+        {
+          "warrant_id": "1111111111111111111111111111111111111111111111111111111111111111",
+          "actor": "a@x",
+          "ts": 100,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 5,
+            "wave": {
+              "ph": 8192,
+              "am": 40000,
+              "en": -100
+            }
+          }
+        },
+        {
+          "warrant_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "actor": "b@y",
+          "ts": 110,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 16384,
+              "am": 30000,
+              "en": 50
+            }
+          }
+        },
+        {
+          "warrant_id": "3333333333333333333333333333333333333333333333333333333333333333",
+          "actor": "c@z",
+          "ts": 120,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 20000,
+              "en": 0
+            }
+          }
+        },
+        {
+          "warrant_id": "4444444444444444444444444444444444444444444444444444444444444444",
+          "actor": "m@ev",
+          "ts": 130,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 65535,
+              "en": -32768
+            }
+          }
+        },
+        {
+          "warrant_id": "5555555555555555555555555555555555555555555555555555555555555555",
+          "actor": "d@w",
+          "ts": 140,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 1,
+            "wave": {
+              "ph": 0,
+              "am": 1000,
+              "en": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "conflict",
+        "selected_warrant": null,
+        "conflict_set": [
+          "2222222222222222222222222222222222222222222222222222222222222222",
+          "3333333333333333333333333333333333333333333333333333333333333333"
+        ]
+      },
+      "note": "no id tiebreak: the epoch-7 pair is a genuine tie -> ConflictSet, clients MUST NOT merge"
+    },
+    {
+      "id": "FV-STALE-EXCLUDED",
+      "kind": "select",
+      "policy": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "epoch",
+            "dir": "desc"
+          },
+          {
+            "field": "warrant_id",
+            "dir": "asc"
+          }
+        ],
+        "max_age_epochs": 10
+      },
+      "epoch": 20,
+      "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "candidates": [
+        {
+          "warrant_id": "1111111111111111111111111111111111111111111111111111111111111111",
+          "actor": "a@x",
+          "ts": 100,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 5,
+            "wave": {
+              "ph": 8192,
+              "am": 40000,
+              "en": -100
+            }
+          }
+        },
+        {
+          "warrant_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "actor": "b@y",
+          "ts": 110,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 16384,
+              "am": 30000,
+              "en": 50
+            }
+          }
+        },
+        {
+          "warrant_id": "3333333333333333333333333333333333333333333333333333333333333333",
+          "actor": "c@z",
+          "ts": 120,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 20000,
+              "en": 0
+            }
+          }
+        },
+        {
+          "warrant_id": "4444444444444444444444444444444444444444444444444444444444444444",
+          "actor": "m@ev",
+          "ts": 130,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 7,
+            "wave": {
+              "ph": 0,
+              "am": 65535,
+              "en": -32768
+            }
+          }
+        },
+        {
+          "warrant_id": "5555555555555555555555555555555555555555555555555555555555555555",
+          "actor": "d@w",
+          "ts": 140,
+          "assertion": {
+            "annotation": "sigma-glyph.wave-assertion@v1",
+            "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "epoch": 1,
+            "wave": {
+              "ph": 0,
+              "am": 1000,
+              "en": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "absent",
+        "selected_warrant": null,
+        "conflict_set": []
+      },
+      "note": "epoch-1 assertion exceeds max_age_epochs=10 at epoch 20; latest live wins"
+    },
+    {
+      "id": "FV-WAVE-ASSERTION-OVER-PIN",
+      "kind": "wave_fed",
+      "term": "K",
+      "selection_for_term": true,
+      "policy": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "epoch",
+            "dir": "desc"
+          },
+          {
+            "field": "warrant_id",
+            "dir": "asc"
+          }
+        ],
+        "max_age_epochs": 10
+      },
+      "epoch": 8,
+      "expected": {
+        "ph": 16384,
+        "am": 30000,
+        "en": 50
+      },
+      "note": "a selected assertion on K overrides the Trinity pin"
+    },
+    {
+      "id": "FV-WAVE-STRUCTURAL",
+      "kind": "wave_fed",
+      "term": [
+        "APPLY",
+        "K",
+        "I"
+      ],
+      "selection_for_term": false,
+      "policy": {
+        "federation_policy": "sigma-glyph.selection@v1",
+        "order": [
+          {
+            "field": "epoch",
+            "dir": "desc"
+          },
+          {
+            "field": "warrant_id",
+            "dir": "asc"
+          }
+        ],
+        "max_age_epochs": 10
+      },
+      "epoch": 8,
+      "expected": {
+        "ph": 32768,
+        "am": 0,
+        "en": -32512
+      },
+      "note": "no assertions anywhere: structural derivation = Book II wave (FALSE derivation)"
+    },
+    {
+      "id": "FV-VIEW-ID",
+      "kind": "view_id",
+      "jurisdiction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "node": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "policy_hash": "201a16c3c4e913ca8e831083c433769f0a1ebe5f37193214035fdc1130a4c5a8",
+      "epoch": 8,
+      "expected": "8762e75ed5195d66bd47a9ec9cac00f5b561dfd9fbe3ddeac4e44f6eb39549c7",
+      "note": "jurisdiction-bound per-node view identity; no assertion list inside"
+    },
+    {
+      "id": "FV-SET-ROOT",
+      "kind": "assertion_set_root",
+      "warrant_ids": [
+        "2222222222222222222222222222222222222222222222222222222222222222",
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "3333333333333333333333333333333333333333333333333333333333333333"
+      ],
+      "expected": "793773bd498ce5ce8e7936d9e04d089fabffab2b70ffaa91168174a7ba158b91",
+      "note": "order-insensitive Merkle commitment: input order must not matter"
+    },
+    {
+      "id": "FV-FOLD-UNSOUND",
+      "kind": "fold_probe",
+      "w1": {
+        "ph": 0,
+        "am": 65535,
+        "en": 0
+      },
+      "w2": {
+        "ph": 16384,
+        "am": 65535,
+        "en": 0
+      },
+      "w3": {
+        "ph": 16384,
+        "am": 65535,
+        "en": 0
+      },
+      "expected": {
+        "left": {
+          "ph": 0,
+          "am": 16384,
+          "en": 0
+        },
+        "right": {
+          "ph": 0,
+          "am": 32768,
+          "en": -128
+        }
+      },
+      "note": "grouping alone changes the result (16384 vs 32768): interfere() is not a merge; normative MUST NOT in s1"
+    }
+  ]
+}

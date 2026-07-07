@@ -11,11 +11,14 @@ jobs:
         run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
       - name: Wave reference (Book II, LUT arbiter + interfere coupling)
         run: python3 impl/sigma_wave.py | tee /dev/stderr | grep -q "WAVE. ALL PASS"
+      - name: Federation reference (Book III DRAFT, selection-only oracle)
+        run: python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION. ALL PASS"
       - name: Conformance vectors are fresh (regenerate == no diff)
         run: |
           python3 tests/spec_conformance/generate.py
           python3 impl/sigma_wave.py gen
-          git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json
+          python3 impl/sigma_federation.py gen
+          git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json tests/spec_conformance/federation_vectors.json
       - name: Conformance suite (vectors.json vs oracle)
         run: python3 tests/spec_conformance/run_reference.py
       - name: Property-based suite (seeded, stdlib-only)
