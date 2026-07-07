@@ -1,0 +1,8 @@
+#!/bin/sh
+# Executable law: the Book I memory bound is a machine-checked theorem.
+# Re-run: lean (elan-pinned) checks proofs/SizeBound.lean; the bridge asserts
+# the proof's step-level premise on live oracle traces.
+set -e
+export PATH="$HOME/.elan/bin:$PATH"
+lean proofs/SizeBound.lean && echo "PROOF CHECKS"
+python3 proofs/bridge_check.py

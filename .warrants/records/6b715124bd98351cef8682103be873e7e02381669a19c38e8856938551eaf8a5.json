@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "First mechanized proof in the project, opening the formal-verification front accepted from the Qwen web review. Layer 1 (checked algebra): SizeBound.lean models the seven priced actions of Book I s3.4 as exact accounting effects and proves by induction that every reachable (size, spent) satisfies size <= spent + 1, plus the preflight corollary size <= budget + 1 (the bound v0.5.2 clarified must never be a live fault trigger). Lean 4 core only, no mathlib, checks in under a second, toolchain pinned. Layer 2 (checked premise): proofs/bridge_check.py drives the reference oracle step-by-step over adversarial terms (duplication towers, Omega, deep REF chains, dead branches, TV fixtures) and asserts every observed action satisfies the step-level premise the proof consumes (delta-size <= cost - 1): 861 steps, 0 violations. Layer 3 (pinned ends): the existing vectors and property P7. NOT yet mechanized and stated so in proofs/README.md: byte-level machine correspondence and Book II interfere invariants - the next targets. Both layers wired into CI (.github/workflows/proofs.yml, elan-pinned). Hand-written antecedents credited: Gemini gate proof, DeepSeek re-derivation (Book I s3.4)."
+      },
+      {
+        "check": "c2bdb317d888e8887dd447d3496b226d535219e6ef16a05af03fc21963122177",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "2f40ad331bc7e6d4f4b8db69b0d4c910c444515609a8dde8bb6551b4bf1263c8",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "6645c8aadf41b19aa2b06c090921d3ad66efe79ec7e026f5d994a64bc50f3e45"
+    ],
+    "prior": [
+      "14d413f2952b5d5b7840a467b3154f12f2882dd939dfbe99fdf69524b4a841ef"
+    ],
+    "subject": {
+      "hash": "83fbc155824491288326b37d65838dc7394f1c27947b3d74fbb7e699b87268e1",
+      "note": "Executable law: the s3.4 memory bound is a machine-checked theorem (Lean 4, proofs/SizeBound.lean) with the step premise bridge-checked on live oracle traces"
+    },
+    "ts": 1783459910,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "156785b92493542092a4c156094a3c861c94d58866070591c3e689de3931aa96f029a7cbbe27c293ea25b7c5ef88c0d108340acba0e763123f19d3483b762904"
+    }
+  ]
+}

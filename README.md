@@ -1,7 +1,7 @@
 # Σ-GLYPH
 
 **Topological Compute Engine / Decentralized Wave Resonator**
-Current: **v0.6.0 "Sovereign Views"** — DRAFT STANDARD, three Books. Hash-thunk evaluation with size-priced ATP (Book I), field-level wave pins with absent-wave semantics (Book II), and selection-only annotation federation as a Warrant v0.3 profile (Book III: jurisdictions, machine-readable selection policies, permanent divergence by design). Hash-thunk evaluation (lazy left-spine), size-priced ATP with a semantic memory bound, entropy–coherence coupling, field-level wave pins with absent-wave semantics. Machine-readable conformance suites for both Books ([`tests/spec_conformance/`](tests/spec_conformance/)).
+Current: **v0.6.0 "Sovereign Views"** — DRAFT STANDARD, three Books. Hash-thunk evaluation with size-priced ATP (Book I), field-level wave pins with absent-wave semantics (Book II), and selection-only annotation federation as a Warrant v0.3 profile (Book III: jurisdictions, machine-readable selection policies, permanent divergence by design). Hash-thunk evaluation (lazy left-spine), size-priced ATP with a semantic memory bound, entropy–coherence coupling, field-level wave pins with absent-wave semantics. Machine-readable conformance suites for all Books, and the memory bound is a machine-checked theorem ([`proofs/`](proofs/), Lean 4) ([`tests/spec_conformance/`](tests/spec_conformance/)).
 
 Content-addressed SKI computation core with a bit-exact determinism guarantee, plus a wave/coordinate navigation layer that is strictly a *view* over identity — never part of it.
 
