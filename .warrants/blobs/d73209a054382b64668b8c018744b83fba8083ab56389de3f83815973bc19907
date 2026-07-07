@@ -1,0 +1,5 @@
+assoc probe: {'ph': 8192, 'am': 2096, 'en': -922} vs {'ph': 8192, 'am': 0, 'en': -591}
+WAVE: ALL PASS (30/30)
+ALL PASS
+records 18, blobs 62, roots ['14d413f2952b', '276b6f983900'], errors 0
+adr006 gate 1 dispositions verified

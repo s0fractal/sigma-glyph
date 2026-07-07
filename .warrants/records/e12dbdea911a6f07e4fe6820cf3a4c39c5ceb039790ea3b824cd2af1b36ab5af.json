@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Verdict recorded, architecture stays open until the full gate. P0a verified against the oracle and sharper than filed: interfere is non-associative - (w1*w2)*w3 = {8192,2096,-922} vs w1*(w2*w3) = {8192,0,-591} for identical operands, grouping alone decides audibility, so an interference fold is an ordering-and-grouping policy wearing algebra's clothes; plus Left-Dominance phase capture via hash grinding (junk evidence entries are free nonce space). Maintainer F3 leaning WITHDRAWN. P0b confirmed: ski@v1 checks are public and term-bound by design, so one expensive check amortizes across unlimited copycat assertions - criterion 4's ski candidate dead as written; narrowing recorded as an open question for remaining reviewers: personalized-term pricing (term embeds asserting actor id, copied checks fail against a different asserter) - attack or confirm; if it falls, weight is social (threshold co-signatures) per Gemini's amendment. Category-error framing (compute algebra != social consensus) matches the project's own TRUTH/NAVIGATION discipline. Codex review in flight blind to this one; Kimi follows with both as priors."
+      },
+      {
+        "check": "215f823027e649f86b4fa7088238d60771e91286f7f4d7a1268f68778472723b",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "d73209a054382b64668b8c018744b83fba8083ab56389de3f83815973bc19907",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "97c02b4f3c1ca29a3b2626db298c30b86153ee210af6bee99622b793c2498819"
+    ],
+    "prior": [
+      "84a5bd58d42ed0ae9c252ea59b7378cdad38743afbbcc782a3e06db411dfae7d"
+    ],
+    "subject": {
+      "hash": "25097a259390768a01beb3b00f0326b273ef2b1bd46a4d91eaa61b63558011f4",
+      "note": "Gemini ADR-006 gate review 1: F1, reject F2/F3 - two P0s vs the proposal's own leanings, both verified; maintainer F3 leaning withdrawn"
+    },
+    "ts": 1783452244,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "a6a9deab0665b16adc3910344c51373993797ce2cb5755b23820cf92c7c3171e8b2825cbb857ca16fda289ee011652324b50b6e573f8de30aad0f59e6e5c9901"
+    }
+  ]
+}
