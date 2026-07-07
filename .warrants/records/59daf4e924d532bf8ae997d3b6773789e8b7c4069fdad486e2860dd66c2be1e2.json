@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Mixed dispositions, every checkable claim executed first. REFUTED: S7 observer paradox (waves never reach eval - FV-BOOK-I-UNREACHABLE is an executable vector, not a promise); S3/G2 no-termination-theory (eval is TOTAL, ATP is the measure, eval(Omega,n) canonical up to 3e6, memory bound proved - totality by fuel is the design); S4 float divergence (zero float/math usage in the Book I oracle, integer-only by construction, LUT arbiter-pinned); G1 local-determinism-as-flaw (ATP is an explicit eval argument - the specified contract, praised as a strength elsewhere in the same review). SETTLED, no new evidence: S8 universality (smallest verifiable machine, not a general runtime), S1/G5 static types (SKI-only settled; runtime type discipline everywhere via closed schemas). ACCEPTED: S5/G4 formal verification - the one deep gap named correctly; mitigation today is empirical (3 impls, generated vectors, differential, adversarial gates); Lean/Coq mechanization added to ROADMAP with the ADR-001 size-bound lemma as first target; S6 onboarding - QUICKSTART.md ships with this adjudication, its code block verified by execution; S4-speed - reference optimizes for auditability, Rust production impl = wanted contribution; S2 partially - interfere invariant-preservation lemma folded into the verification front. DECLINED: merged CLI/repos/language - the seam is the architecture, ski@v1 is the one designed coupling point."
+      },
+      {
+        "check": "b97d4d82d533000fbfe306af87826dd15ff92cefb62fb88da46a8700077ee9e2",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "e47ac80328c7a4d2dce7fe1b28fda3cb6e521806b54c2a5fab6aefc9a1cb202f",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "250ed256a028f660b91aa7dd26fec2687ccff56bf219b70f5a8b088a43ede77a"
+    ],
+    "prior": [
+      "7056f2480dec5d2c412799120db31ade77d0d6ed76493471879b0b94a3e5cd40"
+    ],
+    "subject": {
+      "hash": "d368b67192bb49196bed1d28256cc7086e22cd9f7c0c4d4d01b0302c30a63428",
+      "note": "Qwen web holistic review (7.5/10): observer-paradox/termination/floats refuted by executable evidence; formal verification accepted as roadmap; QUICKSTART shipped"
+    },
+    "ts": 1783458895,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "21d03933b6b025238862962c82ddb300adc44ad50505b1c8864269262d1961ca01b92f80320fa3a5c205df41b4353b175accccb360deb8461c1e56ce1d38c001"
+    }
+  ]
+}

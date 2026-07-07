@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Adjudication check for the Qwen web review, sigma scope (repo root)."""
+import subprocess, sys, re, pathlib
+sys.path.insert(0, "impl")
+import sigma_glyph as sg
+ok = True
+# S3/G2 refutation: eval total, Omega canonical at large budgets
+st = sg.Store()
+A=lambda l,r:('app',l,r); Sg,Ig=('lit',sg.sha(b'S')),('lit',sg.sha(b'I'))
+def put(t):
+    if t[0]=='app': put(t[1]); put(t[2])
+    return st.put(sg.term_bytes(t))
+for b in (sg.I_BYTES, sg.K_BYTES, sg.S_BYTES): st.put(b)
+W_=A(A(Sg,Ig),Ig); omega=put(A(W_,W_))
+for n in (10, 3_000_000):
+    r, sp = sg.eval_hash(omega, n, st)
+    ok &= r[0]=='dis' and r[1]==sg.sha(b'ATP Exhausted')
+print("termination-by-fuel holds at 3e6")
+# S4 refutation: zero float usage in Book I oracle
+src = pathlib.Path("impl/sigma_glyph.py").read_text()
+ok &= "float" not in src and "math." not in src
+print("Book I oracle: zero float/math usage")
+# S7 refutation + S6 fix: pinned boundary vector + QUICKSTART code executes
+out = subprocess.run([sys.executable, "impl/sigma_federation.py"], capture_output=True, text=True).stdout
+ok &= "OK   vector FV-BOOK-I-UNREACHABLE" in out and "FEDERATION: ALL PASS (37/37)" in out
+print("FV-BOOK-I-UNREACHABLE pinned")
+qs = pathlib.Path("QUICKSTART.md").read_text()
+code = re.findall(r"```bash\npython3 - <<'PY'\n(.*?)PY\n```", qs, re.S)[0]
+p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+ok &= p.returncode == 0 and "ATP Exhausted" in p.stdout
+print("QUICKSTART code block executes verbatim")
+for cmd, want in ((["impl/sigma_glyph.py"], "ALL PASS"),
+                  (["tools/warrant_verify.py"], "errors 0")):
+    r = subprocess.run([sys.executable] + cmd, capture_output=True, text=True)
+    last = r.stdout.strip().splitlines()[-1]; print(last)
+    ok &= r.returncode == 0 and want in last
+print("qwen sigma dispositions verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

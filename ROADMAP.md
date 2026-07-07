@@ -181,3 +181,7 @@ implementation profile, not spec) — then anchor Book III and tag v0.6.0.
 ---
 
 *Roadmap is living. Check back after each release.*
+
+## Open front: Formal verification (from the Qwen web review, 2026-07)
+
+Mechanized proofs (Lean/Coq) of Book I determinism/totality and the ADR-001 memory bound; Rust production implementation. Vectors are the contract.
