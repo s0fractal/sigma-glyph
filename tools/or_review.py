@@ -31,14 +31,13 @@ PRIMARY_SOURCES = [
     "ROADMAP.md",
     "spec/book-1-truth.md",
     "spec/book-2-navigation.md",
-    "spec/appendix-a-complexity.md",
-    "proposals/ADR-004-literal-blob-scope.md",
-    "proposals/ADR-005-wave-totality.md",
+    "proposals/ADR-006-annotation-federation.md",
+    "proposals/refs/warrant-SPEC-v0.3-snapshot.md",
 ]
-PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-v0.5.0-audit.md",
-                      "reviews/2026-07-codex-v0.5.0-audit-response.md",
-                      "reviews/2026-07-kimi-v0.5.0-audit.md",
-                      "reviews/2026-07-kimi-v0.5.0-audit-response.md"]
+PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-adr006-gate.md",
+                      "reviews/2026-07-codex-adr006-gate-response.md",
+                      "reviews/2026-07-gemini-adr006-gate.md",
+                      "reviews/2026-07-gemini-adr006-gate-response.md"]
 GATES = [
     ["python3", "impl/sigma_glyph.py"],
     ["python3", "impl/sigma_wave.py"],
