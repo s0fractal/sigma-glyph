@@ -1,0 +1,5 @@
+order-dependence probes exact
+decay + fixed point exact
+WAVE: ALL PASS (30/30)
+records 19, blobs 66, roots ['14d413f2952b', '276b6f983900'], errors 0
+adr006 gate 2 dispositions verified

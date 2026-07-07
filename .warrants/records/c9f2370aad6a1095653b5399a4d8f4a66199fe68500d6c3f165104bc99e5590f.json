@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Accepted in full; all probes reproduced exactly (order flips phase 8192<->40960 and 0<->16384 on identical operands; decay chain; crystallized fixed point). Two blind reviewers converged on selection-only warrant-carried federation from independent attack paths - the strongest signal a design gate can produce. Beyond convergence: the fold is closed constructively (hash order grindable, (ph,hash) bakes phase priority into the sort key, ts forgeable per Warrant s5.1's own wall-clock rule, DAG order partial - safe aggregation must be commutative by construction, i.e. a new federation algebra, not interfere reuse); the personalized-term open question from gate 1 is CLOSED - binding a check to {node,wave,actor,epoch} proves per-subject replayability but one expensive proof still backs unlimited subjects; weight needs policy uniqueness domains and reuse caps (proof supports facts, policy meters weight); criterion 5 corrected (bounded state = cache property, authoritative state = settlement-active warrant DAG - fold-and-forget unsound against supersedes/key-state/late blobs); assertion blob schema sigma-glyph.wave-assertion@v1 and AnnotationViewID accepted as drafting bases; criterion 6 (auditability/projection) added. Kimi runs third with both reviews as priors: adjudicate F1-strict vs F1.5 extension point, attack ViewID and the zero-or-one-or-conflict-set selection rule."
+      },
+      {
+        "check": "40d0ec8aa271ef95c9eff78afec54712e1a99fbe1ee8227040d0539adff2de51",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "5eec1347d8edb43b3b598e12a28f5bdb5cd0f4367a9b706b07952580a7183f05",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "c7ff97e8f7a9ea8a2c508d827ae3df4321bb4af8c35518c073c5cee4c786cea9"
+    ],
+    "prior": [
+      "e12dbdea911a6f07e4fe6820cf3a4c39c5ceb039790ea3b824cd2af1b36ab5af"
+    ],
+    "subject": {
+      "hash": "cb63feae3fb39361e78cfb4308fb13cad90a22bbd0249ff3913732be760757b7",
+      "note": "Codex ADR-006 gate review 2: F1.5 - blind convergence with Gemini on selection-only federation; fold closed constructively; ViewID + assertion schema contributed"
+    },
+    "ts": 1783452394,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "3c0b5401980610b54c47fb8024f451eddf0f4f9627f505fd5454427f2437b4ce518e81ce3c9d2935cfa839c5e6f0215aac94f908861e15b269a8f3c527645004"
+    }
+  ]
+}
