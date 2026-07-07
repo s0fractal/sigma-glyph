@@ -1,7 +1,7 @@
 {
   "format": "sigma-glyph-wave-conformance",
   "format_version": 2,
-  "spec_version": "0.5.1",
+  "spec_version": "0.5.2",
   "lut_arbiter": "c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2",
   "notes": [
     "interfere() per Book II v0.5 (entropy-coherence coupling adopted).",
@@ -241,6 +241,27 @@
         7,
         0
       ]
+    },
+    {
+      "id": "WV-COORD-SATOSHI",
+      "kind": "coordinate",
+      "note": "Ph-only leaf: wave absent (WV-PH-ONLY-ABSENT) but the coordinate stays visible (Book II \u00a72.1/\u00a76.3)",
+      "name": "SATOSHI",
+      "expected_ph": 8192
+    },
+    {
+      "id": "WV-COORD-V",
+      "kind": "coordinate",
+      "note": "sector coordinate: shares phase with S (density cluster, not a collision)",
+      "name": "V",
+      "expected_ph": 16384
+    },
+    {
+      "id": "WV-COORD-FALSE",
+      "kind": "coordinate",
+      "note": "alias pin coordinate: FALSE ph=49152 regardless of derived am=0",
+      "name": "FALSE",
+      "expected_ph": 49152
     }
   ]
 }

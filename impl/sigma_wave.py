@@ -1,4 +1,4 @@
-"""Sigma-GLYPH v0.5.1 — Reference Implementation, Book II (wave layer).
+"""Sigma-GLYPH v0.5.2 — Reference Implementation, Book II (wave layer).
 
 LUT_COS generation (SHA-256 arbitrated), interfere() with the v0.5
 entropy–coherence coupling (ADR-002 adopted): coherent interference
@@ -48,7 +48,13 @@ LUT_COS = gen_lut()
 
 
 def interfere(w1, w2):
-    """Book II §5 with the v0.5 entropy–coherence coupling (ADR-002)."""
+    """Book II §5 with the v0.5 entropy–coherence coupling (ADR-002).
+
+    Implementer note (Book II §3 widths): this reference rides on Python
+    bignums; ports MUST use the mandated int64/uint64 intermediates —
+    (r+32767)*65535 ≈ 4.29e9 overflows int32 — and explicitly cast new_am
+    to uint16 / new_en to int16 (here guaranteed by the am<=65535 proof
+    and clamp_i16)."""
     new_ph = w1["ph"]                                        # Law of Left Dominance
     x = w1["ph"] - w2["ph"]
     d32 = abs(x)
@@ -81,6 +87,16 @@ ALIASES = {
 # am/en -> wave absent until a full annotation exists
 PH_ONLY_LEAVES = {"V": 16384, "SATOSHI": 8192, "TESLA": 8192, "TURING": 20480,
                   "BACH": 21845, "LEIBNIZ": 24576, "GODEL": 40960, "HEGEL": 57344}
+
+
+def coordinate(name):
+    """Book II §2.1/§6: the pinned phase coordinate of a named entity —
+    visible even where wave() is absent. Returns uint16 ph or None."""
+    if name in FULL_PINS:
+        return FULL_PINS[name]["ph"]
+    if name in ALIASES:
+        return ALIASES[name][1].get("ph")
+    return PH_ONLY_LEAVES.get(name)
 
 
 def complete(w, pin):
@@ -152,6 +168,15 @@ ITER_CASES = [
      "repeated self-interference from partial amplitude decays quadratically "
      "to 0 (Book II §5.1); pins the full rounding chain"),
 ]
+COORD_CASES = [
+    ("WV-COORD-SATOSHI", "SATOSHI",
+     "Ph-only leaf: wave absent (WV-PH-ONLY-ABSENT) but the coordinate stays "
+     "visible (Book II §2.1/§6.3)"),
+    ("WV-COORD-V", "V",
+     "sector coordinate: shares phase with S (density cluster, not a collision)"),
+    ("WV-COORD-FALSE", "FALSE",
+     "alias pin coordinate: FALSE ph=49152 regardless of derived am=0"),
+]
 
 VEC_PATH = Path(__file__).resolve().parents[1] / "tests/spec_conformance/wave_vectors.json"
 
@@ -180,10 +205,15 @@ def gen_vectors():
          "expected_am_sequence": iterate_am(w0)}
         for vid, w0, note in ITER_CASES
     ]
+    vectors += [
+        {"id": vid, "kind": "coordinate", "note": note, "name": name,
+         "expected_ph": coordinate(name)}
+        for vid, name, note in COORD_CASES
+    ]
     doc = {
         "format": "sigma-glyph-wave-conformance",
         "format_version": 2,
-        "spec_version": "0.5.1",
+        "spec_version": "0.5.2",
         "lut_arbiter": LUT_ARBITER,
         "notes": [
             "interfere() per Book II v0.5 (entropy-coherence coupling adopted).",
@@ -248,6 +278,9 @@ def selftest():
             elif kind == "iterate":
                 got = iterate_am(v["start"])
                 chk(f"vector {v['id']}", got == v["expected_am_sequence"], f"got {got}")
+            elif kind == "coordinate":
+                got = coordinate(v["name"])
+                chk(f"vector {v['id']}", got == v["expected_ph"], f"got {got}")
             else:
                 chk(f"vector {v['id']}", False, f"unknown kind {kind}")
     else:

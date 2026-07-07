@@ -1,9 +1,9 @@
 {
   "format": "sigma-glyph-conformance",
   "format_version": 2,
-  "spec_version": "0.5.1",
+  "spec_version": "0.5.2",
   "suite_version": "0.5.0",
-  "book1_anchor": "42e9193b85b30ead6781389b55e558db87408ff4190e81cc68dd032f3758af7c",
+  "book1_anchor": "a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b",
   "oracle": "impl/sigma_glyph.py",
   "notes": [
     "objects: hex canonical bytes to preload into the CAS, keyed by their SHA-256 NodeHash.",
@@ -16,7 +16,9 @@
     "eval vectors do not contain blob-store inputs; implementations MUST NOT make kind=eval results depend on external blob material (ADR-004, adopted v0.5.1)."
   ],
   "objects": {
+    "01efe8732fb51149864e215ef8924437768c9b720c1335bd3f59d4f292c78466": "0206a50896d8efc6946bc1917557b98b3a22f2331b541ac9b69b1ee6a52f526e27d62f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198": "020677e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf651d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",
+    "04d944a9c64b10ac5ea70e054cb60fdc57c09f157e50cccffec1627a7e46ad7a": "020601efe8732fb51149864e215ef8924437768c9b720c1335bd3f59d4f292c78466bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
     "0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211": "020677e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf677e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf6",
     "11a04accacaa01e35834d94328b00dae068bc7ee569a3ddde1e23de0edf53bbc": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a665cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098",
     "14569c72e742f7a1173598767fb09b7759c9ec5b9909e9fb9ac056a430c1a8c4": "020655f38cdcc00b28cc506a3982816fbf5609303f16a1d4488d39ffd69248f94fd2bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
@@ -32,13 +34,17 @@
     "65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098": "0206bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "6de9cc4efb98828a17b3fa1ec0159e401d19cd004e30cc8c470d3e09b654fc82": "0206371667d7ad3376f881131cc9832b3fc3fc49f808cdbbc97268f2f56a3f4ef2890755e9fe09abe5fcf62f95ffdd2ddfeeea9a9b9fdebc70b51da2f2b369f3c442",
     "77e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf6": "0206d3f257e81d7b46f2dfa2f36eb4047c07aaaadbd206e9521f2578a47a689c66fd2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "7bf8db3365c18cbf49e1c94fceae65457f00bdfed1b79bc19fbb3801e400856c": "02069420a0acc6b4da8edc2f4d27d0dfed49adb68abcc72d0c15b164bfca6bbc42f42f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6": "00018de0b3c47f112c59745f717a626932264c422a7563954872e237b223af4ad643",
+    "894670095bee31467a5d6bd1e7d1b3dda0ca38d1c0a803c588f8f980d47c9aae": "020618e4bb3e3e3d90536f0709bc6ae7e08c489d2fe1dd38d82578e7dd444b2e31af2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798": "0206bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486cbc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
     "9420a0acc6b4da8edc2f4d27d0dfed49adb68abcc72d0c15b164bfca6bbc42f4": "ff0126e080a47902df86e16a0b221e67d5c58736eeb968e42abeb6228a62076d7239",
     "97a2eedea8d8b3419dac73f1685814e7a7ccd85f232f3d1e085fb1f1917611ad": "0206c004c81972ff1f9b517157a44bb7ee266ae74de5ea94088ce17037072896c9c1bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",
     "9d30eeacd08446c0e835b4c8564888e6c7ca36683abf06c67add4db277944573": "02062f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f41620755e9fe09abe5fcf62f95ffdd2ddfeeea9a9b9fdebc70b51da2f2b369f3c442",
+    "a50896d8efc6946bc1917557b98b3a22f2331b541ac9b69b1ee6a52f526e27d6": "0206bf9ff370068e7a423c8da907185358979c826d493857f0cf52fefd406f1575782f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c": "000186be9a55762d316a3026c2836d044f5fc76e34da10e1b45feee5f18be7edb177",
     "bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d": "0206d1b6a6982b4a8c4b04c83d3adbf7aba04f587891f67b5ddb81d95bcd83cb68432f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
+    "bf9ff370068e7a423c8da907185358979c826d493857f0cf52fefd406f157578": "0101887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6",
     "c004c81972ff1f9b517157a44bb7ee266ae74de5ea94088ce17037072896c9c1": "0206bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6",
     "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc": "020614569c72e742f7a1173598767fb09b7759c9ec5b9909e9fb9ac056a430c1a8c42f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",
     "d1b6a6982b4a8c4b04c83d3adbf7aba04f587891f67b5ddb81d95bcd83cb6843": "0206887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a689bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798",
@@ -226,6 +232,42 @@
         "outcome": "normal_form",
         "result_hash": "9420a0acc6b4da8edc2f4d27d0dfed49adb68abcc72d0c15b164bfca6bbc42f4",
         "atp_spent": 1
+      }
+    },
+    {
+      "id": "EV-STUCK-DIS-FN",
+      "kind": "eval",
+      "note": "APPLY(DISSONANCE, I): no rule matches a DISSONANCE in function position; stuck normal form, force root (3) + force fn (1) = 4",
+      "term": "7bf8db3365c18cbf49e1c94fceae65457f00bdfed1b79bc19fbb3801e400856c",
+      "atp": 100,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "7bf8db3365c18cbf49e1c94fceae65457f00bdfed1b79bc19fbb3801e400856c",
+        "atp_spent": 4
+      }
+    },
+    {
+      "id": "EV-STUCK-LIT-FN",
+      "kind": "eval",
+      "note": "APPLY(non-genesis LITERAL, I): a LITERAL that is not I/K/S by hash is inert in function position; stuck normal form, spent 4",
+      "term": "894670095bee31467a5d6bd1e7d1b3dda0ca38d1c0a803c588f8f980d47c9aae",
+      "atp": 100,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "894670095bee31467a5d6bd1e7d1b3dda0ca38d1c0a803c588f8f980d47c9aae",
+        "atp_spent": 4
+      }
+    },
+    {
+      "id": "EV-REF-COMBINATOR-FIRES",
+      "kind": "eval",
+      "note": "REF(S) I I K: the REF forces (2) and unwraps (1) to the S thunk, which then fires R-S by hash \u2014 a REF target enabling a redex",
+      "term": "04d944a9c64b10ac5ea70e054cb60fdc57c09f157e50cccffec1627a7e46ad7a",
+      "atp": 100,
+      "expected": {
+        "outcome": "normal_form",
+        "result_hash": "89bf5669baa47176938fd5d514c097c4dcdd710da8f4f62e2e0d1748bc2d2798",
+        "atp_spent": 16
       }
     },
     {

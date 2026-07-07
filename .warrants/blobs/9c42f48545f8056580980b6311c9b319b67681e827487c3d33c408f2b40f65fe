@@ -1,0 +1,71 @@
+# Review: Σ-GLYPH v0.5.1 — 2026-07
+
+**Reviewer:** Claude (Opus 4.8, 1M)
+**Role:** Adversarial reviewer — "run first, read second"; findings reproduced against this checkout. Deliberately net-new: read the Codex/Kimi/Sonnet/DeepSeek/Gemini trail first to avoid repeating it.
+**Timestamp:** 2026-07-07
+**Scope:** `spec/book-1-truth.md`, `spec/book-2-navigation.md`, `impl/sigma_glyph.py`, `impl/sigma_wave.py`, conformance suite, `CHANGELOG.md`, `ROADMAP.md`, all five ADRs, and the prior model reviews.
+
+**Suite state on this checkout:** `sigma_glyph.py` ALL PASS · `sigma_wave.py` 27/27 · properties 2103/2103 · conformance 46/46. All five ADRs (001–005) are ADOPTED; **no open ADRs** — so "open-ADR risk" is nil. Residual risk is in ambiguities not yet captured as an ADR (M1, m1–m3, N1).
+
+---
+
+## Verdict
+
+**One of the most rigorously specified content-addressed compute cores I have reviewed, and it survives adversarial attack on its core promise.** I went after consensus-safety — any path where two conforming nodes disagree on a `result_hash` — and **found none**: reduction is deterministic leftmost-outermost, redex recognition is by-hash without forcing arguments (R-K/R-S), REF unwraps exactly one level, canonical (de)serialisation is exact on flags+length, and there is no float or iteration-order nondeterminism in Book I. The wave layer is a genuine view — I confirmed Book II cannot fork `eval`.
+
+The findings below are therefore **not** consensus-safety breaks. The one that matters (M1) is a **liveness/fault divergence that makes the reference violate its own MUST-PASS vector TV-7**; the rest is version-anchor / dead-code / documentation drift that erodes the "code = law, version = anchor" discipline without threatening the hash.
+
+---
+
+## Findings (most severe first)
+
+### M1 — MAJOR (NET-NEW): the size guard conflates *work* (`spent`) with *memory* (`size`); Ω faults instead of ATP-Exhausting, contradicting TV-7's `∀n`
+
+**`impl/sigma_glyph.py:196`:**
+```python
+# Size guard is FREE via the ADR-001 memory bound: size <= 1 + spent.
+if 1 + spent > limits["max_materialized_nodes"]:
+    raise ResourceFault("term growth")
+```
+The invariant `size ≤ 1 + spent` (Book I §3.4) is an **upper** bound on size, so guarding on `spent` does keep memory under the limit — but it is **not a lower bound**, so it misfires for divergent terms whose materialised size stays tiny while `spent` grows. Reproduced (Ω hash matches TV-7 `0609d7e3…`):
+```
+eval(Ω,       500)  ->  ATP_EXHAUSTED, spent 500          ✓
+eval(Ω, 1_000_000)  ->  ResourceFault("term growth")     ✗   (actual size of Ω ~ tens of nodes)
+eval(Ω, 2_000_000)  ->  ResourceFault("term growth")     ✗
+```
+**Why it matters.** TV-7 (Book I §7, MUST-PASS) states `∀n: eval(Ω,n) = DISSONANCE(ATP Exhausted)`. The reference violates this for every `n ≥ max_materialized_nodes` (default 1e6). Two conforming nodes with different `max_materialized_nodes` disagree on the *outcome* of `eval(Ω, 2e6)` — one faults, one returns canonical ATP-Exhausted. §3.6 quarantines resource faults as non-canonical (and even hints "size-фолти досяжні лише за бюджетів порядку ліміту"), so this is arguably *permitted* as a local fault — but the vector's unqualified `∀n` is literally false for the reference oracle, and the "size guard is FREE" comment is conceptually wrong: it bounds work, not memory. The real memory fence is the amortised depth guard at `:199`, which makes the `1+spent` guard both redundant and harmful.
+
+**Fix (any one):** (a) guard on actual `size(t)` on the same amortised cadence as the depth check at `:199`, so a small divergent term never faults [preferred — makes the guard's name true]; or (b) qualify TV-7 to `n < max_materialized_nodes`; or (c) scale the default `max_materialized_nodes` off `atp`.
+
+### m1 — MINOR (NET-NEW): Book I and Book II version headers stale at 0.5.0 while both were edited for v0.5.1
+
+`book-1-truth.md:3` and `book-2-navigation.md:3` both read `**Version:** 0.5.0`. But CHANGELOG §v0.5.1 records "Book I (0.5.0 → 0.5.1)" (the ADR-004 §1.1 rewrite — present at book-1:33) and "Book II (0.5.0 → 0.5.1)" (§2/§2.1/§6.2 — present). The content genuinely changed: `ANCHORS.txt` lists the v0.5.1 Book I anchor `42e9193b…` (recomputed from the current bytes → matches, and matches `generate.py:BOOK1_ANCHOR`), distinct from the v0.5.0 anchor `0c4f39cc…`. So the anchor registry files these bytes under v0.5.1 while the document's own header says 0.5.0 — a direct contradiction of the §8 "version = anchor" discipline. **Fix:** bump both headers to 0.5.1.
+
+### m2 — MINOR (NET-NEW): `PH_ONLY_LEAVES` is dead code; the "phase coordinate stays visible" guarantee has no accessor
+
+`impl/sigma_wave.py:82` defines `PH_ONLY_LEAVES = {"V":16384, "SATOSHI":8192, "TESLA":8192, …}` but it is never read (`grep`-confirmed). `wave()` correctly returns `None` for these (§2.1 — wave absent), but Book II §2.1/§6.2 promise the *pinned phase remains visible as a coordinate*. There is no function exposing that coordinate, so the normative claim is unmodeled and the table inert. **Fix:** add a `coordinate(name)` accessor over `PH_ONLY_LEAVES` (fold in FALSE/Trinity phases), or delete the dict and note the omission.
+
+### m3 — MINOR (SHARPENS Kimi §3): the memory-bound "size metric" is undefined in prose, but the reference needs **no** "Synthetic Exclusion Lemma"
+
+Kimi flagged that `size − 1 ≤ spent` (§3.4) depends on an unstated lemma that R-S-synthesised nodes don't count. I verified the reference does the **opposite** and is still correct: `size()` (`:90`) counts *every* materialised `app` node including R-S-synthesised ones, and the bound holds because R-S's price `1 + size(z)` (`:161`) dominates the growth (duplicating a size-5 `z`: growth `4 = Z−1 < cost 6 = 1+Z`). So it is a **documentation gap, not a soundness gap**. **Fix:** one sentence in §3.4 defining `materialized_size` as the tree node-count over the materialised graph (thunks = 1) — which the impl already realises.
+
+### N1 — NIT (NET-NEW): Book II §4 demands "≥80-bit extended precision" for LUT generation; the reference uses IEEE-double `math.cos`
+
+`impl/sigma_wave.py:40` rounds `32767·math.cos(...)` in 64-bit double, contradicting book-2 §4:45. Verified harmless: **zero** LUT entries lie within 1e-6 of a rounding tie, so 64- vs 80-bit rounding cannot differ, and the SHA-256 arbiter (`:42`) is fail-fast regardless. The spec text is nonetheless self-inconsistent with its own oracle. **Fix:** reword §4 to "the arbiter hash is authoritative; ≥64-bit suffices as no entry is within 0.5 ULP of a tie."
+
+### N2 — NIT (NET-NEW): conformance-vector coverage gaps (all behave correctly; nothing pins them)
+- No eval vector for a **non-combinator in function position** reaching a stuck normal form: `APPLY(DISSONANCE, I)` and `APPLY(unpinned-LITERAL, I)` both correctly return a normal-form `app` at spent 4 — unpinned.
+- No vector for a **REF resolving to a combinator in function position** enabling a redex: `REF(S) I I K` correctly fires R-S — unpinned.
+- No wave vector exercising **V/Pantheon coordinate visibility** (ties to m2).
+
+### N3 — NIT: `interfere()` relies on Python bignum rather than the spec's fixed widths
+`impl/sigma_wave.py:59-62`: `new_am` is not explicitly clamped to uint16 (relies on the proof `am ≤ 65535`) and the `uint16()/int16()` casts aren't enforced. Correct for the reference, but a C/Rust port MUST use the §3-mandated int64/uint64 intermediates — `(r+32767)*65535 ≈ 4.29e9` overflows int32. Worth an implementer-note.
+
+## What I attacked and found clean
+- **No consensus-safety (wrong-hash) divergence** anywhere in Book I (see Verdict).
+- **ATP accounting edges correct:** exhaustion-before-action; force cost known-after-fetch with bytes discarded (EV-TV4-IK-ATP2, EV-REF-MISSING-ATP1); failed resolve not charged; `spent ≤ atp`; lazy dead-branch class matches ADR-003.
+- **Wave layer is a pure view:** fixed point `{am=65535, en=−32768}`, round-half-away-from-zero, Left Dominance, FALSE `{49152, 0, −32512}` and the zero-amplitude cascade all reproduce §5/§6.2 exactly and touch nothing in Book I.
+- Prior-review items are resolved: the `36864→36863` label (Codex), the warrant verifier (`tools/warrant_verify.py`), and the ADR-004 LITERAL-blob split (§1.1 rewrite).
+
+## Overall
+The TRUTH/NAVIGATION separation is real, the oracle-as-law + computed-vector methodology is sound, and the multi-model adversarial trail has already closed every P0 surface I could find — including the ones I came to attack. The single most important thing to fix next is **M1**: the `1 + spent` guard makes the reference fail its own MUST-PASS TV-7 for large budgets by faulting on a term whose actual memory is tiny — guard on real `size`/`depth` (which `:199` already computes), not on `spent`. Everything else is hygiene that keeps the "version = anchor, code = law" discipline honest.

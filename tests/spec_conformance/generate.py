@@ -17,9 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.5.1"   # Book I document version these vectors conform to
+SPEC_VERSION = "0.5.2"   # Book I document version these vectors conform to
 SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "42e9193b85b30ead6781389b55e558db87408ff4190e81cc68dd032f3758af7c"
+BOOK1_ANCHOR = "a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b"
 
 store = sg.Store()
 objects = {}
@@ -128,6 +128,24 @@ eval_vector("EV-LIT-FORCE", "non-genesis LITERAL: one force (1 ATP), then NF. No
 
 dis_custom = put(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=sg.sha(b"custom reason")))
 eval_vector("EV-DIS-INERT", "a stored DISSONANCE node forces (1 ATP) into a normal form", dis_custom, 10)
+
+# Opus 4.8 review N2: non-combinator in function position -> stuck normal form
+h_stuck_dis = put_tree(A(("dis", sg.sha(b"custom reason")), Ig))
+eval_vector("EV-STUCK-DIS-FN",
+            "APPLY(DISSONANCE, I): no rule matches a DISSONANCE in function position; "
+            "stuck normal form, force root (3) + force fn (1) = 4",
+            h_stuck_dis, 100)
+h_stuck_lit = put_tree(A(("lit", sg.sha(b"dummy blob")), Ig))
+eval_vector("EV-STUCK-LIT-FN",
+            "APPLY(non-genesis LITERAL, I): a LITERAL that is not I/K/S by hash is "
+            "inert in function position; stuck normal form, spent 4",
+            h_stuck_lit, 100)
+# Opus 4.8 review N2: REF resolving to a combinator enables the redex
+h_ref_s = put_tree(A(A(A(("ref", sg.S_H), Ig), Ig), Kg))
+eval_vector("EV-REF-COMBINATOR-FIRES",
+            "REF(S) I I K: the REF forces (2) and unwraps (1) to the S thunk, "
+            "which then fires R-S by hash — a REF target enabling a redex",
+            h_ref_s, 100)
 
 h_ik = put_tree(A(Ig, Kg))
 eval_vector("EV-TV4-IK", "TV-4: I K -> K; force root (3) + R-I (1) = 4 ATP", h_ik, 100)

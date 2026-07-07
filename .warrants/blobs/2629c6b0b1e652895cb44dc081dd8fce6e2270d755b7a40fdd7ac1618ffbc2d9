@@ -1,0 +1,11 @@
+eval(Omega,500) -> dis spent 500
+eval(Omega,2000000) -> dis spent 1999305
+coord SATOSHI/V/FALSE: 8192 16384 49152
+ALL PASS
+WAVE: ALL PASS (30/30)
+CONFORMANCE: ALL PASS (49/49)
+PROPERTIES: ALL PASS (2103/2103, seed=0x516)
+anchors verified
+lazy edges sealed
+records 17, blobs 58, roots ['14d413f2952b', '276b6f983900'], errors 0
+opus v0.5.1 review dispositions verified

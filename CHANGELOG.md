@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.2 — "Honest Fences" (2026-07)
+
+Hygiene release adjudicating the Opus 4.8 (1M) adversarial review of v0.5.1 — the review attacked consensus safety and found none broken; everything below is fence/discipline repair. **No canonical eval result changes** (all 46 prior vectors byte-identical in expectations; 3 new).
+
+- **M1 (fixed in 129a828, adjudicated here):** the reference's memory fence guarded on `spent` — an UPPER bound on size, not a proxy — so `eval(Ω, n)` faulted instead of returning canonical ATP Exhausted for `n ≥ max_materialized_nodes`, violating TV-7's `∀n`. Guard now measures actual `size(t)`/depth; §3.4 prose corrected: the bound gives a preflight memory estimate, never a live fault trigger.
+- **m1:** Book I/II version headers now match their anchor section (the v0.5.1 bytes were filed under stale 0.5.0 headers).
+- **m3 (also sharpens Kimi §3):** §3.4 explicitly defines `materialized_size(t)` = the section's Розмір over the materialized graph, synthetic nodes included — no "exclusion lemma" needed since every rule's growth < its cost.
+- **m2:** the "phase coordinate stays visible" guarantee is now modeled: `coordinate(name)` accessor over the Ph-only pin tables + `kind=coordinate` wave vectors (`WV-COORD-SATOSHI/V/FALSE`).
+- **N1:** Book II §4 no longer demands ≥80-bit LUT generation; the arbiter hash is authoritative and 64-bit is provably sufficient (no entry within 0.5 ULP of a tie).
+- **N2:** three new eval vectors pin previously-untested behavior: `EV-STUCK-DIS-FN`, `EV-STUCK-LIT-FN` (non-combinator in function position → stuck normal form, spent 4), `EV-REF-COMBINATOR-FIRES` (REF target enabling a redex). Suite: 46 → 49.
+- **N3:** implementer note on §3 fixed widths in `interfere()` (int64/uint64 intermediates mandatory in ports).
+
+
 ## v0.5.1 — "Scoped Silence" (2026-07)
 
 Adopts ADR-004 (Option 2, review gate 4/≥3 with zero dissent — including a Codex concession of its own audit-time Option 1) and ADR-005 (R1, gate 2:1 over R2). **No Book I behavior changes: every v0.5.0 eval result, hash and cost is unchanged.** This release aligns prose with the oracle and makes Book II's wave layer total-by-declaration.

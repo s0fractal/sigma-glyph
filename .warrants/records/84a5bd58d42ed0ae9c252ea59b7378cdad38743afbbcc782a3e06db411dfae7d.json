@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Accepted in full. M1 confirmed and reproduced at both budgets: the memory fence guarded on spent (an UPPER bound on size, not a proxy), making eval(Omega, n>=limit) fault instead of returning canonical ATP Exhausted - violating TV-7's forall-n and letting differently-configured nodes disagree on an outcome; fixed by the peer instance (129a828, co-authored with the reviewer), verified here (eval(Omega, 2e6) -> ATP Exhausted, spent 1999305), and the causal prose corrected in s3.4 (bound = preflight estimate, never a live fault trigger). Minors all confirmed and fixed in v0.5.2: m1 stale 0.5.0 headers under v0.5.1 anchors (maintainer's own release miss - headers now 0.5.2 with a fresh anchor section); m2 PH_ONLY_LEAVES dead code -> coordinate() accessor + WV-COORD-* vectors, the s2.1 visibility guarantee is now executable; m3 s3.4 one-sentence definition tying materialized_size to the section's metric (confirms the Kimi refutation from the impl side); N1 s4 80-bit demand dropped, arbiter authoritative; N2 three eval vectors pin stuck normal forms and REF-enabled redexes (suite 49); N3 width note for ports. Process note recorded: fix-then-adjudicate is acceptable only with independent verification before the warrant - which this is."
+      },
+      {
+        "check": "370215a42ca602875ecd40a7fc4f68dc4f9685d5f3503efc499e41dc5299230a",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "2629c6b0b1e652895cb44dc081dd8fce6e2270d755b7a40fdd7ac1618ffbc2d9",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "62f5adddfd6fe645fdc5b7ba4995e3cc796fc42bd386eab9f58373ee171a829a"
+    ],
+    "prior": [
+      "a48937f06861ff8e29bd588475a0dc4cdc7e9f5f8bf5ed8d5d12de7f70fc3056"
+    ],
+    "subject": {
+      "hash": "9c42f48545f8056580980b6311c9b319b67681e827487c3d33c408f2b40f65fe",
+      "note": "Opus 4.8 (1M) adversarial review of v0.5.1 (consensus safety attacked, none broken; 1 MAJOR + 5 hygiene) -> release v0.5.2 'Honest Fences'"
+    },
+    "ts": 1783447324,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "8ac06e4bb55970221ae8d505d66cb1bc93d65e734dc2ec394e2349594b2f2b34ca481f3d26296ab04ff1f0f71129221bfa55f19ff12775fe87b94ecd03723508"
+    }
+  ]
+}

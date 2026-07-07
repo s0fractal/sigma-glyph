@@ -1,7 +1,7 @@
 # Σ-GLYPH
 
 **Topological Compute Engine / Decentralized Wave Resonator**
-Current: **v0.5.1 "Scoped Silence"** — DRAFT STANDARD. Hash-thunk evaluation (lazy left-spine), size-priced ATP with a semantic memory bound, entropy–coherence coupling, field-level wave pins with absent-wave semantics. Machine-readable conformance suites for both Books ([`tests/spec_conformance/`](tests/spec_conformance/)).
+Current: **v0.5.2 "Honest Fences"** — DRAFT STANDARD. Hash-thunk evaluation (lazy left-spine), size-priced ATP with a semantic memory bound, entropy–coherence coupling, field-level wave pins with absent-wave semantics. Machine-readable conformance suites for both Books ([`tests/spec_conformance/`](tests/spec_conformance/)).
 
 Content-addressed SKI computation core with a bit-exact determinism guarantee, plus a wave/coordinate navigation layer that is strictly a *view* over identity — never part of it.
 

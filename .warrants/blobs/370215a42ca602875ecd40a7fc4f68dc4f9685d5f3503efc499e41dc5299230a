@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""Adjudication check for the Opus 4.8 v0.5.1 review / v0.5.2 release (repo root)."""
+import subprocess, sys
+sys.path.insert(0, "impl")
+import sigma_glyph as sg
+import sigma_wave as sw
+
+ok = True
+# M1: Omega returns canonical ATP Exhausted at any budget
+st = sg.Store()
+A = lambda l, r: ("app", l, r)
+Sg, Ig = ("lit", sg.sha(b"S")), ("lit", sg.sha(b"I"))
+def put_tree(t):
+    if t[0] == "app": put_tree(t[1]); put_tree(t[2])
+    return st.put(sg.term_bytes(t))
+for b in (sg.I_BYTES, sg.K_BYTES, sg.S_BYTES): st.put(b)
+W_ = A(A(Sg, Ig), Ig)
+omega = put_tree(A(W_, W_))
+for budget in (500, 2_000_000):
+    r, sp = sg.eval_hash(omega, budget, st)
+    print(f"eval(Omega,{budget}) -> {r[0]} spent {sp}")
+    ok &= r[0] == "dis" and r[1] == sg.sha(b"ATP Exhausted")
+# m2: coordinate accessor live
+print("coord SATOSHI/V/FALSE:", sw.coordinate("SATOSHI"), sw.coordinate("V"), sw.coordinate("FALSE"))
+ok &= (sw.coordinate("SATOSHI"), sw.coordinate("V"), sw.coordinate("FALSE")) == (8192, 16384, 49152)
+# full gates
+for cmd, want in ((["impl/sigma_glyph.py"], "ALL PASS"),
+                  (["impl/sigma_wave.py"], "WAVE: ALL PASS (30/30)"),
+                  (["tests/spec_conformance/run_reference.py"], "ALL PASS (49/49)"),
+                  (["tests/spec_conformance/test_properties.py"], "PROPERTIES: ALL PASS"),
+                  (["tools/verify_anchors.py"], "anchors verified"),
+                  (["tools/check_lazy_edges.py"], "lazy edges sealed"),
+                  (["tools/warrant_verify.py"], "errors 0")):
+    p = subprocess.run([sys.executable] + cmd, capture_output=True, text=True)
+    last = p.stdout.strip().splitlines()[-1]
+    print(last)
+    ok &= p.returncode == 0 and want in last
+print("opus v0.5.1 review dispositions verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)
