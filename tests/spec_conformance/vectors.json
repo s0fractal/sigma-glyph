@@ -1,9 +1,9 @@
 {
   "format": "sigma-glyph-conformance",
   "format_version": 2,
-  "spec_version": "0.5.0",
+  "spec_version": "0.5.1",
   "suite_version": "0.5.0",
-  "book1_anchor": "0c4f39ccccca99ae2c409d64085aabc82d446a1f6ea1fa5692ad0acb09d4668d",
+  "book1_anchor": "42e9193b85b30ead6781389b55e558db87408ff4190e81cc68dd032f3758af7c",
   "oracle": "impl/sigma_glyph.py",
   "notes": [
     "objects: hex canonical bytes to preload into the CAS, keyed by their SHA-256 NodeHash.",
@@ -12,7 +12,8 @@
     "kind=eval: eval(term, atp) MUST yield result_hash with atp_spent under the v0.5 hash-thunk machine (Book I s3.3-3.4: lazy left-spine, size-priced ATP, hash-leaf sizes, genesis intrinsic).",
     "format v2: an eval vector MAY carry store_subset (list of object hashes) - run it against a fresh store containing ONLY those objects.",
     "outcome is informative; result_hash and atp_spent are the normative observables.",
-    "memory bound (normative invariant, property-tested): materialized size - 1 <= atp_spent at every step."
+    "memory bound (normative invariant, property-tested): materialized size - 1 <= atp_spent at every step.",
+    "eval vectors do not contain blob-store inputs; implementations MUST NOT make kind=eval results depend on external blob material (ADR-004, adopted v0.5.1)."
   ],
   "objects": {
     "0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198": "020677e9c454771af4ea715c07ac91d5472dc10d0eb08605ffba869c22a03885bdf651d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",
@@ -206,7 +207,7 @@
     {
       "id": "EV-LIT-FORCE",
       "kind": "eval",
-      "note": "non-genesis LITERAL: one force (1 ATP), then NF",
+      "note": "non-genesis LITERAL: one force (1 ATP), then NF. No blob material is supplied; Book I eval MUST depend only on the LITERAL node bytes and MUST NOT fetch or validate the committed blob (ADR-004, s1.1)",
       "term": "18e4bb3e3e3d90536f0709bc6ae7e08c489d2fe1dd38d82578e7dd444b2e31af",
       "atp": 10,
       "expected": {

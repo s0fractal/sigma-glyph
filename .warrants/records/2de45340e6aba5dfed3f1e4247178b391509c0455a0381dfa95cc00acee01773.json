@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adopted per Decision Process: review gate 4/>=3 with zero dissent (Kimi, Gemini, Codex-concession, DeepSeek), every review answering the decision criterion in the negative. Book I s1.1 rewritten on DeepSeek's textual base merged with Codex's MUST-NOT clauses: node bytes only; blob absence/availability/corruption MUST NOT change eval results or serialize as Book I DISSONANCE. EV-LIT-FORCE note + vectors.json format note strengthened per Codex's no-blob-vectors rule; oracle unchanged (already conformed). Supersedes-in-scope the DeepSeek v0.4.2 on-demand-validation settlement: the rule survives as a storage contract at blob retrieval. Prose-only for Book I: every v0.5.0 result hash, outcome and cost unchanged."
+      },
+      {
+        "check": "5ec2d679e1ebaef9a08ac10328a2dc89790edfc994e8c606cbcc0bcafa6e4794",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "6c45e6d3ba82a8c537f1143b12f338cbd39ccaa1b2977fcd8a8e4bc0b87ff061",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "a3f0279579b8ac1691bb6ac3a330bf2d7497eb4583bcc71deb2ba13609a0b51e"
+    ],
+    "subject": {
+      "hash": "f16b0f70c3ce0593056b335338c7e643badbc594be645e2e631e270c10620bda",
+      "note": "ADOPT ADR-004 in v0.5.1 (LITERAL blob validation outside eval)"
+    },
+    "ts": 1783385296,
+    "under": [
+      "5278627d12b23a52560b58b34d53450fef525fe9cdd084e0f1db71866cb4a26e"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "8ab117a7e113c3236a64343ab1ffbd555012fd4bfe4b0c3329a7e9877aa6ac11fdb2ec7c93411076c8fe7da0d0d0dd2de45d6bf54e656466acce28a7e7b28a05"
+    }
+  ]
+}

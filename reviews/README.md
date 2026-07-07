@@ -30,6 +30,8 @@
 - v0.5 ATP is size-priced under the hash-leaf model: every materialization is a priced action; `materialized size − 1 ≤ spent` is a normative invariant (ADR-001×003 composition; Gemini proof, DeepSeek re-derivation, 2026-07).
 - Entropy couples to coherence (ADR-002): Resonance Identity v0.5 = phase kept, amplitude squared, entropy −256 per constructive self-application; unique non-zero fixed point `{am=65535, en=−32768}`. `div_round_half_up` is round-half-AWAY-FROM-ZERO (Book II §3) — floor variants fail `WV-NEG-TIE`.
 - Dangling result hashes cannot escape: the root result is always demanded, so `APPLY(I, <absent>)` is Unresolved Reference even under lazy evaluation (TV-8, spent 4), while unresolvable branches that no reduction demands are never fetched (TV-11: `K I <absent>` → `I`, spent 7). Laziness exempts dead branches, never the answer (peer Claude, 2026-07; `tools/check_lazy_edges.py`).
+- LITERAL blob validation is **outside `eval()`** (ADR-004, gate 4/≥3 zero dissent, adopted v0.5.1): Book I validates node bytes only; blob absence/availability/corruption MUST NOT change eval results or serialize as Book I DISSONANCE; eval vectors carry no blob inputs by design. Supersedes-in-scope the DeepSeek 2026-07 on-demand-validation settlement (the on-demand rule survives as a storage contract at blob retrieval, not as eval semantics).
+- Wave pins are **field-level** and `wave()` is a **partial function** (ADR-005, R1, gate 2:1, adopted v0.5.1): a pin overrides exactly the fields it lists; non-APPLY nodes without pins have no wave; interfere with an absent operand is absent. Normative FALSE row: `{ph=49152 (pin), am=0, en=−32512 (derived)}` — the zero-amplitude cascade is a theorem, silence propagates while phase coordinates stay visible (WV-FALSE-DERIVED, WV-FALSE-ANCESTOR-SILENT, WV-ITER-DECAY).
 
 ## Adjudications are filed as warrants
 
@@ -57,8 +59,8 @@ re-litigation requires evidence absent from the entire prior tunnel.
 - ADR-001: size-priced ATP (memory linearly bounded by budget; breaks ATP vectors; v0.5 candidate). **ADOPTED in v0.5.0.**
 - ADR-002: entropy–coherence coupling in interfere() (breaks pinned wave math; v0.5 candidate). **ADOPTED in v0.5.0.**
 - ADR-003: lazy left-spine resolution (dead branches never fetched; flips EV-K-DEAD-MISSING; v0.5 candidate). **ADOPTED in v0.5.0.**
-- ADR-004: LITERAL blob validation — inside or outside `eval()`? (Book I §1.1 self-contradiction found by the Codex v0.5.0 audit; oracle+EV-LIT-FORCE are the interim law per §7 supremacy; gate review 1 of ≥3 done: Kimi k2.6 answers the criterion for Option 2.)
-- ADR-005: Book II wave totality (Kimi k2.6 audit: Ph-only pins undefined field semantics; derived FALSE is amplitude-zero and the silence cascades; no base-case wave for unpinned LITERALs; no iterated-decay vector; needs review gate + release since wave_vectors.json is anchored.)
+- ADR-004: LITERAL blob validation outside `eval()`. **ADOPTED in v0.5.1** (gate 4/≥3, zero dissent; Codex conceded its audit-time Option 1).
+- ADR-005: Book II wave totality — field-level pins (R1), absent base case, FALSE normative row. **ADOPTED in v0.5.1** (gate 2:1 over R2; maintainer adjudicated the split).
 
 ## Open fronts (contributions wanted)
 

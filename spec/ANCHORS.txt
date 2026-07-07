@@ -1,6 +1,14 @@
 Sigma-GLYPH Specification Anchors (detached)
 Anchor = NodeHash(LITERAL, atom=SHA-256(document_bytes))
 
+== v0.5.1 ==
+42e9193b85b30ead6781389b55e558db87408ff4190e81cc68dd032f3758af7c  spec/book-1-truth.md
+b4cf0eefb7d060299ab9f81797729d7ad05a18c1a7efa4c13b4b4c3500ead77b  spec/book-2-navigation.md
+9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
+2df9194b15734a98b185e1f42472ddc52b03597cd6fd48a8a6fbf50799091021  spec/appendix-a-complexity.md
+a93341a9a9d813786867d3075f3c465c0f84fb63099e7c973dca1b1046187edd  tests/spec_conformance/vectors.json
+b81935369f35048e6c1f3d3fce993b20b6c5b3123d9b763045566303b72fbd03  tests/spec_conformance/wave_vectors.json
+
 == v0.5.0 ==
 0c4f39ccccca99ae2c409d64085aabc82d446a1f6ea1fa5692ad0acb09d4668d  spec/book-1-truth.md
 e05f789055acde32b255cb778946d92b47cd2fd0b13eb98ab749adaf60ecd5e4  spec/book-2-navigation.md

@@ -1,0 +1,8 @@
+ALL PASS
+WAVE: ALL PASS (27/27)
+CONFORMANCE: ALL PASS (46/46)
+PROPERTIES: ALL PASS (2103/2103, seed=0x516)
+anchors verified
+lazy edges sealed
+records 15, blobs 54, roots ['14d413f2952b', '276b6f983900'], errors 0
+v0.5.1 adoption gates green

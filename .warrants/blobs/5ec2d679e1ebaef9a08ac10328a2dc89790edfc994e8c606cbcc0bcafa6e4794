@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""v0.5.1 adoption gate: all suites + anchors + warrant store (run from repo root)."""
+import subprocess, sys
+ok = True
+for cmd, want in ((["impl/sigma_glyph.py"], "ALL PASS"),
+                  (["impl/sigma_wave.py"], "WAVE: ALL PASS (27/27)"),
+                  (["tests/spec_conformance/run_reference.py"], "ALL PASS (46/46)"),
+                  (["tests/spec_conformance/test_properties.py"], "PROPERTIES: ALL PASS"),
+                  (["tools/verify_anchors.py"], "anchors verified"),
+                  (["tools/check_lazy_edges.py"], "lazy edges sealed"),
+                  (["tools/warrant_verify.py"], "errors 0")):
+    p = subprocess.run([sys.executable] + cmd, capture_output=True, text=True)
+    last = p.stdout.strip().splitlines()[-1]
+    print(last)
+    ok &= p.returncode == 0 and want in last
+print("v0.5.1 adoption gates green" if ok else "GATES FAILED")
+sys.exit(0 if ok else 1)

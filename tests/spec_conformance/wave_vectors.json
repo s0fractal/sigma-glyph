@@ -1,11 +1,12 @@
 {
   "format": "sigma-glyph-wave-conformance",
-  "format_version": 1,
-  "spec_version": "0.5.0",
+  "format_version": 2,
+  "spec_version": "0.5.1",
   "lut_arbiter": "c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2",
   "notes": [
     "interfere() per Book II v0.5 (entropy-coherence coupling adopted).",
     "div_round_half_up is round-half-AWAY-FROM-ZERO (Book II \u00a73).",
+    "v0.5.1 (ADR-005, R1): kind=term vectors pin field-level pin completion and absent-wave semantics (expected=null means wave absent); kind=iterate pins repeated self-interference; vectors without kind are raw interfere(w1,w2) as in format_version 1.",
     "expected values computed by impl/sigma_wave.py; regenerate: python3 impl/sigma_wave.py gen"
   ],
   "vectors": [
@@ -179,6 +180,67 @@
         "am": 0,
         "en": 256
       }
+    },
+    {
+      "id": "WV-FALSE-DERIVED",
+      "kind": "term",
+      "note": "FALSE = APPLY(K,I) with Ph-only pin 49152: am/en derive per R1 -> {49152, 0, -32512}; the normative Book II \u00a76.2 row",
+      "term": "FALSE",
+      "expected": {
+        "ph": 49152,
+        "am": 0,
+        "en": -32512
+      }
+    },
+    {
+      "id": "WV-FALSE-ANCESTOR-SILENT",
+      "kind": "term",
+      "note": "any APPLY whose derived subtree contains FALSE has am=0: silence propagates, phase coordinates stay visible",
+      "term": [
+        "APPLY",
+        "FALSE",
+        "I"
+      ],
+      "expected": {
+        "ph": 49152,
+        "am": 0,
+        "en": -32640
+      }
+    },
+    {
+      "id": "WV-PH-ONLY-ABSENT",
+      "kind": "term",
+      "note": "Ph-only pin on a non-APPLY leaf: coordinate visible, wave absent (\u00a72.1)",
+      "term": "SATOSHI",
+      "expected": null
+    },
+    {
+      "id": "WV-UNPINNED-LITERAL-ABSENT",
+      "kind": "term",
+      "note": "unpinned LITERAL: wave absent (\u00a72.1); absence is not an error",
+      "term": {
+        "lit": "unpinned"
+      },
+      "expected": null
+    },
+    {
+      "id": "WV-ITER-DECAY",
+      "kind": "iterate",
+      "note": "repeated self-interference from partial amplitude decays quadratically to 0 (Book II \u00a75.1); pins the full rounding chain",
+      "start": {
+        "ph": 0,
+        "am": 49151,
+        "en": 0
+      },
+      "expected_am_sequence": [
+        49151,
+        36863,
+        20735,
+        6560,
+        657,
+        7,
+        0
+      ]
     }
   ]
 }

@@ -17,9 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.5.0"   # Book I document version these vectors conform to
+SPEC_VERSION = "0.5.1"   # Book I document version these vectors conform to
 SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "0c4f39ccccca99ae2c409d64085aabc82d446a1f6ea1fa5692ad0acb09d4668d"
+BOOK1_ANCHOR = "42e9193b85b30ead6781389b55e558db87408ff4190e81cc68dd032f3758af7c"
 
 store = sg.Store()
 objects = {}
@@ -124,7 +124,7 @@ deser_vector("INV-LEN-SHORT", "APPLY truncated to one child", bytes([0x02, 0x06]
 eval_vector("EV-GENESIS-BARE", "bare intrinsic thunk: eval(H(I)) is NF by hash; 0 ATP, no store access", sg.I_H, 10)
 
 lit_dummy = put(sg.ser(sg.LITERAL, sg.F_ATOM, atom=sg.sha(b"dummy blob")))
-eval_vector("EV-LIT-FORCE", "non-genesis LITERAL: one force (1 ATP), then NF", lit_dummy, 10)
+eval_vector("EV-LIT-FORCE", "non-genesis LITERAL: one force (1 ATP), then NF. No blob material is supplied; Book I eval MUST depend only on the LITERAL node bytes and MUST NOT fetch or validate the committed blob (ADR-004, s1.1)", lit_dummy, 10)
 
 dis_custom = put(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=sg.sha(b"custom reason")))
 eval_vector("EV-DIS-INERT", "a stored DISSONANCE node forces (1 ATP) into a normal form", dis_custom, 10)
@@ -232,6 +232,7 @@ doc = {
         "format v2: an eval vector MAY carry store_subset (list of object hashes) - run it against a fresh store containing ONLY those objects.",
         "outcome is informative; result_hash and atp_spent are the normative observables.",
         "memory bound (normative invariant, property-tested): materialized size - 1 <= atp_spent at every step.",
+        "eval vectors do not contain blob-store inputs; implementations MUST NOT make kind=eval results depend on external blob material (ADR-004, adopted v0.5.1).",
     ],
     "objects": dict(sorted(objects.items())),
     "vectors": vectors,

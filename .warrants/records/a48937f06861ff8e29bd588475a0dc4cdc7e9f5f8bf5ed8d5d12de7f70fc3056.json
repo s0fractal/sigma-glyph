@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adopted per Decision Process: gate 3 reviews, R1 2:1 over R2, maintainer adjudicated the split (both R1 answers defeat the boolean-app-invisibility scenario within R1: phase visibility now, opt-in full pins where mass is needed; R2 asserts values nobody computed). Book II s2 field-level WavePin semantics, s2.1 absent base case, s6.2 normative FALSE row {ph=49152 pin, am=0, en=-32512 derived} with the cascade stated as a theorem. Oracle grew the pin table and wave() over symbolic terms; wave_vectors.json format v2 (14 vectors): WV-FALSE-DERIVED, WV-FALSE-ANCESTOR-SILENT, WV-PH-ONLY-ABSENT, WV-UNPINNED-LITERAL-ABSENT, WV-ITER-DECAY (49151->36863->20735->6560->657->7->0). Wave-not-in-hash preserved: zero effect on Book I."
+      },
+      {
+        "check": "5ec2d679e1ebaef9a08ac10328a2dc89790edfc994e8c606cbcc0bcafa6e4794",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "6c45e6d3ba82a8c537f1143b12f338cbd39ccaa1b2977fcd8a8e4bc0b87ff061",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "2de45340e6aba5dfed3f1e4247178b391509c0455a0381dfa95cc00acee01773"
+    ],
+    "subject": {
+      "hash": "99b8c2a718d697de33d6cb9411a4bf6696c5fc5a66595548b0735259ed6b8ea8",
+      "note": "ADOPT ADR-005 in v0.5.1 (wave totality: field-level pins R1, absent base case, FALSE normative row)"
+    },
+    "ts": 1783385296,
+    "under": [
+      "5278627d12b23a52560b58b34d53450fef525fe9cdd084e0f1db71866cb4a26e"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "403c20cf320176545a055fc4a8a8ab7a730f4145a0d7ad6aa823cb2554e35d236174717ca7a6686f6ac384eaf4f4ec4f87d805d13eab050c6d3f111758ee3807"
+    }
+  ]
+}

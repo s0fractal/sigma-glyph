@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.5.1 — "Scoped Silence" (2026-07)
+
+Adopts ADR-004 (Option 2, review gate 4/≥3 with zero dissent — including a Codex concession of its own audit-time Option 1) and ADR-005 (R1, gate 2:1 over R2). **No Book I behavior changes: every v0.5.0 eval result, hash and cost is unchanged.** This release aligns prose with the oracle and makes Book II's wave layer total-by-declaration.
+
+**Book I (0.5.0 → 0.5.1), prose-only:**
+- §1.1: the LITERAL blob-validation paragraph that contradicted both its neighbor and the oracle is replaced — Book I validates node bytes only; blob absence/availability/corruption MUST NOT change `eval()` results and MUST NOT serialize as Book I DISSONANCE. (ADR-004; DeepSeek's textual base merged with Codex's MUST-NOT clauses.)
+
+**Book II (0.5.0 → 0.5.1):**
+- §2: **Pin > Derived is field-level** — `WavePin {ph?, am?, en?}` overrides exactly the fields it lists; the rest derive via `complete(interfere(...), pin)`. (ADR-005, R1.)
+- §2.1 (new): **wave() is a partial function** — non-APPLY nodes without pins have no wave; interfere with an absent operand is absent; absence is legitimate and never touches Book I.
+- §6.2: normative FALSE row — `{ph=49152 (pin), am=0, en=−32512 (derived)}`. The zero-amplitude cascade is a theorem: any APPLY whose derived subtree contains FALSE has `am=0` unless an explicit pin overrides amplitude at or above that node. Phase coordinates stay visible.
+
+**Vectors and implementations:**
+- `wave_vectors.json` format v2 (14 vectors): `kind=term` (pin completion, absent-wave semantics; `expected=null` = absent) and `kind=iterate` (`WV-ITER-DECAY`: 49151→36863→20735→6560→657→7→0). New: `WV-FALSE-DERIVED`, `WV-FALSE-ANCESTOR-SILENT`, `WV-PH-ONLY-ABSENT`, `WV-UNPINNED-LITERAL-ABSENT`.
+- `impl/sigma_wave.py`: pin table + `wave()` over symbolic terms with R1 completion (selftest 27 checks).
+- `vectors.json`: notes strengthened per ADR-004 — eval vectors carry no blob-store inputs and results MUST NOT depend on blob material (`EV-LIT-FORCE` note states this explicitly). No behavioral change.
+- Post-release audit cycle recorded in `reviews/` (peer-Claude, Codex, Kimi k2.6 + the three-way ADR gate), all adjudicated as warrants in `.warrants/`; `tools/warrant_verify.py` ships for local verification.
+
 ## v0.5.0 — "Priced Reality" (2026-07) — BREAKING
 
 Adopts ADR-001 + ADR-003 (composed via the Hash-Leaf Size Model) and ADR-002, after 3/3 dedicated model reviews (Codex, Gemini, DeepSeek) and 5 adjudication warrants. **Serialization, validation, NodeHashes and C1 are unchanged — every v0.4 hash remains valid.** What changed is evaluation semantics and ATP accounting.
