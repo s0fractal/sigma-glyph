@@ -87,50 +87,74 @@ def validate_policy(doc):
     return None
 
 
-def select(candidates, policy, jurisdiction, epoch):
+def _valid_metadata(c):
+    """Book III §4: fields a policy can sort on must be well-typed, or the
+    candidate is not live (imported Warrant field domains)."""
+    return (_is_hex64(c.get("warrant_id"))
+            and isinstance(c.get("actor"), str) and c["actor"]
+            and _is_uint(c.get("ts"), 64))
+
+
+def _field(c, name):
+    return c["assertion"]["epoch"] if name == "epoch" else c[name]
+
+
+def _cmp_order(a, b, order):
+    """Strict lexicographic comparison over the policy's order keys.
+    Strings compare by Unicode scalar values DIRECTLY; desc inverts the
+    comparison result — never a character-complement transform (Codex
+    implementation-gate P1: prefix pairs break under complements and
+    non-ASCII overflows chr)."""
+    for k in order:
+        av, bv = _field(a, k["field"]), _field(b, k["field"])
+        c = (av > bv) - (av < bv)
+        if c:
+            return -c if k["dir"] == "desc" else c
+    return 0
+
+
+def select(candidates, policy, jurisdiction, node, epoch):
     """Book III §4 derivation over caller-supplied accepted assertions.
 
     candidates: list of {"warrant_id", "actor", "ts", "assertion": <blob dict>}
     Returns {"status": "selected"|"conflict"|"absent", "selected": cand|None,
              "conflict_set": [warrant_id...]} — deterministic, total.
     """
+    import functools
     live = []
     for c in candidates:
+        if not _valid_metadata(c):                     # malformed order fields: not live
+            continue
         a = c["assertion"]
         if validate_assertion(a) is not None:
             continue
-        if a["jurisdiction"] != jurisdiction:          # replay resistance, §2
+        if a["node"] != node:                          # node-bound selection, §4
             continue
-        if a["epoch"] > epoch:                         # from the future: not yet live
+        if a["jurisdiction"] != jurisdiction:          # replay resistance, §2 (v0.6: no peer roots)
+            continue
+        if a["epoch"] > epoch:                         # future assertions are not live (MUST)
             continue
         max_age = policy.get("max_age_epochs")
         if max_age is not None and epoch - a["epoch"] > max_age:
             continue                                   # stale, criterion 9
         live.append(c)
+    order = policy["order"]
+    tie_order = order + [{"field": "warrant_id", "dir": "asc"}]
     quota = policy.get("quota_per_actor_epoch")
     if quota is not None:
-        by_actor = {}
-        kept = []
-        for c in sorted(live, key=lambda c: c["warrant_id"]):
-            n = by_actor.get((c["actor"], c["assertion"]["epoch"]), 0)
-            if n < quota:
-                by_actor[(c["actor"], c["assertion"]["epoch"])] = n + 1
-                kept.append(c)
-        live = kept
+        # anti-spam pre-filter: survivors chosen by the SAME policy order with
+        # warrant_id asc appended as deterministic tiebreak (Book III §4)
+        groups = {}
+        for c in live:
+            groups.setdefault((c["actor"], c["assertion"]["epoch"]), []).append(c)
+        live = []
+        for g in groups.values():
+            g.sort(key=functools.cmp_to_key(lambda x, y: _cmp_order(x, y, tie_order)))
+            live.extend(g[:quota])
     if not live:
         return {"status": "absent", "selected": None, "conflict_set": []}
-
-    def key(c):
-        out = []
-        for k in policy["order"]:
-            v = c["assertion"]["epoch"] if k["field"] == "epoch" else c[k["field"]]
-            if k["dir"] == "desc":
-                v = -v if isinstance(v, int) else "".join(chr(255 - ord(ch)) for ch in v)
-            out.append(v)
-        return tuple(out)
-
-    live.sort(key=key)
-    top = [c for c in live if key(c) == key(live[0])]
+    live.sort(key=functools.cmp_to_key(lambda x, y: _cmp_order(x, y, tie_order)))
+    top = [c for c in live if _cmp_order(c, live[0], order) == 0]
     if len(top) == 1:
         return {"status": "selected", "selected": top[0], "conflict_set": []}
     return {"status": "conflict", "selected": None,      # §4: clients MUST NOT merge
@@ -176,7 +200,9 @@ def view_id(jurisdiction, node, policy_hash, epoch):
 
 
 def assertion_set_root(warrant_ids):
-    """Book III §6: Merkle-style commitment (privacy: list never leaves the node)."""
+    """Book III §6: deterministic SET COMMITMENT (not a Merkle tree, not
+    zero-knowledge: small candidate universes are enumerable offline —
+    Codex implementation-gate P2)."""
     return sha_hex(jcs(sorted(warrant_ids)))
 
 
@@ -185,15 +211,21 @@ VEC_PATH = Path(__file__).resolve().parents[1] / "tests/spec_conformance/federat
 
 J = "aa" * 32
 J2 = "bb" * 32
+NODE = "cc" * 32
 POLICY = {"federation_policy": POLICY_TAG,
           "order": [{"field": "epoch", "dir": "desc"},
                     {"field": "warrant_id", "dir": "asc"}],
           "max_age_epochs": 10}
 POLICY_TIE = {"federation_policy": POLICY_TAG,
               "order": [{"field": "epoch", "dir": "desc"}]}   # no id tiebreak: ties surface
+POLICY_ACTOR_DESC = {"federation_policy": POLICY_TAG,
+                     "order": [{"field": "actor", "dir": "desc"}]}
+POLICY_TS = {"federation_policy": POLICY_TAG,
+             "order": [{"field": "ts", "dir": "desc"}],
+             "quota_per_actor_epoch": 1}
 
 
-def _cand(wid_byte, actor, ts, epoch, wave, jur=J, node="cc" * 32):
+def _cand(wid_byte, actor, ts, epoch, wave, jur=J, node=NODE):
     return {"warrant_id": wid_byte * 64, "actor": actor, "ts": ts,
             "assertion": {"annotation": ASSERTION_TAG, "jurisdiction": jur,
                           "node": node, "epoch": epoch, "wave": wave}}
@@ -208,9 +240,37 @@ CANDS = [
 ]
 
 
+def _sel_expected(res):
+    return {"status": res["status"],
+            "selected_warrant": res["selected"]["warrant_id"] if res["selected"] else None,
+            "conflict_set": res["conflict_set"]}
+
+
+def _book1_fixture():
+    """Book I unreachable (criterion 1): eval a fixture from vectors.json;
+    the result MUST be byte-identical no matter what annotation state exists
+    (federation is pure functions over a separate domain by construction —
+    this vector makes the boundary executable)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "sigma_glyph", Path(__file__).resolve().parent / "sigma_glyph.py")
+    sg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sg)
+    suite = json.loads((Path(__file__).resolve().parents[1] /
+                        "tests/spec_conformance/vectors.json").read_text())
+    vec = next(v for v in suite["vectors"] if v["id"] == "EV-TV4-IK")
+    store = sg.Store()
+    for h, bts in suite["objects"].items():
+        store.put(bytes.fromhex(bts))
+    r, spent = sg.eval_hash(bytes.fromhex(vec["term"]), vec["atp"], store)
+    return {"book1_vector": "EV-TV4-IK",
+            "result_hash": sg.term_hash(r).hex(), "atp_spent": spent,
+            "matches_book1_suite": sg.term_hash(r).hex() == vec["expected"]["result_hash"]
+                                    and spent == vec["expected"]["atp_spent"]}
+
+
 def gen_vectors():
     vectors = []
-    # validation
     bad = dict(CANDS[0]["assertion"]); bad["extra"] = 1
     part = dict(CANDS[0]["assertion"]); part["wave"] = {"ph": 1, "am": 2}
     vectors.append({"id": "FV-ASSERT-VALID", "kind": "validate_assertion",
@@ -229,51 +289,88 @@ def gen_vectors():
     vectors.append({"id": "FV-POLICY-BAD-FIELD", "kind": "validate_policy",
                     "doc": badpol, "expected": validate_policy(badpol),
                     "note": "only mechanically verifiable order fields are legal"})
-    # selection
-    for vid, pol, epoch, note in (
-            ("FV-SELECT-LATEST", POLICY, 8,
-             "epoch desc + warrant_id asc: epoch-7 pair resolved by id -> '2'*64"),
-            ("FV-SELECT-REPLAY-REJECTED", POLICY, 8,
-             "foreign-jurisdiction assertion (embedded root != J) never selectable"),
-            ("FV-CONFLICT-TIE", POLICY_TIE, 8,
-             "no id tiebreak: the epoch-7 pair is a genuine tie -> ConflictSet, clients MUST NOT merge"),
-            ("FV-STALE-EXCLUDED", POLICY, 20,
-             "epoch-1 assertion exceeds max_age_epochs=10 at epoch 20; latest live wins")):
-        res = select(CANDS, pol, J, epoch)
+
+    def sel_vec(vid, cands, pol, epoch, note, node=NODE):
+        res = select(cands, pol, J, node, epoch)
         vectors.append({"id": vid, "kind": "select", "policy": pol, "epoch": epoch,
-                        "jurisdiction": J, "candidates": CANDS,
-                        "expected": {"status": res["status"],
-                                     "selected_warrant": res["selected"]["warrant_id"] if res["selected"] else None,
-                                     "conflict_set": res["conflict_set"]},
-                        "note": note})
-    # effective wave: assertion > pin > derived; conflict poisons to absent
-    node_term = "K"
-    sel_map = {json.dumps(node_term): select(CANDS, POLICY, J, 8)}
+                        "jurisdiction": J, "node": node, "candidates": cands,
+                        "expected": _sel_expected(res), "note": note})
 
-    def rs(term):
-        return sel_map.get(json.dumps(term))
+    sel_vec("FV-SELECT-LATEST", CANDS, POLICY, 8,
+            "epoch desc + warrant_id asc: epoch-7 pair resolved by id -> '2'*64; "
+            "the foreign-jurisdiction candidate is never selectable (replay resistance)")
+    sel_vec("FV-CONFLICT-TIE", CANDS, POLICY_TIE, 8,
+            "no id tiebreak: the epoch-7 pair is a genuine tie -> ConflictSet, clients MUST NOT merge")
+    sel_vec("FV-STALE-EXCLUDED", CANDS, POLICY, 20,
+            "epoch-1 assertion exceeds max_age_epochs=10 at epoch 20; latest live wins")
+    sel_vec("FV-SELECT-FUTURE-EXCLUDED",
+            [_cand("1", "a@x", 100, 8, W(0, 1, 0)), _cand("2", "b@y", 110, 9, W(0, 2, 0))],
+            POLICY_TIE, 8,
+            "an assertion with epoch > view epoch is not live (MUST); epoch-8 wins at view epoch 8")
+    sel_vec("FV-SELECT-ACTOR-DESC-PREFIX",
+            [_cand("1", "a", 100, 1, W(0, 1, 0)), _cand("2", "aa", 100, 1, W(0, 2, 0))],
+            POLICY_ACTOR_DESC, 1,
+            "actor desc is DIRECT Unicode-scalar lexicographic order inverted: "
+            "'aa' > 'a', so 'aa' wins (complement transforms are nonconforming)")
+    sel_vec("FV-SELECT-ACTOR-NONASCII",
+            [_cand("1", "\u0100gent", 100, 1, W(0, 1, 0)), _cand("2", "agent", 100, 1, W(0, 2, 0))],
+            POLICY_ACTOR_DESC, 1,
+            "actor strings are arbitrary I-JSON: U+0100 sorts above 'a' by scalar value; "
+            "implementations MUST be total over all Unicode scalars")
+    sel_vec("FV-SELECT-NODE-FILTER",
+            [_cand("1", "a@x", 100, 1, W(0, 1, 0)),
+             _cand("2", "b@y", 110, 9, W(0, 2, 0), node="dd" * 32)],
+            POLICY_TIE, 9,
+            "selection is node-bound: the higher-epoch assertion for another node never competes")
+    sel_vec("FV-QUOTA-ACTOR-EPOCH",
+            [_cand("1", "same@actor", 100, 5, W(0, 100, 0)),
+             _cand("2", "same@actor", 200, 5, W(0, 200, 0))],
+            POLICY_TS, 5,
+            "quota survivors are chosen by the SAME policy order (+warrant_id asc tiebreak): "
+            "ts desc keeps the ts=200 assertion, not the lowest warrant_id")
+    sel_vec("FV-SELECT-BAD-METADATA",
+            [{"warrant_id": "not-hex", "actor": "a@x", "ts": 1,
+              "assertion": CANDS[0]["assertion"]},
+             {"warrant_id": "9" * 64, "actor": "", "ts": 1,
+              "assertion": CANDS[0]["assertion"]}],
+            POLICY_TIE, 8,
+            "candidates with malformed order-field metadata are not live -> absent")
 
+    # effective wave
+    r = select(CANDS, POLICY, J, NODE, 8)
     vectors.append({"id": "FV-WAVE-ASSERTION-OVER-PIN", "kind": "wave_fed",
-                    "term": node_term, "selection_for_term": True,
-                    "policy": POLICY, "epoch": 8,
-                    "expected": wave_fed(node_term, rs),
+                    "term": "K", "selection": _sel_expected(r),
+                    "selected_wave": r["selected"]["assertion"]["wave"],
+                    "expected": wave_fed("K", lambda t: r if t == "K" else None),
                     "note": "a selected assertion on K overrides the Trinity pin"})
     vectors.append({"id": "FV-WAVE-STRUCTURAL", "kind": "wave_fed",
-                    "term": ["APPLY", "K", "I"], "selection_for_term": False,
-                    "policy": POLICY, "epoch": 8,
+                    "term": ["APPLY", "K", "I"], "selection": None, "selected_wave": None,
                     "expected": wave_fed(["APPLY", "K", "I"], lambda t: None),
                     "note": "no assertions anywhere: structural derivation = Book II wave (FALSE derivation)"})
-    # ViewID + set root
+    apply_sel = {"status": "selected", "conflict_set": [],
+                 "selected": {"warrant_id": "7" * 64, "actor": "a@x", "ts": 1,
+                              "assertion": {"annotation": ASSERTION_TAG, "jurisdiction": J,
+                                            "node": "ee" * 32, "epoch": 1,
+                                            "wave": W(1, 2, 3)}}}
+    vectors.append({"id": "FV-WAVE-APPLY-ASSERTION-OVERRIDES", "kind": "wave_fed",
+                    "term": ["APPLY", "K", "I"],
+                    "selection": _sel_expected(apply_sel),
+                    "selected_wave": W(1, 2, 3),
+                    "expected": wave_fed(["APPLY", "K", "I"],
+                                         lambda t: apply_sel if t == ["APPLY", "K", "I"] else None),
+                    "note": "a direct assertion on an APPLY node overrides structural derivation"})
+
     ph = sha_hex(jcs(POLICY))
     vectors.append({"id": "FV-VIEW-ID", "kind": "view_id",
-                    "jurisdiction": J, "node": "cc" * 32, "policy_hash": ph, "epoch": 8,
-                    "expected": view_id(J, "cc" * 32, ph, 8),
-                    "note": "jurisdiction-bound per-node view identity; no assertion list inside"})
+                    "jurisdiction": J, "node": NODE, "policy_hash": ph, "epoch": 8,
+                    "expected": view_id(J, NODE, ph, 8),
+                    "note": "jurisdiction-bound per-node view COORDINATE (not a content hash: "
+                            "the verifiable projection is (ViewID, assertion_set_root))"})
     vectors.append({"id": "FV-SET-ROOT", "kind": "assertion_set_root",
                     "warrant_ids": ["2" * 64, "1" * 64, "3" * 64],
                     "expected": assertion_set_root(["2" * 64, "1" * 64, "3" * 64]),
-                    "note": "order-insensitive Merkle commitment: input order must not matter"})
-    # the fold is unsound: pin WHY merging is forbidden (Book III s1)
+                    "note": "order-insensitive set commitment (NOT zero-knowledge: small "
+                            "universes are enumerable; see Book III s6)"})
     w1, w2, w3 = W(0, 65535, 0), W(16384, 65535, 0), W(16384, 65535, 0)
     vectors.append({"id": "FV-FOLD-UNSOUND", "kind": "fold_probe",
                     "w1": w1, "w2": w2, "w3": w3,
@@ -281,10 +378,18 @@ def gen_vectors():
                                  "right": interfere(w1, interfere(w2, w3))},
                     "note": "grouping alone changes the result (16384 vs 32768): "
                             "interfere() is not a merge; normative MUST NOT in s1"})
+    fx = _book1_fixture()
+    vectors.append({"id": "FV-BOOK-I-UNREACHABLE", "kind": "book1_unreachable",
+                    "expected": fx,
+                    "note": "criterion 1 executable: the Book I eval of EV-TV4-IK is "
+                            "byte-identical regardless of any annotation state - federation "
+                            "is a pure-function domain that eval() cannot observe"})
     doc = {"format": "sigma-glyph-federation-conformance", "format_version": 1,
            "spec_version": "0.6.0-draft",
            "notes": ["Book III (DRAFT) oracle: impl/sigma_federation.py; selection-only "
                      "federation per ADR-006 gate 3/3 (F1-strict).",
+                     "string order fields compare by Unicode scalar values directly; desc "
+                     "inverts the comparison (complement transforms are nonconforming).",
                      "expected values computed by the oracle; regenerate: "
                      "python3 impl/sigma_federation.py gen"],
            "vectors": vectors}
@@ -304,13 +409,10 @@ def selftest():
     chk("policy rejects unverifiable fields", validate_policy(
         {"federation_policy": POLICY_TAG,
          "order": [{"field": "truth", "dir": "desc"}]}) is not None)
-    r = select(CANDS, POLICY, J, 8)
+    r = select(CANDS, POLICY, J, NODE, 8)
     chk("latest-live wins with id tiebreak", r["status"] == "selected"
         and r["selected"]["warrant_id"] == "2" * 64)
-    chk("foreign jurisdiction never selected",
-        all(c["assertion"]["jurisdiction"] == J
-            for c in [r["selected"]] if c))
-    r2 = select(CANDS, POLICY_TIE, J, 8)
+    r2 = select(CANDS, POLICY_TIE, J, NODE, 8)
     chk("genuine tie -> ConflictSet", r2["status"] == "conflict"
         and r2["conflict_set"] == ["2" * 64, "3" * 64])
     chk("conflict poisons wave to absent",
@@ -319,10 +421,33 @@ def selftest():
         wave_fed("K", lambda t: r if t == "K" else None) == W(16384, 30000, 50))
     chk("no assertions -> Book II wave",
         wave_fed(["APPLY", "K", "I"], lambda t: None) == W(32768, 0, -32512))
+    da = select([_cand("1", "a", 1, 1, W(0, 1, 0)), _cand("2", "aa", 1, 1, W(0, 2, 0))],
+                POLICY_ACTOR_DESC, J, NODE, 1)
+    chk("actor desc: 'aa' beats 'a' (prefix pair)",
+        da["selected"]["actor"] == "aa")
+    na = select([_cand("1", "\u0100gent", 1, 1, W(0, 1, 0)), _cand("2", "agent", 1, 1, W(0, 2, 0))],
+                POLICY_ACTOR_DESC, J, NODE, 1)
+    chk("actor desc total over non-ASCII", na["selected"]["actor"] == "\u0100gent")
+    nf = select([_cand("1", "a@x", 1, 1, W(0, 1, 0)),
+                 _cand("2", "b@y", 1, 9, W(0, 2, 0), node="dd" * 32)],
+                POLICY_TIE, J, NODE, 9)
+    chk("selection is node-bound", nf["selected"]["warrant_id"] == "1" * 64)
+    fu = select([_cand("1", "a@x", 1, 8, W(0, 1, 0)), _cand("2", "b@y", 1, 9, W(0, 2, 0))],
+                POLICY_TIE, J, NODE, 8)
+    chk("future assertions not live", fu["selected"]["warrant_id"] == "1" * 64)
+    q = select([_cand("1", "s@a", 100, 5, W(0, 100, 0)), _cand("2", "s@a", 200, 5, W(0, 200, 0))],
+               POLICY_TS, J, NODE, 5)
+    chk("quota survivors follow policy order", q["selected"]["warrant_id"] == "2" * 64)
+    bm = select([{"warrant_id": "nope", "actor": "a@x", "ts": 1,
+                  "assertion": CANDS[0]["assertion"]}], POLICY_TIE, J, NODE, 8)
+    chk("malformed metadata not live", bm["status"] == "absent")
     chk("set root order-insensitive",
         assertion_set_root(["1" * 64, "2" * 64]) == assertion_set_root(["2" * 64, "1" * 64]))
     chk("view id closed and deterministic",
-        view_id(J, "cc" * 32, "dd" * 32, 8) == view_id(J, "cc" * 32, "dd" * 32, 8))
+        view_id(J, NODE, "dd" * 32, 8) == view_id(J, NODE, "dd" * 32, 8))
+    fx = _book1_fixture()
+    chk("Book I unreachable (eval matches suite regardless of annotations)",
+        fx["matches_book1_suite"])
 
     if VEC_PATH.exists():
         doc = json.loads(VEC_PATH.read_text())
@@ -333,13 +458,12 @@ def selftest():
             elif k == "validate_policy":
                 got = validate_policy(v["doc"])
             elif k == "select":
-                r = select(v["candidates"], v["policy"], v["jurisdiction"], v["epoch"])
-                got = {"status": r["status"],
-                       "selected_warrant": r["selected"]["warrant_id"] if r["selected"] else None,
-                       "conflict_set": r["conflict_set"]}
+                got = _sel_expected(select(v["candidates"], v["policy"],
+                                           v["jurisdiction"], v["node"], v["epoch"]))
             elif k == "wave_fed":
-                if v["selection_for_term"]:
-                    sel = select(CANDS, v["policy"], J, v["epoch"])
+                if v["selected_wave"] is not None:
+                    sel = {"status": "selected", "conflict_set": [],
+                           "selected": {"assertion": {"wave": v["selected_wave"]}}}
                     got = wave_fed(v["term"], lambda t: sel if t == v["term"] else None)
                 else:
                     got = wave_fed(v["term"], lambda t: None)
@@ -350,6 +474,8 @@ def selftest():
             elif k == "fold_probe":
                 got = {"left": interfere(interfere(v["w1"], v["w2"]), v["w3"]),
                        "right": interfere(v["w1"], interfere(v["w2"], v["w3"]))}
+            elif k == "book1_unreachable":
+                got = _book1_fixture()
             else:
                 got = f"unknown kind {k}"
             chk(f"vector {v['id']}", got == v["expected"], f"got {got}")

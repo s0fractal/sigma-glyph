@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Accepted in full; every probe was runnable and reproduced. P1s fixed: actor-desc complement trick was a REAL oracle bug (selected 'a' over 'aa', ValueError on U+0100) - replaced with direct-comparison comparator, collation normative, two pinning vectors; select() now node-bound with node as explicit oracle parameter; future-epoch exclusion made normative (epoch > E not live, before ordering; max_age after); quota semantics pinned to the review's second option (survivors by the SAME policy order + warrant_id asc tiebreak - the unsurprising choice for freshness policies); federated-peer roots REMOVED from v0.6 (future versioned policy tag), prose/schema mismatch gone. P2s: assertion_set_root renamed to set commitment with the rainbow-enumeration caveat (the 'reveals nothing' overclaim retracted, encrypted-blob escape hatch); ViewID declared a coordinate - verifiable projection is (ViewID, set_root) with cache invalidation; APPLY-node override pinned; candidate metadata domains validated by the oracle. Criterion 1 is now executable: FV-BOOK-I-UNREACHABLE replays EV-TV4-IK and requires byte-identity with the Book I suite. Remaining before anchoring at v0.6.0: verification pass over the fixed draft, second-implementation parity with differential harness, Book II s Federation paragraph."
+      },
+      {
+        "check": "fcd6e74ef81f0ba5f83b265d741e908c1318e3b5b4acd7dc3e8db86e255f20b2",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "6aae4b07cdcabd5d899173559dca69d066bdb27503ba38cc484482364ac04ad9",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "7ff7cd84da2edbf771dc0b66e3b166449a2aa636ef47c4c2887e24d3681c1cf0"
+    ],
+    "prior": [
+      "15a7cd9171d04d2c4f1cb244951335d94f6b5670c25843680e05e3b36d4ad776"
+    ],
+    "subject": {
+      "hash": "7d13ecfec3bcfb5024a5800ed1da913b02bd5cf0ebb852f8dccb1543015a553d",
+      "note": "Codex Book III impl-gate review: BLOCK verdict - 5 P1 + 4 P2, all confirmed and fixed in-adjudication; suite 21 vectors / 37 checks"
+    },
+    "ts": 1783454502,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "068ea65be66bf138ee863598833d209416b1ec3c8cb85e1a8f063af5adfd90a1307d791c62a3d0c721d09ec43dd0dbda1a259ce33f29cf23c7c225e4cee9d10a"
+    }
+  ]
+}

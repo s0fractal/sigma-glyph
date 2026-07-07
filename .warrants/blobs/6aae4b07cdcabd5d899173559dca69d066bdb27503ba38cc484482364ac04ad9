@@ -1,0 +1,12 @@
+P1-1 actor desc fixed (prefix + non-ASCII)
+P1-2 node-bound selection
+P1-3 future-epoch excluded
+P1-4 quota survivors follow policy order (ts=200 kept)
+P1-5 no peer roots in v0.6 policy schema
+FEDERATION: ALL PASS (37/37)
+ALL PASS
+WAVE: ALL PASS (30/30)
+CONFORMANCE: ALL PASS (49/49)
+anchors verified
+records 21, blobs 76, roots ['14d413f2952b', '276b6f983900'], errors 0
+book3 gate dispositions verified
