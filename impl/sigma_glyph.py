@@ -190,14 +190,20 @@ def eval_hash(h, atp, store, limits=None):
         spent = 0
         steps = 0
         while True:
-            # Size guard is FREE via the ADR-001 memory bound: size <= 1 + spent.
-            # Depth guard needs a traversal — amortize it (non-canonical local
-            # fault, so its check cadence is an implementation choice, s3.6).
-            if 1 + spent > limits["max_materialized_nodes"]:
-                raise ResourceFault("term growth")
+            # Memory fence guards on ACTUAL materialized size, not on `spent`.
+            # The ADR-001 bound `size <= 1 + spent` is only an UPPER bound, so
+            # `spent` is not a valid size proxy: a divergent term (e.g. Omega)
+            # keeps its size tiny while `spent` grows without bound, so guarding
+            # on `spent` would wrongly fault it instead of returning the canonical
+            # DISSONANCE(ATP Exhausted) that TV-7 mandates for all n. Both size and
+            # depth need a traversal — amortize them (non-canonical local faults,
+            # so the check cadence is an implementation choice, s3.6).
             steps += 1
-            if steps % 256 == 0 and depth(t) > limits["max_node_depth"]:
-                raise ResourceFault("term depth")
+            if steps % 256 == 0:
+                if size(t) > limits["max_materialized_nodes"]:
+                    raise ResourceFault("term growth")
+                if depth(t) > limits["max_node_depth"]:
+                    raise ResourceFault("term depth")
             try:
                 r = step5(t, atp - spent, store, stats, limits)
             except BudgetExhausted:
@@ -308,6 +314,14 @@ def run_tests():
     r, sp = eval_hash(hO, 500, st)
     print("      Omega hash =", hO.hex(), "| result:", "ATP Exhausted" if r == ("dis", R_ATP) else r)
     chk("Omega -> ATP Exhausted", r == ("dis", R_ATP) and sp <= 500)
+    # TV-7 "for all n": Omega's materialized size stays tiny, so even a budget
+    # far past max_materialized_nodes MUST still yield canonical ATP Exhausted,
+    # NOT a size ResourceFault. (Regression guard: the memory fence must key on
+    # actual size, never on `spent` — see eval_hash. Opus 4.8 review 2026-07, M1.)
+    tiny_mem = dict(max_node_depth=4096, max_materialized_nodes=1000, max_store_fetches=10**6)
+    r2, sp2 = eval_hash(hO, 5000, st, limits=tiny_mem)
+    chk("Omega, budget >> mem-limit -> ATP Exhausted (not size fault)",
+        r2 == ("dis", R_ATP) and sp2 <= 5000)
 
     # TV-8: unresolved child — APPLY(I, missing): R-I fires lazily, THEN the
     # missing hash becomes the demanded root and fails to force
