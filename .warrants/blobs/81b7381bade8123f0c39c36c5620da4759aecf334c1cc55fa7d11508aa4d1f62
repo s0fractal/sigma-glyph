@@ -1,0 +1,7 @@
+ts=0 live
+whitespace-only actor excluded
+FEDERATION: ALL PASS (37/37)
+ALL PASS
+anchors verified
+records 22, blobs 80, roots ['14d413f2952b', '276b6f983900'], errors 0
+book3 verify dispositions verified

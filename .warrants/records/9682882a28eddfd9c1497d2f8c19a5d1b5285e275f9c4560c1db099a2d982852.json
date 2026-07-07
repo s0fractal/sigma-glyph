@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Accepted; implementation gate CLOSED for the Python reference (blocked by Codex round 1 -> fixed in-adjudication -> verified by a different family). The pass re-ran every round-1 probe against the current oracle (all fixed as claimed), attacked the new code paths specifically (comparator type-safety guaranteed by the metadata pre-filter; quota-under-tie_order correct; ts=0 falsy edge passes _is_uint), audited the s4 six-step derivation line-by-line ('no divergence'), and confirmed vector regeneration is no-diff. P2 adopted per the review's exact proposal: actor metadata must contain at least one non-whitespace character (prose + oracle strip(); whitespace-only -> not live -> absent; suite unchanged 37/37). Book III anchors at v0.6.0 with the remaining release items: Go parity + differential harness (in flight), Book II s7, anchors/headers/adoption warrant/tag."
+      },
+      {
+        "check": "9e6745add9fc4a282a652abe62595abc300a0ccddd9fb5c4610dc189f5fc2a1e",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "81b7381bade8123f0c39c36c5620da4759aecf334c1cc55fa7d11508aa4d1f62",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "089b37ee5d30e918d43f280dd4f13bae358e5a1a7ae802fa04f723aa68e1d513"
+    ],
+    "prior": [
+      "81e2e96de655807dcea075f5edac2e7f19da68cea3f1f2706ac7596c6136fe60"
+    ],
+    "subject": {
+      "hash": "4b5acd597c79fa56128d8567f9ba756f2ae2a37e35abaa6bb3d4b8055037fbb3",
+      "note": "Gemini Book III verification pass: READY TO ANCHOR - all round-1 fixes confirmed, s4 derivation matches code with no divergence; 1 P2 (whitespace actors) adopted"
+    },
+    "ts": 1783454903,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "0ebd02c0c74d0faa508050bf9ba554154f3c4e443c3df9571f3678fc07ee0db5c2daae0c19fb5641910810283989a08cd6f0c2417b67d2dc7f5dd211e10d2e0c"
+    }
+  ]
+}

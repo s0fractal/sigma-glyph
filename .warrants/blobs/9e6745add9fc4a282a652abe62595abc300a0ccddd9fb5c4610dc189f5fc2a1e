@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Adjudication check for the Gemini Book III verification pass (repo root)."""
+import subprocess, sys
+sys.path.insert(0, "impl")
+from sigma_federation import select, ASSERTION_TAG, W
+J = "aa"*32; NODE = "cc"*32
+ok = True
+POL = {"federation_policy":"sigma-glyph.selection@v1","order":[{"field":"ts","dir":"desc"}]}
+def cand(actor, ts=1):
+    return {"warrant_id":"1"*64,"actor":actor,"ts":ts,
+            "assertion":{"annotation":ASSERTION_TAG,"jurisdiction":J,"node":NODE,"epoch":1,"wave":W(0,1,0)}}
+# ts=0 stays live (Gemini's falsy-edge probe)
+ok &= select([cand("a@x", ts=0)], POL, J, NODE, 1)["status"] == "selected"
+print("ts=0 live")
+# whitespace-only actor now excluded (Gemini P2, adopted)
+ok &= select([cand("   ")], POL, J, NODE, 1)["status"] == "absent"
+print("whitespace-only actor excluded")
+for cmd, want in ((["impl/sigma_federation.py"], "FEDERATION: ALL PASS (37/37)"),
+                  (["impl/sigma_glyph.py"], "ALL PASS"),
+                  (["tools/verify_anchors.py"], "anchors verified"),
+                  (["tools/warrant_verify.py"], "errors 0")):
+    p = subprocess.run([sys.executable] + cmd, capture_output=True, text=True)
+    last = p.stdout.strip().splitlines()[-1]; print(last)
+    ok &= p.returncode == 0 and want in last
+print("book3 verify dispositions verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

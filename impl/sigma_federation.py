@@ -91,7 +91,7 @@ def _valid_metadata(c):
     """Book III §4: fields a policy can sort on must be well-typed, or the
     candidate is not live (imported Warrant field domains)."""
     return (_is_hex64(c.get("warrant_id"))
-            and isinstance(c.get("actor"), str) and c["actor"]
+            and isinstance(c.get("actor"), str) and c["actor"].strip()
             and _is_uint(c.get("ts"), 64))
 
 
