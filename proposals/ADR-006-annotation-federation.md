@@ -1,7 +1,7 @@
 # ADR-006: Annotation federation — the v0.6 front
 
 **Status:** PROPOSED, rev 1 (2026-07-08) — design-stage; opens the v0.6 cycle. Needs the standard adversarial gate (≥3 model families) on the architecture choice before any Book III / protocol text is drafted.
-**Origin:** Book II has promised this since v0.3.0: *"Розбіжність анотацій одного вузла між нодами — не форк обчислення; це предмет федеративного узгодження (протокол — окремий майбутній документ)."* This ADR is that document's design gate. The enabling event is external: **Warrant v0.3** now provides settlement-active jurisdictions, executable re-litigation, and key-state — trust machinery Book III would otherwise have to invent.
+**Origin:** Book II has promised this since v0.3.0: *"Розбіжність анотацій одного вузла між нодами — не форк обчислення; це предмет федеративного узгодження (протокол — окремий майбутній документ)."* This ADR is that document's design gate. The enabling event is external: **Warrant v0.3** now provides settlement-active jurisdictions, executable re-litigation, and key-state — trust machinery Book III would otherwise have to invent. (Pinned snapshot for reviewers: `proposals/refs/warrant-SPEC-v0.3-snapshot.md`.)
 
 ## Problem
 
