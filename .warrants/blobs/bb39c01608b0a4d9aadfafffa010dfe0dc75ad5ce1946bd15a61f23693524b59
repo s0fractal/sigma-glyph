@@ -1,0 +1,856 @@
+The user wants me to act as an independent adversarial reviewer for ADR-006 (annotation federation). I need to focus on five specific conceptual questions, numbered as priorities. I must not have seen prior reviews (the prompt says "You have NOT been shown prior reviews - form your own judgment," though the context includes summaries of Gemini and Codex reviews in the ADR itself). I need to do my own arithmetic and show it, not trust claims.
+
+Let me carefully parse the assignment:
+
+**Numbered priorities, each REQUIRED:**
+
+1. **Adjudicate F1-strict vs F1.5**: Is the named-score-profile extension point a safe pressure valve or a backdoor? Argue from governance dynamics.
+2. **Attack AnnotationViewID** (as proposed by Codex): canonicalization pitfalls, replay across jurisdictions, privacy of listing active_assertions, whether selection_rule as string id is mechanically decidable.
+3. **Attack zero-or-one-or-conflict-set selection rule**: What do policies select ON? Does 'explicit conflict set' just relocate the merge problem to every client?
+4. **Deep question**: If interference is wrong merge for OPINIONS but right for COMPUTATION, what IS the honest semantic status of Book II waves in a federated world? Recommend what Book II's federation paragraph should say.
+5. **Anything conceptually missing from the five (now six) design criteria.**
+
+Wait, the prompt mentions "the five (now six) design criteria" - referring to ADR-006's criteria 1-5 plus Codex's added criterion 6 (auditability/projection).
+
+Also, the prompt references specific things like "Codex voted F1.5" and "AnnotationViewID" and "assertion blob schema" - but I only have the ADR text and supporting specs. I need to infer or find the details of AnnotationViewID from the provided text? Let me check if AnnotationViewID is defined in the provided files.
+
+Looking through the provided files:
+- `proposals/ADR-006-annotation-federation.md` mentions "AnnotationViewID" in the gate review summary: "contributed the assertion blob schema (`sigma-glyph.wave-assertion@v1`) and **AnnotationViewID** (mechanical divergence naming)".
+- But the actual ADR text (the "Candidate architectures" and "Design criteria") does NOT define AnnotationViewID or the assertion blob schema in detail. It's mentioned as something Codex contributed, but the file provided doesn't seem to contain the full specification of AnnotationViewID or the blob schema.
+
+This is a problem. The prompt asks me to attack AnnotationViewID as proposed by Codex, but the primary source file provided only mentions it in passing in the status header. However, the prompt says "Your assignment — the conceptual pass the agentic reviews may have missed" and "You have NOT been shown prior reviews - form your own judgment."
+
+I need to infer what AnnotationViewID likely is from context, or note that the spec is silent and therefore attack it as underspecified (which is itself a valid review finding). But the prompt specifically asks me to attack canonicalization pitfalls, replay across jurisdictions, privacy of listing active_assertions, and whether selection_rule as a string id is mechanically decidable.
+
+Wait, looking closely at the ADR header:
+"Codex (blind to Gemini): **converged — F1.5** (selection-only normative core; arithmetic aggregation only as named non-settlement score profiles). Closed the fold constructively ... contributed the assertion blob schema (`sigma-glyph.wave-assertion@v1`) and **AnnotationViewID** (mechanical divergence naming)..."
+
+And the "Review gate asks (rev 1)" at the end of ADR-006:
+"1. Attack F3's canonical fold order...
+2. Attack criterion 4's ski@v1-priced amplitude...
+3. Is F1-without-F2 actually sufficient..."
+
+There's no explicit definition of AnnotationViewID in the provided text. This means either:
+(a) It's in the warrant spec or elsewhere, or
+(b) I must treat it as an underspecified concept and attack it as P1/P2.
+
+Given the prompt instruction: "Attack AnnotationViewID as proposed by Codex: canonicalization pitfalls, replay across jurisdictions, privacy of listing active_assertions, and whether selection_rule as a string id is mechanically decidable."
+
+The mention of "selection_rule as a string id" suggests AnnotationViewID includes a selection_rule field. I must construct a plausible interpretation of what AnnotationViewID is based on the context, and then attack it. Or I can note that the spec does not define it and therefore these attacks apply to whatever draft exists.
+
+Actually, looking at the prompt again: it says "Codex ... contributed AnnotationViewID and an assertion blob schema." This is information from the ADR header. The prompt is asking me to review these concepts conceptually. Since I don't have the exact Codex proposal text, I must reason from first principles about what such an ID would need to contain to achieve "mechanical divergence naming" and what issues would arise.
+
+But wait - the user also said: "the maintainer ran the gates and supplied fresh transcripts." And the gate transcripts are shown. Then: "PRIMARY SOURCES:" followed by the file contents. There is no separate Codex review file provided. So I indeed only have the ADR and the specs.
+
+I should proceed by:
+1. Identifying that AnnotationViewID is not fully specified in the provided primary sources, which is itself a P1 (spec silent).
+2. Inferring its necessary structure from the description "mechanical divergence naming" and the need to identify a view/jurisdiction.
+3. Attacking the inferred structure: canonicalization, replay, privacy, decidability.
+
+Similarly for the other questions.
+
+Let me organize my response by the 5 required priorities, plus severity ratings (P0/P1/P2/P3), with concrete text proposals for P1/P2.
+
+I need to do arithmetic myself. Let's see what arithmetic is relevant.
+
+For priority 1: Governance dynamics of F1.5 named-score-profiles. No arithmetic needed, but conceptual analysis.
+
+For priority 2: AnnotationViewID. No specific arithmetic, but logical analysis.
+
+For priority 3: Zero-or-one-or-conflict-set. Analysis of what policies select on.
+
+For priority 4: Semantic status of Book II waves. Conceptual.
+
+For priority 5: Missing design criteria.
+
+Wait, the prompt mentions "Do the arithmetic yourself and show it — do not trust claims." What arithmetic is there to do?
+
+Maybe in the context of the interference fold? The ADR mentions the non-associativity example: `(w1*w2)*w3 = {8192,2096,-922}` vs `w1*(w2*w3) = {8192,0,-591}`. I should verify this! The prompt says Gemini found this. Let me verify the arithmetic using Book II's interfere().
+
+Let's compute with the given values. But the ADR doesn't give w1, w2, w3 explicitly. It only gives the results. Hmm. Let me see if I can infer them or if I just need to trust the claim? No, I should verify if possible. But without the inputs, I can't verify the exact numbers. However, I can verify the general property of non-associativity.
+
+Actually, looking at the ADR: "non-associativity: (w1*w2)*w3 = {8192,2096,-922} but w1*(w2*w3) = {8192,0,-591}". The inputs aren't given, so I cannot re-derive those exact numbers. But I can demonstrate non-associativity with my own example.
+
+Let me pick simple vectors and compute.
+
+Book II interfere(w1, w2):
+- new_ph = w1.ph
+- x = w1.ph - w2.ph; d32 = |x|; delta = min(d32, 65536-d32)
+- r = LUT_COS[delta]
+- delta_en = div_round_half_up(-r, 128)
+- new_en = clamp_i16( div_round_half_up(w1.en + w2.en, 2) + delta_en )
+- amp_factor = div_round_half_up( (r+32767)*65535, 65534 )
+- prod01 = div_round_half_up( w1.am * w2.am, 65535 )
+- new_am = div_round_half_up( prod01 * amp_factor, 65535 )
+
+Wait, I need LUT_COS values. The spec says:
+- LUT_COS[0] = 32767
+- LUT_COS[16384] = 0
+- LUT_COS[32768] = -32767
+
+Let me pick w1, w2, w3 such that computation is easy.
+
+Let w1 = {ph=0, am=65535, en=0}
+Let w2 = {ph=16384, am=65535, en=0} (orthogonal)
+Let w3 = {ph=16384, am=65535, en=0}
+
+Compute w1*w2:
+- ph = 0
+- x = 0 - 16384 = -16384; |x| = 16384; delta = min(16384, 65536-16384=49152) = 16384
+- r = LUT_COS[16384] = 0
+- delta_en = div_round_half_up(0, 128) = 0
+- new_en = clamp_i16( div_round_half_up(0+0, 2) + 0 ) = 0
+- amp_factor = div_round_half_up( (0+32767)*65535, 65534 )
+  = div_round_half_up( 32767*65535, 65534 )
+  32767*65535 = 32767*(65536-1) = 32767*65536 - 32767 = 2,147,450,880 - 32767 = 2,147,418,113? Wait.
+  Actually 32767 * 65535:
+  32767 * 65535 = 32767 * (65536 - 1) = 32767*65536 - 32767.
+  32767*65536 = 32767 << 16 = 2,147,418,112? Let's calculate:
+  32768 * 65536 = 2,147,483,648.
+  So 32767*65536 = 2,147,483,648 - 65536 = 2,147,418,112.
+  Minus 32767 = 2,147,385,345.
+  Divide by 65534.
+  65534 = 2 * 32767.
+  So 2,147,385,345 / 65534 = ?
+  Actually 32767*65535 / 65534 = 32767 * (65535/65534) = 32767 * (1 + 1/65534) = 32767 + 32767/65534 = 32767 + 0.5 = 32767.5.
+  div_round_half_up(2,147,385,345, 65534):
+  q = floor(2,147,385,345 / 65534) = ?
+  65534 * 32767 = 65534 * 32767 = let's compute:
+  65534 * 32767 = (65536-2)*32767 = 65536*32767 - 2*32767 = 2,147,418,112 - 65,534 = 2,147,352,578.
+  Remainder = 2,147,385,345 - 2,147,352,578 = 32,767.
+  2r = 65,534 >= d=65,534? Yes, 2r >= d, so q += 1.
+  q = 32768.
+  But wait, amp_factor must be in 0..65535. 32768 is fine.
+  Actually let's check: r+32767 = 0+32767 = 32767. (r+32767)*65535 = 32767*65535.
+  div_round_half_up gives 32768.
+  So amp_factor = 32768.
+
+- prod01 = div_round_half_up(65535*65535, 65535) = 65535.
+- new_am = div_round_half_up(65535 * 32768, 65535) = 32768.
+So w1*w2 = {ph=0, am=32768, en=0}.
+
+Now (w1*w2)*w3 = w4 * w3 where w4 = {0, 32768, 0}, w3 = {16384, 65535, 0}.
+- ph = 0
+- x = 0 - 16384 = -16384; delta = 16384; r = 0
+- delta_en = 0
+- new_en = clamp_i16( div_round_half_up(0+0,2) + 0 ) = 0
+- amp_factor = 32768 (same as above)
+- prod01 = div_round_half_up(32768*65535, 65535) = 32768
+- new_am = div_round_half_up(32768 * 32768, 65535)
+  32768^2 = 1,073,741,824.
+  Divide by 65535:
+  65535 * 16384 = 65535 * 2^14 = 1,073,709,056.
+  Remainder = 1,073,741,824 - 1,073,709,056 = 32,768.
+  2r = 65536 >= 65535, so q += 1.
+  q = 16385.
+  So new_am = 16385.
+Result: {0, 16385, 0}.
+
+Now w2*w3:
+Both have ph=16384, am=65535, en=0.
+- ph = 16384
+- x = 16384 - 16384 = 0; delta = 0; r = LUT_COS[0] = 32767
+- delta_en = div_round_half_up(-32767, 128)
+  |n| = 32767; q = 32767//128 = 255; r = 32767 % 128 = 127.
+  2r = 254 < 128? No, 254 >= 128, so q += 1 → 256.
+  s = -1 (since n<0), so result = -256.
+- new_en = clamp_i16( div_round_half_up(0+0,2) + (-256) ) = -256
+- amp_factor = div_round_half_up( (32767+32767)*65535, 65534 )
+  = div_round_half_up( 65534*65535, 65534 ) = 65535.
+- prod01 = div_round_half_up(65535*65535, 65535) = 65535.
+- new_am = div_round_half_up(65535*65535, 65535) = 65535.
+So w2*w3 = {16384, 65535, -256}.
+
+Now w1*(w2*w3) = {0, 65535, 0} * {16384, 65535, -256}
+- ph = 0
+- x = 0 - 16384 = -16384; delta = 16384; r = 0
+- delta_en = 0
+- new_en = clamp_i16( div_round_half_up(0 + (-256), 2) + 0 )
+  div_round_half_up(-256, 2):
+  s=-1, a=256, q=128, r=0, 2r=0<2, so q=128, return -128.
+  new_en = -128.
+- amp_factor = 32768 (same as before)
+- prod01 = div_round_half_up(65535*65535, 65535) = 65535
+- new_am = div_round_half_up(65535 * 32768, 65535) = 32768.
+
+Result: {0, 32768, -128}.
+
+Compare:
+(w1*w2)*w3 = {0, 16385, 0}
+w1*(w2*w3) = {0, 32768, -128}
+
+Clearly different! Non-associativity is real and easy to demonstrate. The exact numbers differ from Gemini's example because I used different inputs, but the property is verified.
+
+Also note that amplitude differs dramatically: 16385 vs 32768.
+
+This confirms that a fold order matters immensely.
+
+Now, what about Left Dominance phase capture via hash grinding?
+If the fold order is by assertion hash (WarrantID or blob hash), an asserter can grind their warrant body or signature nonce to get a hash that sorts earlier/later. Since interfere takes the left phase, if you sort by hash and fold left-to-right, the leftmost in the sorted order determines the phase. An attacker can grind to be leftmost and impose their phase on the merged result.
+
+If the order is by (ph, hash), then phase is primary, so grinding hash only matters within a phase bucket.
+
+But if we sort by (ph, hash), is the fold commutative? No, because within a phase bucket, left dominance still applies. However, if all have the same ph, then new_ph is constant regardless of order. But amplitude and entropy still vary with order because amp_factor depends on delta between adjacent pairs in the fold? Wait, if all have same ph, delta=0 always, so r=32767 always, amp_factor=65535 always. Then new_am = div_round_half_up(prod01*65535, 65535) = prod01 = div_round_half_up(am1*am2, 65535). Is that associative?
+
+Let's check: am1=40000, am2=30000, am3=20000.
+am1*am2: prod01 = div_round_half_up(40000*30000, 65535).
+40000*30000 = 1,200,000,000.
+1,200,000,000 / 65535 ≈ 18310.826...
+q = 18310, r = 1,200,000,000 - 18310*65535.
+18310*65535 = 18310*(65536-1) = 1,199,829,760 - 18310 = 1,199,811,450.
+Wait: 18310*65536 = 1,199,954,560. Minus 18310 = 1,199,936,250? Let me recalculate.
+Actually: 18310 * 65535.
+18000*65535 = 1,179,630,000.
+310*65535 = 20,315,850.
+Sum = 1,199,945,850.
+Remainder = 1,200,000,000 - 1,199,945,850 = 54,150.
+2r = 108,300 >= 65,535, so q += 1 → 18311.
+So prod01 = 18311.
+
+Then (am1*am2)*am3: prod = div_round_half_up(18311*20000, 65535) = div_round_half_up(366,220,000, 65535).
+366,220,000 / 65535 ≈ 5588.16.
+5588*65535 = 366,209,580.
+Rem = 10,420.
+2r = 20,840 < 65,535, so q = 5588.
+
+Now am2*am3: prod01 = div_round_half_up(30000*20000, 65535) = div_round_half_up(600,000,000, 65535).
+600,000,000 / 65535 ≈ 9155.41.
+9155*65535 = 9155*65536 - 9155 = 599,981,120 - 9155 = 599,971,965? Wait.
+9155 * 65535:
+9000*65535 = 589,815,000.
+155*65535 = 10,157,925.
+Sum = 599,972,925.
+Rem = 27,075.
+2r = 54,150 < 65,535, so q = 9155.
+
+am1*(am2*am3): prod = div_round_half_up(40000*9155, 65535) = div_round_half_up(366,200,000, 65535).
+366,200,000 / 65535 ≈ 5587.85.
+5587*65535 = 5587*65536 - 5587 = 366,147,712 - 5587 = 366,142,125? Let's compute directly:
+5587 * 65535 = 5587*(65000+535) = 363,155,000 + 2,989,045 = 366,144,045.
+Rem = 366,200,000 - 366,144,045 = 55,955.
+2r = 111,910 >= 65,535, so q += 1 → 5588.
+
+So (am1*am2)*am3 = 5588, and am1*(am2*am3) = 5588. In this case, same result! Interesting.
+
+But en would differ if en values differ, because delta_en is 0 only if r=32767 (delta=0). If all same ph, delta=0, r=32767, delta_en = div_round_half_up(-32767, 128) = -256. Then new_en = clamp_i16( avg(en1, en2) - 256 ). Averaging is associative? avg(a,b) = round_half_away_from_zero((a+b)/2). Is this associative? Generally no, because of rounding.
+
+Let me test: en1=0, en2=0, en3=1.
+avg(0,0) = 0. avg(0,1) = round(0.5) = 1 (away from zero = 1).
+avg(avg(0,0),1) = avg(0,1) = 1.
+avg(0, avg(0,1)) = avg(0,1) = 1.
+Not a counterexample.
+
+Try en1=-1, en2=-2, en3=-2.
+avg(-1,-2) = round(-1.5) = -2 (away from zero).
+avg(-2,-2) = -2.
+avg(avg(-1,-2),-2) = avg(-2,-2) = -2.
+avg(-1, avg(-2,-2)) = avg(-1,-2) = -2.
+
+Try en1=1, en2=2, en3=2.
+avg(1,2)=round(1.5)=2.
+avg(2,2)=2.
+Left: avg(2,2)=2.
+Right: avg(1,2)=2.
+
+Need more extreme values. avg(a,b) = div_round_half_up(a+b, 2).
+Since a+b can be odd.
+Try en1=0, en2=1, en3=1.
+avg(0,1) = 1.
+avg(1,1) = 1.
+Left: avg(1,1)=1.
+Right: avg(0,1)=1.
+
+Try en1=-32768, en2=32767, en3=0.
+avg(-32768, 32767) = div_round_half_up(-1, 2) = round(-0.5) away from zero = -1.
+avg(-1, 0) = div_round_half_up(-1, 2) = -1.
+Right: avg(32767, 0) = div_round_half_up(32767, 2) = 16384 (since 32767 is odd: q=16383, r=1, 2r=2>=2, q=16384).
+avg(-32768, 16384) = div_round_half_up(-16384, 2) = -8192.
+So left = -1, right = -8192. Very different!
+
+So even with same phase, entropy is non-associative due to rounding in averaging. Thus fold order always matters unless there's only one assertion.
+
+This arithmetic is useful for priority 3 and 4.
+
+Now let me think about the selection rule.
+
+In F1 (and F1.5), the merge is selection: zero or one accepted assertion per node, or an explicit conflict set.
+
+What does a policy select ON? The ADR mentions trust ranks, recency, supersede chains. The Warrant spec has settlement, supersede, re-litigation, etc.
+
+If the rule is "zero or one or conflict set", and the selection is done by the jurisdiction's policy, then the "effective wave" for a node is either:
+- No wave (zero)
+- The wave from one selected assertion (one)
+- A set of conflicting assertions that the policy couldn't resolve (conflict set)
+
+The prompt asks: "does 'explicit conflict set' just relocate the merge problem to every client?"
+
+Yes, in a sense: if the jurisdiction can't resolve to a single assertion, every downstream consumer must decide what to do with the conflict set. But under F1, the jurisdiction's policy is the decider; if it emits a conflict set, that's the deterministic outcome for that jurisdiction. The problem isn't relocated to "every client" arbitrarily, but clients must handle conflict sets as a valid state. However, if the conflict set is just a bag of waves, clients might apply their own merge (interference? averaging?) to render it, which reintroduces F3 through the back door.
+
+This relates to priority 1: named-score-profiles as a backdoor.
+
+Now, priority 1: F1-strict vs F1.5.
+
+F1: selection only. The jurisdiction picks one assertion (or none). No arithmetic merge. Effective wave = selected wave.
+
+F1.5: selection-only normative core + named non-settlement score profiles. This means there are "score profiles" that can do arithmetic aggregation (like averaging, summing, or interfering) but they are explicitly "non-settlement" — they don't claim to be the canonical wave. They are named views.
+
+Governance dynamics: Clients may treat the popular profile as truth. If "score profiles" are not settlement-grade but are visible and queryable, network effects make the most popular profile a de facto standard. If that profile uses interference or other aggregation, then non-settlement aggregation creeps back into de-facto canonicity. The spec cannot prevent social consensus from coalescing around a default profile. Therefore F1.5 is a backdoor, not a safe pressure valve.
+
+I need to argue this from governance dynamics, not implementation.
+
+Priority 4: Semantic status of Book II waves.
+
+Book II is called "NAVIGATION". Waves are coordinates, not truth values. Interference models application (function-argument interaction), which is computational. But federation deals with OPINIONS (multiple annotators asserting different waves for the same node).
+
+If interference is the wrong merge for opinions, but right for computation (deriving a wave from a term's structure), then in a federated world, Book II waves are:
+- Per-jurisdiction view: what does jurisdiction J accept as the wave for node N?
+- Per-actor lens: what does actor A assert?
+- Something else?
+
+The honest semantic status is: a wave annotation is a claim about the "significance" or "orientation" of a node within a specific epistemic community (jurisdiction). It is not objective truth. The spec should stop promising a single global navigation layer and instead define waves as jurisdiction-relative, with Book II's canonical pins (Trinity, Grand Cross) being special only because they are universally pinned in the default jurisdiction (or intrinsic).
+
+Wait, the spec says Book II is "interpretational layer". The federation paragraph should say: effective waves are derived solely from the accepted assertions within a jurisdiction; there is no global effective wave; divergence is explicit and permanent; Book II pins are jurisdiction defaults but jurisdictions may override or ignore them.
+
+Actually, Book II pins are normative in the spec. How does that reconcile with federation? The pins are part of the spec's default jurisdiction. A jurisdiction may adopt them or not.
+
+But the deep question: "if interference is the wrong merge for OPINIONS but right for COMPUTATION, what IS the honest semantic status of Book II waves in a federated world?"
+
+The answer: Book II waves have dual status. For APPLY nodes, the wave is computationally derived from children via interfere() — this is deterministic computation (like Book I). For federation, assertions are opinions about node significance. The interference operator models how a function's "orientation" shapes its argument's contribution — it's a computational wave algebra, not a social consensus algebra. Therefore, in a federated world, Book II waves are:
+- **Per-jurisdiction computed views**: The effective wave of a node in jurisdiction J is derived by applying J's selection policy to assertions, then (for APPLY nodes) computing via interfere() on the selected child waves.
+- **Not globally canonical**: The spec should stop promising convergence and instead promise explicit divergence naming.
+
+But wait, the interfere() operator is used in Book II for computing a wave from child waves. If federation introduces multiple assertions for the same leaf node, the computation of parent waves depends on which leaf assertion is selected. So the federation layer is about selecting leaf assertions; the computation layer (interfere) derives parent waves. F3 wanted to use interfere to merge multiple leaf assertions. F1 says select one. F1.5 says select one for settlement, but allow non-settlement score profiles.
+
+The honest semantic status: Waves are computational coordinates relative to a jurisdiction's accepted annotation set. They are not opinions; they are derived coordinates. The opinions are the assertions. Interference derives coordinates from structure + selected base opinions.
+
+Therefore, Book II's federation paragraph should state that:
+1. Annotations are jurisdictional claims.
+2. Effective waves are computed deterministically from the jurisdiction's accepted assertions and the interfere() algebra.
+3. The interfere() operator applies to structural derivation (APPLY nodes), not to assertion merging.
+4. Divergence between jurisdictions is permanent and nameable; there is no intended global convergence.
+
+Priority 5: Missing design criteria.
+
+Current criteria:
+1. Book I unreachable.
+2. Determinism per jurisdiction.
+3. Divergence is explicit.
+4. Weight costs something.
+5. State is bounded.
+6. Auditability/projection (Codex added).
+
+What's missing?
+- **Privacy / metadata leakage**: The act of annotating reveals interest. Active assertions list may expose actor behavior.
+- **Liveness / availability**: Can a jurisdiction censor annotations by refusing to sync? Not covered.
+- **Revocation / staleness**: How do annotations expire? The problem statement mentions staleness but criteria don't.
+- **Spam resistance at protocol layer**: Criterion 4 is about costing amplitude, but doesn't cover Sybil resistance or flooding of low-amplitude assertions.
+- **Forward compatibility / version negotiation**: How do jurisdictions with different protocol versions interact?
+- **Economic sustainability**: Nothing prices bytes (mentioned in ROADMAP open fronts).
+- **Operator boundedness for clients**: O(annotated nodes) state is good, but what about the cost of verifying the warrant DAG? A client must verify all warrants to know which assertions are accepted.
+
+Actually, a big missing piece: **Verification cost boundedness**. Criterion 5 says state is bounded, but not the work to verify. If a jurisdiction has many warrants, verifying the entire DAG to compute the current view could be unbounded.
+
+Also: **Transparency of selection rule**. If selection is policy-dependent, clients need to know the policy. How is the policy discovered and verified?
+
+Also: **Replay protection** across jurisdictions. Warrants are immutable and content-addressed. A warrant accepted in jurisdiction A could be replayed in jurisdiction B if B shares the blob store. Is that intended? The Warrant spec §9 says stores can share blobs. An assertion warrant filed under a policy of A could be referenced by B. This is a feature (portability) but also an attack (spamming another jurisdiction's store with assertions that appear in their blob set but aren't adopted). The criteria don't mention cross-jurisdiction replay.
+
+Also: **Supersession of annotations**. If an actor updates their wave assertion for a node, how is the old one invalidated? Warrant has supersede. Does the federation layer use it?
+
+Now, I need to structure the review as a proper gate review.
+
+Format: I should follow the review protocol: verdict, verified-vectors statement, findings by severity, concrete text proposals for P1/P2.
+
+I need to check if I re-ran vectors. The prompt says "the maintainer ran the gates and supplied fresh transcripts" and "You have NOT been shown prior reviews". The prompt also says in the Review Protocol: "Run first, read second." But as an AI, I cannot run code. The user says "You cannot run code; the maintainer ran the gates and supplied fresh transcripts." So I should state that I accept the supplied transcripts.
+
+Verdict: I need to choose F1, F1.5, F2, or F3? The prompt asks me to adjudicate F1 vs F1.5 in priority 1, but also asks for a general review. I should give a verdict on the architecture choice.
+
+Given my analysis:
+- F3 (interference fold) is broken due to non-associativity and hash grinding (as demonstrated by my arithmetic).
+- F2 (pure interference) is also broken for the same reason, plus it lacks identity/spam/jurisdiction machinery.
+- F1.5 has a governance backdoor via named score profiles.
+- F1-strict (selection-only) is the only safe normative core.
+
+But I need to check if F1-strict is sufficient. The prompt asks: "Is F1-without-F2 actually sufficient (selection-only merge), making the interference fold complexity unnecessary? Name the use case that requires arithmetic merge, or concede F1."
+
+I should argue that arithmetic merge is unnecessary for federation because:
+- The wave of a node under multiple opinions is not a physical wave; merging opinions via interfere() is semantically meaningless (left dominance imposes arbitrary ordering).
+- Any use case that wants "average sentiment" or "aggregated score" can be built as a non-normative client-side profile, but it must not be given protocol status.
+- The only honest operation on conflicting opinions is selection (choose the authority you trust) or explicit conflict (admit you can't choose).
+
+Therefore, I vote F1-strict, reject F1.5's named profiles as a backdoor.
+
+But wait, Codex voted F1.5. The prompt wants me to adjudicate. I should say: F1.5 is unsafe; F1-strict is the only architecture that prevents de-facto canonicity of non-settlement aggregation. The named profile extension point is a backdoor.
+
+Now, concrete text proposals.
+
+For priority 1 (P1/P2):
+- Propose that ADR-006 explicitly forbid normative score aggregation profiles. Any arithmetic aggregation MUST be outside the protocol (client-local). The spec must say: "Named score profiles MUST NOT be discoverable via the protocol's default resolution path; jurisdictions MUST NOT publish a default profile; clients MUST treat all non-settlement profiles as untrusted user interface conveniences."
+
+For priority 2 (P1):
+- AnnotationViewID is not defined in the provided text. This is a P1: spec silent. Propose a concrete schema: it MUST include jurisdiction root hash, node hash, selection policy hash, and timestamp/version. But also note privacy issues: listing active_assertions reveals the jurisdiction's graph. Propose that active_assertions be replaced by a content-addressed snapshot hash (Merkle root) so the list itself is not leaked, only the root. For selection_rule as string id: require that it be a hash of the machine-readable policy blob, not a string. String IDs are not mechanically decidable because they require a registry.
+
+For priority 3 (P1/P2):
+- Attack the zero-or-one-or-conflict-set rule. Propose that policies must declare their selection keys explicitly: the selection rule MUST be a deterministic function of the sorted set of accepted assertion warrants for that node. The rule MUST specify a total ordering key (e.g., (WarrantID, timestamp, actor)) and a tiebreaker. If the top two are tied under the policy's equivalence relation, the conflict set MUST be emitted. But the spec must define the conflict set serialization so it's hashable.
+
+Actually, the prompt says "what do policies actually select ON (trust ranks? recency? supersede chains?) and does 'explicit conflict set' just relocate the merge problem to every client?"
+
+I need to argue that policies select on warrant metadata (timestamp, actor trust, check outcomes), not on wave content. And yes, conflict sets relocate the merge problem: instead of resolving, the jurisdiction pushes an unmerged set to clients, who then either display conflict (good) or apply local merge (bad). The spec should require that clients MUST NOT auto-merge conflict sets; they MUST display them as unresolved.
+
+For priority 4 (P1/P2):
+- Propose text for Book II §Federation (or a new paragraph). The text must clarify that waves are per-jurisdiction derived coordinates, not global opinions. Interfere() is a structural derivation operator for APPLY nodes, not a merge operator for assertions.
+
+For priority 5 (P2/P3):
+- Missing criterion: bounded verification work. Propose adding criterion 7: "Verification work MUST be O(settled warrants) per jurisdiction update, and MUST NOT require re-scanning the entire global warrant DAG."
+- Missing criterion: revocation/staleness. Propose adding criterion 8: "Assertions MUST carry an expiry or must be refreshable; jurisdictions MUST define a maximum assertion age after which they are settlement-inactive for wave derivation."
+- Missing criterion: replay resistance. Propose adding criterion 9: "Assertion warrants MUST be scoped to a jurisdiction by inclusion of the jurisdiction root hash in the subject blob, preventing cross-jurisdiction replay."
+
+Now let me double-check the arithmetic for non-associativity with an example where phase differs to make it more dramatic.
+
+I already computed one showing {0,16385,0} vs {0,32768,-128}. But let me also verify with the exact example from Gemini if possible. They said (w1*w2)*w3 = {8192,2096,-922} and w1*(w2*w3) = {8192,0,-591}. This implies w1.ph = 8192.
+
+I can try to find w1,w2,w3 that produce this, but it's a system of equations. Not necessary. My own example is sufficient proof of non-associativity.
+
+Let me also verify the ski@v1 free-riding attack mentioned by Gemini. The ADR says: "ski@v1 free-riding — checks are public and term-bound, one expensive check amortizes across unlimited copycat assertions."
+
+Criterion 4 asks: does "budget bounds claimable am" survive a prover who amortizes one expensive check across many assertions?
+
+The idea: an actor runs one ski@v1 check with high ATP (expensive). Then they file many wave assertions, each referencing the same check as their reason. Since the check is publicly verifiable, anyone can see it passed, but the work was done once. The actor gets high amplitude/weight on many assertions for the cost of one check.
+
+Does the ADR's "budget bounds claimable am" solve this? If am is capped by atp spent, but the same atp proof is reused across many assertions, then yes, it's free-riding.
+
+My arithmetic: Suppose a check costs 1,000,000 ATP. The actor reuses it for 1,000 assertions. If each assertion can claim am proportional to ATP, the actor gets 1,000× the weight for 1× the work. This breaks the economic bound unless the policy enforces one-check-one-assertion coupling or includes the assertion subject hash in the check term. Codex said "personalized-term doesn't rescue... one proof backs unlimited subjects". I should verify this logic.
+
+Personalized-term: embed actor ID or assertion ID in the term so the check is specific to one assertion. But then the check is no longer reusable. However, if the check is "I have CPU power", it doesn't need to be per-assertion. The policy must meter weight by proof-of-work per assertion, not per check.
+
+Thus ski@v1-priced amplitude fails because the check proves a property of the actor (has compute), not a property of the assertion. Weight needs policy uniqueness domains + reuse caps.
+
+This is a conceptual finding, but I can illustrate with arithmetic: 1 check, N assertions, cost C, claimed weight N×W(C) vs intended W(C). If W(C) = k×C, total claimed weight = k×C×N, unbounded in N.
+
+Now, let me think about the structure of the response.
+
+I should write it as a review document, perhaps titled `reviews/2026-07-<model>.md` style, but since this is the response, I'll format it clearly.
+
+Header:
+- Verdict: F1-strict (selection-only), reject F1.5, reject F3.
+- Verified vectors: accepted maintainer-supplied transcripts (exit 0 on all gates).
+- Findings by severity.
+
+Then sections for the 5 priorities.
+
+For each priority, I'll assign severity. Let's map:
+
+Priority 1: F1.5 named profiles = backdoor. This is a P1 (spec silent on governance dynamics leads to de-facto consensus divergence via social pressure) or P0? The prompt says P0 = consensus divergence. If clients treat popular profile as truth, they may compute different hashes? No, wave doesn't affect hash. But it affects navigation decisions. The spec says Book II doesn't affect Book I. So it's not consensus divergence in the strict hash sense. It's a navigation divergence. Still, if the protocol promises deterministic views per jurisdiction, and clients use different profiles, they diverge. But the spec says non-settlement profiles are not truth. I think P1 is appropriate: spec silent on how to prevent de-facto canonicity.
+
+Priority 2: AnnotationViewID. Canonicalization pitfalls and replay are P1 (spec silent / mechanically undecidable). Privacy of listing active_assertions is P1/P2.
+
+Priority 3: Zero-or-one-or-conflict-set. Relocating merge problem is P1 (spec silent on what clients must do with conflict sets).
+
+Priority 4: Semantic status. P2 (clarity) or P1 if the current text promises something it can't deliver. The prompt says "what IS the honest semantic status... Recommend what Book II's federation paragraph should say." This is P2 clarity, but could be P1 if current text is misleading. I'll call it P1 because it underdetermines implementer behavior.
+
+Priority 5: Missing criteria. P2/P3.
+
+Let me draft concrete text proposals.
+
+**Text proposal for P1 (F1.5 backdoor):**
+In ADR-006 §Non-goals or §Normative core, add:
+> "Settlement-grade wave derivation MUST be selection-only: for each NodeHash, a jurisdiction derives at most one effective WaveVectorQ from its accepted assertion set. Non-settlement score profiles MAY exist as client-local conveniences, but the protocol MUST NOT assign them identifiers, discovery endpoints, or default status. A profile that aggregates assertions arithmetically MUST NOT be serializable as a WaveAnnotation, MUST NOT be referenceable from a warrant's `because` array, and MUST NOT be hosted in a jurisdiction's normative store. Implementations SHOULD treat all such profiles as untrusted third-party analytics."
+
+**Text proposal for P2 (AnnotationViewID):**
+Since it's undefined, propose a schema and constraints:
+> "AnnotationViewID = SHA-256( canonical_json( { "jurisdiction": <WarrantID of root>, "node": <hex64 NodeHash>, "policy": <hex64 hash of selection policy blob>, "epoch": <uint64> } ) )."
+> 
+> The `active_assertions` list in any view metadata MUST be replaced by the `assertion_set_root`: the SHA-256 of a canonical JCS array of the WarrantIDs of active assertions. Direct enumeration of assertions in view metadata is a PRIVACY LEAK and MUST NOT be required.
+>
+> `selection_rule` MUST be either the literal string `"selection-only"` or a hash of a machine-readable policy blob. Free-form string identifiers are mechanically undecidable across implementations and MUST NOT be used."
+
+Wait, but the prompt mentions "selection_rule as a string id". I need to attack that. My proposal: require it to be a hash.
+
+**Text proposal for P3 (Conflict sets):**
+> "If a jurisdiction's selection policy does not resolve to a single accepted assertion for a NodeHash, the effective wave for that node MUST be explicitly absent, and the jurisdiction MUST emit a ConflictSet descriptor: a canonical JCS object `{"node":<hex64>, "candidates":[<WarrantID>,...]}` hashed and referenceable. Clients MUST NOT apply arithmetic merge, interference, or averaging to a ConflictSet; they MUST treat the node as unannotated for Mass-aggregation purposes and MAY surface the conflict for human review. The selection policy MUST define its ordering keys deterministically: valid keys are `warrant_id` (lexicographic), `ts` (integer), `actor` (string, lexicographic), or `check_atp` (uint32). Policies selecting on trust ranks or reputation MUST encode those ranks as signed warrant metadata, not as out-of-band string labels."
+
+**Text proposal for P4 (Book II paragraph):**
+Add to Book II §1 or new §10:
+> "In a federated deployment, a WaveAnnotation is a claim filed by an actor within a jurisdiction. The effective wave of a NodeHash in jurisdiction J is derived by applying J's selection policy to the accepted assertions for that node; if no assertion is selected, the wave is absent. The `interfere()` operator defined in §5 applies exclusively to structural derivation: computing the derived wave of an APPLY node from the waves of its function and argument subtrees. `interfere()` MUST NOT be used to merge multiple assertions for the same node; such merging is not commutative, not associative, and not convergence-safe. Book II waves are therefore per-jurisdiction, per-policy computed coordinates, not global attributes of a node. Jurisdictions may diverge permanently; this is by design. The normative pins in §6 are defaults for the null jurisdiction and MAY be overridden by any jurisdiction's genesis policy."
+
+**Text proposal for P5 (Missing criteria):**
+Add to ADR-006 Design criteria:
+> "7. Verification work bounded: deriving a jurisdiction's effective view MUST require at most O(A) re-verification work per epoch, where A is the number of newly accepted assertions, and MUST NOT require re-evaluation of ski@v1 checks whose outcome fingerprints are already in the tunnel.
+> 8. Revocation sound: the protocol MUST provide a deterministic mechanism for superseding or expiring assertions; an assertion MUST NOT contribute to a jurisdiction's effective view if a later-settled supersede warrant for it is accepted under that jurisdiction's policy.
+> 9. Replay resistance: assertion subject blobs MUST include the WarrantID of the jurisdiction root under which they are filed, preventing cross-jurisdiction replay of assertions without re-authorization."
+
+Now let me ensure I have done arithmetic myself. I did the non-associativity proof and the ski@v1 amortization arithmetic. Let me also verify the claim about ski@v1 amortization with concrete numbers.
+
+Suppose an actor wants to assert high amplitude for 100 nodes.
+- One ski@v1 check with atp=1,000,000. Cost to prover: 1M ATP worth of compute.
+- Each assertion claims am = atp / 1000 = 1000.
+- 100 assertions each claim am=1000, all citing the same check.
+- Total claimed amplitude = 100 * 1000 = 100,000.
+- If the policy caps per-assertion amplitude by ATP of supporting checks, but doesn't prevent reuse, the actor gets 100× the weight for 1× the cost.
+- If instead weight required per-assertion proof, cost would be 100M ATP.
+
+Thus the bound is broken linearly in N. This confirms the free-riding attack.
+
+I should also verify the "phase capture via hash grinding" claim.
+Suppose fold order is by assertion hash ascending. An attacker wants their wave's phase to dominate the merged result. Since interfere uses left dominance, the leftmost in the fold determines phase. If the attacker grinds their warrant body (e.g., by varying a nonce in the subject note or evidence array) to get a hash smaller than all others, their assertion sorts first. Then in a left-fold, their phase is the result phase.
+
+Even if the order is by (ph, hash), within the same phase bucket, left dominance doesn't affect phase (all same), but it affects entropy and amplitude via rounding non-associativity. However, an attacker can grind to be first in the bucket and affect those values.
+
+If the order is by (ph, hash) and we use a balanced tree fold instead of left-fold, left dominance still applies at each binary interfere step. The result depends on tree shape. If tree shape is canonical (e.g., sorted list left-fold), grinding hash position matters.
+
+I can do arithmetic to show this.
+Let w_attack = {ph=8192, am=65535, en=0}
+Let w_victim = {ph=8192, am=65535, en=0}
+If attacker sorts first:
+interfere(w_attack, w_victim) = 
+- ph = 8192
+- delta = 0, r=32767
+- delta_en = -256
+- new_en = clamp_i16( avg(0,0) + (-256) ) = -256
+- amp_factor = 65535
+- prod01 = 65535
+- new_am = 65535
+Result: {8192, 65535, -256}
+
+If victim sorts first:
+interfere(w_victim, w_attack) =
+- ph = 8192 (same)
+- delta = 0, r=32767
+- delta_en = -256
+- new_en = -256
+- amp_factor = 65535
+- prod01 = 65535
+- new_am = 65535
+Result: same in this symmetric case.
+
+But if en values differ:
+w_attack = {8192, 65535, 0}
+w_victim = {8192, 65535, -1000}
+
+Attacker first:
+avg(0, -1000) = div_round_half_up(-1000, 2) = -500.
+new_en = -500 + (-256) = -756.
+
+Victim first:
+avg(-1000, 0) = -500.
+new_en = -500 + (-256) = -756.
+
+Same. Hmm.
+
+Need a case where en averaging is order-sensitive. But avg(a,b) = avg(b,a) due to commutative addition. So en is symmetric in a single step. It's only non-associative across three+ terms. So with two assertions, order within a bucket doesn't matter for a single interfere. But if there are three+ assertions in a bucket, the fold order matters due to non-associativity.
+
+For example, three assertions with same ph=8192, am=65535, en values enA, enB, enC.
+((A*B)*C) vs (A*(B*C)).
+I already proved non-associativity for en earlier with enA=-32768, enB=32767, enC=0. But those are extreme. Let me verify with more moderate values.
+
+enA=0, enB=-256, enC=-256.
+avg(0, -256) = div_round_half_up(-256, 2) = -128.
+Then avg(-128, -256) = div_round_half_up(-384, 2) = -192.
+Add delta_en (-256) at each step? Wait, interfere adds delta_en to the average of the two en inputs.
+
+Actually, interfere(w1,w2).en = clamp_i16( avg(w1.en, w2.en) + delta_en ).
+If all have same ph, delta_en = -256 always.
+
+Compute ((A*B)*C):
+A*B: en = avg(0, -256) + (-256) = -128 - 256 = -384.
+Then (A*B)*C: en = avg(-384, -256) + (-256) = div_round_half_up(-640,2) - 256 = -320 - 256 = -576.
+
+Compute (B*C):
+B*C: en = avg(-256, -256) + (-256) = -256 - 256 = -512.
+Then A*(B*C): en = avg(0, -512) + (-256) = div_round_half_up(-512,2) - 256 = -256 - 256 = -512.
+
+Results: -576 vs -512. Different!
+
+And amplitude: all am=65535, so all products are 65535 regardless of order. Only entropy differs.
+
+If am values also differ, both differ.
+
+So even within a phase bucket, hash grinding can affect the final entropy (and amplitude if am values differ). Thus canonical order must be completely independent of asserter-controlled values. But if you sort by (ph, hash), the hash is attacker-controlled (WarrantID depends on body which they sign). So they can grind to choose their position in the bucket, affecting the fold result.
+
+Wait, but if all in same phase bucket, and we sort by hash, the attacker can choose to be first, second, etc. Since the fold is a left fold over the sorted list, position matters. The attacker can choose a position that yields favorable entropy/amplitude for their goals? Not necessarily "favorable" in a clear way, but they can cause variance, which breaks determinism in the sense that the result depends on attacker grinding effort.
+
+To prevent this, the fold order must be deterministic and based on something the attacker cannot grind, OR the fold must be order-independent (commutative and associative). Interfere is neither.
+
+Therefore, F3 is broken. F1 avoids this by selecting zero or one.
+
+I have enough arithmetic.
+
+Now, let me write the response.
+
+I need to be careful to cite exact text and provide concrete proposals.
+
+One more thing: the prompt mentions "now six" design criteria. The ADR lists five. Codex added a sixth (auditability/projection). I should mention that the sixth is welcome but insufficient.
+
+Also, I need to check if there's any P0. P0 is consensus divergence. Since wave ∉ hash, federation errors cannot cause Book I hash divergence. However, if the spec accidentally allows annotation to influence eval, that's P0. Criterion 1 prevents this. Is there any remaining P0? Let me think.
+
+If the jurisdiction selection policy is not deterministic, two implementers with the same warrant store could derive different effective waves. But waves don't affect hashes. However, if Book III later defines a protocol where wave-derived Mass influences consensus (e.g., for governance), then non-determinism would be P0. But currently, no.
+
+Wait, the prompt says "P0 = consensus divergence". In sigma-glyph, consensus divergence means two conforming nodes disagree on a hash. Since waves are explicitly out of hash, I don't see a P0. But I should be careful: if AnnotationViewID or some federation structure accidentally becomes part of a hash computation, that would be P0. But the ADR doesn't propose that.
+
+I will not claim any P0 unless I find one. I don't think I do.
+
+Let me think about whether selection_rule as a string id could lead to divergence. If two clients interpret the string differently, they might select different assertions, leading to different views. But since views aren't hashed, is it P0? Not directly. But it could be P1: spec silent where implementers must guess.
+
+Actually, if the selection_rule is part of the jurisdiction state and determines which assertions are active, and if two implementations handle conflict sets differently, they might disagree on the derived wave. But again, waves aren't consensus-critical. Still, the spec promises "determinism per jurisdiction" as criterion 2. Violating that is at least P1.
+
+I think I have a solid set of findings.
+
+Let me structure the final output.
+
+---
+
+**Review: ADR-006 Annotation Federation**
+**Date:** 2026-07-08 (gate 3)
+**Vectors:** Maintainer-supplied transcripts accepted (all exit 0, anchors verified).
+**Verdict:** F1-strict (selection-only normative core). Reject F1.5 named-profile extension as a governance backdoor. Reject F3 (interference fold) due to non-associativity and hash-grinding attacks verified below.
+
+**Findings:**
+
+P1 — [Priority 1] F1.5 named-score-profile extension is a de-facto canonicity backdoor.
+P1 — [Priority 2] AnnotationViewID undefined / selection_rule as string id is mechanically undecidable.
+P1 — [Priority 3] Conflict-set rule relocates merge to clients without normative client behavior.
+P1 — [Priority 4] Book II promises a global navigation semantics that federation cannot deliver; paragraph MUST be rewritten.
+P2 — [Priority 5] Criteria missing bounded verification work, replay resistance, and revocation soundness.
+
+Then detailed sections for each priority, with arithmetic shown.
+
+I need to make sure I show the arithmetic explicitly.
+
+For the non-associativity:
+I'll show my example:
+w1={ph=0, am=65535, en=0}, w2={ph=16384, am=65535, en=0}, w3={ph=16384, am=65535, en=0}.
+Compute w1*w2 = {0, 32768, 0}.
+Then (w1*w2)*w3 = {0, 16385, 0}.
+Compute w2*w3 = {16384, 65535, -256}.
+Then w1*(w2*w3) = {0, 32768, -128}.
+Thus non-associative: {0,16385,0} ≠ {0,32768,-128}.
+
+Also show the same-phase entropy non-associativity:
+wA={ph=8192, am=65535, en=0}, wB={8192, 65535, -256}, wC={8192, 65535, -256}.
+((A*B)*C).en = -576.
+(A*(B*C)).en = -512.
+Different.
+
+For ski@v1 amortization:
+Show that one check with ATP budget B reused across N assertions yields total claimable weight proportional to N×B instead of B.
+
+For hash grinding:
+Explain that WarrantID = SHA-256(JCS(body)), body includes actor-controlled fields (note, ts, evidence, etc.). By varying a nonce in `note` or padding `evidence`, an asserter can grind their WarrantID to any desired prefix. Sorting by WarrantID therefore allows position choice. Sorting by (ph, WarrantID) allows choice within phase bucket. Since interfere's output depends on fold order (non-associativity proved above), the asserter can change the merged wave by grinding.
+
+Now, I must ensure I do not trust claims. I derived the non-associativity myself. Good.
+
+One more check: `div_round_half_up` for negative numbers.
+The spec says:
+```
+div_round_half_up(n, d):    # round-half-away-from-zero; d > 0
+  s = -1 if n<0 else 1; a = |n|; q = a//d; r = a%d
+  if 2r >= d: q += 1
+  return s*q
+```
+So for negative n, it rounds away from zero. Example: n=-1, d=2. s=-1, a=1, q=0, r=1. 2r=2 >= 2, so q=1. return -1.
+Wait, -1/2 = -0.5, round half away from zero = -1. Yes.
+For n=-3, d=2. s=-1, a=3, q=1, r=1. 2r=2>=2, q=2. return -2. (-1.5 away from zero = -2). Correct.
+
+In my earlier avg calculation for en: I used div_round_half_up(-256, 2).
+s=-1, a=256, q=128, r=0. 2r=0 < 2, so q stays 128. return -128. Correct.
+
+avg(-384, -256): a+b = -640. div_round_half_up(-640, 2): s=-1, a=640, q=320, r=0. return -320. Correct.
+
+avg(-256, -256) = -256. Correct.
+
+avg(0, -512) = div_round_half_up(-512, 2) = -256. Correct.
+
+So ((A*B)*C).en:
+A*B: avg(0, -256) = -128. plus delta_en (-256) = -384. Correct.
+(A*B)*C: avg(-384, -256) = -320. plus (-256) = -576. Correct.
+
+B*C: avg(-256, -256) = -256. plus (-256) = -512. Correct.
+A*(B*C): avg(0, -512) = -256. plus (-256) = -512. Correct.
+
+Difference: -576 vs -512. Verified.
+
+Now, amplitude factor when r=32767:
+amp_factor = div_round_half_up( (32767+32767)*65535, 65534 )
+= div_round_half_up( 65534*65535, 65534 )
+= 65535 exactly (since remainder is 0). Correct.
+
+When r=0:
+amp_factor = div_round_half_up( 32767*65535, 65534 )
+I computed 32768 earlier. Let me re-verify.
+n = 32767*65535 = 2,147,385,345.
+d = 65534.
+q = floor(2,147,385,345 / 65534).
+65534 * 32767 = ?
+65534 * 32767 = (65536-2)*32767 = 65536*32767 - 2*32767.
+65536*32767 = 32767 << 16.
+32767 * 65536 = 32767*65000 + 32767*536.
+32767*65000 = 2,129,855,000.
+32767*536 = 32767*500 + 32767*36 = 16,383,500 + 1,179,612 = 17,563,112.
+Sum = 2,147,418,112.
+Minus 2*32767 = 65,534.
+Result = 2,147,352,578.
+Wait, earlier I got 2,147,352,578. Let me recalculate carefully.
+
+Actually:
+65534 * 32768 = 65534 * 2^15 = 65534 * 32768.
+65536*32768 = 2,147,483,648.
+Minus 2*32768 = 65,536.
+Result = 2,147,418,112.
+
+So 65534 * 32767 = 2,147,418,112 - 65534 = 2,147,352,578.
+
+Now n = 32767*65535 = 32767*(65534+1) = 2,147,352,578 + 32767 = 2,147,385,345. Correct.
+
+q = floor(2,147,385,345 / 65534) = 32767 with remainder r = 2,147,385,345 - 2,147,352,578 = 32,767.
+
+2r = 65,534 >= d=65,534. Yes, so q += 1 → 32768.
+
+Return 32768. Correct.
+
+So amp_factor(0) = 32768.
+
+Now prod01 for am1=32768, am2=65535:
+div_round_half_up(32768*65535, 65535).
+32768*65535 = 32768*(65536-1) = 2,147,483,648 - 32768 = 2,147,450,880.
+Divide by 65535:
+65535 * 32768 = 65535 * 2^15 = 2,147,450,880 exactly? Let's compute:
+65535 * 32768 = (65536-1)*32768 = 2,147,483,648 - 32768 = 2,147,450,880. Yes exactly.
+So remainder 0, q = 32768. Correct.
+
+Then new_am = div_round_half_up(32768*32768, 65535).
+32768^2 = 1,073,741,824.
+65535 * 16384 = (65536-1)*16384 = 1,073,709,056 - 16384 = 1,073,692,672? Wait.
+65536*16384 = 2^16 * 2^14 = 2^30 = 1,073,741,824.
+Minus 16384 = 1,073,725,440.
+Wait, that's wrong. 65535*16384 = 65536*16384 - 16384 = 1,073,741,824 - 16,384 = 1,073,725,440.
+But I said 1,073,709,056 earlier. That was a mistake. Let me recalculate.
+
+1,073,741,824 / 65535:
+65535 * 16000 = 1,048,560,000.
+Remainder = 25,181,824.
+65535 * 384 = 65535*400 - 65535*16 = 26,214,000 - 1,048,560 = 25,165,440.
+Remainder = 25,181,824 - 25,165,440 = 16,384.
+So q = 16384, r = 16384.
+2r = 32768 < 65535, so q stays 16384.
+
+Wait, but earlier I got 16385. Let me recheck.
+1,073,741,824 / 65535.
+65535 * 16385 = 65535*(16384+1) = 1,073,725,440 + 65535 = 1,073,790,975? No, that's too big.
+Wait: 65535*16384 = 1,073,725,440.
+Add 65535 = 1,073,790,975. That's greater than 1,073,741,824. So 16385 is too big.
+So q = 16384, r = 1,073,741,824 - 1,073,725,440 = 16,384.
+2r = 32,768 < 65,535. So q = 16384.
+
+So new_am = 16384, not 16385. My previous calculation had an arithmetic error!
+
+Let me recompute carefully.
+32768*32768 = 1,073,741,824.
+1,073,741,824 / 65,535.
+Let's do long division.
+65,535 * 16,000 = 1,048,560,000.
+Subtract: 25,181,824.
+65,535 * 300 = 19,660,500.
+Subtract: 5,521,324.
+65,535 * 80 = 5,242,800.
+Subtract: 278,524.
+65,535 * 4 = 262,140.
+Subtract: 16,384.
+Total q = 16,384. Remainder = 16,384.
+2r = 32,768 < d = 65,535. So round-half-up does not increment.
+Result = 16,384.
+
+So (w1*w2)*w3 = {0, 16384, 0}.
+
+Now w2*w3 = {16384, 65535, -256}. Verified earlier.
+w1*(w2*w3) = {0, 32768, -128}. Verified earlier.
+
+So the difference is 16384 vs 32768 amplitude. Still huge, still non-associative. But I need to correct my arithmetic in the output. I will use the corrected value 16384.
+
+Also, I should check w1*(w2*w3) amplitude again.
+w1 = {0, 65535, 0}
+w2*w3 = {16384, 65535, -256}
+interfere(w1, w2*w3):
+ph = 0.
+delta = |0-16384| = 16384, min(16384, 49152) = 16384. r=0.
+amp_factor = 32768.
+prod01 = div_round_half_up(65535*65535, 65535) = 65535.
+new_am = div_round_half_up(65535*32768, 65535) = 32768.
+Correct.
+
+So results: {0, 16384, 0} vs {0, 32768, -128}. Amplitude differs by 2×.
+
+This is a clean demonstration.
+
+What about en for w1*(w2*w3)?
+avg(0, -256) = div_round_half_up(-256, 2) = -128.
+Correct.
+
+So my arithmetic is now corrected. I must present it clearly.
+
+One more arithmetic check: the same-ph entropy case.
+A={8192, 65535, 0}, B={8192, 65535, -256}, C={8192, 65535, -256}.
+A*B:
+avg(0, -256) = -128.
+en = -128 + (-256) = -384. Correct.
+
+(A*B)*C:
+avg(-384, -256) = div_round_half_up(-640, 2) = -320.
+en = -320 + (-256) = -576. Correct.
+
+B*C:
+avg(-256, -256) = -256.
+en = -256 + (-256) = -512. Correct.
+
+A*(B*C):
+avg(0, -512) = div_round_half_up(-512, 2) = -256.
+en = -256 + (-256) = -512. Correct.
+
+Difference: -576 vs -512. Verified.
+
+Great.
+
+Now, regarding the " ski@v1 free-riding" arithmetic.
+I'll present it simply:
+- Cost to prover: 1 check at ATP budget B. Work = O(B).
+- Number of assertions supported: unbounded N.
+- If policy grants amplitude proportional to ATP (e.g., am ≤ atp / k), total claimable amplitude = N × (B/k).
+- The cost-amortization ratio is N:1. For N=1000, the prover spends B ATP but claims 1000× effective weight.
+- Conclusion: bound on amplitude must be per-assertion and the check must bind to the assertion subject (e.g., subject hash in the check term). Generic checks fail.
+
+Now let me think about whether there are any other mathematical subtleties.
+
+The prompt mentions "explicit conflict set" relocating the merge problem. If the jurisdiction outputs a conflict set, the client must decide what to render. If the client is a human UI, it might show a warning. If the client is an automated system (e.g., a Mass-aggregation crawler), it might drop the node or pick the first. The spec must be clear: automated clients MUST NOT synthesize a single wave from a conflict set. But does it say that? No, it's silent. That's P1.
+
+Also, what do policies select ON? The Warrant spec has `ts`, `actor`, `because` (checks), `prior` (supersede chains). A selection policy could select on:
+- Recency (latest `ts`)
+- Trust rank (actor reputation in jurisdiction)
+- Check strength (e.g., presence of ski@v1 vs prose)
+- Supersede chain depth (prefer assertions that survive re-litigation)
+
+But ADR-006 doesn't define a policy language. It just says "selection". So implementers must guess. P1.
+
+Concrete proposal: define a canonical selection policy schema. But the ADR says this is a design gate, not protocol text. So maybe the proposal is that the protocol text must include a canonical policy schema.
+
+For priority 4, the semantic status.
+Book II waves are "Navigation". In a federated world, they are per-jurisdiction computed coordinates. The spec should stop promising that waves are properties of nodes; they are properties of (node, jurisdiction, policy) tuples.
+
+I should write a concrete paragraph proposal.
+
+For priority 5, missing criteria.
+I identified bounded verification work, replay resistance, revocation soundness. Also maybe privacy.
+
+Privacy: if a jurisdiction's active assertions are listed, that's a graph of who annotated what. This could be sensitive. The spec should allow private annotations (encrypted blobs) or at least not require public listing. But Warrant is content-addressed and public by default. This is an architectural tension.
+
+Now, let me think about whether I should assign P0 to anything.
+
+Could the named-score-profile backdoor lead to consensus divergence? If a client uses a score profile to decide which Book I nodes to evaluate (e.g., prioritizing high-amplitude annotations), and that profile is buggy, it doesn't change eval results. So no P0.
+
+Could AnnotationViewID canonicalization fail lead to two clients thinking they have the same view but actually differ? If ViewID is used for cache keys or sync, divergence in view computation could cause operational issues, but not Book I hash divergence. So P1 at most.
+
+Could the conflict set relocation cause clients to locally merge and then use merged waves for Mass that affects governance? If Mass affects governance (e.g., voting weight), then client-side merge non-determinism could cause governance divergence. But that's outside current scope. Still, it's a risk.
+
+I will stick to P1 as the highest severity for federation issues.
+
+One final check: the prompt says "Attack AnnotationViewID as proposed by Codex: canonicalization pitfalls, replay across jurisdictions, privacy of listing active_assertions, and whether selection_rule as a string id is mechanically decidable."
+
+Even though AnnotationViewID isn't fully in the text, I can infer its purpose: to name a view (jurisdiction + policy + node) so two parties can agree on what they're looking at. The issues:
+- Canonicalization: if it includes mutable or non-canonical fields (like timestamps or string names), different implementers compute different IDs for the same logical view.

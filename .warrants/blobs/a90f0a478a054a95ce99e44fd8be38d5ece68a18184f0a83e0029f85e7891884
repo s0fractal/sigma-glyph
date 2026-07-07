@@ -1,0 +1,5 @@
+kimi probe 1 exact (2x amplitude divergence by grouping)
+kimi probe 2 exact (same-phase entropy split)
+WAVE: ALL PASS (30/30)
+records 20, blobs 70, roots ['14d413f2952b', '276b6f983900'], errors 0
+adr006 gate 3 dispositions verified

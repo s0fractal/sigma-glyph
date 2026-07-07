@@ -61,7 +61,7 @@ re-litigation requires evidence absent from the entire prior tunnel.
 - ADR-003: lazy left-spine resolution (dead branches never fetched; flips EV-K-DEAD-MISSING; v0.5 candidate). **ADOPTED in v0.5.0.**
 - ADR-004: LITERAL blob validation outside `eval()`. **ADOPTED in v0.5.1** (gate 4/≥3, zero dissent; Codex conceded its audit-time Option 1).
 - ADR-005: Book II wave totality — field-level pins (R1), absent base case, FALSE normative row. **ADOPTED in v0.5.1** (gate 2:1 over R2; maintainer adjudicated the split).
-- ADR-006: annotation federation (the v0.6 front) — design gate on F1/F2/F3 architectures; leans F3 (warrants carry, interference weighs); five design criteria incl. Book-I-unreachability and priced amplitude. Needs ≥3 model families on the architecture choice before protocol text.
+- ADR-006: annotation federation. **REVIEW GATE CLOSED 3/3 (2026-07-08): F1-strict** — selection-only warrant-carried federation; the interference fold died to verified non-associativity; protocol-level score profiles rejected as a governance backdoor (2:1). Drafting base: assertion schema, jurisdiction-bound Merkle-rooted ViewID, conflict-set client rule, Book II federation paragraph, ten design criteria. Next: v0.6 protocol draft + implementation gate.
 
 ## Open fronts (contributions wanted)
 
