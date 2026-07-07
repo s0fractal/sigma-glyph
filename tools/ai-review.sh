@@ -38,6 +38,8 @@ PROMPT="You are an independent adversarial reviewer of this repository.
 
 PROTOCOL (binding): read reviews/README.md first. Run first, read second:
   python3 impl/sigma_glyph.py                       # must print ALL PASS
+  python3 impl/sigma_wave.py                        # must print WAVE: ALL PASS
+  python3 impl/sigma_federation.py                  # must print FEDERATION: ALL PASS
   python3 tests/spec_conformance/run_reference.py   # must print ALL PASS
   python3 tools/verify_anchors.py                   # must verify
 Include a verified-vectors statement with the actual outputs you saw.

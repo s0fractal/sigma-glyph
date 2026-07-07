@@ -68,14 +68,14 @@ append_file "README.md"
 append_file "CHANGELOG.md"
 append_file "LICENSE"
 
-# Specifications (The Two Books + LORE)
+# Specifications (The Three Books + LORE)
 echo "---" >> "$OUTPUT"
 echo "" >> "$OUTPUT"
 echo "# Specifications" >> "$OUTPUT"
 echo "" >> "$OUTPUT"
 
 append_file "spec/book-1-truth.md" "spec/book-1-truth.md"
-append_file "spec/book-2-navigation.md" "spec/book-2-navigation.md"
+append_file "spec/book-2-navigation.md spec/book-3-federation.md" "spec/book-2-navigation.md"
 append_file "spec/LORE.md" "spec/LORE.md"
 append_file "spec/ANCHORS.txt" "spec/ANCHORS.txt"
 

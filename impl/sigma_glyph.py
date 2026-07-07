@@ -1,4 +1,4 @@
-"""Sigma-GLYPH v0.5.0 — Reference Implementation, Book I.
+"""Sigma-GLYPH Book I reference implementation (oracle semantics v0.5.x, current release bundle v0.6.1), Book I.
 
 Scope: SigmaNodeV2 canonical serialization/deserialization, validation,
 SHA-256 NodeHash, CAS object store, genesis I/K/S (intrinsic), and the

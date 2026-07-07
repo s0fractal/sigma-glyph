@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only verifier for the .warrants/ store (Warrant v0.1 format).
+"""Read-only verifier for the .warrants/ store (Warrant v0.1/v0.2 record bodies; settlement-grade v0.3 checks live in the full CLI).
 
 Shipped so that auditors can verify the adjudication evidence with the same
 locality standard as the spec vectors — no external checkout needed.

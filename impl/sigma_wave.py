@@ -1,4 +1,4 @@
-"""Sigma-GLYPH v0.5.2 — Reference Implementation, Book II (wave layer).
+"""Sigma-GLYPH Book II reference implementation (wave layer; current release bundle v0.6.1).
 
 LUT_COS generation (SHA-256 arbitrated), interfere() with the v0.5
 entropy–coherence coupling (ADR-002 adopted): coherent interference

@@ -1,0 +1,11 @@
+P1: no tail-masking in CI, pipefail set
+anchored prose fixes present
+bundle convention + README + suite README fixed
+ALL PASS
+WAVE: ALL PASS (30/30)
+FEDERATION: ALL PASS (37/37)
+FEDERATION-DIFFERENTIAL: ALL AGREE (40/40)
+CONFORMANCE: ALL PASS (49/49)
+anchors verified
+records 26, blobs 94, roots ['14d413f2952b', '276b6f983900'], errors 0
+pedantic sigma dispositions verified

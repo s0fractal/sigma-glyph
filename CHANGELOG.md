@@ -1,8 +1,19 @@
 # Changelog
 
+## v0.6.1 (2026-07)
+
+Hygiene release adjudicating the Codex pedantic full-state audit (P2/P3 pedantry explicitly invited — and earned). No behavior changes anywhere; one real CI bug and a stale-reference sweep:
+
+- **P1 (CI):** the federation second-implementation step piped through `tail -1`, which masks failures (Actions runs without pipefail) — the one gate guarding the Book III two-implementation claim could go green on a failed replay. Now `set -euo pipefail` + `grep -q` like every other step.
+- Anchored prose: Book II §1 no longer promises a "future document" that shipped (points at §10/Book III); Book III criterion 10 said "Merkle root" after §6 was corrected to a set commitment; three typos (Піни/subject/повторної верифікації). Book II/III headers → 0.6.1.
+- ANCHORS gains the **bundle convention** note: an untouched file keeps its bytes, per-document version and anchor from the last release that changed it (Book I ships in v0.6.x at its own 0.5.2 — intentional, now explicit).
+- CHANGELOG v0.6.0 said Book II §7 where the file says §10; README's "Two Books" header and table now know all three Books; implementation docstrings state oracle-vs-bundle versions; `tests/spec_conformance/README` updated from v1/39 to v2/49; "Warrant v0.1 format" wording made precise in reviews/README and warrant_verify; proofs/README states plainly that the bridge checks the theorem-sufficient premise, not row-by-row constructor correspondence.
+- Review tooling briefs the current surface: or_review primary sources/gates now include Book III, proofs, federation differential; ai-review protocol mandates all three oracles; aggregate.sh ships Three Books.
+
+
 ## v0.6.0 — "Sovereign Views" (2026-07)
 
-Adopts ADR-006 (annotation federation, gate 3/3: Gemini, Codex, Kimi k2.6 — architecture **F1-strict**, selection-only, warrant-carried). **Book III: FEDERATION is born and anchored.** No Book I changes of any kind; Book II gains one normative section (§7 Federation) and nothing else.
+Adopts ADR-006 (annotation federation, gate 3/3: Gemini, Codex, Kimi k2.6 — architecture **F1-strict**, selection-only, warrant-carried). **Book III: FEDERATION is born and anchored.** No Book I changes of any kind; Book II gains one normative section (§10 Федерація) and nothing else.
 
 **Book III (new, anchored):** annotation assertions are Warrant v0.3 records; a jurisdiction's machine-readable selection policy picks zero-or-one assertion per node (ties surface as ConflictSets that clients MUST NOT merge — automated systems treat conflicted nodes as unannotated); `interfere()` is structural-only — the interference fold died at the design gate to verified non-associativity (grouping alone doubles amplitude); replay resistance via jurisdiction roots embedded in assertion blobs; `AnnotationViewID` (a coordinate) + `assertion_set_root` (a set commitment — honestly not zero-knowledge) name views and projections mechanically; proof supports facts, policy meters weight (ski@v1 never mints amplitude); protocol-level aggregation profiles are forbidden (MUST NOT) — the governance-backdoor lesson.
 

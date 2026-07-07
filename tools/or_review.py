@@ -28,21 +28,28 @@ API = "https://openrouter.ai/api/v1"
 
 PRIMARY_SOURCES = [
     "reviews/README.md",
+    "README.md",
+    "CHANGELOG.md",
     "ROADMAP.md",
     "spec/book-1-truth.md",
     "spec/book-2-navigation.md",
-    "proposals/ADR-006-annotation-federation.md",
+    "spec/book-3-federation.md",
     "proposals/refs/warrant-SPEC-v0.3-snapshot.md",
+    "proofs/README.md",
+    "proofs/SizeBound.lean",
 ]
-PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-adr006-gate.md",
-                      "reviews/2026-07-codex-adr006-gate-response.md",
-                      "reviews/2026-07-gemini-adr006-gate.md",
-                      "reviews/2026-07-gemini-adr006-gate-response.md"]
+PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-v0.6.0-pedantic-audit.md",
+                      "reviews/2026-07-codex-v0.6.0-pedantic-audit-response.md",
+                      "reviews/2026-07-qwen-web-holistic.md",
+                      "reviews/2026-07-qwen-web-holistic-response.md"]
 GATES = [
     ["python3", "impl/sigma_glyph.py"],
     ["python3", "impl/sigma_wave.py"],
+    ["python3", "impl/sigma_federation.py"],
     ["python3", "tests/spec_conformance/run_reference.py"],
     ["python3", "tests/spec_conformance/test_properties.py"],
+    ["python3", "tests/federation_differential.py"],
+    ["python3", "proofs/bridge_check.py"],
     ["python3", "tools/verify_anchors.py"],
     ["python3", "tools/check_lazy_edges.py"],
     ["python3", "tools/warrant_verify.py"],
@@ -118,7 +125,7 @@ def main():
         list_models()
         return
     out_name = sys.argv[1] if len(sys.argv) > 1 else sys.exit(__doc__)
-    focus = " ".join(sys.argv[2:]) or "Full adversarial review of the v0.5 ADR gate."
+    focus = " ".join(sys.argv[2:]) or "Full adversarial review of the current release surface (all three Books)."
     model = os.environ.get("OPENROUTER_MODEL") or sys.exit(
         "set OPENROUTER_MODEL (see: python3 tools/or_review.py --list)")
 

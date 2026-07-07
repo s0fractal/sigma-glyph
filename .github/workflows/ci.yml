@@ -16,10 +16,14 @@ jobs:
       - name: Federation reference (Book III, selection-only oracle)
         run: python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION. ALL PASS"
       - name: Federation second implementation (Go) + differential
+        shell: bash
         run: |
+          set -euo pipefail
           cd impl-go && go build -o sigma-federation-go . && cd ..
-          ./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json | tail -1
-          python3 tests/federation_differential.py | tail -1
+          ./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json \
+            | tee /dev/stderr | grep -q "FEDERATION-GO: ALL PASS"
+          python3 tests/federation_differential.py \
+            | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
       - name: Conformance vectors are fresh (regenerate == no diff)
         run: |
           python3 tests/spec_conformance/generate.py

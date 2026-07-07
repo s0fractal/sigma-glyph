@@ -12,6 +12,10 @@ The assurance stack for Book I's normative memory bound
    towers, Ω, deep REF chains, dead branches, TV fixtures) and asserts
    every observed action satisfies the step-level premise the Lean
    proof consumes (`Δsize ≤ cost − 1`). Run: `python3 proofs/bridge_check.py`.
+   NB (scope): the bridge does NOT prove row-by-row correspondence between
+   runtime steps and the seven Lean constructors — it checks the weaker,
+   theorem-sufficient inequality. Exact per-rule costs remain covered by the
+   conformance vectors; a step-tag classifier is a possible future upgrade.
 3. **Pinned end results** — the conformance vectors and property P7
    (`tests/spec_conformance/`).
 

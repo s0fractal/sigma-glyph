@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Invited pedantry, earned pedantry. P1 confirmed: 'false | tail -1' exits 0 without pipefail, and the masked step was the ONE gate guarding Book III's two-implementation claim - a failed Go replay or differential would have shown green; fixed with the audit's exact proposal. Dual lesson to the 11-run red streak: audit CI for LYING GREEN, not just for red. P2s all accepted and shipped: Merkle residue in criterion 10 + reviews/README (the exact term the gate corrected, surviving where the correction missed); Book II s1 future-document promise -> s10/Book III; CHANGELOG s7-vs-s10 drift; README Two Books header/table/dup; Book I version-bundle ambiguity resolved by an explicit ANCHORS bundle convention (NOT by bumping Book I, which would fabricate a change); oracle-vs-bundle docstrings; suite README v1/39 -> v2/49 (oldest stale doc, predating three format changes); Warrant v0.1 wording made precise; proofs/README bridge-scope honesty (premise-check, not row correspondence; step-tag classifier recorded as future work); review-tooling briefs advanced to the full v0.6 surface - stale briefs would have blinded the next reviewer to exactly the new code. P3 typos fixed in the anchored Book III (part of the re-anchor). v0.6.1: zero behavior changes, every gate output byte-identical - which is the point."
+      },
+      {
+        "check": "262d8130ca8369d0fb955b145908dda739147f69d255c760b433ec4c1ff18a56",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "f4a0c43f1d64b4ea5d8c100323c47b4f02929508f6caa15bc580d36d28c2a414",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "3346f0dae3b5ce1149b85d1a3b6df9655f6712ddf26d13785844d2065bdf7094"
+    ],
+    "prior": [
+      "59daf4e924d532bf8ae997d3b6773789e8b7c4069fdad486e2860dd66c2be1e2"
+    ],
+    "subject": {
+      "hash": "57d4ad30a7f5b903eb34244d6160f662abb1a56b283423058f3adafcc4424ab4",
+      "note": "Codex pedantic full-state audit: 1 real CI P1 (tail-masking on the Book III gate step) + stale-reference sweep across 5 releases -> all shipped as v0.6.1"
+    },
+    "ts": 1783465015,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "aa8f41dff3cfce0e415dca81753ed0e532ceb26d47540f0b5f7915469e5c57ca4d084bae95f7696e4fb09ccf75d33c03b31bd9f8dd0b9b9a32e3d4a7414bcb04"
+    }
+  ]
+}

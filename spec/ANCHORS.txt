@@ -1,5 +1,19 @@
 Sigma-GLYPH Specification Anchors (detached)
 Anchor = NodeHash(LITERAL, atom=SHA-256(document_bytes))
+Bundle convention: a release section lists EVERY anchored file at that
+release; a file untouched by the release keeps its bytes — and therefore its
+per-document Version header AND its anchor — from the last release that
+changed it. (E.g. Book I ships in v0.6.x bundles at its own version 0.5.2.)
+
+== v0.6.1 ==
+a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b  spec/book-1-truth.md
+7733dfb0876db9a8b243864745acffa671cef7641517a9bb7774af1aef5d01fe  spec/book-2-navigation.md
+e7bdbac8047cc3ae1d811cec11f7caf23b488e8260b83e1bf91a9997e917f1ef  spec/book-3-federation.md
+9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
+2df9194b15734a98b185e1f42472ddc52b03597cd6fd48a8a6fbf50799091021  spec/appendix-a-complexity.md
+08116edb302a827858a95dd2a1533134a0fb90220f361085a213f5c93486fcd9  tests/spec_conformance/vectors.json
+9ef44d0206b6ced91e25c15c8afa81e1faad5ed7db3c5f27599b2c6f00c04ccb  tests/spec_conformance/wave_vectors.json
+310296a8612d46f2ec37054bbeadf1dc612e5f53d6e390591399c72401dac044  tests/spec_conformance/federation_vectors.json
 
 == v0.6.0 ==
 a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b  spec/book-1-truth.md

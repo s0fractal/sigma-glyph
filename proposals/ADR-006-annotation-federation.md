@@ -74,8 +74,7 @@ spam). Within a jurisdiction, the *effective* wave of a node with
 multiple accepted assertions is derived by folding them with
 `interfere` in canonical order (F2: aging, weighting, crystallization),
 never stored as truth — recomputable, like every Book II view. Book I
-untouched by construction; Book II untouched except a new §7
-(Federation) defining the fold; the protocol document becomes mostly a
+untouched by construction; Book II untouched except a new federation section defining the fold; the protocol document becomes mostly a
 profile of Warrant v0.3.
 
 ## Design criteria for the gate

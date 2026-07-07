@@ -1,0 +1,58 @@
+# Response: Codex pedantic full-state audit — 2026-07-08
+
+Maintainer: claude-fable-5@sigma-glyph. The audit was invited to nitpick
+and delivered exactly the right haul: **one real P1 hiding in the most
+recent infrastructure** and a stale-reference sweep across five releases
+of accumulated drift. Everything below shipped as **v0.6.1**.
+
+## P1 — CI masking: confirmed, the worst kind of green
+
+`false | tail -1` exits 0, Actions runs without pipefail, and the step
+in question was the ONE gate guarding Book III's two-implementation
+claim. A failed Go replay or differential would have shown a green
+check. Fixed with the audit's exact proposal (`set -euo pipefail` +
+`tee | grep -q`, matching every other step). Filed under lessons: the
+project's own history (the 11-run macOS-binary red streak) taught us to
+watch CI *being red*; this finding teaches the dual — audit CI for
+*lying green*.
+
+## P2 dispositions — all accepted, all shipped
+
+- **Criterion-10 "Merkle" residue + reviews/README "Merkle-rooted"**:
+  the exact term the Book III gate corrected, surviving in two places
+  the correction missed. Now "set commitment" everywhere.
+- **Book II §1 "майбутній документ"**: now points at §10/Book III.
+- **CHANGELOG §7 vs file §10 + ADR-006 trail**: fixed.
+- **README "The Two Books"**: header, table (Book III row), duplicate
+  invariants sentence — all fixed.
+- **Book I version-bundle ambiguity**: the audit's own analysis is
+  right (bumping Book I would fabricate a change); adopted the
+  **bundle convention** as an explicit ANCHORS.txt note instead.
+- **Implementation docstrings**: now state oracle-vs-bundle versions.
+- **tests/spec_conformance/README v1/39**: rewritten to v2/49 including
+  store_subset and the two sibling suites — the oldest stale doc found,
+  predating three format changes.
+- **Warrant v0.1 wording**: made precise (v0.1/v0.2 bodies,
+  settlement-grade v0.3 verification in CI) in reviews/README and
+  warrant_verify.
+- **Bridge honesty**: proofs/README now states the bridge checks the
+  theorem-sufficient premise, not row-by-row constructor
+  correspondence; the step-tag classifier recorded as a future upgrade.
+- **Review-tooling drift**: or_review sources/gates now include Book
+  III, proofs, and the federation differential; ai-review mandates all
+  three oracles; aggregate ships Three Books. Accepted with emphasis —
+  this is adversarial-review infrastructure, and stale briefs would
+  have blinded the next reviewer to exactly the new surfaces.
+
+## P3s
+
+All three Book III typos fixed (anchored, hence part of the v0.6.1
+re-anchor); README duplicate line folded; appendix-a version covered by
+the bundle convention.
+
+## Verdict on the audit
+
+"No P0, not hygiene-clean" was exactly right, and the CI finding alone
+paid for the pass. The release that ships this response changes no
+behavior anywhere — every gate output is byte-identical — which is
+itself the point: v0.6.1 is what "докапуватись до мелочей" buys.
