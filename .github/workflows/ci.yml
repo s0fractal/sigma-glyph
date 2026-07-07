@@ -22,8 +22,9 @@ jobs:
         run: python3 tests/spec_conformance/test_properties.py
       - name: Verify Specification Anchors
         run: python3 tools/verify_anchors.py
-      - name: Verify adjudication warrants (.warrants/, incl. ski@v1 re-runs)
+      - name: Verify adjudication warrants (.warrants/, settlement-grade, incl. ski@v1 re-runs)
         run: |
           python3 -m pip install --quiet cryptography
-          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/89416916d1a2865e07ff85f3c17f255cf9e63d38/impl/warrant.py -o /tmp/warrant.py
+          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/c038ce36b61445a5d82371975afd21d541e07752/impl/warrant.py -o /tmp/warrant.py
           SIGMA_GLYPH=impl python3 /tmp/warrant.py verify
+          SIGMA_GLYPH=impl python3 /tmp/warrant.py verify --settlement --trust-config trust-config.json
