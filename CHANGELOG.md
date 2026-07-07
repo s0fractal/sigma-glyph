@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.6.0 — "Sovereign Views" (2026-07)
+
+Adopts ADR-006 (annotation federation, gate 3/3: Gemini, Codex, Kimi k2.6 — architecture **F1-strict**, selection-only, warrant-carried). **Book III: FEDERATION is born and anchored.** No Book I changes of any kind; Book II gains one normative section (§7 Federation) and nothing else.
+
+**Book III (new, anchored):** annotation assertions are Warrant v0.3 records; a jurisdiction's machine-readable selection policy picks zero-or-one assertion per node (ties surface as ConflictSets that clients MUST NOT merge — automated systems treat conflicted nodes as unannotated); `interfere()` is structural-only — the interference fold died at the design gate to verified non-associativity (grouping alone doubles amplitude); replay resistance via jurisdiction roots embedded in assertion blobs; `AnnotationViewID` (a coordinate) + `assertion_set_root` (a set commitment — honestly not zero-knowledge) name views and projections mechanically; proof supports facts, policy meters weight (ski@v1 never mints amplitude); protocol-level aggregation profiles are forbidden (MUST NOT) — the governance-backdoor lesson.
+
+**Book II (0.5.2 → 0.6.0):** new §10 — waves are per-jurisdiction, per-policy derived coordinates, not global attributes; divergence between jurisdictions is permanent and by design; §6 pins are the null jurisdiction's defaults.
+
+**Implementations and vectors:**
+- `impl/sigma_federation.py` — pure-function reference oracle (validation, six-step selection derivation, `wave_fed`, ViewID, set root). Survived a blocking implementation-gate round: a real ordering bug (character-complement descending trick failed on prefix pairs and crashed on non-ASCII) was found by review and fixed with a direct-comparison comparator; collation is now normative.
+- `impl-go/` — second, independent Go implementation (stdlib-only, own LUT generation against the Book II arbiter), replaying the same vectors.
+- `tests/spec_conformance/federation_vectors.json` — 21 vectors / 37 oracle checks, including `FV-FOLD-UNSOUND` (why merging is forbidden), `FV-BOOK-I-UNREACHABLE` (the Book I boundary as an executable vector, not a promise), and the full adversarial selection surface (prefix/non-ASCII actors, node binding, future epochs, quota semantics, malformed metadata).
+- `tests/federation_differential.py` — both implementations must agree on every outcome (40/40, incl. astral-plane actors, quota collisions, whitespace metadata).
+
+The full decision trail — design gate, blocking implementation review, fix adjudications — is signed warrants in `.warrants/`.
+
 ## v0.5.2 — "Honest Fences" (2026-07)
 
 Hygiene release adjudicating the Opus 4.8 (1M) adversarial review of v0.5.1 — the review attacked consensus safety and found none broken; everything below is fence/discipline repair. **No canonical eval result changes** (all 46 prior vectors byte-identical in expectations; 3 new).

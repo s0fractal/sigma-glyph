@@ -13,6 +13,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"strconv"
 )
 
@@ -337,7 +338,7 @@ func validMetadata(m map[string]any) (*Candidate, bool) {
 	wid, wok := asString(m["warrant_id"])
 	actor, aok := asString(m["actor"])
 	ts, tok := uintValue(m["ts"], 64)
-	if !wok || !isHex64(wid) || !aok || actor == "" || !tok {
+	if !wok || !isHex64(wid) || !aok || strings.TrimSpace(actor) == "" || !tok {
 		return nil, false
 	}
 	assertion, ok := asMap(m["assertion"])

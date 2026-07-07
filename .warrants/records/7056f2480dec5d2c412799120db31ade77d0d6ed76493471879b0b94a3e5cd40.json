@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adopted per Decision Process: design gate 3/3 (Gemini/Codex/Kimi, blind convergence on selection-only; F1.5 profiles rejected 2:1 as a governance backdoor; the author's F3 died round 1 to verified non-associativity of interfere) followed by a full implementation gate (Codex round 1 BLOCKED with a real oracle ordering bug + 4 more P1s -> all fixed in-adjudication -> Gemini round 2 verified line-by-line, ready-to-anchor verdict, whitespace P2 adopted). Shipped: Book III anchored (assertion blob schema with embedded jurisdiction roots, six-step selection derivation with normative Unicode-scalar collation, ConflictSet no-merge client rule, AnnotationViewID coordinate + assertion_set_root set commitment, proof-supports-facts-policy-meters-weight, ten gate criteria as conformance obligations, protocol-level aggregation profiles forbidden); Book II s10 federation bridge (waves = per-jurisdiction per-policy derived coordinates, divergence permanent by design, s6 pins = null-jurisdiction defaults); impl/sigma_federation.py reference + impl-go/ second implementation (own LUT generation against the Book II arbiter), federation_vectors.json 21 vectors / 37 checks, differential 40/40 incl. astral actors and whitespace metadata. Book I untouched: FV-BOOK-I-UNREACHABLE makes the boundary executable. Anchors: new v0.6.0 section, book-3 anchored for the first time."
+      },
+      {
+        "check": "46622d0862e303701f7280e9ab04ab6d34279aa81dd98f921d8f1ef3a7d1aae5",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "b9a630b72e59943c48addbf285ba108d27d58da7715bd583226f4a79bbcea951",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "9682882a28eddfd9c1497d2f8c19a5d1b5285e275f9c4560c1db099a2d982852"
+    ],
+    "subject": {
+      "hash": "6944c248e23cd88821c4d61ea88872f44c35c552a40b25b57904237b5370c4c8",
+      "note": "ADOPT ADR-006 in v0.6.0 (Book III: FEDERATION anchored - F1-strict selection-only, two implementations differential-tested)"
+    },
+    "ts": 1783455507,
+    "under": [
+      "5278627d12b23a52560b58b34d53450fef525fe9cdd084e0f1db71866cb4a26e"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "f3970ee0439cc298297a38402c1c8d710de62b01253ebcde163c73096498c07a1961b7c9ff4daa803b0f7c74e19751c1e470edb9cffa527273df301c45882704"
+    }
+  ]
+}

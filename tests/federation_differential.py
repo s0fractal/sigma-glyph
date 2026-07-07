@@ -210,6 +210,11 @@ bad_blob = cand("1", "a", 1, 1, sf.W(0, 1, 0))
 bad_blob["assertion"] = {**bad_blob["assertion"], "extra": "reject"}
 select_case("ADV-MALFORMED-ASSERTION-SKIPPED", [bad_blob], sf.POLICY_TIE, 1)
 
+select_case("ADV-WHITESPACE-ACTOR-NOT-LIVE", [
+    {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": "   "},
+    {**cand("2", "b", 1, 1, sf.W(0, 2, 0)), "actor": "\u00a0\t"},
+], sf.POLICY_TIE, 1)
+
 
 # Adversarial wave semantics.
 chk("ADV-WAVE-PIN-K", go_wave("K"), sf.wave_fed("K", lambda t: None))

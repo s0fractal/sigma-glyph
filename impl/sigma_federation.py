@@ -1,4 +1,4 @@
-"""Sigma-GLYPH v0.6.0-draft — Reference Implementation, Book III (federation).
+"""Sigma-GLYPH v0.6.0 — Reference Implementation, Book III (federation).
 
 Pure functions only: assertion/policy validation, selection derivation,
 effective-wave computation, AnnotationViewID and assertion_set_root. No
@@ -385,7 +385,7 @@ def gen_vectors():
                             "byte-identical regardless of any annotation state - federation "
                             "is a pure-function domain that eval() cannot observe"})
     doc = {"format": "sigma-glyph-federation-conformance", "format_version": 1,
-           "spec_version": "0.6.0-draft",
+           "spec_version": "0.6.0",
            "notes": ["Book III (DRAFT) oracle: impl/sigma_federation.py; selection-only "
                      "federation per ADR-006 gate 3/3 (F1-strict).",
                      "string order fields compare by Unicode scalar values directly; desc "

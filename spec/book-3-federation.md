@@ -1,8 +1,8 @@
 # Σ-GLYPH — Book III: FEDERATION
 
-**Version:** 0.6.0-draft
+**Version:** 0.6.0
 **Type:** Annotation Federation Protocol (Warrant v0.3 profile)
-**Status:** DRAFT — implementation-gate pending; this document is NOT yet in `spec/ANCHORS.txt` and becomes anchored law at the v0.6.0 release
+**Status:** DRAFT STANDARD — anchored in `spec/ANCHORS.txt` since v0.6.0; implementation gate passed (Codex round 1 blocked→fixed, Gemini round 2 verified; two implementations, differential-tested)
 **Scope Guard (MUST):** ніщо в цій Книзі не змінює редукцію, серіалізацію чи хешування Книги I — жодна анотація, скільки завгодно ворожа, MUST NOT впливати на `eval()`. Книга II визначає хвильову алгебру; ця Книга визначає лише, *чиї твердження* про хвилі юрисдикція приймає. При конфлікті: Книга I > Книга II > ця Книга.
 **Породження:** ADR-006, гейт 3/3 (Gemini, Codex, Kimi k2.6), архітектура **F1-strict** — selection-only, warrant-carried. Нормативна залежність: [Warrant SPEC v0.3](https://github.com/s0fractal/warrant) (§5.1 key state, §7 settlement, §9 multi-root).
 
