@@ -29,7 +29,9 @@ jobs:
           python3 tests/spec_conformance/generate.py
           python3 impl/sigma_wave.py gen
           python3 impl/sigma_federation.py gen
-          git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json tests/spec_conformance/federation_vectors.json
+          python3 -m pip install --quiet cryptography
+          python3 tools/anchor_governance.py gen
+          git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json tests/spec_conformance/federation_vectors.json tests/spec_conformance/governance_vectors.json
       - name: Conformance suite (vectors.json vs oracle)
         run: python3 tests/spec_conformance/run_reference.py
       - name: Property-based suite (seeded, stdlib-only)
@@ -47,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/anchor_governance.py selftest | tee /dev/stderr | grep -q "ANCHOR-GOVERNANCE: ALL PASS"
+          python3 tools/anchor_governance.py replay | tee /dev/stderr | grep -q "GOVERNANCE-REPLAY: ALL PASS"
           curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/a4270f863f6bcee837f7ef0363536b7e6cdf5ee6/trust/sigma-glyph-anchor-trust.json -o /tmp/anchor-trust.json
           python3 tools/anchor_governance.py status --enforce --trust-config /tmp/anchor-trust.json | tee /dev/stderr | grep -q "AUTHORIZED"
       - name: Two-jurisdictions federation demo (Book III live, real stores)

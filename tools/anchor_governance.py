@@ -513,11 +513,296 @@ def _fixture(td):
     return trust, {"t1": t1, "p1": p1, "root": root, "h1": h1, "wid1": wid1}
 
 
+MODEL_C = "model-c@sigma-glyph"
+
+
+def _successor_blob(td, hx, byte="b"):
+    s = canon(anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", byte * 64)],
+                              hx["root"], ancestor=hx["h1"]))
+    return _put_blob(td, s)
+
+
+# ---------- scenarios: the pinned claim surface ----------
+# Each builder populates a fresh store and returns
+# (trust, candidate_blob_hash, prior_set_hash_or_None, expect_authorized,
+#  note_substring_that_MUST_appear).
+
+def _scn_genesis_adopted(td):
+    trust, hx = _fixture(td)
+    return trust, hx["h1"], None, True, "adopted by"
+
+
+def _scn_succession_rotated(td):
+    trust, hx = _fixture(td)
+    t2 = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
+                              {"min_sigs": 2, "actors": ACTORS[:2] + [MODEL_C]}}))
+    p2 = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
+                              "scope": "spec/ANCHORS.txt", "threshold": t2}))
+    _file(td, "accept", ACTORS[0], p2, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0], ACTORS[1]], note="rotate policy to include model-c")
+    h2 = _successor_blob(td, hx)
+    trust2 = dict(trust, actors={**trust["actors"], MODEL_C: [_pub(MODEL_C)]})
+    _file(td, "accept", ACTORS[0], h2, [p2, t2], [hx["wid1"]],
+          [ACTORS[0], MODEL_C], note="adopt v0.7.0")
+    return trust2, h2, hx["h1"], True, "adopted by"
+
+
+def _scn_ancestor_fork(td):
+    trust2, h2, _, _, _ = _scn_succession_rotated(td)
+    return trust2, h2, "c" * 64, False, "fork, not upgrade"
+
+
+def _scn_genesis_with_ancestor(td):
+    trust, hx = _fixture(td)
+    bad = anchor_set_blob("v0.6.1", [("spec/book-1-truth.md", "a" * 64)],
+                          hx["root"], ancestor="a" * 64)
+    hb = _put_blob(td, canon(bad))
+    return trust, hb, None, False, "must not carry an ancestor"
+
+
+def _scn_hijack_minted_pair(td):
+    trust, hx = _fixture(td)
+    t_evil = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
+                                  {"min_sigs": 1, "actors": [ACTORS[1]]}}))
+    p_evil = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
+                                  "scope": "spec/ANCHORS.txt",
+                                  "threshold": t_evil}))
+    h2 = _successor_blob(td, hx, byte="e")
+    _file(td, "accept", ACTORS[1], h2, [p_evil, t_evil], [hx["wid1"]],
+          [ACTORS[1]], note="unilateral hijack attempt")
+    return trust, h2, hx["h1"], False, "no satisfying adoption warrant"
+
+
+def _scn_under_cardinality(td):
+    trust, hx = _fixture(td)
+    t_extra = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
+                                   {"min_sigs": 1, "actors": [ACTORS[1]]}}))
+    h2 = _successor_blob(td, hx)
+    _file(td, "accept", ACTORS[1], h2, [hx["p1"], hx["t1"], t_extra],
+          [hx["wid1"]], [ACTORS[0], ACTORS[1]], note="fat under")
+    return trust, h2, hx["h1"], False, "under != current (profile, threshold) pair"
+
+
+def _scn_sigs_below_threshold(td):
+    trust, hx = _fixture(td)
+    h2 = _successor_blob(td, hx)
+    _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0]], note="one sig")
+    _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0], ACTORS[0]], note="dup actor")
+    return trust, h2, hx["h1"], False, "bound sigs < min_sigs"
+
+
+def _scn_unbound_key(td):
+    trust, hx = _fixture(td)
+    h2 = _successor_blob(td, hx)
+    _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0], ACTORS[1]], note="two sigs")
+    stranger = hashlib.sha256(b"adr007-fixture:stranger").hexdigest()
+    trust_bad = dict(trust, actors={**trust["actors"], ACTORS[1]: [stranger]})
+    return trust_bad, h2, hx["h1"], False, "bound sigs < min_sigs"
+
+
+def _scn_bound_keys_authorize(td):
+    trust, hx = _fixture(td)
+    h2 = _successor_blob(td, hx)
+    _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0], ACTORS[1]], note="two sigs")
+    return trust, h2, hx["h1"], True, "adopted by"
+
+
+def _scn_foreign_jurisdiction(td):
+    trust, hx = _fixture(td)
+    foreign = anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
+                              "f" * 64, ancestor=hx["h1"])
+    hf = _put_blob(td, canon(foreign))
+    _file(td, "accept", ACTORS[0], hf, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0], ACTORS[2]], note="foreign jurisdiction blob")
+    return trust, hf, hx["h1"], False, "replay refused"
+
+
+def _scn_orphan_outside_closure(td):
+    trust, hx = _fixture(td)
+    h2 = _successor_blob(td, hx)
+    _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [],
+          [ACTORS[0], ACTORS[2]], note="orphan adoption outside closure")
+    return trust, h2, hx["h1"], False, "no satisfying adoption warrant"
+
+
+def _scn_competing_successors(td):
+    trust, hx = _fixture(td)
+    for byte, note in (("b", "successor A"), ("d", "successor B")):
+        h = _successor_blob(td, hx, byte=byte)
+        _file(td, "accept", ACTORS[0], h, [hx["p1"], hx["t1"]], [hx["wid1"]],
+              [ACTORS[0], ACTORS[2]], note=note)
+    return trust, h, hx["h1"], False, "chain frozen"
+
+
+def _scn_keystate_unrelated_ignored(td):
+    trust, hx = _fixture(td)
+    rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
+    other = _put_blob(td, b"an unrelated policy blob")
+    _file(td, "accept", ACTORS[0], rot, [other], [hx["root"]],
+          [ACTORS[0], ACTORS[2]], note="key-state under UNRELATED policy")
+    return trust, hx["h1"], None, True, "adopted by"
+
+
+def _scn_keystate_unauth_profile(td):
+    # Kimi P1-R part 1: an unauthorized profile-shaped accept must not
+    # expand the governance set
+    trust, hx = _fixture(td)
+    rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
+    t_fake = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
+                                  {"min_sigs": 1, "actors": [ACTORS[1]]}}))
+    p_fake = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
+                                  "scope": "spec/ANCHORS.txt",
+                                  "threshold": t_fake}))
+    _file(td, "accept", ACTORS[1], p_fake, [p_fake, t_fake], [hx["root"]],
+          [ACTORS[1]], note="unauthorized profile-shaped adoption")
+    _file(td, "accept", ACTORS[1], rot, [p_fake], [hx["root"]],
+          [ACTORS[1]], note="key-state under the unauthorized profile")
+    return trust, hx["h1"], None, True, "adopted by"
+
+
+def _scn_keystate_unquorumed(td):
+    # Kimi P1-R part 2: key-state citing the REAL policy without its quorum
+    # is an invalid record (Warrant s5.1), not a refusal trigger
+    trust, hx = _fixture(td)
+    rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
+    _file(td, "accept", ACTORS[1], rot, [hx["t1"]], [hx["root"]],
+          [ACTORS[1]], note="key-state under governance, NO quorum")
+    return trust, hx["h1"], None, True, "adopted by"
+
+
+def _scn_keystate_quorum_refused(td):
+    trust, hx = _fixture(td)
+    rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
+    _file(td, "accept", ACTORS[0], rot, [hx["t1"]], [hx["root"]],
+          [ACTORS[0], ACTORS[2]], note="key-state under GOVERNANCE policy")
+    return trust, hx["h1"], None, False, "warrant CLI"
+
+
+SCENARIOS = [
+    ("GV-GENESIS-ADOPTED", "2-of-3 genesis adoption authorizes", _scn_genesis_adopted),
+    ("GV-SUCCESSION-ROTATED", "successor adopted under rotated policy (lineage hop)", _scn_succession_rotated),
+    ("GV-ANCESTOR-FORK", "ancestor mismatch is a fork, not an upgrade", _scn_ancestor_fork),
+    ("GV-GENESIS-WITH-ANCESTOR", "genesis set carrying ancestor is invalid", _scn_genesis_with_ancestor),
+    ("GV-HIJACK-MINTED-PAIR", "minted 1-of-1 profile+threshold pair rejected (lineage rule, 3/3 blind gate finding)", _scn_hijack_minted_pair),
+    ("GV-UNDER-CARDINALITY", "under with extra blob is ineligible", _scn_under_cardinality),
+    ("GV-SIGS-BELOW-THRESHOLD", "one signature and duplicate-actor signatures stay below min_sigs", _scn_sigs_below_threshold),
+    ("GV-UNBOUND-KEY", "signature by a key not bound in trust config does not count", _scn_unbound_key),
+    ("GV-BOUND-KEYS-AUTHORIZE", "same record authorizes once keys are bound", _scn_bound_keys_authorize),
+    ("GV-FOREIGN-JURISDICTION", "embedded jurisdiction mismatch refused before signature work", _scn_foreign_jurisdiction),
+    ("GV-ORPHAN-OUTSIDE-CLOSURE", "adoption outside the settlement closure is ignored", _scn_orphan_outside_closure),
+    ("GV-COMPETING-SUCCESSORS", "rival authorized successors freeze the chain (no tie-break)", _scn_competing_successors),
+    ("GV-KEYSTATE-UNRELATED-IGNORED", "key-state under an unrelated policy is out of scope", _scn_keystate_unrelated_ignored),
+    ("GV-KEYSTATE-UNAUTH-PROFILE", "unauthorized profile cannot expand key-state scope (P1-R)", _scn_keystate_unauth_profile),
+    ("GV-KEYSTATE-UNQUORUMED", "unquorumed key-state under governance ignored (Warrant s5.1)", _scn_keystate_unquorumed),
+    ("GV-KEYSTATE-QUORUM-REFUSED", "quorum-authorized key-state refuses to the warrant CLI", _scn_keystate_quorum_refused),
+]
+
+VEC_PATH = os.path.join(REPO, "tests", "spec_conformance", "governance_vectors.json")
+
+
+def _serialize_store(td):
+    records, blobs = {}, {}
+    for f in sorted(os.listdir(os.path.join(td, "records"))):
+        records[f[:-5]] = json.load(open(os.path.join(td, "records", f)))
+    for h in sorted(os.listdir(os.path.join(td, "blobs"))):
+        blobs[h] = open(os.path.join(td, "blobs", h), "rb").read().hex()
+    return {"records": records, "blobs": blobs}
+
+
+def _materialize_store(td, store):
+    _mk_store(td)
+    for wid, env in store["records"].items():
+        open(os.path.join(td, "records", wid + ".json"), "w").write(
+            json.dumps(env, indent=2, sort_keys=True))
+    for h, hexbytes in store["blobs"].items():
+        open(os.path.join(td, "blobs", h), "wb").write(bytes.fromhex(hexbytes))
+
+
+def _run_scenarios(emit=None):
+    """Assert the oracle agrees with every scenario's declared expectation.
+    With emit, also collect serialized vectors."""
+    failures = []
+    for vid, desc, builder in SCENARIOS:
+        with tempfile.TemporaryDirectory() as td:
+            trust, cand, prior, want_ok, note = builder(td)
+            recs, blobs, bdir = load_store(td)
+            got_ok, notes = verify_adoption(recs, blobs, bdir, cand, trust, prior)
+            joined = "; ".join(notes)
+            ok = got_ok == want_ok and note in joined
+            print(("OK  " if ok else "FAIL") + "  " + vid + "  " + desc)
+            if not ok:
+                failures.append(f"{vid}: authorized={got_ok} (want {want_ok}); notes: {joined}")
+            if emit is not None:
+                emit.append({"id": vid, "description": desc, "trust": trust,
+                             "store": _serialize_store(td), "candidate": cand,
+                             "prior_set": prior,
+                             "expected": {"authorized": want_ok, "note": note}})
+    return failures
+
+
+def cmd_gen():
+    if not HAVE_ED25519:
+        print("gen needs the 'cryptography' package")
+        return 2
+    vectors = []
+    failures = _run_scenarios(emit=vectors)
+    if failures:
+        print("\nREFUSING TO GENERATE — oracle disagrees with declared expectations:")
+        for f in failures:
+            print("  " + f)
+        return 1
+    doc = {"format": "sigma-glyph.governance-vectors@v1",
+           "generator": "python3 tools/anchor_governance.py gen",
+           "note": ("Deterministic fixtures (fixed seeds per RFC 8032, fixed ts). "
+                    "A second implementation claims conformance by replaying every "
+                    "vector: reconstruct the store, run the GOV-anchors.md s3 "
+                    "verification, match authorized + note substring."),
+           "vectors": vectors}
+    with open(VEC_PATH, "w") as f:
+        json.dump(doc, f, indent=1, sort_keys=True, ensure_ascii=False)
+        f.write("\n")
+    print(f"\nwrote {len(vectors)} vectors -> {os.path.relpath(VEC_PATH, REPO)}")
+    return 0
+
+
+def cmd_replay(path):
+    if not HAVE_ED25519:
+        print("replay needs the 'cryptography' package")
+        return 2
+    doc = json.load(open(path))
+    if doc.get("format") != "sigma-glyph.governance-vectors@v1":
+        print("ERR: unknown vector format")
+        return 1
+    ok_all = True
+    for v in doc["vectors"]:
+        with tempfile.TemporaryDirectory() as td:
+            _materialize_store(td, v["store"])
+            recs, blobs, bdir = load_store(td)
+            got_ok, notes = verify_adoption(recs, blobs, bdir, v["candidate"],
+                                            v["trust"], v["prior_set"])
+        joined = "; ".join(notes)
+        good = (got_ok == v["expected"]["authorized"]
+                and v["expected"]["note"] in joined)
+        ok_all &= good
+        print(("OK  " if good else "FAIL") + "  " + v["id"])
+        if not good:
+            print(f"      authorized={got_ok} notes: {joined}")
+    n = len(doc["vectors"])
+    print("\nGOVERNANCE-REPLAY: " + ("ALL PASS" if ok_all else "FAILURES")
+          + f" ({n}/{n})" if ok_all else "")
+    return 0 if ok_all else 1
+
+
 def selftest():
     if not HAVE_ED25519:
         print("selftest needs the 'cryptography' package")
         return 2
-    ok_all = True
+    failures = _run_scenarios()
+    ok_all = not failures
 
     def check(name, got, want=True):
         nonlocal ok_all
@@ -525,171 +810,14 @@ def selftest():
         ok_all &= good
         print(("OK  " if good else "FAIL") + "  " + name)
 
-    with tempfile.TemporaryDirectory() as td:
-        trust, hx = _fixture(td)
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
-        check("genesis adoption 2-of-3 authorized", ok)
-
-        # successor adopted under rotated policy
-        t2 = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
-                                  {"min_sigs": 2, "actors": ACTORS[:2] +
-                                   ["model-c@sigma-glyph"]}}))
-        p2 = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
-                                  "scope": "spec/ANCHORS.txt", "threshold": t2}))
-        _file(td, "accept", ACTORS[0], p2, [hx["p1"], hx["t1"]], [hx["wid1"]],
-              [ACTORS[0], ACTORS[1]], note="rotate policy to include model-c")
-        set2 = canon(anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
-                                     hx["root"], ancestor=hx["h1"]))
-        h2 = _put_blob(td, set2)
-        trust2 = dict(trust, actors={**trust["actors"],
-                                     "model-c@sigma-glyph": [_pub("model-c@sigma-glyph")]})
-        _file(td, "accept", ACTORS[0], h2, [p2, t2], [hx["wid1"]],
-              [ACTORS[0], "model-c@sigma-glyph"], note="adopt v0.7.0")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, h2, trust2, hx["h1"])
-        check("succession: v0.7.0 under rotated policy authorized", ok)
-        ok, notes = verify_adoption(recs, blobs, bdir, h2, trust2, "c" * 64)
-        check("ancestor mismatch is a fork", ok, False)
-        check("fork named in notes", any("fork" in n for n in notes))
-
-    with tempfile.TemporaryDirectory() as td:  # threshold hijack (3/3 finding)
-        trust, hx = _fixture(td)
-        t_evil = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
-                                      {"min_sigs": 1,
-                                       "actors": ["model-a@sigma-glyph"]}}))
-        p_evil = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
-                                      "scope": "spec/ANCHORS.txt",
-                                      "threshold": t_evil}))
-        set2 = canon(anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "e" * 64)],
-                                     hx["root"], ancestor=hx["h1"]))
-        h2 = _put_blob(td, set2)
-        _file(td, "accept", ACTORS[1], h2, [p_evil, t_evil], [hx["wid1"]],
-              [ACTORS[1]], note="unilateral hijack attempt")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, h2, trust, hx["h1"])
-        check("minted 1-of-1 policy pair rejected (lineage rule)", ok, False)
-
-        # under cardinality: profile + BOTH thresholds
-        _file(td, "accept", ACTORS[1], h2, [hx["p1"], hx["t1"], t_evil],
-              [hx["wid1"]], [ACTORS[0], ACTORS[1]], note="fat under")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, h2, trust, hx["h1"])
-        check("under with extra blob ineligible (cardinality)", ok, False)
-
-    with tempfile.TemporaryDirectory() as td:  # signature discipline
-        trust, hx = _fixture(td)
-        set2 = canon(anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
-                                     hx["root"], ancestor=hx["h1"]))
-        h2 = _put_blob(td, set2)
-        _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
-              [ACTORS[0]], note="one sig")
-        _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
-              [ACTORS[0], ACTORS[0]], note="dup actor")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, h2, trust, hx["h1"])
-        check("1 sig < min_sigs 2 and duplicate actor rejected", ok, False)
-
-        stranger_key = sha256(b"stranger").ljust(64, "0")
-        trust_bad = dict(trust, actors={**trust["actors"],
-                                        ACTORS[1]: [stranger_key]})
-        _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
-              [ACTORS[0], ACTORS[1]], note="two sigs")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, h2, trust_bad, hx["h1"])
-        check("unbound key does not count", ok, False)
-        ok, _ = verify_adoption(recs, blobs, bdir, h2, trust, hx["h1"])
-        check("same record with bound keys authorizes", ok)
-
-    with tempfile.TemporaryDirectory() as td:  # jurisdiction + closure scoping
-        trust, hx = _fixture(td)
-        foreign = anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
-                                  "f" * 64, ancestor=hx["h1"])
-        hf = _put_blob(td, canon(foreign))
-        _file(td, "accept", ACTORS[0], hf, [hx["p1"], hx["t1"]], [hx["wid1"]],
-              [ACTORS[0], ACTORS[2]], note="foreign jurisdiction blob")
-        recs, blobs, bdir = load_store(td)
-        ok, notes = verify_adoption(recs, blobs, bdir, hf, trust, hx["h1"])
-        check("foreign jurisdiction blob refused",
-              (ok, any("replay refused" in n for n in notes)), (False, True))
-
-        set2 = canon(anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
-                                     hx["root"], ancestor=hx["h1"]))
-        h2 = _put_blob(td, set2)
-        _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [],  # prior=[]
-              [ACTORS[0], ACTORS[2]], note="orphan adoption outside closure")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, h2, trust, hx["h1"])
-        check("adoption outside settlement closure ignored", ok, False)
-
-    with tempfile.TemporaryDirectory() as td:  # competing successors freeze
-        trust, hx = _fixture(td)
-        for byte, note in (("b", "successor A"), ("d", "successor B")):
-            s = canon(anchor_set_blob("v0.7.0",
-                                      [("spec/book-1-truth.md", byte * 64)],
-                                      hx["root"], ancestor=hx["h1"]))
-            h = _put_blob(td, s)
-            _file(td, "accept", ACTORS[0], h, [hx["p1"], hx["t1"]], [hx["wid1"]],
-                  [ACTORS[0], ACTORS[2]], note=note)
-        recs, blobs, bdir = load_store(td)
-        ok, notes = verify_adoption(recs, blobs, bdir, h, trust, hx["h1"])
-        check("competing authorized successors freeze the chain",
-              (ok, any("conflict" in n for n in notes)), (False, True))
-
-    with tempfile.TemporaryDirectory() as td:  # scoped key-state refusal
-        trust, hx = _fixture(td)
-        rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
-        other_policy = _put_blob(td, b"an unrelated policy blob")
-        _file(td, "accept", ACTORS[0], rot, [other_policy], [hx["root"]],
-              [ACTORS[0], ACTORS[2]], note="key-state under UNRELATED policy")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
-        check("key-state under unrelated policy is ignored (scoped)", ok)
-
-        # Kimi P1-R, part 1: an UNAUTHORIZED profile-shaped accept (no quorum)
-        # must not expand the governance set — key-state filed under it is litter
-        t_fake = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
-                                      {"min_sigs": 1, "actors": [ACTORS[1]]}}))
-        p_fake = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
-                                      "scope": "spec/ANCHORS.txt",
-                                      "threshold": t_fake}))
-        _file(td, "accept", ACTORS[1], p_fake, [p_fake, t_fake], [hx["root"]],
-              [ACTORS[1]], note="unauthorized profile-shaped adoption")
-        _file(td, "accept", ACTORS[1], rot, [p_fake], [hx["root"]],
-              [ACTORS[1]], note="key-state under the unauthorized profile")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
-        check("unauthorized profile cannot expand key-state scope (P1-R)", ok)
-
-        # Kimi P1-R, part 2: a key-state warrant citing the REAL governance
-        # policy but lacking its quorum is an invalid record (Warrant s5.1),
-        # not a refusal trigger
-        _file(td, "accept", ACTORS[1], rot, [hx["t1"]], [hx["root"]],
-              [ACTORS[1]], note="key-state under governance, NO quorum")
-        recs, blobs, bdir = load_store(td)
-        ok, _ = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
-        check("unquorumed key-state under governance ignored (s5.1)", ok)
-
-        _file(td, "accept", ACTORS[0], rot, [hx["t1"]], [hx["root"]],
-              [ACTORS[0], ACTORS[2]], note="key-state under GOVERNANCE policy")
-        recs, blobs, bdir = load_store(td)
-        ok, notes = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
-        check("quorum-authorized key-state under governance refused to warrant CLI",
-              (ok, any("warrant CLI" in n for n in notes)), (False, True))
-
-    with tempfile.TemporaryDirectory() as td:  # schema edges
-        trust, hx = _fixture(td)
-        bad = anchor_set_blob("v0.6.1", [("spec/book-1-truth.md", "a" * 64)],
-                              hx["root"], ancestor="a" * 64)
-        recs, blobs, bdir = load_store(td)
-        hb = _put_blob(td, canon(bad))
-        ok, _ = verify_adoption(recs, blobs, bdir, hb, trust, None)
-        check("genesis set carrying ancestor rejected", ok, False)
-        check("profile without threshold pin is schema-invalid",
-              valid_profile({"governance_policy": PROFILE_TAG,
-                             "scope": "spec/ANCHORS.txt"}), False)
-        check("trust config schema closed",
-              valid_trust(dict(trust, extra=1)) is None)
+    # schema edges not expressible as adoption scenarios
+    check("profile without threshold pin is schema-invalid",
+          valid_profile({"governance_policy": PROFILE_TAG,
+                         "scope": "spec/ANCHORS.txt"}), False)
+    check("trust config schema closed",
+          valid_trust({"governance_trust": TRUST_TAG, "jurisdiction": "a" * 64,
+                       "genesis_profile": "b" * 64,
+                       "actors": {"x": ["c" * 64]}, "extra": 1}) is None)
 
     # projection: live repo ANCHORS.txt parses and round-trips.
     # exactly one live line of descent post-governance (v0.5.0-v0.6.1 are
@@ -719,11 +847,18 @@ def main():
                     help="hex64 WarrantID of the governance genesis root")
     mb.add_argument("--ancestor", help="hex64 sha256 of the prior adopted set")
     sub.add_parser("selftest")
+    sub.add_parser("gen", help="write pinned conformance vectors from the scenarios")
+    rp = sub.add_parser("replay", help="replay pinned vectors against this verifier")
+    rp.add_argument("path", nargs="?", default=VEC_PATH)
     args = ap.parse_args()
     if args.cmd == "make-blob":
         sys.exit(cmd_make_blob(args.jurisdiction, args.ancestor))
     if args.cmd == "selftest":
         sys.exit(selftest())
+    if args.cmd == "gen":
+        sys.exit(cmd_gen())
+    if args.cmd == "replay":
+        sys.exit(cmd_replay(args.path))
     if args.cmd in (None, "status"):
         tc = getattr(args, "trust_config", None)
         enforce = getattr(args, "enforce", False)
