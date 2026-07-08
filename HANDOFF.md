@@ -2,133 +2,122 @@
 
 ## Scope
 
-- Implemented the `gov-replay` subcommand in `impl-go/main.go`.
-- Added an independent in-memory Go verifier for `spec/GOV-anchors.md` section 3:
-  - closed schema validation for anchor-set blobs, governance profiles, trust configs, and Warrant v0.3 threshold policies;
-  - canonical record-id integrity checks before accepting records into replay;
-  - settlement closure from the pinned jurisdiction root through `prior` edges;
-  - authorized profile lineage walking from the pinned genesis profile;
-  - Ed25519 quorum verification over raw WarrantID bytes with distinct roster actors only;
-  - governance-scoped key-state refusal;
-  - exact current `{profile, threshold}` adoption checking;
-  - rival authorized successor detection with chain-freeze refusal.
-- Added `tests/governance_differential.py`, a black-box differential harness over all pinned governance vectors plus adversarial mutations:
-  - tamper one signature byte;
-  - strip all signatures from an adoption;
-  - remove a lineage record;
-  - replace `under` with a minted 1-of-1 profile/threshold pair;
-  - flip the candidate blob jurisdiction;
-  - orphan the adoption's `prior`;
-  - duplicate the adoption under a rival valid anchor-set blob.
+- Added the independent Rust 2021 crate in `impl-rs/`.
+- Implemented Book I canonical serialization, strict deserialization, node hashing,
+  the intrinsic I/K/S genesis objects, FALSE, the canonical invalid object, the
+  in-memory CAS, and the v0.5 hash-thunk evaluator.
+- Implemented leftmost-outermost lazy left-spine reduction, one-level REF
+  unwrapping, size-priced ATP accounting, intrinsic genesis lookup, unresolved
+  reference handling, and invalid-object materialization.
+- Added the `book1 selftest` and `book1 conformance <path>` command-line
+  interfaces. Conformance validates every CAS key before replay and honors
+  per-vector `store_subset`.
 
-## Commands Run
+## Dependency Decision
 
-### Build
+The crate has no third-party dependencies. SHA-256 (FIPS 180-4) and the JSON
+reader were implemented from scratch under `impl-rs/`, so the crate builds
+offline without fetching `sha2`, `serde`, or `serde_json`.
+
+## Acceptance Commands
+
+### Release build
 
 Command:
 
 ```sh
-cd impl-go && GOCACHE=$PWD/.gocache go build
+cd impl-rs
+cargo build --release
 ```
 
 Output:
 
 ```text
+   Compiling sigma-glyph-book1 v0.1.0 (/Users/s0fractal/codex-rust/impl-rs)
+    Finished `release` profile [optimized] target(s) in 0.88s
 ```
 
-### Go Governance Replay
+### Self-test
 
 Command:
 
 ```sh
-cd impl-go && ./sigma-federation-go gov-replay ../tests/spec_conformance/governance_vectors.json
+./impl-rs/target/release/book1 selftest
 ```
 
 Output:
 
 ```text
-OK  GV-GENESIS-ADOPTED
-OK  GV-SUCCESSION-ROTATED
-OK  GV-ANCESTOR-FORK
-OK  GV-GENESIS-WITH-ANCESTOR
-OK  GV-HIJACK-MINTED-PAIR
-OK  GV-UNDER-CARDINALITY
-OK  GV-SIGS-BELOW-THRESHOLD
-OK  GV-UNBOUND-KEY
-OK  GV-BOUND-KEYS-AUTHORIZE
-OK  GV-FOREIGN-JURISDICTION
-OK  GV-ORPHAN-OUTSIDE-CLOSURE
-OK  GV-COMPETING-SUCCESSORS
-OK  GV-KEYSTATE-UNRELATED-IGNORED
-OK  GV-KEYSTATE-UNAUTH-PROFILE
-OK  GV-KEYSTATE-UNQUORUMED
-OK  GV-KEYSTATE-QUORUM-REFUSED
-
-GOVERNANCE-GO: ALL PASS (16/16)
+OK  H(I) = 2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162
+OK  H(K) = bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c
+OK  H(S) = 887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6
+OK  FALSE = 65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098
+OK  Canonical Invalid Object = af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507
+SELFTEST: ALL PASS
 ```
 
-### Governance Differential
+### Conformance
 
 Command:
 
 ```sh
-python3 tests/governance_differential.py
+./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json
 ```
 
 Output:
 
 ```text
-GOVERNANCE-DIFFERENTIAL: ALL AGREE (23/23)
-```
+OK  OBJ-I
+OK  OBJ-K
+OK  OBJ-S
+OK  OBJ-FALSE
+OK  OBJ-INVALID
+OK  OBJ-DIS-ATP-EXHAUSTED
+OK  OBJ-DIS-UNRESOLVED-REFERENCE
+OK  OBJ-DIS-INVALID-OBJECT
+OK  INV-EMPTY
+OK  INV-SHORT
+OK  INV-FLAGS-HIGH
+OK  INV-OP-RESERVED
+OK  INV-OP-UNKNOWN
+OK  INV-FLAGS-MISMATCH
+OK  INV-LEN-LONG
+OK  INV-LEN-SHORT
+OK  EV-GENESIS-BARE
+OK  EV-LIT-FORCE
+OK  EV-DIS-INERT
+OK  EV-STUCK-DIS-FN
+OK  EV-STUCK-LIT-FN
+OK  EV-REF-COMBINATOR-FIRES
+OK  EV-TV4-IK
+OK  EV-TV4-IK-ATP0
+OK  EV-TV4-IK-ATP2
+OK  EV-TV4-IK-ATP3
+OK  EV-TV5-SKKI
+OK  EV-TV5-EXACT
+OK  EV-TV5-UNDER
+OK  EV-TV6-DUP
+OK  EV-TV6-EXACT
+OK  EV-TV6-UNDER
+OK  EV-TV7-OMEGA
+OK  EV-TV7-OMEGA-0
+OK  EV-TV8-MISSING-CHILD
+OK  EV-K-DEAD-MISSING
+OK  EV-K-DEAD-NESTED-MISSING
+OK  EV-S-KI-KK-DEAD-Z
+OK  EV-REF-MISSING-ATP0
+OK  EV-REF-MISSING-ATP1
+OK  EV-REF-MISSING-ATP2
+OK  EV-REF-MISSING-ATP3
+OK  EV-REF-MISSING-ATP4
+OK  EV-ROOT-MISSING
+OK  EV-TV9-REF-CHAIN
+OK  EV-TV9-REF-UNDER
+OK  EV-GENESIS-INTRINSIC
+OK  EV-BAD-BYTES-CHILD
+OK  EV-TV10-C1-K
 
-### Federation Go Regression
-
-Command:
-
-```sh
-cd impl-go && ./sigma-federation-go replay ../tests/spec_conformance/federation_vectors.json
-```
-
-Output:
-
-```text
-OK  FV-ASSERT-VALID
-OK  FV-ASSERT-UNKNOWN-FIELD
-OK  FV-ASSERT-PARTIAL-WAVE
-OK  FV-POLICY-VALID
-OK  FV-POLICY-BAD-FIELD
-OK  FV-SELECT-LATEST
-OK  FV-CONFLICT-TIE
-OK  FV-STALE-EXCLUDED
-OK  FV-SELECT-FUTURE-EXCLUDED
-OK  FV-SELECT-ACTOR-DESC-PREFIX
-OK  FV-SELECT-ACTOR-NONASCII
-OK  FV-SELECT-NODE-FILTER
-OK  FV-QUOTA-ACTOR-EPOCH
-OK  FV-SELECT-BAD-METADATA
-OK  FV-WAVE-ASSERTION-OVER-PIN
-OK  FV-WAVE-STRUCTURAL
-OK  FV-WAVE-APPLY-ASSERTION-OVERRIDES
-OK  FV-VIEW-ID
-OK  FV-SET-ROOT
-OK  FV-FOLD-UNSOUND
-OK  FV-BOOK-I-UNREACHABLE
-
-FEDERATION-GO: ALL PASS (21/21)
-```
-
-### Federation Differential Regression
-
-Command:
-
-```sh
-python3 tests/federation_differential.py
-```
-
-Output:
-
-```text
-FEDERATION-DIFFERENTIAL: ALL AGREE (40/40)
+RUST-CONFORMANCE: ALL PASS (49/49)
 ```
 
 ## Deviations
