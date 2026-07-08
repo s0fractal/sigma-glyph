@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""Adjudication check: Book I byte-level machine correspondence (repo root; needs elan/lean)."""
+import subprocess, sys
+p = subprocess.run([sys.executable, "proofs/byte_bridge_check.py"],
+                   capture_output=True, text=True)
+sys.stdout.write(p.stdout)
+ok = p.returncode == 0 and "BYTE-BRIDGE: ALL AGREE" in p.stdout
+# regressions: the other two Lean fronts must still check
+for mod in ("proofs/SizeBound.lean", "proofs/WaveAlgebra.lean"):
+    q = subprocess.run(["lean", mod], capture_output=True, text=True)
+    okm = q.returncode == 0
+    ok &= okm
+    print(f"{mod}: {'checks' if okm else 'BROKE'}")
+print("byte-level machine correspondence verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

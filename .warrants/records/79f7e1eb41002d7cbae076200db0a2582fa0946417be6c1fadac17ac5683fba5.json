@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Third and last ROADMAP formal-verification target closed (after SizeBound 6b715124 and WaveAlgebra aeef1a79). MachineBytes.lean mirrors ser/deser of the oracle and proves serialize injectivity, round-trip + canonicity (a valid buffer is the UNIQUE serialization of its parse), §4.1 validation totality, 34|66 lengths, reserved-opcode-0x03 rejection, and the byte-0 glyph_eq discrimination - over a from-scratch FIPS 180-4 SHA-256 in core Lean (total: no partial/unsafe). Genesis identities H(I)/H(K)/H(S) (TV-1), the Canonical Invalid Object, and false_is_a_theorem (§5.2) are recomputed end-to-end serialize.sha256 and pinned to the spec constants by native_decide - the spec's own numbers now validate the in-Lean SHA-256. Bridge: no-sorry guard + FIPS vectors + 334-buffer executed-Lean-vs-oracle differential (every conformance CAS key incl. the malformed Era-1 0x03 object, genesis bytes, ~250 adversarial mutations) ALL AGREE. TCB honesty (README): SHA-256 correctness + pins ride native_decide + the FIPS/oracle differential; the structural theorems are symbolic. Proof grind delegated to a subagent iterating lean over SSH; maintainer cold-ran the full bridge + both prior-front regressions on a fresh master checkout on the mini before filing. Remaining unmechanized: a Lean reduction relation for redex recognition, and the step-tag classifier."
+      },
+      {
+        "check": "0debbd495037230d5248a10927a214edf66a55a8baf77710a9f63077d4eb9efa",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "f616566ff5d8c9e6d3d48e90b2e5f05776a00dd589639aa2198d38b490a638cd",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "aeef1a79a19ba02515b7fa2581352bca2699232173bc0f1ebc406bf287fd126b"
+    ],
+    "subject": {
+      "hash": "ca04fcd606e40c71e3644808cfdfad12440dee2667b24415b8210445229a9464",
+      "note": "Executable law: Book I byte-level machine correspondence machine-checked (Lean 4 + from-scratch FIPS 180-4 SHA-256)"
+    },
+    "ts": 1783525594,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "b68823e50b98ee22f55bffa98c11b5ab2ba59705ef22366716408b58f2922bbc60ecd6b866d914f5dda8f3334f9fdcc4b076ed81e756af768e6592a1c77e6f07"
+    }
+  ]
+}

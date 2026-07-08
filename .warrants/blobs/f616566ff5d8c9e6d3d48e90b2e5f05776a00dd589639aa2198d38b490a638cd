@@ -1,0 +1,8 @@
+OK    MachineBytes + Sha256 carry no sorry/admit/axiom
+OK    Sha256 + MachineBytes compile clean (genesis pins are theorems — compiling IS the check)
+OK    Lean pipeline == oracle on 334 buffers (CAS keys, verdicts, round-trips, FIPS)
+
+BYTE-BRIDGE: ALL AGREE (334/334)
+proofs/SizeBound.lean: checks
+proofs/WaveAlgebra.lean: checks
+byte-level machine correspondence verified
