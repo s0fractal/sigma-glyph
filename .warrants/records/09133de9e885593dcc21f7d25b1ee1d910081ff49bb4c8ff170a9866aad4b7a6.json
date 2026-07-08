@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adjudicated: the round's constructive spine, adopted nearly verbatim. P1-A settlement-ignorant verifier confirmed (Warrant s9 cited, enforced nowhere) -> adoptions count only in the descendant closure of the pinned root. Binding+cardinality+lineage design shipped whole: profile hash-pins threshold, under is exactly one profile + one threshold, current profile derived by walking profile adoptions each authorized under the policy being replaced (s5.1 current-policy rule applied to governance). Your T'-min_sigs-1 arithmetic is a pinned negative fixture. Deprecation sequence (never-1-of-1) and bootstrap attack classes adopted. Not adopted: mandatory profile supersede on rotation - lineage consumption already retires the old profile; open to the verification pass."
+      },
+      {
+        "check": "3bcb9ca6e4ea0148eb2a5cf458d7e9c7882264fccd6c7ee7cd04711c0ab4b264",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "0aaa71ad6fb1de4d5fe4db47777b193157a48fc8380da4b7d38469df6a2464de",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "0817bd936a532ebc0359ed1d353523c467af7324221bba1dc16122957a67db1e"
+    ],
+    "prior": [
+      "869243ae0d1e156e6d80ce190c07ebd9bc7f4d16bb2038a5a3f219386e7b833b"
+    ],
+    "subject": {
+      "hash": "223a8b023e4d4c47bfe740f3361b9dcaa3b81308457816ef1b1a02fcb792845d",
+      "note": "GPT-5 ADR-007 gate review 3/3 (blind): gate-worthy with P1s"
+    },
+    "ts": 1783517357,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "defd80dc7747f1626be86b4ecff5048e9ba07eacf5fc0b9bdc20f8572bcd9963461b100ae1e5f5cf0348a823ec6af0d0b444294d61cb4f19693927d40b5f9805"
+    }
+  ]
+}

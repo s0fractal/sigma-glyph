@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adjudicated: jurisdiction root embedded in anchor-set blobs (your P1, carried 2:1, Book III s2 precedent); the sharper point - rev 1 never tied adoptions to the pinned root AT ALL - shipped as settlement-closure scoping. Competing-adoption divergence ACCEPTED but the smallest-WarrantID tie-break REJECTED: deterministic winner rules over attacker-influenceable ids are grindable position-selection (the ADR-006 fold lesson); rival authorized successors freeze the chain instead, resolution by settlement. Key-state refusal scoped to governance-policy warrants (your cut). Versioned trust config, pinned-vectors precondition (selftest now fully deterministic - fixed seeds, RFC 8032), N-M deadlock-by-design arithmetic all in. Book IV placement overruled 2:1 but its Book-grade conformance obligations travel into the GOV document."
+      },
+      {
+        "check": "3bcb9ca6e4ea0148eb2a5cf458d7e9c7882264fccd6c7ee7cd04711c0ab4b264",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "0aaa71ad6fb1de4d5fe4db47777b193157a48fc8380da4b7d38469df6a2464de",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "7bf0fc4c1e841d284a87a08fcf7508d3aab0376cb00c01e0134e6adf0ec52239"
+    ],
+    "prior": [
+      "89da597996a10526b373a622f60bafb8e1df2d82d9a6b7c118b84201412feeb9"
+    ],
+    "subject": {
+      "hash": "f0519809f17bc559223fc7801aff02bc8656d49c8c2429c036e3ad9a2b6d02aa",
+      "note": "DeepSeek v4 Pro ADR-007 gate review 2/3 (blind): amend-then-adopt"
+    },
+    "ts": 1783517356,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "551ccbb3c4c5ece5d817720e0e91e00bc1528b5a4bd67d68ccd4eb5f8413d188ef96af42ed1876b332064fb0298189be7c1bfefb0ff4139a2311633f1dc19b08"
+    }
+  ]
+}
