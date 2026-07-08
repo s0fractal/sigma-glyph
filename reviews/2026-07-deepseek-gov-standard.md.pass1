@@ -1,0 +1,122 @@
+# REVIEW: Promotion of `spec/GOV-anchors.md` to STANDARD
+
+**Verdict:** PROMOTE‑WITH‑AMENDMENTS — the document is mechanically sound, its conformance obligations are met, but the promotion reveals **P1 gaps** that must be closed before the label “STANDARD” can be pinned.  Specifically:
+
+- the term “STANDARD” is never defined in the project;
+- normative dependencies on DRAFT documents are not pinned, undermining the stability that a STANDARD promises.
+
+Both are repaired with small, concrete amendments to the text.
+
+---
+
+## 1. Are the four §7 conformance obligations GENUINELY met?
+
+**Yes, with one evidentiary caution.**  The supplied transcripts show
+
+| Obligation | Evidence |
+|---|---|
+| ① reference verifier + deterministic selftest | `anchor_governance.py selftest` = ALL PASS (22 checks, deterministic) |
+| ② pinned conformance vectors with unauthorised‑in‑authorised‑position fixtures | `governance_vectors.json` (16 vectors) contains `GV‑HIJACK‑MINTED‑PAIR`, `GV‑KEYSTATE‑UNAUTH‑PROFILE`, `GV‑KEYSTATE‑UNQUORUMED` |
+| ③ second independent implementation before DRAFT → STANDARD | Go `gov‑replay` 16/16 + differential 23/23 |
+| ④ CI runs the verifier with `--enforce` against an out‑of‑band trust config | maintainer states “live status: v0.6.2 and v0.6.3 both AUTHORIZED 2/2” |
+
+The **only missing artefact** is a direct CI log showing the `anchor_governance.py status --enforce --trust-config …` command.  The provided `verify_anchors.py` transcript is NOT the governance verifier (it checks content hashes, not adoption warrants).  I do **not** regard this as a blocker **provided** the maintainer attaches that log to the promotion warrant.  
+
+**Obligations are genuinely met** subject to that one confirmable trace.
+
+---
+
+## 2. COHERENCE – STANDARD on DRAFT normative specs
+
+The document depends on
+
+- Books I–III (all DRAFT STANDARD)
+- Warrant SPEC v0.3 (DRAFT)
+
+Is it sound for a STANDARD to depend on DRAFT documents?
+
+**It can be, under one condition:** the dependencies are pinned to *immutable version‑specific content* so that the STANDARD’s own semantics do not drift.  The current text has two weaknesses:
+
+* **Warrant SPEC v0.3** is cited by version, and the snapshot is in the repository.  Since a version tag is immutable, this is already sufficient – but for complete precision the document should reference the pinned snapshot’s content hash.
+* **Books I, II, III** are referenced *without* version.  The anchor‑set blob uses `NodeHash(LITERAL, SHA‑256(document_bytes))` defined in Book I.  If Book I later changes its serialisation or hash algorithm (unlikely but possible before Book I reaches STANDARD), the definition of a valid anchor would shift under a frozen governance process.  That would break the STANDARD without warning.
+
+**Answer:** It is NOT unsound for the *governance constitution* to stabilise before its governed content – a process often does so.  But the STANDARD label must then mean “the *process* is frozen”, and the document must explicitly pin which versions of the dependencies that frozen process depends on.
+
+---
+
+## 3. What should “STANDARD” mean here?
+
+The project has never defined the status labels.  The CHANGELOG mentions `v1.0.0` – first stable release with major‑bump‑only breaking changes – but neither the README nor `GOV‑anchors.md` itself states what the two‑word label commits to.
+
+To promote this document we must define the commitment **in the document** so that implementers and future maintainers know what is promised.
+
+---
+
+## 4. Concrete blockers / required amendments
+
+### P1‑A: Define STANDARD (normative silence)
+
+*Problem*: No definition of the status exists; a promotion would be ceremony, not a technical act.
+
+*Proposal*: Add a new top‑level section (§0) that states what STANDARD means for this document, and freeze its schema / semantics.  Example text (to be inserted after the metadata block):
+
+```markdown
+## 0. Status and Stability
+
+This document carries the label **STANDARD**.  That label represents
+the following commitment:
+
+- The verification procedure (§3), the blob schemas (§2), and the
+  conformance obligations (§7) are frozen.  Any change that would
+  cause a conforming verifier to produce a different outcome for a
+  fixed trust‑config/store pair is considered a **breaking change**.
+
+- Breaking changes to this document are permissible only if they are
+  introduced in a new version whose major number differs from the
+  current one (cf. SemVer).  The old version remains a STANDARD for
+  jurisdictions that adopted it.
+
+- Normative references (§R) are pinned to the exact versions stated.
+  Updating a reference to a newer version of a dependency is a
+  breaking change.
+
+The document itself is versioned; its current version is recorded
+above (after “Version:”).  The STANDARD label first applies to version
+1.0.0 of this document, adopted by the governed release v0.6.4.
+```
+
+(Before promoting, the document’s own version should be bumped to `1.0.0`.)
+
+### P1‑B: pin normative dependencies to exact versions
+
+*Problem*: Un‑pinned references to Books I‑III can drift.
+
+*Proposal*: In the introductory “Scope Guard” paragraph replace
+
+> на Book I, Book II, Book III, та на Warrant SPEC v0.3.
+
+with
+
+> на **Book I (TRUTH) v0.5.2** ([`spec/book-1-truth.md`](spec/book-1-truth.md) as anchored in this release),  
+> **Book II (NAVIGATION) v0.6.1** ([`spec/book-2-navigation.md`](spec/book-2-navigation.md) as anchored in this release),  
+> **Book III (FEDERATION) v0.6.1** ([`spec/book-3-federation.md`](spec/book-3-federation.md) as anchored in this release),  
+> та на **Warrant SPEC v0.3** (immutable version pinned in `proposals/refs/warrant‑SPEC‑v0.3‑snapshot.md`; content SHA‑256: `…`).
+
+and also ensure that the governance vector suite references are version‑specific (they already implicitly are, via the anchor‑set).
+
+### P2‑A: trust‑config bootstrapping
+
+Not a blocker, but for completeness the STANDARD should note that the trust‑config mechanism is out‑of‑band and that verifiers must obtain it through a channel independent of the repository being verified.  The existing §2 already says “MUST NOT be read from the tree being verified”, which is enough.
+
+---
+
+### Verdict execution
+
+I recommend the maintainer:
+
+1. Apply amendments P1‑A and P1‑B to `spec/GOV‑anchors.md`.
+2. Bump the document’s own version to `1.0.0` (leaving the release version v0.6.4 as the governed release that adopts it).
+3. Run `anchor_governance.py status --enforce` with the out‑of‑band config and include that transcript as supporting evidence.
+4. File the adoption warrant under the current governance policy and then issue the governed release.
+
+**Result:** `GOV‑anchors.md` will be the project’s first STANDARD, with clear, self‑contained stability commitments.

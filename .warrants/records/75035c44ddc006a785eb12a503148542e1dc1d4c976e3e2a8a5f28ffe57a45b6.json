@@ -1,0 +1,48 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "The constitution promoted through its own process, not by fiat. A second 3-family gate on the promotion question (Gemini 3.1 Pro, GPT-5, DeepSeek v4 Pro): unanimous PROMOTE-WITH-AMENDMENTS. Adjudicated: (P0, Gemini alone 1/3) the scoped key-state refusal deadlocks the append-only settlement closure permanently after the FIRST roster rotation - the very operation §4 exists to support - and the static vector GV-KEYSTATE-QUORUM-REFUSED had enshrined it; two static-vector-minded reviewers praised the mechanism that self-destructs. Fixed with an OPTIONAL resolved_key_state acknowledgment in sigma-glyph.anchor-trust@v1 (rotation derived into actors out-of-band no longer refuses; unacknowledged still does), plus a transition vector GV-KEYSTATE-RESOLVED, in BOTH implementations (Python+Go, differential 24/24) - the fix is warranted regardless of promotion since the bug shipped in v0.6.3. (P1, 3/3) §0 defines STANDARD (frozen schemas @v2-for-breaking, frozen §3 mechanism, backward-compat/fail-closed, SemVer); normative deps pinned - Warrant v0.3 by snapshot SHA-256 73758bdb, Books I-III by anchored version - so a STANDARD never rests on a moving DRAFT target. (P2, GPT-5) in-tree-trust MUST in §3 step 1, release-advisory, closure/signature note. Coherence resolved 3/3: constitution stabilizing before its governed content is a feature. Document version 1.0.0 (3/3), independent of the v0.6.4 bundle. This gate earned its keep: without Gemini's P0 we would have labeled STANDARD a mechanism that dies on first use."
+      },
+      {
+        "check": "f849a48f203726237334e175c032880781162bc5078b2a020e31646439089e5b",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "f41ae7ef99882ad74d62bc9c42246f307b7724e2aa03c95d2072b66d1c3c66db",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "f3f357041b68135f4ca4a8e03b123848f7f46bbdfd2e32ecc451d6be643ae280",
+      "fd4e920492d9764c175c888f17eb9e348582e18186f6ff995524bb4e758c7de2",
+      "304712386a95eedb78e9ba7fa8895cbe5798978da8df3d548d153ffe36e4112e",
+      "7e9935cb6d232e5372eecb6b590137734bbb872b97d4dd65e2d13701a6343836",
+      "a2435b2fad0d16eb5dfc9d704b956525b60b1e56f3981923055a1677f5c0e321",
+      "101f6e13f9bd464da6eee205adffbb1b434dcaa7123ec5520a899692f90ee8b9"
+    ],
+    "prior": [
+      "835114b7361b4aaa41eda50b2734f7a392799ccb855bba8c111c8ad48adce3d0"
+    ],
+    "subject": {
+      "hash": "a14a33ae661108d5a2ee772b118cb4ba547f894b717394f8689256abef73b9fe",
+      "note": "GOV STANDARD promotion gate: DRAFT STANDARD -> STANDARD (v1.0.0), 3-family unanimous PROMOTE-WITH-AMENDMENTS"
+    },
+    "ts": 1783542415,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "28524916eb200d4f7853eaf1d6a848072bd6d53ba64ae144afcebbd11f49483828d79bf8106ce1313a57a63d351a2bfd9da7f6eb73ccce9851618181991b0102"
+    }
+  ]
+}

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.4 — "Standing Constitution" (2026-07)
+
+`spec/GOV-anchors.md` leaves DRAFT: **the project's first STANDARD** (document version 1.0.0, independent of this v0.6.4 bundle). Promoted through the process it defines — a second 3-family gate on the promotion itself (Gemini 3.1 Pro, GPT-5, DeepSeek v4 Pro; unanimous PROMOTE-WITH-AMENDMENTS) — not by maintainer fiat.
+
+- **P0 fixed (Gemini, found by 1 of 3): the suicide verifier.** `key_state_under_governance` refused on the *presence* of a settled governance key-state warrant; the settlement closure is append-only, so the first roster rotation — the very operation §4 exists to support — would deadlock the chain **forever**, even after the operator derived the new key. The static vector `GV-KEYSTATE-QUORUM-REFUSED` had enshrined that refusal. Fixed with an OPTIONAL `resolved_key_state: [WarrantID]` in `sigma-glyph.anchor-trust@v1`: an acknowledged rotation (derived into `actors` out-of-band) no longer refuses; unacknowledged ones still do. New transition vector `GV-KEYSTATE-RESOLVED` (rotate→refuse→acknowledge→proceed); §7 now MUST include state-transition fixtures, not only static states. Fixed in both implementations (Python + Go), differential 24/24. This bug shipped in v0.6.3; the fix is warranted regardless of promotion.
+- **P1 (3/3): define STANDARD + pin dependencies.** New §0 Status and Stability: frozen schemas (`@v2` for any breaking change), frozen §3 mechanism, backward-compat/fail-closed, SemVer. Normative dependencies pinned — Warrant v0.3 by content SHA-256 of the vendored snapshot (`73758bdb…`), Books I-III by anchored version — so a STANDARD never rests on a moving DRAFT target. Coherence resolved: the constitution stabilizing before its governed content is deliberate (the process that decides "what is the spec" freezes first).
+- **P2 (GPT-5):** §3 step 1 MUST-refuses in-tree trust configs; `release` is advisory metadata; implementer note on closure-vs-signature scope.
+- Reference verifier `anchor_governance.py` (22 checks) + `governance_vectors.json` (16→17) + Go `gov-replay` (17/17) all updated; CI gates green. Governed adoption warrant carries 2-of-3 signatures.
+- Decision trail: `reviews/2026-07-{gemini,gpt5,deepseek}-gov-standard*.md` + adjudication warrants in `.warrants/`. **Published Book vectors: no changes** (Books I/II/III untouched).
+
 ## v0.6.3 — "Second Signature" (2026-07)
 
 The constitution meets its own conformance obligations, and the third roster actor becomes real:

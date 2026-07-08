@@ -1,0 +1,35 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Successor of the v0.6.3 set 78b98630. This release promotes GOV-anchors.md from DRAFT STANDARD to STANDARD (v1.0.0) through a second 3-family gate on the promotion (Gemini/GPT-5/DeepSeek, unanimous PROMOTE-WITH-AMENDMENTS): Gemini's P0 key-state deadlock fixed with resolved_key_state in both impls (differential 24/24), STANDARD bar defined (§0), normative deps pinned (Warrant snapshot 73758bdb + Books by anchored version). Filed by the maintainer; the second signature is expected from a roster co-signer - the envelope authorizes nothing until the 2-of-3 threshold is met."
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "279e012ddbc47b7ba3eaa0f0ba39ad531e0b3a0e3cb78f3e40909f14d0a675eb"
+    ],
+    "subject": {
+      "hash": "8fbb15005bbe66a175fba313b04a02f1abe51788c48de5ce6c3880077345558c",
+      "note": "ADOPT v0.6.4 anchor-set (Standing Constitution: GOV promoted to STANDARD v1.0.0 + P0 liveness fix)"
+    },
+    "ts": 1783542305,
+    "under": [
+      "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c",
+      "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "2eb379c0196da796f14825ac441de968949f32019c9c32dac57e7f29694174f1b6eafff2e9acb2371d0f00eb61513795cf4eccde527c7f7cfeaf5fdb7a934504"
+    }
+  ]
+}

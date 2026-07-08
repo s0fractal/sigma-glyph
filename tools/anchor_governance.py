@@ -125,7 +125,14 @@ def valid_trust(doc):
     if not isinstance(doc, dict):
         return None
     need = {"governance_trust", "jurisdiction", "genesis_profile", "actors"}
-    if set(doc) != need or doc["governance_trust"] != TRUST_TAG:
+    # optional: resolved_key_state — WarrantIDs of governance key-state
+    # rotations the operator has already derived into `actors` out-of-band
+    # (Gemini STANDARD gate P0: without this a settled rotation refuses
+    # forever, since the closure only grows — the mechanism self-destructs on
+    # its first roster rotation, the very operation §4 exists to support).
+    if not (need <= set(doc) <= need | {"resolved_key_state"}):
+        return None
+    if doc["governance_trust"] != TRUST_TAG:
         return None
     if not (isinstance(doc["jurisdiction"], str) and HEX64.match(doc["jurisdiction"])):
         return None
@@ -136,6 +143,10 @@ def valid_trust(doc):
             isinstance(k, str) and k and isinstance(v, list) and v
             and all(isinstance(x, str) and HEX64.match(x) for x in v)
             for k, v in a.items())):
+        return None
+    rks = doc.get("resolved_key_state", [])
+    if not (isinstance(rks, list)
+            and all(isinstance(x, str) and HEX64.match(x) for x in rks)):
         return None
     return doc
 
@@ -293,14 +304,19 @@ def derive_current_profile(recs, closure, bdir, trust):
 
 def key_state_under_governance(recs, closure, bdir, gov, trust):
     """Quorum-authorized key-state warrants filed under an AUTHORIZED
-    governance policy force refusal to a key-state-deriving verifier.
-    Two scopings, both required (Kimi P1-R):
+    governance policy force refusal to a key-state-deriving verifier — UNLESS
+    the operator has acknowledged them in `trust.resolved_key_state`.
+    Three scopings (Kimi P1-R + Gemini STANDARD-gate P0):
       - the policy hash must come from the authorized lineage, not from any
         profile-shaped blob in the store;
       - the key-state warrant itself must satisfy the quorum of the lineage
         policy it cites — per Warrant §5.1 a key-state record that fails
-        current-policy authorization is an invalid record, not a conflict,
-        and an attacker without a quorum cannot manufacture one."""
+        current-policy authorization is an invalid record, not a conflict;
+      - a rotation whose WarrantID is in `resolved_key_state` is already
+        derived into `trust.actors` out-of-band, so it no longer forces a
+        refusal (else, since the closure is append-only, the first settled
+        rotation would deadlock the chain forever)."""
+    resolved = set(trust.get("resolved_key_state", []))
     by_hash = {h: (p, t) for p, t, h in
                [(p, t, th) for p, t, th in gov]}
     gov_hashes = set(by_hash) | {p for p, _, _ in gov}
@@ -309,6 +325,8 @@ def key_state_under_governance(recs, closure, bdir, gov, trust):
         threshold_of[p] = t
         threshold_of[th] = t
     for rid in sorted(closure):
+        if rid in resolved:                       # operator has absorbed this rotation
+            continue
         env = recs[rid]
         body = env.get("body", {})
         if body.get("decision") not in ("accept", "supersede"):
@@ -682,6 +700,18 @@ def _scn_keystate_quorum_refused(td):
     return trust, hx["h1"], None, False, "warrant CLI"
 
 
+def _scn_keystate_resolved(td):
+    # Gemini STANDARD-gate P0: the SAME quorum rotation, but acknowledged in
+    # trust.resolved_key_state (operator has derived the new key into actors
+    # out-of-band) — the chain proceeds instead of deadlocking forever.
+    trust, hx = _fixture(td)
+    rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
+    ks_wid = _file(td, "accept", ACTORS[0], rot, [hx["t1"]], [hx["root"]],
+                   [ACTORS[0], ACTORS[2]], note="key-state under GOVERNANCE policy")
+    trust = dict(trust, resolved_key_state=[ks_wid])
+    return trust, hx["h1"], None, True, "adopted by"
+
+
 SCENARIOS = [
     ("GV-GENESIS-ADOPTED", "2-of-3 genesis adoption authorizes", _scn_genesis_adopted),
     ("GV-SUCCESSION-ROTATED", "successor adopted under rotated policy (lineage hop)", _scn_succession_rotated),
@@ -699,6 +729,7 @@ SCENARIOS = [
     ("GV-KEYSTATE-UNAUTH-PROFILE", "unauthorized profile cannot expand key-state scope (P1-R)", _scn_keystate_unauth_profile),
     ("GV-KEYSTATE-UNQUORUMED", "unquorumed key-state under governance ignored (Warrant s5.1)", _scn_keystate_unquorumed),
     ("GV-KEYSTATE-QUORUM-REFUSED", "quorum-authorized key-state refuses to the warrant CLI", _scn_keystate_quorum_refused),
+    ("GV-KEYSTATE-RESOLVED", "acknowledged rotation (resolved_key_state) proceeds, no deadlock (Gemini STANDARD-gate P0)", _scn_keystate_resolved),
 ]
 
 VEC_PATH = os.path.join(REPO, "tests", "spec_conformance", "governance_vectors.json")
@@ -826,8 +857,8 @@ def selftest():
     live = [s for s in sections if not s[1]]
     check("ANCHORS.txt parses (governed line of descent)",
           len(live) >= 1 and live[-1][0] == "v0.6.2")
-    check("current section is v0.6.3 with 10 anchors",
-          (live[0][0], len(live[0][2])), ("v0.6.3", 10))
+    check("current section is v0.6.4 with 10 anchors",
+          (live[0][0], len(live[0][2])), ("v0.6.4", 10))
     check("current anchor-set blob schema-valid",
           valid_anchor_set(anchor_set_blob(live[0][0], live[0][2], "a" * 64)))
 

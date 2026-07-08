@@ -1,0 +1,92 @@
+Verdict: PROMOTE-WITH-AMENDMENTS
+
+(1) §7 conformance obligations — met in substance, not ceremony
+
+I checked each obligation against the supplied transcripts and the spec/code surface.
+
+- Obligation 1 (reference verifier + deterministic selftest): tools/anchor_governance.py selftest reports ALL PASS and is intrinsically deterministic: fixed Ed25519 fixture keys derived from SHA-256("adr007-fixture:<actor>") and a fixed ts=1783400000. The selftest covers schema edges (closed schemas for profile/trust), ANCHORS projection sanity and, critically, the adoption/lineage/closure rules. It exercises the “no tie-breaks: freeze” rule (GV-COMPETING-SUCCESSORS), jurisdiction replay armor, “orphan outside closure,” and “fat under” ineligibility.
+
+- Obligation 2 (pinned vectors including “unauthorized in authorized positions”): tests/spec_conformance/governance_vectors.json is anchored (verify_anchors prints the exact SHA-256), contains 16 scenarios, and explicitly includes the two “authorized-shape/unauthorized-substance” fixtures: GV-HIJACK-MINTED-PAIR (profile+threshold minted pair) and GV-KEYSTATE-UNAUTH-PROFILE and GV-KEYSTATE-UNQUORUMED. The generator refuses to emit if the oracle disagrees with the declared expectations, guaranteeing the file is mechanically derived and deterministic.
+
+- Obligation 3 (second independent implementation): The Go tool (“gov-replay”) passes all 16/16 governance vectors, and the differential test reports agreement on 23/23 adversarial mutations. That shows a second pipeline independently re-derives the same yes/no and “freeze” outcomes from the same store snapshots.
+
+- Obligation 4 (CI enforcement with out‑of‑band trust): The verifier enforces an out‑of‑band trust file (path refusal if inside the repo); CI reportedly runs “status --enforce” with such a file, and live “status” shows v0.6.2 and v0.6.3 AUTHORIZED 2/2. The tool also fails closed if the cryptography backend is unavailable, preventing false greens.
+
+Conclusion: the four gates are genuinely met. This is not ceremony: the code implements the seven-step verification flow, the vectors pin the tricky edges (lineage, under-cardinality, replay armor, key‑state scoping, “freeze”), a second implementation agrees, and CI actually uses the tool in an enforce mode.
+
+Two minor clarity notes (not blocking conformance):
+- The vectors’ note-substring checks are a testing convenience; they do not appear in the normative text. That’s fine.
+- The selftest doesn’t re-run Warrant §6 checks (schema/WarrantID/signatures) over the entire closure; it verifies signatures only when counting toward quorums, which is sufficient for the authorization decision but could be called out as an implementation note (see P2 text below).
+
+Arithmetic sanity checks:
+- Roster 2‑of‑3 ⇒ N−M = 3−2 = 1, matching the liveness claim in §4 and CHANGELOG.
+- Signature counting requires ≥ min_sigs distinct actors with bound keys; test cases demonstrate duplicate-actor signatures and unbound keys are ignored.
+
+(2) Coherence of STANDARD GOV over DRAFT Books and DRAFT Warrant v0.3
+
+- Constitution-first is a plausible design: the governance layer is meta to Books I–III and explicitly “does not change reduction, serialization, hashing, or wave/federation semantics.” Stabilizing the process that authorizes spec bytes while the governed content evolves can be a feature: it locks in the adoption/lineage/succession rules and reduces institutional risk while the protocol documents continue as DRAFT.
+
+- However, GOV’s normative dependency on Warrant SPEC v0.3 is itself DRAFT. Today GOV references “Warrant SPEC v0.3” by URL but does not pin a commit or an anchored snapshot in this document. If Warrant v0.3 semantics drift under the same label, GOV’s STANDARD status would be resting on a moving base.
+
+Conclusion: STANDARD‑on‑DRAFT is acceptable for GOV’s relationship to Books I–III (process over content), but not acceptable without pinning the Warrant dependency. This is the one coherence gap that must be closed before promotion: the GOV STANDARD must normatively bind to a specific v0.3 text (commit hash) to avoid drift. There is already a pinned snapshot for ADR‑006 in proposals/refs; mirror that here as a normative pin.
+
+(3) What “STANDARD” must mean here; is it stated precisely enough?
+
+The repository uses “DRAFT STANDARD” labels in document headers, and ROADMAP has a versioning policy (v0.x.y draft; v1.0.0 stable), but there is no document‑local, explicit definition of what the “STANDARD” label commits to for GOV. Implementers could reasonably ask:
+- Are the anchor‑set/profile/trust schemas frozen (closed) with backward‑compatibility guarantees?
+- Are the seven verification steps (jurisdiction scoping, policy lineage, under‑cardinality, key‑state scoping, adoption threshold, conflict freeze) frozen?
+- Will future changes appear only as new profile tags (e.g., “anchor‑governance@v2”) and new vector suites, never silently in-place?
+- Is the out‑of‑band trust schema stable?
+- What is the compatibility policy vis‑à‑vis Warrant v0.3 evolution?
+
+Those commitments are not currently stated in GOV-anchors.md. That is a P1 (spec silent where implementers must guess) for the “STANDARD” label itself, and a P2 for a few phrasing details (see below).
+
+Concrete text proposal (P1 – REQUIRED before promotion):
+- Add a new subsection near the header, for example after “Placement rationale,” titled “Stability commitments (STANDARD)”:
+
+“Stability commitments (STANDARD). When this document’s Status is STANDARD:
+- The anchor‑set blob schema (‘sigma-glyph.anchor-set@v1’), the governance profile schema (‘sigma-glyph.anchor-governance@v1’), and the out‑of‑band trust schema (‘sigma-glyph.anchor-trust@v1’) are FROZEN. Only editorial clarifications are permitted; any behavioral or schema change requires a new tag (e.g., ‘@v2’), a new §7 conformance suite, and a new adoption.
+- The verification procedure in §3 (steps 1–7) is FROZEN. Any change to these steps is a breaking change and must ship as a new document version and profile tag.
+- Backwards compatibility: a verifier implementing this STANDARD must continue to accept anchor‑set/profile/trust blobs valid under this version. New versions MUST be detectable by tag so that a verifier can fail closed on unknown versions.
+- Normative dependency pin: this STANDARD is defined against Warrant SPEC v0.3 at commit <c038ce36…> (see ‘Pinned Warrant v0.3 snapshot’ below). A verifier MAY implement a later Warrant version only if its §5.1/§7/§9 semantics are a superset for the rules this document relies on; any dependency change requires a new ‘@v’ tag and conformance vectors.”
+
+Also add a short “Pinned Warrant v0.3 snapshot” note pointing to a copy anchored in-repo (see P1 below).
+
+(4) Blockers and required amendments before promotion
+
+Required amendments (PROMOTE only with these changes):
+
+P1-A (normative dependency pin): In §0 (Scope/Placement) or a new short §2.5, explicitly pin Warrant SPEC v0.3 to a commit and an in-repo snapshot, and make that pin normative.
+
+Proposed text to insert (REQUIRED):
+“Normative dependency (pinned). This profile is defined against Warrant SPEC v0.3 at commit c038ce36b61445a5d82371975afd21d541e07752. An exact snapshot is included as ‘proposals/refs/warrant-SPEC-v0.3-snapshot.md’ and MUST be treated as authoritative for §5.1 (key state), §7 (settlement), and §9 (multi‑root) as used here. Implementations MAY support later Warrant versions but MUST preserve these semantics when verifying anchor governance; any change to these dependencies requires a new governance profile version and conformance vectors.”
+
+P1-B (define “STANDARD” commitments): Add the “Stability commitments (STANDARD)” subsection as above to GOV‑anchors.md.
+
+Strong P2 clarifications (recommended; supply concrete wording):
+
+P2‑1 (key‑state refusal phrasing in §3 step 5): The current sentence reads “a key‑state warrant forces refusal to a key‑state‑deriving verifier…,” which mislabels who refuses. The anchor verifier refuses; the key‑state‑deriving tool should be run first.
+
+Proposed replacement (precise edit to §3 step 5):
+“Key state — a quorum‑authorized key‑state warrant filed under a policy from the authorized lineage forces refusal by any anchor‑set verifier that does not derive key state. A verifier that can derive key state MUST do so before proceeding. Both conditions MUST hold: (a) the cited policy is from the §3.4 authorized lineage; and (b) the key‑state warrant itself satisfies that policy’s quorum. Per Warrant §5.1, a key‑state record failing current‑policy authorization is an invalid record, not a conflict, and MUST NOT block anchor adoption.”
+
+P2‑2 (release field semantics in §2): The code treats “release” as an opaque string; the doc suggests “vX.Y.Z.” Make it explicit that authorization never depends on this field.
+
+Proposed addition (end of §2 Anchor‑set blob):
+“‘release’ is an advisory label for human display. Authorization depends only on the anchor content and ‘ancestor’/jurisdiction checks; verifiers MUST NOT rely on its format or contents for any decision.”
+
+P2‑3 (closure and signature validation note): The code computes the descendant closure structurally and verifies signatures only when counting toward a quorum. Add an implementer note to avoid confusion.
+
+Proposed addition (end of §3 step 3):
+“Implementer note: the descendant closure is a structural scope; records in the closure MUST NOT be treated as authorized events unless their WarrantID recomputes (JCS) and their signatures verify when used in steps 4–7. Authorization decisions (profile adoption, key‑state, anchor adoption) MUST verify signatures and thresholds at the point of use.”
+
+P2‑4 (explicitly forbid in‑tree trust): §2 already says “MUST NOT be read from the tree being verified.” Mirror that as a MUST in §3 step 1 for consistency.
+
+Proposed minimal edit (append to §3 step 1):
+“The out‑of‑band trust configuration MUST NOT be loaded from the repository being verified; paths inside the tree MUST be refused.”
+
+Final judgment
+
+With the above two REQUIRED edits (pinning Warrant v0.3 and stating the STANDARD stability commitments) and the three clarity tweaks, GOV‑anchors.md has met its own gates and can be promoted safely. Without the pin and the STANDARD commitment definition, the document would be STANDARD in name but resting on an undefined dependency and an undefined stability promise.
+
+Therefore: PROMOTE-WITH-AMENDMENTS.

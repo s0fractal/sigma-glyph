@@ -1,0 +1,8 @@
+GOV text: STANDARD+1.0.0+§0, deps pinned, resolved_key_state in spec+both impls
+ANCHOR-GOVERNANCE: ALL PASS
+GOVERNANCE-REPLAY: ALL PASS (17/17)
+GOVERNANCE-GO: ALL PASS (17/17)
+GOVERNANCE-DIFFERENTIAL: ALL AGREE (24/24)
+GV-KEYSTATE-RESOLVED transition vector present
+prior governed releases still AUTHORIZED (backward compat)
+GOV STANDARD promotion gate verified

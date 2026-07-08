@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Adjudication check: GOV STANDARD promotion gate (repo root; needs cargo-free, go+python)."""
+import pathlib, subprocess, sys
+ok = True
+gov = pathlib.Path("spec/GOV-anchors.md").read_text()
+# P1-A: STANDARD defined + version 1.0.0
+ok &= "**Version:** 1.0.0" in gov and "**Status:** STANDARD" in gov and "## 0. Status and Stability" in gov
+# P1-B: dependencies pinned
+ok &= "73758bdb735912709a0b6280b6c6e8b32cd3f99e31004bee2bed147d9d87cd8e" in gov
+ok &= "Book I v0.5.2" in gov
+# P0: resolved_key_state in spec + both impls
+ok &= "resolved_key_state" in gov
+ok &= "resolved_key_state" in pathlib.Path("tools/anchor_governance.py").read_text()
+ok &= "resolved_key_state" in pathlib.Path("impl-go/main.go").read_text()
+print("GOV text: STANDARD+1.0.0+§0, deps pinned, resolved_key_state in spec+both impls" if ok else "TEXT MARKERS MISSING")
+# behavior: P0 transition vector + both impls agree
+for cmd, want in ((["python3","tools/anchor_governance.py","selftest"], "ANCHOR-GOVERNANCE: ALL PASS"),
+                  (["python3","tools/anchor_governance.py","replay"], "GOVERNANCE-REPLAY: ALL PASS (17/17)"),
+                  (["./impl-go/sigma-federation-go","gov-replay","tests/spec_conformance/governance_vectors.json"], "GOVERNANCE-GO: ALL PASS (17/17)"),
+                  (["python3","tests/governance_differential.py"], "GOVERNANCE-DIFFERENTIAL: ALL AGREE (24/24)")):
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    last = p.stdout.strip().splitlines()[-1]; print(last)
+    ok &= p.returncode == 0 and want in last
+# the P0 transition vector must exist
+import json
+gv = json.load(open("tests/spec_conformance/governance_vectors.json"))
+ok &= any(v["id"] == "GV-KEYSTATE-RESOLVED" for v in gv["vectors"])
+print("GV-KEYSTATE-RESOLVED transition vector present" if any(v["id"]=="GV-KEYSTATE-RESOLVED" for v in gv["vectors"]) else "P0 VECTOR MISSING")
+# governance still live-authorized on prior releases (backward compat)
+p = subprocess.run(["python3","tools/anchor_governance.py","status","--trust-config",
+                    str(pathlib.Path.home()/".config/warrant/sigma-glyph-anchor-trust.json")], capture_output=True, text=True)
+ok &= "v0.6.2     AUTHORIZED" in p.stdout and "v0.6.3     AUTHORIZED" in p.stdout
+print("prior governed releases still AUTHORIZED (backward compat)")
+print("GOV STANDARD promotion gate verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

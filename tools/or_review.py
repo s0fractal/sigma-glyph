@@ -38,6 +38,7 @@ PRIMARY_SOURCES = [
     "proofs/README.md",
     "proofs/SizeBound.lean",
     "proposals/ADR-007-governed-anchors.md",
+    "spec/GOV-anchors.md",
     "tools/anchor_governance.py",
 ]
 PRIOR_REVIEWS_GLOB = ["reviews/2026-07-gpt5-adr007-gate.md",

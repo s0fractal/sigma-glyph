@@ -1165,8 +1165,20 @@ func (s GovStore) parseJSONBlob(h string) any {
 }
 
 func govValidTrust(doc map[string]any) bool {
-	if !sameKeys(doc, []string{"governance_trust", "jurisdiction", "genesis_profile", "actors"}) {
-		return false
+	// required keys, plus the optional resolved_key_state (Gemini STANDARD
+	// gate P0): WarrantIDs of governance rotations already derived into actors
+	for k := range doc {
+		switch k {
+		case "governance_trust", "jurisdiction", "genesis_profile", "actors",
+			"resolved_key_state":
+		default:
+			return false
+		}
+	}
+	for _, k := range []string{"governance_trust", "jurisdiction", "genesis_profile", "actors"} {
+		if _, ok := doc[k]; !ok {
+			return false
+		}
 	}
 	tag, _ := asString(doc["governance_trust"])
 	j, jok := asString(doc["jurisdiction"])
@@ -1186,6 +1198,18 @@ func govValidTrust(doc map[string]any) bool {
 		for _, rawKey := range keys {
 			key, ok := asString(rawKey)
 			if !ok || !isHex64(key) {
+				return false
+			}
+		}
+	}
+	if raw, ok := doc["resolved_key_state"]; ok {
+		items, ok := asList(raw)
+		if !ok {
+			return false
+		}
+		for _, it := range items {
+			s, ok := asString(it)
+			if !ok || !isHex64(s) {
 				return false
 			}
 		}
@@ -1394,7 +1418,17 @@ func (s GovStore) keyStateUnderGovernance(closure map[string]bool, lineage []Gov
 		thresholdOf[g.ProfileHash] = g.Threshold
 		thresholdOf[g.ThresholdHash] = g.Threshold
 	}
+	// rotations the operator has derived into actors out-of-band no longer
+	// force a refusal (Gemini STANDARD gate P0: else the append-only closure
+	// deadlocks the chain on its first rotation)
+	resolved := map[string]bool{}
+	for _, h := range stringList(trust["resolved_key_state"]) {
+		resolved[h] = true
+	}
 	for _, rid := range sortedRecordIDs(closure) {
+		if resolved[rid] {
+			continue
+		}
 		env, ok := asMap(s.Records[rid])
 		if !ok {
 			continue
