@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.2 — "Governed Anchors" (2026-07)
+
+Adopts **ADR-007** (3-family blind gate: GPT-5, Gemini 3.1 Pro, DeepSeek v4 Pro — all P0/P1 closed in rev 2; verification pass: Kimi k2.6 — residual P1-R closed in rev 3, "close P1-R and ADOPT"). The interim single-maintainer trust point starts retiring on a schedule: **Specification Anchors are now warrant-governed.**
+
+- **New: `spec/GOV-anchors.md`** (normative, meta; deliberately not a Book — the constitution must not judge itself, gate 2:1). Releases become JCS anchor-set blobs (jurisdiction-embedded, ancestor-chained) adopted by `accept` warrants under a threshold policy; ANCHORS.txt is the human projection, the blob wins on divergence. Policy lineage per Warrant §5.1 (each profile adoption authorized under the policy being replaced); rival successors freeze the chain — no tie-breaks (grindable, the ADR-006 fold lesson); genesis keys retire by policy rotation, N−M liveness arithmetic stated; forks are legitimate jurisdictions.
+- **Governance genesis filed:** root `a30bd202…`, roster 2-of-3 {s0fractal (founder), claude-fable-5 (maintainer), codex (reviewer family)} — founder decision 2026-07-08. Continuity-from-then: v0.5.0–v0.6.1 are labeled pre-governance ancestors in ANCHORS.txt; governance authorizes v0.6.2 forward and claims nothing about history.
+- `tools/anchor_governance.py` — reference verifier (settlement-closure scoping, fail-closed crypto, out-of-band trust config with in-tree refusal, `--enforce`); deterministic 22-check selftest.
+- `examples/two-jurisdictions/` — first live Book III exercise (two real warrant stores, file-copy gossip, divergent sovereign views, ConflictSet, replay resistance observed live); in CI.
+- Decision trail: ADR-007 (3 revisions), 7 reviews/responses in `reviews/`, adjudication warrants `89da5979 → 869243ae → 09133de9 → 26cf44f0`, governance genesis `a30bd202…`, adoption warrant over the v0.6.2 anchor-set — all in `.warrants/`.
+- **Published vectors: no changes** (all Book I/II/III vectors byte-identical; Book anchors carried over per the bundle convention).
+
 ## v0.6.1 (2026-07)
 
 Hygiene release adjudicating the Codex pedantic full-state audit (P2/P3 pedantry explicitly invited — and earned). No behavior changes anywhere; one real CI bug and a stale-reference sweep:

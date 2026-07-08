@@ -1,0 +1,32 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Founder decision 2026-07-08: initial roster {s0fractal, claude-fable-5, codex}, min_sigs 2 (N-M=1: survives any single silent retirement). Gate trail: 89da5979 -> 869243ae -> 09133de9 -> 26cf44f0."
+      }
+    ],
+    "decision": "propose",
+    "evidence": [],
+    "prior": [],
+    "subject": {
+      "hash": "376aaff283992a26a312997297117a7011091e443148d495e906f79f1cd4c8fb",
+      "note": "governance genesis: ADR-007 anchors jurisdiction, roster 2-of-3"
+    },
+    "ts": 1783518602,
+    "under": [
+      "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "054a10e8a32340be9efaccb93205216a15949fb76975956cf4831eb9c6b15a106b66bbdfa1f97289476ec9af7c0893738657e49d08adedb2e01858e5e9326507"
+    }
+  ]
+}

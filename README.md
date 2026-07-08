@@ -1,7 +1,7 @@
 # Σ-GLYPH
 
 **Topological Compute Engine / Decentralized Wave Resonator**
-Current: **v0.6.1** — DRAFT STANDARD, three Books. Hash-thunk evaluation with size-priced ATP (Book I), field-level wave pins with absent-wave semantics (Book II), selection-only annotation federation as a Warrant v0.3 profile (Book III: jurisdictions, machine-readable selection policies, permanent divergence by design). Machine-readable conformance suites for all Books ([`tests/spec_conformance/`](tests/spec_conformance/)); the memory bound is a machine-checked theorem ([`proofs/`](proofs/), Lean 4).
+Current: **v0.6.2** — DRAFT STANDARD, three Books + a constitution. Hash-thunk evaluation with size-priced ATP (Book I), field-level wave pins with absent-wave semantics (Book II), selection-only annotation federation as a Warrant v0.3 profile (Book III: jurisdictions, machine-readable selection policies, permanent divergence by design), and **governed Specification Anchors** ([`spec/GOV-anchors.md`](spec/GOV-anchors.md): releases adopted by 2-of-3 threshold warrants, ADR-007). Machine-readable conformance suites for all Books ([`tests/spec_conformance/`](tests/spec_conformance/)); the memory bound is a machine-checked theorem ([`proofs/`](proofs/), Lean 4).
 
 Content-addressed SKI computation core with a bit-exact determinism guarantee, plus a wave/coordinate navigation layer that is strictly a *view* over identity — never part of it.
 
@@ -17,6 +17,7 @@ result_hash = eval(term_hash, atp)     // deterministic, integer-only, total
 | [`spec/book-2-navigation.md`](spec/book-2-navigation.md) | Normative | **nodes** (annotation layer) — WaveVectorQ as detached annotation, pinned LUT (SHA-256 arbitrated), `interfere()` with the Law of Left Dominance, coordinate pins, Mass, CP-24 |
 | [`spec/book-3-federation.md`](spec/book-3-federation.md) | Normative | **jurisdictions** — annotation assertions as Warrant v0.3 records, machine-readable selection policies, ConflictSets that clients never merge, AnnotationViewID + assertion-set commitments, ten conformance criteria |
 | [`spec/LORE.md`](spec/LORE.md) | Non-normative | **humans & agents** — why the glyphs are named, why FALSE sits at 270°, why the wave left the hash, and what deliberately isn't here yet |
+| [`spec/GOV-anchors.md`](spec/GOV-anchors.md) | Normative (meta) | **the spec itself** — releases as anchor-set blobs adopted by threshold warrants (2-of-3), policy lineage, succession for model actors, fork legitimacy; deliberately not a Book: the constitution must not judge itself |
 
 Core invariants, in one breath: **hash is identity; phase is a coordinate; wave is a view; aggregate is never a field; ATP prices work AND memory (size − 1 ≤ spent); dead branches are never fetched; canonical failures are deterministic, local faults are not canonical.**
 

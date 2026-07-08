@@ -5,7 +5,18 @@ release; a file untouched by the release keeps its bytes — and therefore its
 per-document Version header AND its anchor — from the last release that
 changed it. (E.g. Book I ships in v0.6.x bundles at its own version 0.5.2.)
 
-== v0.6.1 ==
+== v0.6.2 ==
+a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b  spec/book-1-truth.md
+7733dfb0876db9a8b243864745acffa671cef7641517a9bb7774af1aef5d01fe  spec/book-2-navigation.md
+e7bdbac8047cc3ae1d811cec11f7caf23b488e8260b83e1bf91a9997e917f1ef  spec/book-3-federation.md
+9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
+2df9194b15734a98b185e1f42472ddc52b03597cd6fd48a8a6fbf50799091021  spec/appendix-a-complexity.md
+06674b5565eabd7faeabe20bb4378051bfef1525930c3c38ffac6507eefa2418  spec/GOV-anchors.md
+08116edb302a827858a95dd2a1533134a0fb90220f361085a213f5c93486fcd9  tests/spec_conformance/vectors.json
+9ef44d0206b6ced91e25c15c8afa81e1faad5ed7db3c5f27599b2c6f00c04ccb  tests/spec_conformance/wave_vectors.json
+310296a8612d46f2ec37054bbeadf1dc612e5f53d6e390591399c72401dac044  tests/spec_conformance/federation_vectors.json
+
+== v0.6.1 (pre-governance ancestors) ==
 a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b  spec/book-1-truth.md
 7733dfb0876db9a8b243864745acffa671cef7641517a9bb7774af1aef5d01fe  spec/book-2-navigation.md
 e7bdbac8047cc3ae1d811cec11f7caf23b488e8260b83e1bf91a9997e917f1ef  spec/book-3-federation.md
@@ -15,7 +26,7 @@ e7bdbac8047cc3ae1d811cec11f7caf23b488e8260b83e1bf91a9997e917f1ef  spec/book-3-fe
 9ef44d0206b6ced91e25c15c8afa81e1faad5ed7db3c5f27599b2c6f00c04ccb  tests/spec_conformance/wave_vectors.json
 310296a8612d46f2ec37054bbeadf1dc612e5f53d6e390591399c72401dac044  tests/spec_conformance/federation_vectors.json
 
-== v0.6.0 ==
+== v0.6.0 (pre-governance ancestors) ==
 a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b  spec/book-1-truth.md
 4a5b42ab65e45697a2a75848d4347102fe14759ac978b00c15226058e0c45d5d  spec/book-2-navigation.md
 d16ef967380a28085ace0de9137ceec79faf599513072b2d9e1314e32c157a9c  spec/book-3-federation.md
@@ -25,7 +36,7 @@ d16ef967380a28085ace0de9137ceec79faf599513072b2d9e1314e32c157a9c  spec/book-3-fe
 9ef44d0206b6ced91e25c15c8afa81e1faad5ed7db3c5f27599b2c6f00c04ccb  tests/spec_conformance/wave_vectors.json
 310296a8612d46f2ec37054bbeadf1dc612e5f53d6e390591399c72401dac044  tests/spec_conformance/federation_vectors.json
 
-== v0.5.2 ==
+== v0.5.2 (pre-governance ancestors) ==
 a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b  spec/book-1-truth.md
 dc0c42a1c28bd2fb3bf731372951e49655df86fa7787715c0e522c6907028860  spec/book-2-navigation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
@@ -33,7 +44,7 @@ dc0c42a1c28bd2fb3bf731372951e49655df86fa7787715c0e522c6907028860  spec/book-2-na
 08116edb302a827858a95dd2a1533134a0fb90220f361085a213f5c93486fcd9  tests/spec_conformance/vectors.json
 9ef44d0206b6ced91e25c15c8afa81e1faad5ed7db3c5f27599b2c6f00c04ccb  tests/spec_conformance/wave_vectors.json
 
-== v0.5.1 ==
+== v0.5.1 (pre-governance ancestors) ==
 42e9193b85b30ead6781389b55e558db87408ff4190e81cc68dd032f3758af7c  spec/book-1-truth.md
 b4cf0eefb7d060299ab9f81797729d7ad05a18c1a7efa4c13b4b4c3500ead77b  spec/book-2-navigation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
@@ -41,7 +52,7 @@ b4cf0eefb7d060299ab9f81797729d7ad05a18c1a7efa4c13b4b4c3500ead77b  spec/book-2-na
 a93341a9a9d813786867d3075f3c465c0f84fb63099e7c973dca1b1046187edd  tests/spec_conformance/vectors.json
 b81935369f35048e6c1f3d3fce993b20b6c5b3123d9b763045566303b72fbd03  tests/spec_conformance/wave_vectors.json
 
-== v0.5.0 ==
+== v0.5.0 (pre-governance ancestors) ==
 0c4f39ccccca99ae2c409d64085aabc82d446a1f6ea1fa5692ad0acb09d4668d  spec/book-1-truth.md
 e05f789055acde32b255cb778946d92b47cd2fd0b13eb98ab749adaf60ecd5e4  spec/book-2-navigation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
