@@ -1,0 +1,196 @@
+Verdict: Gate-worthy with P1s to close before adoption; the mechanism is sound, but the bootstrap/story and the verifier need sharper scoping and a couple of hard checks added. I ran no code; I audited ADR-007, Book III §2 precedent, and tools/anchor_governance.py.
+
+1) Bootstrap attack analysis — 1‑of‑1 genesis vs signed git tags
+
+Exact attacks the governed chain prevents that signed tags do not:
+
+- Single-key compromise forward-writes history. Scenario: the incumbent key is compromised after a legitimate v0.6.1 release. An attacker signs v0.6.2 with the stolen key and pushes a signed tag. Git signature verification alone cannot express “this key may no longer sign releases”; consumers trusting that key accept the tag. Under ADR‑007 G1 with a 2‑of‑N threshold, the attacker cannot produce an adoption warrant that satisfies the current threshold (needs ≥2 bound actors). Even if they collude with one actor, they still need quorum. “Revocation is a warrant” (Warrant §5.1) gives a canonical forward action to exclude the compromised key; tags have no revocation semantics beyond out‑of‑band lists.
+- Succession without out‑of‑band trust. Tags cannot express a policy change (e.g., add a new model actor; retire an old one) in a way a verifier can check. With ADR‑007, a policy supersede warrant (“accept” of a new threshold policy blob) authorized under the old threshold gives a machine‑checkable succession trail. Consumers that pin the governance profile + threshold need no social context to accept v0.6.2 signed by founder+model‑C after model‑A retires.
+- Replay of old signatures post‑revocation. Tags stay valid indefinitely. In ADR‑007, the “current policy” rule and settlement status decide whether a signature should count today. A warrant filed by a key later revoked under §5.1 no longer helps meet the threshold; a verifier that considers settlement‑active key‑state honors that automatically.
+
+Conclusion: it’s not ceremony; the “difference class” is (a) threshold authorization and (b) revocation/rotation as warrants under authoritative policy. Signed tags alone are missing both.
+
+2) Ancestor chain across jurisdictions — replay and jurisdiction root
+
+Attack: Replay a public anchor‑set blob and its adoption warrant into a different store and present it as “the original” to a fresh verifier.
+
+- Today’s anchor‑set blob schema has no jurisdiction field; the subject hash is the same across stores. The adoption warrant’s WarrantID differs, but a fresh verifier with no trust config lacks any way to tell which jurisdiction to trust.
+- Book III solves this for assertions by embedding the jurisdiction root in the assertion blob; selection MUST reject mismatched roots.
+
+Assessment: Canonicity is a verifier trust decision — you must pin a jurisdiction. However, the absence of a “jurisdiction” field in the anchor‑set blob enables a class of confusing replays even when a verifier thinks it has pinned a root: you can copy the anchor‑set blob byte‑for‑byte between stores, and naive tools that cache blob hashes without checking the adoption’s root can misattribute it.
+
+P1 (spec silent): ADR‑007 does not normatively bind anchor‑sets to a jurisdiction root; implementers must guess whether to embed and check a root. Close it by mirroring Book III.
+
+Concrete text proposal (ADR‑007, “Schemas (drafting base, G1)”, anchor‑set blob):
+
+- Add a field and a MUST check:
+
+  Add to the schema:
+  {
+    "governance": "sigma-glyph.anchor-set@v1",
+    "jurisdiction": "<hex64: WarrantID of the genesis root that makes this jurisdiction settlement-active>",
+    "release": "v0.6.1",
+    "ancestor": "<hex64, optional>",
+    "anchors": [ ... ]
+  }
+
+  Verification MUST reject any adoption whose anchor-set.blob.jurisdiction != the settlement-active genesis root for this store (as configured by the verifier per Warrant §9). A genesis anchor-set MUST carry a jurisdiction field and MUST omit ancestor.
+
+- Tools: anchor_governance.py must (a) accept a configured set of settlement-active roots, (b) refuse to authorize an adoption unless the envelope is in the descendant closure of one of those roots (Warrant §9), and (c) compare anchor-set.jurisdiction to that root. See also finding P1‑A below.
+
+3) Two‑blob under split — binding threshold to governance scope
+
+Attack: Can a satisfied threshold blob be replayed to authorize unrelated subjects because the binding lives in a sibling blob?
+
+- The current tool rejects accept(envelope) that lacks the profile blob in under — good.
+- But a subtler vulnerability exists: the verifier does not check any continuity constraint on the threshold policy. An attacker cannot escalate threshold without satisfying the current threshold — but the tool, as written, will accept any accept(anchor_set) whose under contains any valid v0.3 threshold blob satisfying signatures plus the profile blob. It does not enforce the ADR text’s “Changing either blob is constitutional change: the superseding adoption MUST satisfy the threshold of the policy being replaced”.
+
+P1 (spec silent/tool incomplete): There is no normative, machine‑enforceable rule for how a “current” governance threshold is determined for anchor adoption, nor a verifier algorithm. Implementers will guess (and the reference tool currently over‑accepts).
+
+Concrete text proposals:
+
+- ADR‑007 (new subsection, “Policy lineage and binding”, MUST):
+
+  1) The governance profile blob MUST carry a binding to the threshold policy it expects for anchor adoption:
+
+     Extend the governance profile blob schema with:
+     {
+       "governance_policy": "sigma-glyph.anchor-governance@v1",
+       "scope": "spec/ANCHORS.txt",
+       "threshold": "<hex64: hash of the Warrant v0.3 threshold policy blob>"
+     }
+
+     An adoption warrant for an anchor-set MUST list exactly one governance profile in under, and exactly one threshold policy, whose hash MUST equal profile.threshold. Unknown extra under entries MUST make the adoption ineligible for anchor governance.
+
+  2) Governance policy changes (either the profile or its bound threshold) MUST be adopted by a dedicated “profile adoption” warrant whose subject.hash equals the new governance profile blob. That warrant MUST be authorized under the threshold policy hash currently bound by the previous profile (the “current-policy” rule borrowed from Warrant §5.1). The “current” governance profile is the unique settlement-active profile reachable from the configured genesis root by DAG order, with no conflicting maxima.
+
+  3) Anchor adoption MUST use the currently adopted governance profile; verifiers MUST reject adoptions that cite a profile that is neither the current one nor adopted under the predecessor’s threshold.
+
+- Tool: anchor_governance.py must (a) parse and enforce profile.threshold pinning, (b) discover the current profile by walking accepted profile-adoption warrants in DAG order from the settlement-active root, enforcing “adopted under prior threshold”, (c) require under to include that exact threshold policy and profile, and (d) error on multiple threshold/profile blobs in under.
+
+Rationale arithmetic (counts): if threshold.min_sigs = 2 and actors = {founder, A, B}, and only founder+B sign an adoption with a spurious new threshold blob T′ (same actors but doctored min_sigs), a correct verifier must ignore T′ unless a profile adoption bound to T′ was itself adopted under T (two signatures). The tool today accepts the envelope because it simply tests “some threshold present and satisfied” — this is the hole the above closes.
+
+4) Actor deprecation mid‑policy — walk Warrant §5.1 concretely
+
+Policy: threshold {actors=[founder, model‑A, model‑B], min_sigs=2}. model‑A retires silently (no warrants).
+
+Is the store live? Yes — any two of the three can still authorize. Since model‑B remains available, anchor adoption can be authorized by founder+model‑B under the unchanged threshold.
+
+Exact warrant sequence to recover and renew the roster without degenerating to “founder 1‑of‑1”:
+
+- Maintain continuity for adoptions immediately after A retires:
+
+  Adoption (decision="accept", subject.hash=anchor_set vX): under includes the current governance profile P (bound to threshold policy T), and T. Signatures: founder + model‑B. Threshold satisfied (2/3). Adoption settlement‑active under the configured root.
+
+- Rotate the roster to reflect retirement and/or add a successor:
+
+  1) Prepare a new threshold policy blob T2:
+     { "warrant_policy":"0.3", "threshold": { "min_sigs":2, "actors": ["founder", "model-b", "model-c"] } }
+
+  2) Prepare a new governance profile P2 identical to P except "threshold": H(T2).
+
+  3) File a “profile adoption” warrant Wp2: decision="accept", subject.hash=H(P2), under=[H(P), H(T)] (the under binds the adoption to the prior profile and its threshold); signatures: founder + model‑B. This leverages §5.1 current‑policy rule: changes to the governance policy must be authorized under the policy being replaced.
+
+  4) Future anchor-set adoptions must be under [H(P2), H(T2)], signed by any two in {founder, model‑b, model‑c}.
+
+At no point does the quorum degenerate to founder alone: step 3 requires two signatures (founder + model‑B). If both non‑founder models retire simultaneously, liveness fails by design unless the policy anticipates this (e.g., min_sigs=2, actors=[founder, X, Y] and one of X or Y is available). The criterion “survive the scheduled retirement of any single actor” is met.
+
+5) Placement
+
+Argue for a standing GOV document outside the Books.
+
+- Books I–III are protocol. ADR‑007 governs the protocol’s text — the project’s constitution — not what nodes do on the wire nor how annotations federate. Embedding it into Book III stretches its scope and forces jurisdiction mechanics into the protocol bundle that implementations must ship even if they never use spec governance.
+
+- Proposal: publish a normative “GOV: Specification Governance Profile (Warrant v0.3)” document, anchored like the Books and versioned independently. It normatively fixes the anchor‑set schema, profile schema, and the verifier algorithm (including the P1 fixes above), but remains out of Book III. README can link it under “Specification Anchors and Governance”.
+
+Additional findings on ADR‑007 and tools (severity graded)
+
+P1‑A: Settlement‑ignorant authorization (tool under‑checks settlement)
+
+- Issue: anchor_governance.py never checks Warrant v0.3 §9 settlement activity. An accept envelope that is not in the descendant closure of a settlement‑active root should not authorize anything. The tool treats any file present in .warrants/records as eligible.
+
+- Concrete fix (tool): add a trust-config roots field, e.g.
+  {
+    "roots": ["<WarrantID>", ...],
+    "actors": { "actor@id": ["<pubkey>", ...], ... }
+  }
+  Then:
+  - Build the reachable set of records from each trusted root via prior edges.
+  - Filter candidate adoption warrants to those in the reachable set.
+  - For multi-root stores, force scoping: only warrants reachable from a selected root count for that root’s jurisdiction.
+  - Error if no trust roots are configured. If the cryptography package is missing, print a hard error “ERR: cannot verify signatures — install cryptography” instead of silently counting 0.
+
+- Concrete text (ADR‑007, “Mechanical decidability”): add “Verifiers MUST only consider adoption warrants that are settlement-active in a configured jurisdiction per Warrant §9 (descendant of a trusted root); envelopes not reachable from any trusted root MUST be ignored for governance.”
+
+P1‑B: Multiple threshold/profile blobs in under are under‑specified
+
+- Issue: The tool picks the last threshold it sees and only checks that at least one profile blob is present. ADR‑007 does not specify cardinality. This invites divergence.
+
+- Concrete text (ADR‑007, “Governance profile binding”):
+  “An anchor-set adoption warrant’s under array MUST contain exactly one governance profile and exactly one threshold policy; more than one of either MUST make the adoption ineligible for anchor governance.”
+
+- Tool change: enforce exactly one; otherwise append a note and reject.
+
+P1‑C: No explicit rule for “genesis anchor‑set must omit ancestor; successors must match prior”
+
+- The tool enforces this; ADR mentions it only informally. Promote to a MUST.
+
+- Concrete text (ADR‑007, anchor-set schema): “Genesis anchor‑sets MUST NOT carry an ancestor field. Every subsequent anchor‑set MUST carry an ancestor whose value is the hash of the immediately prior adopted anchor‑set in this jurisdiction; mismatch indicates a fork and MUST be rejected as an upgrade.”
+
+P2‑A: Jurisdiction‑less anchor‑set schema risks cross‑store confusion (if P1‑2 is not adopted)
+
+- If you do not embed jurisdiction, at least add an explicit verifier requirement to reject anchor adoptions not connected to a trusted root and document expected first‑use pinning. See P1‑A and 2).
+
+P2‑B: Tool dependency transparency
+
+- If cryptography is not installed (HAVE_ED25519 False), verification always fails with “no satisfying adoption warrant”. That is correct, but it should be explicit.
+
+- Tool change: if HAVE_ED25519 is False, exit nonzero with “ERR: signature verification unavailable; install cryptography” unless a “--no-sig” flag is explicitly passed (which should always return UNGOVERNED/NOT AUTHORIZED).
+
+P2‑C: Clarify “live sections” interpretation for ANCHORS.txt
+
+- parse_anchors marks sections with parentheses as historical and iterates “live” oldest‑to‑newest. Make clear in ADR or README that at most one release section is live per line of descent; others MUST be marked historical. Add a MUST to the anchor‑set schema: the anchors array MUST include every anchored file of the live release section (the bundle convention is fine; this pins completeness).
+
+P2‑D: Document JCS canonicalization explicitly for both blobs
+
+- The ADR references JCS implicitly; add a short “canonical_json = RFC 8785 (JCS)” line like Warrant §4, with the exact JSON.dump parameters. The tool already uses sort_keys=True, separators=(',',':'), ensure_ascii=False.
+
+P2‑E: What to do when key‑state warrants are present
+
+- Tool refuses with a note. Clarify in ADR‑007 that anchor governance requires key‑state derivation and that verifiers MUST use the full warrant CLI (or a configuration that includes key‑state derivation) in governed stores that contain key‑state warrants. State explicitly that anchor_governance.py is a scoped verifier that refuses to derive key state.
+
+Concrete implementation edits (anchor_governance.py)
+
+- Enforce settlement activity (P1‑A):
+  - Add roots to TRUST:
+    trust = json.load(open(TRUST)); roots = trust["roots"]; actors = trust["actors"]
+  - Build reachable = DFS from each root over prior edges; restrict candidate records to reachable.
+  - Check anchor‑set.blob.jurisdiction equals the chosen root (P1‑2).
+
+- Enforce single profile/threshold and binding (P1‑B, 3):
+  - Extend valid_profile to parse optional "threshold": HEX64 and enforce its presence.
+  - In verify_adoption, require exactly one profile and one threshold; require that threshold hash equals profile["threshold"].
+  - Add a function to discover the current profile by walking “profile adoption” warrants (accept subject.hash=H(profile)), each adopted under the previous profile’s threshold, in DAG order from the root. Reject anchor adoptions citing non‑current profiles.
+
+- Error visibility (P2‑B):
+  - If not HAVE_ED25519: print to stderr “ERR: cannot verify Ed25519 signatures (cryptography not installed); aborting” and exit 2 in status.
+
+- Settlement scoping edge conditions (P1‑A):
+  - Add a warning if multiple live roots are configured; require a command‑line argument to choose one if ambiguous.
+
+Minor editorial proposals (clarity):
+
+- ADR‑007 “Mechanical decidability” — add one sentence: “The ‘authorized’ predicate MUST be implementable as a pure function of (anchor‑set blob, warrant store, trust roots, bound key set). Timestamps and git history MUST NOT be inputs to the decision.”
+
+- ADR‑007 “Fork legitimacy preserved” — add: “A fork’s anchor‑sets MUST carry a different jurisdiction root; verifiers MUST present them as separate jurisdictions even if the anchor arrays match byte‑for‑byte.”
+
+Summary
+
+- The bootstrap has real value: thresholds and revocation/rotation stop attacks signed tags cannot.
+- Add a jurisdiction field to the anchor‑set blob and enforce settlement‑active roots (P1).
+- Bind anchor governance to a specific threshold policy via the profile, and adopt profiles under the prior threshold (P1).
+- Make under cardinality exact (P1).
+- Implement settlement filtering and profile lineage in the verifier (P1).
+- Place this as a normative GOV document, not Book III.
+
+With these changes, ADR‑007 meets its own gate criteria cleanly and turns “was this release authorized” into a reliable exit code.

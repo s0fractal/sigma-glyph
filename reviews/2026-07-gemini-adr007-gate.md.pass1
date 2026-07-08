@@ -1,0 +1,78 @@
+Here is the adversarial review of ADR-007 (Governed Anchors) against your five design gates, followed by three critical security findings in the Python reference tool. 
+
+Verdict: **ADR-007 is severely compromised and MUST NOT move to adoption.** The reference tool contains a catastrophic fail-open signature bypass, a logic flaw allowing unilateral policy hijack, and a downgrade vulnerability. 
+
+---
+
+### (1) Attack the bootstrap (1-of-1 self-signed)
+**The attack governed chains fail to stop (The Repo-Supplied Trust Anchor):** A signed git tag operates securely because the verifier (`git tag -v`) checks the signature against an out-of-band trust root (`~/.gnupg` on the user’s machine). Under your implementation, `tools/anchor_governance.py` blindly trusts the `trust-config.json` found *inside the git repository it is evaluating*. 
+If an attacker compromises the repository, they simply rewrite `trust-config.json` to include their own key, delete `.warrants/`, file a 1-of-1 self-signed release warrant, and your tool will print `AUTHORIZED`. 
+*Conclusion:* The bootstrap is less secure than git tags. You must force the trust anchor out-of-band.
+**Text Proposal (P0):** Add to ADR-007: *"Verifiers MUST read genesis trust configuration from an out-of-band environment source or pinned path, and MUST NOT trust a `trust-config.json` file loaded from the untrusted git tree being evaluated."*
+
+### (2) Attack the ancestor chain across jurisdictions
+**Embedded roots are unnecessary.** A fork that replays the public anchor-set blobs and signatures into its own store presents zero threat to a fresh verifier *as long as the verifier is given the correct genesis trust config*. 
+The blobs are inert. Canonicity is evaluated by walking the `prior` DAG of adoption warrants back to the genesis root. If the fork uses the original keys, the signatures hold; if the fork tries to forge adoption, the signatures fail. Embedding a jurisdiction ID inside the `anchor-set` blob itself would break the ability of friendly downstream forks to deduplicate the spec blobs, giving no added security.
+*Conclusion:* "Canonicity is a trust decision" is an honest and structurally sound answer here. 
+
+### (3) Attack the two-blob under split
+**P0: Stateless Threshold Injection.** 
+Yes, the two-blob split as implemented is fatal. Because the `anchor-set` blob does not pin a threshold policy, `tools/anchor_governance.py` checks authorization using the threshold policy *supplied inside the warrant it is currently verifying*:
+```python
+        for u in body.get("under", []):
+            t = valid_threshold_policy(u_doc)
+            if t is not None: threshold = t
+```
+**The Arithmetic of the Hijack:** 
+Roster = `[founder, model-a, model-b]`, target `min_sigs = 2`.
+Attacker (`model-a`) authors a forged threshold blob: `{"warrant_policy": "0.3", "threshold": {"min_sigs": 1, "actors": ["model-a@sigma-glyph"]}}`.
+`model-a` files an adoption warrant pointing to that blob in its `under` array, and signs it with their one key. The script reads the attacker's policy, calculates `1 == 1 >= min_sigs`, and returns `AUTHORIZED`. Any single legitimate actor can unilaterally hijack the chain.
+**Text Proposal (P0):** Add a `next_policy: <hex64>` field to the `sigma-glyph.anchor-set@v1` blob schema to strictly pin the threshold policy governing the *subsequent* release, OR mandate that verifiers MUST inherit the `under` policy of the *ancestor's* adoption warrant to validate the current one. 
+
+### (4) Walk actor deprecation mid-policy
+**Roster:** `{founder, model-a, model-b}`, `min_sigs`: 2. 
+`model-a` retires silently and throws away keys.
+**Is the store live?** Yes. `founder` + `model-b` = 2 signatures, satisfying the threshold. 
+**The recovery sequence:** Under Warrant S5.1, revocation requires a supersede of the *rotation warrant that introduced the key*. Because genesis keys don't originate from a rotation warrant, they cannot be revoked via S5.1 key-state supersedes. 
+The only valid sequence to remove `model-a` is a hard constitutional change bundled with a spec release:
+1. `founder` authors a new threshold blob `H_new` with actors `[founder, model-b, model-c]` and `min_sigs: 2`.
+2. `founder` and `model-b` sign the adoption warrant for the next spec release (e.g. `v0.6.2`), specifying `"under": [H_profile, H_new]`. 
+This tightly couples governance roster curation to specification releases. 
+**Text Proposal (P2):** Add a clarification note S5.1 limitation: *"Genesis keys cannot be revoked via key-state supersedes. Roster changes to genesis actors MUST occur via a bundled change of the threshold policy during a release adoption."*
+
+### (5) Placement
+**It must be a standing GOV document (e.g., `spec/GOV-anchors.md`).**
+Book I, II, and III are operational protocol. ADR-007 is human/mechanical consensus over which text file constitutes the protocol. Placing this in Book III conflates network-level annotation federation with repository-level specification maintenance, and putting it in *any* of the three Books invites bootstrap evaluation paradoxes (does an update to Book III legitimately update the rules by which the update itself is judged?).
+
+---
+
+### OTHER ATTACKS AND SPEC DEFECTS
+
+#### Vulnerability A: Catastrophic Fail-Open Cryptography (P0)
+If `anchor_governance.py` runs in an environment where `pip install cryptography` was omitted, it will silently validate invalid signatures. Look at this block:
+```python
+            if HAVE_ED25519:
+                try: ... except Exception: continue
+            counted.add(actor)
+```
+**Arithmetic:** If `HAVE_ED25519` is False, the `try/catch` block acts as a no-op, execution proceeds immediately to `counted.add(actor)`, and unverified garbage hex in the `sig` field counts toward `min_sigs`. 
+**Text Proposal (P0):** Immediate fix to `anchor_governance.py`:
+`if not HAVE_ED25519: return False, ["ERR: Python 'cryptography' library missing, cannot verify signatures"]`
+
+#### Vulnerability B: Downgrade to Exit-0 (P0)
+Currently, if no blobs are found, the tool gracefully assumes governance has not started yet and exits with `0` (success):
+```python
+    if all(v.startswith("UNGOVERNED") for _, v in verdicts):
+        print("\nGOVERNANCE: not active...")
+        return 0
+```
+An attacker with repo write access can bypass all governance and push an unauthorized spec update simply by deleting the `.warrants/` directory. CI will execute `anchor_governance.py`, observe it has gracefully degraded, and report green.
+**Text Proposal (P1):** Introduce a `--enforce` flag to `anchor_governance.py` that causes `UNGOVERNED` states to `exit 1`. Require this flag in CI immediately upon adoption of ADR-007.
+
+#### Vulnerability C: Key-State bricks the Spec Verifier (P1)
+```python
+    if store_has_key_state_warrants(recs, bdir):
+        return False, ["ERR: key-state warrants present — verify with the warrant CLI"]
+```
+Design Criterion 2 demands a pure function returning an exit code. By preemptively tossing its hands up and throwing a fatal error the instant a key-state rotation happens, `anchor_governance.py` permanently paralyzes the project's CI CD mechanism on the first succession event. 
+**Text Proposal (P1):** Remove `store_has_key_state_warrants`. `anchor_governance.py` MUST import the warrant CLI as a module and use its native key-state resolution out-of-the-box rather than aborting.

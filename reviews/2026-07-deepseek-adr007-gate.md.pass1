@@ -1,0 +1,247 @@
+# Review Gate: ADR-007 Governed Anchors
+
+## 1. Attack the Bootstrap
+
+The ADR asks whether a chain that begins 1-of-1 self-signed is worth more than signed git tags. Let me give the honest answer first, then attack it.
+
+**What governed warrant adoption provides that signed git tags do not:**
+
+A signed git tag says "actor X asserted this commit at time T." It cannot express:
+- That X's key was *revoked* and a later signature by that key on a different release is illegitimate
+- That a *roster of actors* with a threshold must collectively authorize releases
+- That a successor key was *rotated into* authority under a verifiable policy
+
+Git tags are point-in-time assertions; the governed chain is a state machine over keys. The first governed release is self-signed, but the *second* governed release under a 2-of-3 policy verifiably required two actors — and a verifier can check that without trusting the current repo maintainer's key at all, by loading the warrant DAG and verifying the threshold was met.
+
+**The attack the ADR doesn't mention:**
+
+The bootstrap itself is *not* self-authenticating. A verifier bootstrapping from scratch must:
+
+1. Trust that the genesis anchor-set blob and its adoption warrant were *not backdated*. The warrant carries a `ts` field, but Warrant §6 explicitly says `ts` non-decreasing is a *warning*, not a trust mechanism. A malicious maintainer could, at any point before activation, construct a complete governed chain back to genesis with backdated timestamps and file it — and a fresh verifier would see an unbroken governed history.
+
+2. Trust the *trust config* (`trust-config.json`). The ADR correctly notes this is out of scope (the verifier's local trust configuration), but the bootstrap's security reduces entirely to the integrity of this file. If the verifier pins the wrong genesis keys, they see a parallel jurisdiction; if the maintainer distributes a trust config with keys they control, the threshold is a Potemkin village.
+
+**Verdict:** The mechanism is not *ceremony* — it provides real key-state continuity (revocation, rotation, threshold) that git tags structurally cannot. But the bootstrap is a **P2 gap**: the trust-config pinning step is underspecified. The ADR should explicitly state that the first governed release's anchor-set blob hash and the genesis trust config MUST be distributed through a channel independent of the git repository (social: cross-posted to multiple platforms, cited in reviews, pinned in the ROADMAP). Without this, a fresh verifier cannot distinguish "authentic governed chain" from "complete forgery by the repo holder."
+
+**Concrete text proposal for ADR-007 §"Bootstrap honesty" (criterion 4):**
+
+> The genesis trust config and the first adopted anchor-set blob hash MUST be distributed through at least one channel independent of the repository's git history. The project SHOULD document these in the ROADMAP and cross-reference them in at least two published gate reviews. A verifier MUST treat the governed chain as unauthenticated unless their local trust configuration pins a genesis policy blob hash and a set of genesis actor keys obtained from such an out-of-band channel.
+
+---
+
+## 2. Attack the Ancestor Chain Across Jurisdictions
+
+**Can a fork replay the public anchor-set chain into a new store and present as the original to a fresh verifier?**
+
+Yes — trivially, and no mechanism in the current design prevents it.
+
+The anchor-set blobs are public. The adoption warrants are public. The trust config file is mutable. A fork operator:
+
+1. Copies all anchor-set blobs and adoption warrants into a new `.warrants/` store
+2. Edits `ANCHORS.txt` to match
+3. Distributes a `trust-config.json` pointing to the same genesis actor keys (which are *public* — they're in every signed warrant envelope)
+
+A fresh verifier with **no prior trust state** sees an identical governed chain. The ADR's answer is "canonicity is a trust decision" — and for a fresh verifier, that answer is *honest but insufficient*.
+
+**The Book III precedent:** Book III §2 embeds the `jurisdiction` field (genesis root WarrantID) directly in assertion blobs, precisely so that a blob from jurisdiction A cannot be replayed into jurisdiction B — the policy rejects assertions whose embedded root doesn't match. The ADR's anchor-set blob has **no such field**. The `ancestor` field chains within a jurisdiction but does not *name* the jurisdiction.
+
+**Concrete fix:** The anchor-set blob MUST embed the jurisdiction's genesis root (the WarrantID of the genesis adoption warrant, or the policy blob that governs it). This is structurally identical to Book III §2's replay protection and costs nothing.
+
+```json
+{
+  "governance": "sigma-glyph.anchor-set@v1",
+  "jurisdiction": "<hex64: WarrantID of the genesis adoption warrant for this governed chain>",
+  "release": "v0.6.1",
+  "ancestor": "...",
+  "anchors": [...]
+}
+```
+
+A verifier checks: this blob's `jurisdiction` field matches the genesis WarrantID in their trust config. A fork replaying the blobs into a different jurisdiction would carry the *original* jurisdiction's root — which doesn't match the fork's trust config. The verifier sees a jurisdiction mismatch, not silent acceptance.
+
+**Severity: P1.** A fresh verifier can be trivially deceived without this. The ADR's "canonicity is a trust decision" is correct philosophy but the mechanism must give the verifier the *data* to make that decision: "this blob claims to be from jurisdiction X, your trust config says jurisdiction Y, mismatch."
+
+**Text proposal:**
+
+> The anchor-set blob MUST carry a `jurisdiction` field containing the WarrantID of the genesis adoption warrant for this governed chain. A conformant verifier MUST reject any anchor-set blob whose `jurisdiction` does not match the genesis WarrantID in its local trust configuration. This provides the same replay resistance as Book III §2's embedded jurisdiction root and prevents a fork from presenting the original jurisdiction's public warrant trail as its own to an unconfigured verifier.
+
+---
+
+## 3. Attack the Two-Blob Under Split
+
+The ADR proposes that adoption warrants file `under` *two* blobs: a pure Warrant v0.3 threshold-policy blob, and a sigma-glyph governance profile blob. The claimed benefit is that the threshold blob stays bit-compatible with warrant implementations that know nothing about sigma-glyph.
+
+**The replay attack:**
+
+A threshold policy blob `{"warrant_policy":"0.3", "threshold":{"min_sigs":2, "actors":["founder","model-a","model-b"]}}` is a pure Warrant object. Nothing in its bytes says "this policy governs anchor adoption." An adoption warrant satisfying this threshold for anchor governance presents the same threshold blob as evidence of satisfaction.
+
+Can this satisfied threshold be **replayed** to authorize an unrelated action — say, a key rotation for the founder, or a settlement on an unrelated subject?
+
+**Analysis of the Warrant v0.3 binding model:**
+
+Under Warrant §5.1, a threshold policy is invoked when a warrant files `under` it. The policy blob itself has no scope — its authority is defined entirely by *which warrants cite it*. If warrant W1 (anchor adoption) and warrant W2 (key rotation) both file `under` the same threshold blob, then satisfying the threshold once creates no *automatic* replay — the threshold must be satisfied *per warrant*, because each warrant is independently signed and verified.
+
+**However**, the *authorization* question is different. A signer who signs W1 is not signing W2 — but a quorum of signers who *would* sign W2 is provably present. If the same actors sign both warrants under the same threshold blob, both are authorized. The threshold blob doesn't *scope* itself — it's just a set of actors and a number.
+
+The governance profile blob partially addresses this: W2 (a key rotation) would NOT file `under` the governance profile blob, so a verifier checking solely for anchor governance can distinguish "this warrant was for anchors" from "this warrant was for something else." But a verifier checking *key state* for the anchor governance actors would see W2's signatures satisfying the same threshold policy and must decide whether that rotation was authorized *for governance purposes*.
+
+**The concrete gap:** The governance profile blob binds the threshold policy to "scope: spec/ANCHORS.txt," but the threshold blob itself doesn't know it's bound. A warrant for a different purpose that files `under` the threshold blob alone (without the governance profile) still satisfies the threshold. The two-blob split relies on the *verifier* checking that both are present — but nothing in the warrant format prevents a warrant from omitting the profile blob.
+
+**Is this a real attack?**
+
+For anchor governance specifically: no. The verifier (`anchor_governance.py`) checks for both blobs in `under`. A warrant lacking the profile blob is rejected regardless of signatures. The replay vector is: "file a warrant under the same threshold for a different purpose, get it accepted by the same quorum" — but that's an *authorization* question, not a *format* question. The same actors authorized to adopt anchors can also authorize other things if they choose to file under the same policy.
+
+**The genuine risk** is `under`-list confusion: the governance profile and the threshold policy are semantically linked (the profile scopes the threshold to anchors) but syntactically independent (they're separate blobs in an array). An implementer might mistakenly accept a warrant with *either* blob present rather than *both*. This is a P2 implementer-footgun, not a P1 format defect.
+
+**Should the profile pin the threshold blob hash?**
+
+Yes — for exactly the reason the ADR asks. If the governance profile blob contains `"threshold_policy": "<hex64 hash of the threshold blob>"`, then:
+- The binding is *inside the hashed blob*, not just an array adjacency
+- Changing the threshold policy (superseding the profile) requires a new profile blob whose hash changes
+- A verifier can validate "profile P binds threshold T" as a single hash check rather than an array membership test
+
+Concrete proposal for the governance profile schema:
+
+```json
+{
+  "governance_policy": "sigma-glyph.anchor-governance@v1",
+  "scope": "spec/ANCHORS.txt",
+  "threshold_policy": "<hex64: SHA-256 of the bound threshold-policy blob>"
+}
+```
+
+The adoption warrant's `under` remains `[threshold_blob_hash, profile_blob_hash]`, but the profile blob now explicitly names the threshold it binds. A verifier MUST reject if the profile's `threshold_policy` doesn't match the threshold blob's hash, or if exactly one of the two is present in `under`.
+
+**Severity: P1/P2 boundary.** The current split works correctly when implemented correctly but invites the implementer to check presence rather than binding. Embedding the threshold hash in the profile is a one-field change that eliminates the ambiguity. Recommend adopting it.
+
+---
+
+## 4. Walk Actor Deprecation Mid-Policy Concretely
+
+**Setup:** Roster `{founder, model-a, model-b}`, `min_sigs: 2`. Model-A retires — no successor, no revocation warrant, no supersede warrant. Is the store live?
+
+**Warrant §5.1 analysis:**
+
+The threshold policy in force requires 2 signatures from the roster of 3. Model-A's key exists, is not revoked, and is not conflicted (no warrants about it exist). The policy says nothing about liveness or availability — it's a pure threshold check.
+
+**Quorum without model-A:** Founder + model-B can sign a new warrant. That's 2 of 3. The threshold is met. The store is live.
+
+**The ADR's criterion 3 concern** is that this "degenerates to founder-plus-one-model = effectively 1-of-1 with ceremony." This is a governance concern, not a liveness concern. Mechanically:
+- The threshold is 2, not 1
+- Founder + model-B = 2 signatures, threshold met
+- Founder alone = 1 signature, threshold NOT met
+- So it's not 1-of-1 — it requires two distinct actors
+
+**But the deeper attack:** What if the founder *is* model-B? Not literally — but if the founder controls both keys, the threshold is a fiction. Key binding is out of scope for the warrant format (Warrant §5: "Key↔actor binding is out of scope") and out of scope for this ADR. The mechanism proves that *two distinct keys signed*, not that *two distinct humans authorized*. This is a known limitation — the ADR inherits it from Warrant v0.3 and does not claim to solve it.
+
+**The concrete succession path under criterion 3:**
+
+1. **Policy supersede warrant:** Founder + model-B sign an `accept` warrant whose subject is a new threshold policy blob with roster `{founder, model-b, model-c}`, `min_sigs: 2`, filed `under` the current threshold policy. This requires 2 sigs from the old roster — met. Model-A's signature is not needed (threshold 2, quorum available without model-A).
+
+2. **Model-A's key remains in the old policy, not the new one.** The new policy is adopted and becomes the threshold for future warrants. Model-A's key is not revoked — it's simply no longer in the roster. No revocation warrant is needed.
+
+3. **Store liveness is preserved:** The old policy required 2 of 3; the new policy requires 2 of 3. The transition required 2 of 3 (founder + model-B). No deadlock.
+
+**Is there a degenerate case?** Yes: if model-B silently disappears *at the same time* as model-A, leaving only the founder. Under `{founder, model-a, model-b} min_sigs 2`, the founder alone has 1 signature < 2. The store **deadlocks** — no policy supersede can be authorized, because no satisfying quorum exists.
+
+**Warrant §5.1's emergency rule:** "if the threshold would become unsatisfiable, it is reduced to exclude the conflicted actor strictly for conflict resolution." But this applies to *conflicted* actors (mutually unordered key-state warrants), not absent actors. Model-A is not conflicted — they're just gone. The emergency rule doesn't trigger.
+
+**This is a real liveness failure mode.** The ADR's answer is "roster design should account for this" — but the mechanism provides no automatic recovery. A roster of 3 with threshold 2 survives 1 absence; a roster of N with threshold M survives N − M absences. If absences exceed N − M, the jurisdiction freezes permanently.
+
+**Exact warrant sequence to recover from deadlock:**
+
+There is none under the current mechanism. The threshold cannot be met. Recovery options outside the mechanism:
+1. **Fork:** Create a new jurisdiction with a new genesis root, roster, and policy. The old jurisdiction is frozen; the new one continues. This is exactly the Book III model — permanent divergence.
+2. **Trust config override:** A verifier could manually pin a new trust config pointing to a new genesis root. This is social, not mechanical.
+3. **Prevention:** Design the roster so that N − M ≥ 2 (can survive two simultaneous absences) or accept that jurisdiction death is a feature, not a bug.
+
+**Severity: P2** (design constraint, not spec defect). The mechanism correctly implements its stated semantics. The failure mode is documented in the ADR's liveness criterion and the math is clear: threshold rosters have an availability limit. The ADR should explicitly state: "A jurisdiction whose roster loses more than N − M actors without authorized replacement is permanently frozen; the recovery path is a fork to a new jurisdiction."
+
+---
+
+## 5. Placement
+
+**Option A: Book III material.** Book III governs "jurisdictions" — selection policies, assertions, sovereignty, permanent divergence. Anchor governance is a jurisdiction over spec bytes with a selection policy (the threshold). The mechanics are identical: warrant-carried decisions under a threshold policy, a jurisdiction root, replay resistance via embedded roots, permanent divergence via fork. Folding it into Book III as an additional section is compositionally clean.
+
+**Argument against:** Book III is *annotation federation* — its subject matter is WaveAnnotations and `wave_fed()`. Anchor governance has nothing to do with waves. Putting it in Book III bloats the wave document with unrelated governance mechanics. A reader who wants to understand "how does annotation federation work" shouldn't have to skip over "how does the spec govern itself."
+
+**Option B: Fourth Book.** A new Book IV: GOVERNANCE — "how the Three Books are changed." Symmetry with the existing structure: Book I (truth, computation), Book II (navigation, waves), Book III (federation, assertions), Book IV (governance, the constitution). Clean separation; no reader confusion.
+
+**Argument against:** Four Books for a spec that currently has ~2000 lines of normative prose is excessive. The precedent for a fourth document exists (LORE is non-normative, so it doesn't count as a Book), but adding a Book signals "this is as important as the computational core" — and governance arguably is, but the spec's gravity should remain on computation.
+
+**Option C: Standing GOV document outside the Books.** A `GOVERNANCE.md` or `spec/governance.md` that is normative but not a Book. Precedent: the ROADMAP and CHANGELOG are already outside the Books, as is the review protocol. Governance sits at the same level — it governs the *process around* the Books, not the protocol within them.
+
+**Argument against:** The ADR's mechanism is *mechanically verifiable* — `anchor_governance.py` produces an exit code from a store. This is different from process documents like ROADMAP. It deserves the same "conformance suite, vectors, differential implementation" treatment as the Books. A standing document without the Book label risks being treated as advisory.
+
+**Recommendation: Option B (Book IV) with a pragmatic framing.**
+
+The ADR should define Book IV as *one normative document*: `spec/book-4-governance.md`. It inherits all the conventions: Specification Anchor, machine vectors, `ALL PASS` gate, anchored alongside the other Books in ANCHORS.txt. The placement is justified by mechanical decidability — Book IV is to spec-text governance what Book III is to wave-annotation governance: a jurisdiction with a machine-checkable policy.
+
+**Text proposal:**
+
+> Book IV: GOVERNANCE defines the mechanism by which the Three Books' anchor-sets are adopted, superseded, and forked. It is a Warrant v0.3 profile structurally analogous to Book III's annotation federation: a jurisdiction over spec bytes, with a threshold selection policy, replay-resistant anchor-set blobs, and permanent fork legitimacy. Book IV carries the same conformance obligations as Books I–III: reference implementation, machine vectors, and differential second-implementation verification.
+
+---
+
+## 6. Additional Attacks
+
+### 6.1 The `ancestor` field creates a hash chain but doesn't prevent equivocation
+
+The anchor-set blob's `ancestor` field chains releases in order. But a malicious quorum could:
+1. Adopt release v0.7.0 (ancestor = v0.6.1 blob)
+2. *Simultaneously* file a second adoption warrant for v0.7.0-alt (also ancestor = v0.6.1 blob)
+
+Both are valid. The store now has two warrants for the same `subject.hash` with different anchor-set contents but the same ancestor. Warrant §5.1's conflict rule doesn't cover this — these aren't key-state warrants, they're subject-adoption warrants. The verifier `anchor_governance.py` takes the **first** warrant it finds in sorted order, which is deterministic but arbitrary. Two verifiers with different record ordering (e.g., different filesystem readdir order on the blob store) could disagree on which adoption is authoritative.
+
+**This is a consensus-divergence vector at the governance layer.** The ADR should specify a tiebreak rule: "If multiple settlement-active adoption warrants exist for the same anchor-set blob hash, the warrant with the lexicographically smallest WarrantID is authoritative." This is exactly the Book III selection-policy tiebreak pattern and costs nothing to specify.
+
+**Severity: P1** (verifier divergence). Currently implementation-defined by record iteration order.
+
+### 6.2 The governance profile blob shares scope text but not bytes with ANCHORS.txt
+
+The profile blob contains `"scope": "spec/ANCHORS.txt"`. This is a string, not a hash. If the file is renamed, the profile blob's bytes don't change, but the scope becomes wrong. Conversely, if the profile blob is forked for a different scope, the string changes, the hash changes, and all adoption warrants must be re-filed under the new profile.
+
+This is fine for a single-jurisdiction use case (sigma-glyph's own governance) but creates a maintenance hazard: the string is a human convention, not a content-addressable reference. A future ADR extending governance scope would need to supersede the profile blob (changing the string), which requires re-adoption of all subsequent anchor-sets under the new profile — or a new profile for each scope.
+
+**Recommendation:** The scope field SHOULD be a hash of a scope-definition blob, not a bare string. The current design is acceptable for v0.6.x but will need revision if scope ever expands.
+
+### 6.3 `anchor_governance.py` selftest generates fresh keys per run
+
+The selftest's key generation (`Ed25519PrivateKey.generate()`) means the test vectors are non-deterministic. This is fine for a self-test but means **no machine conformance vectors exist** for the governance verifier. Compare Book III: `federation_vectors.json` has 21 vectors with pinned keys, hashes, and expected outcomes. The governance tool has a self-test that passes if the logic is correct but cannot be replayed by an independent implementation against a fixed expectation.
+
+**Severity: P2.** The ADR should commit to generating a governance conformance suite (pinned keys, pinned stores, pinned expected outcomes) before adoption — same discipline as Book III's implementation gate.
+
+### 6.4 Trust config is a single JSON file with no versioning
+
+`trust-config.json` contains `{"actors": {"founder@s0fractal": ["<pubkey>"]}}`. There's no schema version, no self-hash, no signature. A corrupted or maliciously edited trust config silently changes the verifier's root of trust. Compare Warrant §9's `genesis.json`, which is explicitly advisory with a strong warning.
+
+The ADR should version the trust config and recommend it be distributed with a detached signature or hash pin. At minimum: `{"governance_trust": "sigma-glyph.trust-config@v1", "jurisdiction": "<genesis root>", "actors": {...}}`.
+
+**Severity: P2.**
+
+### 6.5 The tool refuses to operate when key-state warrants are present
+
+`anchor_governance.py`'s `store_has_key_state_warrants` function conservatively bails out if *any* accept/supersede warrant's subject parses as `{"actor":..., "key":...}`. This means the governance verifier cannot operate in the *same* warrant store as the project's general warrant trail if that trail includes key rotations. The ADR envisions governance warrants living in `.warrants/`, which is the same store as the review adjudication warrants. If a future key rotation for the review trail is filed, the governance verifier breaks.
+
+**This is a P1 architectural conflict.** The governance warrants and the review-trail warrants share a store but have separate scopes. The governance tool's conservative bailout assumes any key-state warrant affects governance — but key-state warrants for the review trail (adjudication, not anchor adoption) are irrelevant to governance. The tool should distinguish: only key-state warrants that affect the governance policy's actor roster (i.e., filed under the governance threshold policy) should trigger refusal.
+
+**Fix:** The bailout should parse the `under` list of each key-state warrant and only refuse if it files under the governance threshold policy blob (or the governance profile blob). Key-state warrants under unrelated policies are irrelevant.
+
+---
+
+## Summary of Findings
+
+| Finding | Severity | Description |
+|---------|----------|-------------|
+| 1. Bootstrap authentication gap | P2 | Fresh verifier can't distinguish authentic governed chain from backdated forgery; needs out-of-band pinning guidance |
+| 2. Jurisdiction root missing from anchor-set blob | **P1** | Fork can replay original chain to fresh verifier; fix: embed jurisdiction WarrantID like Book III §2 |
+| 3. Two-blob under split binding ambiguity | P1/P2 | Profile blob should pin threshold blob hash to eliminate adjacency-vs-binding confusion |
+| 4. Actor deprecation liveness | P2 | Documented math: jurisdiction freezes if absences exceed N − M; recovery is fork, not repair |
+| 5. Placement | P2 | Recommend Book IV with full conformance discipline |
+| 6.1 Multiple adoption warrants for same blob | **P1** | Verifier divergence on tiebreak; specify lexicographic WarrantID as authoritative |
+| 6.2 Scope as string, not hash | P3 | Fragile to file renames; acceptable for v0.6.x |
+| 6.3 No conformance vectors | P2 | Self-test is non-deterministic; needs pinned vectors like Book III |
+| 6.4 Trust config unversioned | P2 | Add schema version and recommend detached signature |
+| 6.5 Tool breaks on unrelated key-state warrants | **P1** | Governance verifier must distinguish governance-scoped key-state from review-trail key-state |
+
+**Overall verdict:** The mechanism is sound in its core design — Warrant v0.3 threshold policies correctly provide the key-state continuity and succession guarantees the ADR claims. The three P1 findings are all fixable with targeted spec text changes and tool updates. The mechanism should not be adopted as-is but is one revision away from gate-readiness.
