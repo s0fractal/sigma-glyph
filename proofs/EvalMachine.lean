@@ -215,4 +215,46 @@ theorem evalHash_spent_le (hsh : Bytes) (atp : Nat) (st : Store) :
     (evalHash hsh atp st).2 ≤ atp :=
   eval_spent_le _ _ _ _ _ (Nat.zero_le _)
 
+/- ---------- the ADR-001 memory bound, ON the concrete evaluator ----------
+   `SizeBound.lean` proves `size ≤ spent + 1` for an abstract seven-row
+   accounting model, and `bridge_check.py` checks the per-step premise on
+   live oracle traces without row-by-row correspondence. Here the premise is
+   a THEOREM about the faithful evaluator itself: every priced action's size
+   growth is ≤ cost − 1, so the bound holds end-to-end with no classifier. -/
+
+/-- per-step memory accounting (the exact §3.4 row correspondence): a fired
+    action grows the term by at most `cost − 1` (`size t' + 1 ≤ size t + c`).
+    Note R-S is the only growing rule and it holds *unconditionally* — the
+    discarded ⟨S⟩ head contributes `size ≥ 0` of slack, no leaf assumption. -/
+theorem size_step (t : Term) (rem : Nat) (st : Store) :
+    (match step t rem st with
+     | .step t' c => size t' + 1 ≤ size t + c
+     | _ => True) := by
+  fun_induction step t rem st <;> grind [size, size_pos]
+
+/-- `eval` preserves the memory bound `size ≤ spent + 1`. -/
+theorem eval_size_bound (fuel : Nat) (t : Term) (atp spent : Nat) (st : Store)
+    (h : size t ≤ spent + 1) :
+    size (eval fuel t atp spent st).1 ≤ (eval fuel t atp spent st).2 + 1 := by
+  induction fuel generalizing t spent with
+  | zero => simpa [eval] using h
+  | succ fuel ih =>
+      rw [eval]
+      split
+      · simpa using h
+      · simp [size]        -- ATP Exhausted: DISSONANCE leaf, size 1 ≤ spent+1
+      · simp [size]        -- Unresolved Reference: likewise
+      · rename_i t' c heq
+        have hs := size_step t (atp - spent) st
+        rw [heq] at hs
+        exact ih t' (spent + c) (by omega)
+
+/-- the memory bound on the top-level evaluator: the materialized result of
+    `evalHash` never exceeds `spent + 1` nodes (ADR-001, §3.4), now a Lean
+    theorem about the same function the differential bridge pins to the
+    oracle — the step-tag / row-correspondence gap, closed by proof. -/
+theorem evalHash_size_bound (hsh : Bytes) (atp : Nat) (st : Store) :
+    size (evalHash hsh atp st).1 ≤ (evalHash hsh atp st).2 + 1 :=
+  eval_size_bound _ _ _ _ _ (by simp [size])
+
 end EvalMachine

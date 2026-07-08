@@ -105,6 +105,14 @@ serialization/hash layer, not a re-axiomatized one.
 - `eval_spent_le` / `evalHash_spent_le` — **`spent ≤ atp`**: the evaluator
   never overspends its budget, for ALL terms and budgets, now a theorem and
   not just a per-vector observation.
+- `size_step` / `eval_size_bound` / `evalHash_size_bound` — the **ADR-001
+  memory bound `size ≤ spent + 1`, proven directly on this concrete
+  evaluator**. `size_step` is the exact §3.4 per-step accounting
+  (`size t' + 1 ≤ size t + c` — every action grows the term by ≤ `cost − 1`;
+  R-S, the only growing rule, holds *unconditionally*: the discarded ⟨S⟩ head
+  is pure slack). This is the row-by-row step↔cost correspondence that
+  `SizeBound.lean` assumed abstractly and `bridge_check.py` samples on live
+  traces — here it is a theorem about the evaluator itself, no classifier.
 
 **Bridge** — `eval_bridge_check.py`: no-`sorry` guard, compile (theorems check
 on compile), and the executed Lean evaluator (`EvalRun.lean`) matched against
@@ -121,11 +129,18 @@ memory bound (`SizeBound`), the Book II wave algebra (`WaveAlgebra`), Book I
 byte-level correspondence (`MachineBytes`/`Sha256`) — plus a fourth: the
 **Book I evaluator** (`EvalMachine`), giving Qwen's requested
 determinism/totality (definitional) with the budget bound as a theorem and a
-33-vector oracle differential. The Lean reduction relation now *contains*
-redex recognition (built on the proven byte layer), rather than deferring it
-to vectors. Not mechanized: row-by-row correspondence between the runtime
-step tags and the seven `SizeBound` constructors (the `bridge_check` step-tag
-classifier — a bridge upgrade, not a missing theorem); a Rust production
-implementation.
+33-vector oracle differential. The Lean reduction relation *contains* redex
+recognition (built on the proven byte layer), rather than deferring it to
+vectors, and `EvalMachine.evalHash_size_bound` re-proves the ADR-001 memory
+bound directly on the concrete evaluator — so the step-tag / row-by-row
+correspondence that `SizeBound` assumed abstractly is now a theorem, not a
+future classifier. The four fronts are *layered*, not independent:
+`EvalMachine` is built on `MachineBytes`, which is built on `Sha256` — each
+front stands on the proven one below it.
+
+Not mechanized: `bridge_check.py` still samples the SizeBound premise on the
+*Python oracle's* traces (a useful independent cross-check, since the Lean
+proof is about the Lean model and the differential is what ties the two); a
+Rust production implementation remains the last non-Lean Qwen item.
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).
