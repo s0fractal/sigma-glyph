@@ -1,0 +1,35 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Successor of the genesis set 341039d8. Content trail: governance vectors (obligation 2), codex Go verifier adjudicated in 631ad4a3 (obligation 3). Filed by the maintainer; the second signature is expected from codex@sigma-glyph out of its own verification session - the envelope authorizes nothing until then."
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "f526ced0e1b7eb8abc29fa9ead74fc3a03a736bbac8b82ccb9eb2425651aeede"
+    ],
+    "subject": {
+      "hash": "78b98630272eb2046cee37a0744aebbc360e27ad3fa75ec1d8579562de6cf6ee",
+      "note": "ADOPT v0.6.3 anchor-set (Second Signature: GOV vectors anchored + Go second impl)"
+    },
+    "ts": 1783520809,
+    "under": [
+      "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c",
+      "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "691a7001ac09beeb37a4cde2d436444de948c29281352074dfa451bb18a87351759ef9aa5c884b2928c4802f546571a81090e99fe8c4428e5e49d3a90cece00b"
+    }
+  ]
+}

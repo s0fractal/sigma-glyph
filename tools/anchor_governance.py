@@ -820,13 +820,14 @@ def selftest():
                        "actors": {"x": ["c" * 64]}, "extra": 1}) is None)
 
     # projection: live repo ANCHORS.txt parses and round-trips.
-    # exactly one live line of descent post-governance (v0.5.0-v0.6.1 are
-    # pre-governance ancestors)
+    # live sections form the governed line of descent (v0.6.2 genesis
+    # onward); everything pre-governance is labeled ancestors
     sections = parse_anchors(ANCHORS)
     live = [s for s in sections if not s[1]]
-    check("ANCHORS.txt parses (one live line of descent)", len(live), 1)
-    check("current section is v0.6.2 with 9 anchors",
-          (live[0][0], len(live[0][2])), ("v0.6.2", 9))
+    check("ANCHORS.txt parses (governed line of descent)",
+          len(live) >= 1 and live[-1][0] == "v0.6.2")
+    check("current section is v0.6.3 with 10 anchors",
+          (live[0][0], len(live[0][2])), ("v0.6.3", 10))
     check("current anchor-set blob schema-valid",
           valid_anchor_set(anchor_set_blob(live[0][0], live[0][2], "a" * 64)))
 
