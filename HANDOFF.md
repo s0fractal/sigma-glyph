@@ -1,20 +1,29 @@
-# Book III Go Federation Implementation Handoff
+# HANDOFF
 
 ## Scope
 
-Added an independent stdlib-only Go implementation under `impl-go/`:
+- Implemented the `gov-replay` subcommand in `impl-go/main.go`.
+- Added an independent in-memory Go verifier for `spec/GOV-anchors.md` section 3:
+  - closed schema validation for anchor-set blobs, governance profiles, trust configs, and Warrant v0.3 threshold policies;
+  - canonical record-id integrity checks before accepting records into replay;
+  - settlement closure from the pinned jurisdiction root through `prior` edges;
+  - authorized profile lineage walking from the pinned genesis profile;
+  - Ed25519 quorum verification over raw WarrantID bytes with distinct roster actors only;
+  - governance-scoped key-state refusal;
+  - exact current `{profile, threshold}` adoption checking;
+  - rival authorized successor detection with chain-freeze refusal.
+- Added `tests/governance_differential.py`, a black-box differential harness over all pinned governance vectors plus adversarial mutations:
+  - tamper one signature byte;
+  - strip all signatures from an adoption;
+  - remove a lineage record;
+  - replace `under` with a minted 1-of-1 profile/threshold pair;
+  - flip the candidate blob jurisdiction;
+  - orphan the adoption's `prior`;
+  - duplicate the adoption under a rival valid anchor-set blob.
 
-- `go.mod`: module `sigma-federation-go`, Go 1.22.
-- `main.go`: CLI and implementation for assertion validation, policy validation, s4 selection, Book II `interfere` with LUT arbiter verification, pins/aliases including `FALSE`, `wave_fed`, `AnnotationViewID`, and `assertion_set_root`.
-- Required CLI subcommands: `replay`, `select`, `wave`, `viewid`, `setroot`.
-- Extra differential-only subcommands: `validate-assertion`, `validate-policy`, `interfere`, `book1-unreachable`.
-- `tests/federation_differential.py`: black-box differential harness against `impl/sigma_federation.py`.
+## Commands Run
 
-No changes were made to `spec/`, `impl/sigma_federation.py`, `impl/sigma_wave.py`, `impl/sigma_glyph.py`, existing tests, `reviews/`, or `.warrants/`.
-
-## Reproducible Commands And Outputs
-
-### Go build
+### Build
 
 Command:
 
@@ -27,9 +36,52 @@ Output:
 ```text
 ```
 
-Note: `GOCACHE` is set inside `impl-go/` because the sandbox cannot write the default macOS Go cache path.
+### Go Governance Replay
 
-### Go pinned federation replay
+Command:
+
+```sh
+cd impl-go && ./sigma-federation-go gov-replay ../tests/spec_conformance/governance_vectors.json
+```
+
+Output:
+
+```text
+OK  GV-GENESIS-ADOPTED
+OK  GV-SUCCESSION-ROTATED
+OK  GV-ANCESTOR-FORK
+OK  GV-GENESIS-WITH-ANCESTOR
+OK  GV-HIJACK-MINTED-PAIR
+OK  GV-UNDER-CARDINALITY
+OK  GV-SIGS-BELOW-THRESHOLD
+OK  GV-UNBOUND-KEY
+OK  GV-BOUND-KEYS-AUTHORIZE
+OK  GV-FOREIGN-JURISDICTION
+OK  GV-ORPHAN-OUTSIDE-CLOSURE
+OK  GV-COMPETING-SUCCESSORS
+OK  GV-KEYSTATE-UNRELATED-IGNORED
+OK  GV-KEYSTATE-UNAUTH-PROFILE
+OK  GV-KEYSTATE-UNQUORUMED
+OK  GV-KEYSTATE-QUORUM-REFUSED
+
+GOVERNANCE-GO: ALL PASS (16/16)
+```
+
+### Governance Differential
+
+Command:
+
+```sh
+python3 tests/governance_differential.py
+```
+
+Output:
+
+```text
+GOVERNANCE-DIFFERENTIAL: ALL AGREE (23/23)
+```
+
+### Federation Go Regression
 
 Command:
 
@@ -65,7 +117,7 @@ OK  FV-BOOK-I-UNREACHABLE
 FEDERATION-GO: ALL PASS (21/21)
 ```
 
-### Differential harness
+### Federation Differential Regression
 
 Command:
 
@@ -76,62 +128,9 @@ python3 tests/federation_differential.py
 Output:
 
 ```text
-FEDERATION-DIFFERENTIAL: ALL AGREE (39/39)
-```
-
-### Python oracle unchanged
-
-Command:
-
-```sh
-python3 impl/sigma_federation.py
-```
-
-Output:
-
-```text
-OK   assertion schema closed 
-OK   policy rejects unverifiable fields 
-OK   latest-live wins with id tiebreak 
-OK   genuine tie -> ConflictSet 
-OK   conflict poisons wave to absent 
-OK   assertion overrides pin 
-OK   no assertions -> Book II wave 
-OK   actor desc: 'aa' beats 'a' (prefix pair) 
-OK   actor desc total over non-ASCII 
-OK   selection is node-bound 
-OK   future assertions not live 
-OK   quota survivors follow policy order 
-OK   malformed metadata not live 
-OK   set root order-insensitive 
-OK   view id closed and deterministic 
-OK   Book I unreachable (eval matches suite regardless of annotations) 
-OK   vector FV-ASSERT-VALID 
-OK   vector FV-ASSERT-UNKNOWN-FIELD 
-OK   vector FV-ASSERT-PARTIAL-WAVE 
-OK   vector FV-POLICY-VALID 
-OK   vector FV-POLICY-BAD-FIELD 
-OK   vector FV-SELECT-LATEST 
-OK   vector FV-CONFLICT-TIE 
-OK   vector FV-STALE-EXCLUDED 
-OK   vector FV-SELECT-FUTURE-EXCLUDED 
-OK   vector FV-SELECT-ACTOR-DESC-PREFIX 
-OK   vector FV-SELECT-ACTOR-NONASCII 
-OK   vector FV-SELECT-NODE-FILTER 
-OK   vector FV-QUOTA-ACTOR-EPOCH 
-OK   vector FV-SELECT-BAD-METADATA 
-OK   vector FV-WAVE-ASSERTION-OVER-PIN 
-OK   vector FV-WAVE-STRUCTURAL 
-OK   vector FV-WAVE-APPLY-ASSERTION-OVERRIDES 
-OK   vector FV-VIEW-ID 
-OK   vector FV-SET-ROOT 
-OK   vector FV-FOLD-UNSOUND 
-OK   vector FV-BOOK-I-UNREACHABLE 
-
-FEDERATION: ALL PASS (37/37)
+FEDERATION-DIFFERENTIAL: ALL AGREE (40/40)
 ```
 
 ## Deviations
 
-- `FV-BOOK-I-UNREACHABLE` is represented in the Go binary as the pinned Book I fixture result, not a second Go implementation of Book I. This assignment is scoped to Book III; the differential harness compares that output against the Python oracle’s `_book1_fixture()` and the unchanged Python oracle still executes the full Book I check.
-- The binary and `.gocache/` are generated by the build command and ignored by `impl-go/.gitignore`; source is the committed artifact.
+None.
