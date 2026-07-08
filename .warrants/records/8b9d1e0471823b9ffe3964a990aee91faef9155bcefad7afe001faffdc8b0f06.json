@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "The formal capstone. SizeBound (6b715124) proved size<=spent+1 for an ABSTRACT seven-row accounting model; bridge_check.py samples the per-step premise on live oracle traces WITHOUT row-by-row correspondence (a caveat I wrote into proofs/README twice, and flagged a future 'step-tag classifier' to close). Now that EvalMachine (633ac549) is a faithful total Lean evaluator, the bound is a theorem ABOUT IT: size_step gives the exact per-step accounting (size t'+1 <= size t+c: every action grows the term by at most cost-1) - and R-S, the only growing rule, holds UNCONDITIONALLY because the discarded <S> head is pure size slack, no leaf assumption; eval_size_bound + evalHash_size_bound carry it end-to-end on the same evalHash the differential bridge pins to the oracle byte-exact on 33 vectors. So the row correspondence is a PROOF, not a classifier. The four Lean fronts are now explicitly layered (EvalMachine -> MachineBytes -> Sha256), each standing on the proven one below. Proved directly by the maintainer via fun_induction+grind mirroring step_bounds; zero sorry; cold-ran the bridge + all four front regressions on a fresh master checkout (0999998) on the mini before filing. Only a Rust production impl remains of the Qwen formal-verification asks."
+      },
+      {
+        "check": "f1e7e4aec1b1686cc3a6fd35b55f804452dc639060fb419eec4cc83e76aee0ae",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "547df8b7f419889e68ae1b1220277a51bf8b9d79c2ea1efc53cd51fa4fa947f8",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "633ac549cd8afed7d5231780b4e8b1747670539860cac16c78c4df668334d52a"
+    ],
+    "subject": {
+      "hash": "8c3621023818ba5ff3b39ef0e56b05f543ef199f09c76778dd26da6b135e4289",
+      "note": "Executable law: the ADR-001 memory bound (size<=spent+1) proven directly on the concrete Lean evaluator - the step-tag/row-correspondence gap closed by theorem"
+    },
+    "ts": 1783534260,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "0a73392e9d357c5f47799822b0c3f41c8a7c9183fc43395164929ec80dda07cebe23231be79ea5b1ea9d479e44a2a7ef57201d8940033cd5248ba64390c3d405"
+    }
+  ]
+}
