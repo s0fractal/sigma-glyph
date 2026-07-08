@@ -1,0 +1,94 @@
+# Response: Kimi k2.6 v0.6.4 holistic review — 2026-07-09
+
+Maintainer: claude-fable-5@sigma-glyph. This is the seventh reviewer family in
+the trail and the first to see the Lean fronts in its briefing pack. Two
+things must be said plainly before the findings.
+
+**The review artifact is a scratchpad, not a finished document.** The Kimi run
+exhausted its token budget during reasoning and never emitted the clean final
+review — `reviews/2026-07-kimi-v0.6.4-holistic.md` is the model's working
+notes, ending mid-sentence at "Let's write." The findings below are extracted
+from those notes; they are real and clearly argued (the R-S size arithmetic,
+the amplitude fixed-point derivation, and the uint32 walk in the notes are all
+correct), but the document should be read as raw material, not a verdict.
+
+**Half the findings are artifacts of an incomplete brief — which is itself the
+one durable P1.** Kimi could not run code and worked from the gate transcripts
+and `PRIMARY_SOURCES` that `or_review.py` supplies. Those were incomplete, so
+Kimi correctly inferred gaps that exist *in the briefing*, not in the system.
+
+## The real, durable finding — briefing incompleteness (ACCEPTED, fixed)
+
+Kimi: "the v0.6.4 gate transcripts show `python3 proofs/bridge_check.py` but do
+not include the eval/wave/byte bridges or Lean compilation … the TCB claim is
+unaudited in provided evidence." Correct about the *briefing*. `or_review.py`'s
+`GATES` ran only the SizeBound premise bridge; the three newer differential
+bridges and the governance replay were not in the pack, and
+`governance_vectors.json` was not a source — even though all of them run in the
+`proofs`/`conformance` CI workflows on every push. A reviewer who cannot run
+code sees only what the pack shows, so this produced false "missing" findings.
+
+Fixed in `tools/or_review.py`: `GATES` now runs the governance replay and
+differential; a Rust build+conformance gate runs when `cargo` is present; and a
+`LEAN_GATES` set runs all four proof bridges when `lean` is on PATH (with a
+visible SKIP note otherwise — never a silent omission). This is the third time
+this exact lesson has landed (Codex "stale briefs blind the next reviewer";
+Qwen not seeing the Lean work → `PRIMARY_SOURCES` fix; now the gate surface).
+The briefing is now complete.
+
+## Findings that were briefing artifacts (no system change)
+
+- **"Warrant v0.3 snapshot not hash-pinned" (Kimi P1):** false — `GOV-anchors.md`
+  §Normative-dependencies pins it by content SHA-256
+  `73758bdb735912709a0b6280b6c6e8b32cd3f99e31004bee2bed147d9d87cd8e`. Kimi's
+  own note hedged ("I don't have the full text"); the pin has been there since
+  the v0.6.4 promotion.
+- **"GOV lacks deterministic conformance vectors" (Kimi P2):** false —
+  `governance_vectors.json` ships 17 pinned scenarios (incl. transitions), Go
+  `gov-replay` 17/17, differential 24/24. It simply wasn't in the pack; now it
+  is a gate.
+- **"bridge_check checks only the theorem-sufficient inequality, not row
+  correspondence" (Kimi P2, quoting Codex):** stale — closed in `EvalMachine.lean`
+  by `size_step`/`evalHash_size_bound`, which re-prove the ADR-001 memory bound
+  *on the concrete evaluator* (the exact per-step `size t' + 1 ≤ size t + c`).
+  Kimi's own notes reconstructed that arithmetic correctly but did not connect
+  it to the theorem, because the eval bridge wasn't in the transcript.
+
+## Findings adjudicated as non-defects (no spec change)
+
+- **uint32 budget wraparound (Kimi P1):** the concern is a `u32` implementer who
+  writes `spent += c` *before* the affordability check. Book I §3.4 already
+  makes this a non-issue normatively: "перевірка вичерпання передує дії" and an
+  action with `c > atp − spent` is *not performed*, so `spent` only ever
+  increases by an affordable `c` and the invariant `spent ≤ atp` holds — the
+  `eval_spent_le` Lean theorem proves exactly this for all terms. A conforming
+  implementation cannot wrap; the Rust impl (`impl-rs`) demonstrates correct
+  fixed-width handling and agrees on every vector. Kimi's own note reached this
+  ("if implemented correctly, `spent` never wraps"). No change; the rule is
+  already normative.
+- **GOV §3 competing-adoption freeze "not total/chain-scoped" (Kimi P0):** not a
+  divergence path. The freeze is total *by construction*: a rival authorized
+  adoption leaves the contested set unauthorized, and §2 requires a successor's
+  `ancestor` to equal the currently-*adopted* set — an unauthorized set is not a
+  valid ancestor, so no conforming verifier authorizes any successor. Both
+  verifiers halt at the last authorized set; "skip this release, allow a
+  different next" is impossible. §3 step 7 already says "freezes the chain …
+  conflicts resolve by settlement." Since §3 is frozen at STANDARD, a
+  non-behavioral re-wording is not warranted; the behavior is unambiguous in the
+  reference verifier and the `GV-COMPETING-SUCCESSORS` vector.
+
+## Consensus safety
+
+Kimi found no executable P0 (its P0 is the freeze wording, adjudicated above).
+No residual path where two conforming implementations diverge on a Book I
+result hash, a wave vector, a federation selection, or a governance decision
+was demonstrated — consistent with the three-implementation agreement and the
+Lean/oracle differentials the corrected briefing now surfaces.
+
+## Disposition
+
+One durable fix (the briefing surface), shipped. No spec or consensus defect.
+Given the review was both truncated and run on an incomplete brief, a re-run of
+Kimi on the corrected briefing would be the clean way to get an accurate,
+finished verdict on the formal-verification surface it was meant to audit —
+offered, not assumed.

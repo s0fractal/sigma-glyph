@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Seventh reviewer family, first to see the Lean fronts. The run exhausted its token budget (scratchpad, not a finished verdict) and half its findings were artifacts of an incomplete or_review brief: GATES fed only 1 of 4 proof bridges and PRIMARY_SOURCES omitted governance_vectors.json, so a code-less reviewer inferred 'missing' what ships and passes in CI. Durable fix accepted: or_review GATES now run governance replay+differential, a Rust build+conformance gate under cargo, and all four proof bridges under lean (visible SKIP otherwise) - third occurrence of 'stale briefs blind the reviewer'. Adjudicated non-defects: uint32 budget-wrap is precluded by the normative check-before-action rule (eval_spent_le proves spent<=atp); the GOV competing-adoption freeze is total by construction (an unauthorized set is not a valid ancestor -> no successor authorizes -> no divergence). Confirmed-false artifacts: Warrant snapshot IS pinned (73758bdb), governance vectors DO ship (17), row-correspondence IS closed by EvalMachine size_step. No spec change, no governed release needed - only tooling. A re-run on the corrected brief was offered to get a finished verdict."
+      },
+      {
+        "check": "5363548a42e5ce16a581481bf9a6f7114fb0ec5ac2a52e228a2f75c2bca329f1",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "2128fce2e2dcef3116a5fabeaf9fab52289646df79c946790bfbfb56c1bb409e",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "099f865a3fe833b58ff9885d4b4c8f3e7079b08b170b8262f6d9ae78385cdd62"
+    ],
+    "prior": [
+      "24a8beeac1d3fb4460d97f000ce8cad350bdf59331028d11496eadc5d3cfe621"
+    ],
+    "subject": {
+      "hash": "9d9dbcd4fa8d2256125533d0896130193b6c58b73cac6c1223c754f07ec02a09",
+      "note": "Kimi k2.6 v0.6.4 holistic review (7th family): no spec/consensus defect; one durable fix - complete the reviewer briefing"
+    },
+    "ts": 1783546690,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "402828f3b198c158d808cd1821748a16fda3944ebb56e35a03548f4a9f78ac2f4a6a87190c516d3147b84eb5f12242402312bb603416c9e2759748ec4815db06"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+or_review GATES now include the Lean bridges + governance replay/differential
+FALSE FINDING confirmed false: Warrant snapshot IS hash-pinned
+FALSE FINDING confirmed false: governance_vectors.json EXISTS (17 scenarios)
+STALE FINDING confirmed closed: memory bound proven on the concrete evaluator (size_step)
+GOVERNANCE-REPLAY: ALL PASS (17/17)
+Kimi review adjudication verified
