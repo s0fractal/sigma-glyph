@@ -180,6 +180,11 @@ key-state via the warrant CLI).
 
 *Roadmap is living. Check back after each release.*
 
-## Open front: Formal verification (from the Qwen web review, 2026-07)
+## Formal verification (from the Qwen web review, 2026-07)
 
-Mechanized proofs (Lean/Coq) of Book I determinism/totality and the ADR-001 memory bound; Rust production implementation. Vectors are the contract.
+**Three targets mechanized (Lean 4 core, no mathlib; `proofs/`):**
+- ADR-001 **memory bound** — `SizeBound.lean` (§3.4 accounting ⇒ `size ≤ spent + 1`) + `bridge_check.py` (step premise on live traces).
+- Book II **wave algebra** — `WaveAlgebra.lean` (interfere range closure, zero-amplitude cascade, Left Dominance, the §5.1 crystallization fixed point, fold non-associativity) + `wave_bridge_check.py` (582-case Lean-vs-oracle differential).
+- Book I **byte-level correspondence** — `MachineBytes.lean` + a from-scratch FIPS 180-4 `Sha256.lean` (serialize injectivity/round-trip/canonicity, §4.1 validation totality, reserved-opcode rejection, genesis + FALSE + Invalid-Object hash pins) + `byte_bridge_check.py` (334-buffer differential incl. every conformance CAS key).
+
+**Remaining:** a Lean reduction relation for the evaluator (redex recognition is pinned by vectors, not yet a proof); the `bridge_check` step-tag classifier for row-by-row SizeBound correspondence; a Rust production implementation. Vectors remain the contract.

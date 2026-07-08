@@ -51,8 +51,50 @@ theorems (`interfere_valid`, cascade, dominance, the crystallization
 skeleton) do not. The differential bridge is the empirical check that the
 Lean `interfere` is the oracle's.
 
-What is NOT yet mechanized: byte-level machine correspondence
-(serialization, hashing, redex recognition). That is the next target on
-the formal-verification front (ROADMAP).
+## Book I byte-level machine correspondence (`MachineBytes.lean` + `Sha256.lean`)
+
+The §1.1/§2/§4.1 serialization layer is mechanized: `Node`, canonical
+`serialize` (`[Op][Flags][Atom?][Left?][Right?]` with the normative
+per-opcode flags), `deserialize` (§4.1 validation), and
+`nodeHash = SHA-256 ∘ serialize` over a from-scratch FIPS 180-4 SHA-256
+in core Lean (`Sha256.lean`, total — no `partial`/`unsafe`). Theorems:
+
+- `serialize_injective` — distinct well-formed nodes never share canonical
+  bytes (identity is injective; the hash layer above adds only CP-24);
+- `deser_serialize` / `serialize_deser` — round-trip AND **canonicity**:
+  a valid buffer is the unique serialization of its parse (no second byte
+  form for any node);
+- `deser_wf`, `valid_lengths` (§4.1 rule 3: valid buffers are 34 or 66
+  bytes), `reserved_opcode_invalid` (§1.2: opcode `0x03` never parses);
+- `lit_bytes_disjoint` — the byte-0 discrimination under `glyph_eq`'s O(1)
+  redex recognition;
+- **genesis pins** — `H(I)/H(K)/H(S)` (TV-1), the §4.2 Canonical Invalid
+  Object, and `false_is_a_theorem` (§5.2: `H(APPLY(⟨K⟩,⟨I⟩))`) recomputed
+  end-to-end (`serialize ∘ sha256`) and pinned to the spec constants — so
+  "FALSE is a theorem, not an axiom" is now a `native_decide` fact.
+
+**Bridge** — `byte_bridge_check.py`: no-`sorry` guard; FIPS 180-4 digest
+vectors; and the executed Lean pipeline (`BytesRun.lean`) matched against
+the live oracle on **334 buffers** — every conformance CAS object (incl.
+the deliberately malformed Era-1 `0x03` one), the genesis bytes, and ~250
+adversarial mutations (truncation, out-of-mask flags, wrong-in-mask flags,
+reserved opcode, op/flag swap): CAS keys, §4.1 verdicts and round-trips
+all agree. Run: `python3 proofs/byte_bridge_check.py`.
+
+TCB honesty: the SHA-256 correctness and the genesis pins rest on
+`native_decide` (Lean compiler in the trusted base) plus the FIPS/oracle
+differential; the structural theorems (injectivity, round-trip,
+canonicity, validation totality) are symbolic.
+
+## Mechanization status
+
+The three ROADMAP formal-verification targets are now covered: the Book I
+memory bound (`SizeBound`), the Book II wave algebra (`WaveAlgebra`), and
+Book I byte-level correspondence (`MachineBytes`/`Sha256`). Not mechanized:
+row-by-row correspondence between runtime evaluator steps and the seven
+`SizeBound` constructors (the `bridge_check` step-tag classifier — a bridge
+upgrade, not a missing theorem), and the evaluator's reduction semantics
+themselves (redex recognition is pinned by the conformance vectors, not
+yet by a Lean reduction relation).
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).

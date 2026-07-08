@@ -19,3 +19,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 proofs/wave_bridge_check.py | tee /dev/stderr | grep -q "WAVE-BRIDGE: ALL AGREE"
+      - name: Byte-level machine correspondence + differential bridge (Book I bytes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 proofs/byte_bridge_check.py | tee /dev/stderr | grep -q "BYTE-BRIDGE: ALL AGREE"
