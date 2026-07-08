@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Adjudicated: round-1 closures confirmed item by item; P1-R real and the maintainer over-claim conceded on the record (the DeepSeek response said the selftest covered both key-state scoping directions - it did not; that response blob stays pinned as evidence of 869243ae, this warrant is the correction). Fix one step past the remedy: governance set derives only from the authorized lineage AND the key-state warrant must satisfy the cited policy's quorum - per Warrant s5.1 an unauthorized key-state record is an invalid record, not a conflict. Rev 2 refused on shape; rev 3 refuses on the authorized event. Selftest 20->22, both P1-R directions pinned. Focus-1 (no spurious freeze below quorum) and focus-2 (replay closed; the residual WAS P1-R) adopted. Review quota met: 3 blind families + 1 verification, zero open findings. Adoption blocked on exactly one input the maintainer must not supply for itself: the founder's initial roster and threshold."
+      },
+      {
+        "check": "5082fc47469f49bad547b6bb6c4769c636364c38ced502dda7532aaba75eeff0",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "6944267799773ec8d519363d1b92e98c035f577d8a74e79fb301fc36eddb6c47",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "5b1b5e53eeaa1ce095bf8929d015afef6774c0439bd0f64c7e5266a2196446e0"
+    ],
+    "prior": [
+      "09133de9e885593dcc21f7d25b1ee1d910081ff49bb4c8ff170a9866aad4b7a6"
+    ],
+    "subject": {
+      "hash": "d34eb5132eb1d67ec561b446550a4e7e170b47485d4964ce77d40ec833058d4a",
+      "note": "Kimi k2.6 ADR-007 rev 2 verification pass: close P1-R and ADOPT"
+    },
+    "ts": 1783518348,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "7552385ca41b842879feda7ce19fe022b26c1818b6bba49d19a3166df4489811afa5298395db75be4cf0196837dc203b3fc646052c223cef278bb1f93ccc6c0b"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+tool dispositions present (fail-closed, closure, jurisdiction, freeze, pin, out-of-band)
+ADR rev 3 markers present (lineage, grindable tie-break rejection, N-M liveness, P1-R)
+ANCHOR-GOVERNANCE: ALL PASS
+status --enforce exits 1 while ungoverned
+in-tree trust config path refused
+DEMO: ALL ASSERTIONS HELD (sovereign views diverge, replay is dead, ties surface, stores verify)
+anchors verified
+records 30, blobs 107, roots ['14d413f2952b', '276b6f983900'], errors 0
+ADR-007 gate round 1 dispositions verified
