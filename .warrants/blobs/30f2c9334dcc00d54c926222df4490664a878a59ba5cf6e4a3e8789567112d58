@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""Adjudication check: Book II wave-algebra mechanization (repo root; needs elan/lean)."""
+import subprocess, sys
+p = subprocess.run([sys.executable, "proofs/wave_bridge_check.py"],
+                   capture_output=True, text=True)
+sys.stdout.write(p.stdout)
+ok = p.returncode == 0 and "WAVE-BRIDGE: ALL AGREE" in p.stdout
+q = subprocess.run(["lean", "proofs/SizeBound.lean"], capture_output=True, text=True)
+ok &= q.returncode == 0
+print("SizeBound still checks" if q.returncode == 0 else "SIZEBOUND BROKE")
+print("wave-algebra mechanization verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

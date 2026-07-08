@@ -1,0 +1,8 @@
+OK    LutData.lean regenerates byte-identically (arbiter-checked)
+OK    WaveAlgebra.lean carries no sorry/admit/axiom
+OK    LutData + WaveAlgebra compile clean (theorems check)
+OK    Lean interfere == oracle interfere on 582 boundary cases
+
+WAVE-BRIDGE: ALL AGREE (582/582)
+SizeBound still checks
+wave-algebra mechanization verified

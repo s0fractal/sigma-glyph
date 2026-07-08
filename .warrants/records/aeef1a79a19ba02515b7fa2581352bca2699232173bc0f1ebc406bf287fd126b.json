@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Second mechanization front closed (first: SizeBound 6b715124). The s6.2 cascade and the s5.1 Resonance Identity - both stated as theorems in prose since v0.5 - are now checked theorems; the ADR-006 fold killer is a machine-checked witness on the FV-FOLD-UNSOUND operands. LUT imported as generated data inheriting the s4 arbiter fail-fast; bridge: byte-exact regen + no-sorry guard (lean exits 0 on sorry - the guard does not) + 582-case executed-Lean-vs-oracle differential, ALL AGREE. TCB honesty on the record: LUT-dependent facts ride native_decide (compiler trusted for those); the symbolic theorems do not. Proof grind by a delegated subagent over SSH-lean; maintainer cold-ran the full bridge on a fresh master checkout before filing. Remaining unmechanized (README): byte-level machine correspondence."
+      },
+      {
+        "check": "30f2c9334dcc00d54c926222df4490664a878a59ba5cf6e4a3e8789567112d58",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "5465b82e28dd625848240292cc383dd8fed04ffd069c0542b12e7c0a58c26298",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "279e012ddbc47b7ba3eaa0f0ba39ad531e0b3a0e3cb78f3e40909f14d0a675eb"
+    ],
+    "subject": {
+      "hash": "e43159da3809d91876daa5ff1a9fa3a549338b568d24ada02387816e8f93e704",
+      "note": "Executable law: Book II wave algebra machine-checked (Lean 4) - range closure, zero-amp cascade, Left Dominance, crystallization, fold non-associativity"
+    },
+    "ts": 1783523655,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "ba80ff1f1f06559e3a711a39751e199088c43bc8a85b41a6c8427dd6842af8ca53325ed8a9f185d66f1e88c4c69dd4f7c94f3b8bac141854e16b6ce7d4790405"
+    }
+  ]
+}
