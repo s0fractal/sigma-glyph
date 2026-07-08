@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Fourth Lean front and Qwen's explicit ask (Book I determinism/totality). EvalMachine.lean models the v0.5 hash-thunk machine faithfully - leftmost-outermost, lazy left-spine, size-priced ATP, redex recognition by hash - and is built ON MachineBytes so recognition rides the PROVEN byte/hash layer, not a re-axiomatized one. Totality is definitional (step well-founded on sizeOf, eval fuel-indexed structural recursion: evalHash is a total function, no partial/unsafe); determinism is definitional (a function). step_bounds (fun_induction + grind) yields step_cost_le (cost<=remaining) and step_cost_pos (cost>=1, the §3.4 minimum - no zero-cost stall); eval_spent_le proves spent<=atp for ALL terms and budgets. Bridge: no-sorry guard + compile + the executed Lean evaluator (EvalRun.lean) vs the oracle on all 33 eval vectors, result NodeHash AND atp_spent byte-exact, incl. Omega divergence (500 ATP -> exhausted), R-S size-pricing, genesis-intrinsic, store isolation, stuck forms. Maintainer wrote the model, bridge, and eval_spent_le; delegated only the step_bounds case-bash (a subagent hit its session limit and reverted, maintainer closed it directly with fun_induction+grind); cold-ran the full bridge + all three prior-front regressions on a fresh master checkout on the mini before filing. Remaining: the step-tag classifier for row-by-row SizeBound correspondence; Rust production impl."
+      },
+      {
+        "check": "1b601fc16e730159f7ad59d32937e7fd08d3ea9d4e8b93744f38304890940bcf",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "89ca16b5a3fb74897a5ba85fc7f0ad22e7c85a043996b65ea58ff739067966c4",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "79f7e1eb41002d7cbae076200db0a2582fa0946417be6c1fadac17ac5683fba5"
+    ],
+    "subject": {
+      "hash": "de69eadad564853bb083f4b1898623acae2fa3d1597f12b431862d65e7719873",
+      "note": "Executable law: the Book I evaluator is mechanized (Lean 4) - determinism/totality definitional, spent<=atp a theorem, 33-vector oracle differential"
+    },
+    "ts": 1783533682,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "02c848d47ffc3045cffd6a9f671d39c8af23c46b25420f9589aed6935c06d4ff9a5760f8762476acdae0cefaa293145ebb5dce67a94aab0f8e66930629e43702"
+    }
+  ]
+}

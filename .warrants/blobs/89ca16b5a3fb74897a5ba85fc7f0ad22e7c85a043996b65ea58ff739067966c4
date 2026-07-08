@@ -1,0 +1,10 @@
+8d1fa32 proofs/: the Book I evaluator is mechanized (determinism/totality, Lean 4)
+OK    EvalMachine.lean carries no sorry/admit/axiom
+OK    Sha256 + MachineBytes + EvalMachine compile (step_cost_pos, eval_spent_le check on compile)
+OK    Lean evalHash == oracle on 33 eval vectors (result NodeHash AND atp_spent)
+
+EVAL-BRIDGE: ALL AGREE (33/33)
+proofs/SizeBound.lean: checks
+proofs/WaveAlgebra.lean: checks
+proofs/MachineBytes.lean: checks
+evaluator mechanization verified
