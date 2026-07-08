@@ -42,12 +42,13 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/c038ce36b61445a5d82371975afd21d541e07752/impl/warrant.py -o /tmp/warrant.py
           SIGMA_GLYPH=impl python3 /tmp/warrant.py verify
           SIGMA_GLYPH=impl python3 /tmp/warrant.py verify --settlement --trust-config trust-config.json
-      - name: Anchor-governance verifier (ADR-007 mechanism, selftest + honest status)
+      - name: Anchor governance (GOV-anchors.md, ENFORCED — trust anchor fetched out-of-band from the warrant repo)
         shell: bash
         run: |
           set -euo pipefail
           python3 tools/anchor_governance.py selftest | tee /dev/stderr | grep -q "ANCHOR-GOVERNANCE: ALL PASS"
-          python3 tools/anchor_governance.py status
+          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/a4270f863f6bcee837f7ef0363536b7e6cdf5ee6/trust/sigma-glyph-anchor-trust.json -o /tmp/anchor-trust.json
+          python3 tools/anchor_governance.py status --enforce --trust-config /tmp/anchor-trust.json | tee /dev/stderr | grep -q "AUTHORIZED"
       - name: Two-jurisdictions federation demo (Book III live, real stores)
         shell: bash
         run: |
