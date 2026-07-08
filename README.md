@@ -23,13 +23,17 @@ Core invariants, in one breath: **hash is identity; phase is a coordinate; wave 
 
 ## Reference implementation
 
-`impl/sigma_glyph.py` — Book I: serialization, validation, CAS, the v0.5 hash-thunk evaluator (lazy left-spine, size-priced ATP, genesis intrinsic), C1 λ→SKI compiler. `impl/sigma_wave.py` — Book II: arbiter-checked LUT, interfere() with entropy–coherence coupling.
+`impl/sigma_glyph.py` — Book I: serialization, validation, CAS, the v0.5 hash-thunk evaluator (lazy left-spine, size-priced ATP, genesis intrinsic), C1 λ→SKI compiler. `impl/sigma_wave.py` — Book II: arbiter-checked LUT, interfere() with entropy–coherence coupling. `impl/sigma_federation.py` + `impl-go/` — Book III (Python oracle + independent Go). `impl-rs/` — a third, independent **Rust** implementation of Book I (from-scratch SHA-256 + evaluator, no external crates) that replays the same oracle-generated vectors byte-exact.
 
 ```bash
 python3 impl/sigma_glyph.py         # expected: ALL PASS (Book I)
 python3 impl/sigma_wave.py          # expected: WAVE: ALL PASS (Book II)
 python3 impl/sigma_federation.py    # expected: FEDERATION: ALL PASS (Book III)
+(cd impl-rs && cargo build --release) && \
+  ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json  # RUST-CONFORMANCE: ALL PASS (49/49)
 ```
+
+Book I now has three independent implementations that agree on every vector — the Python oracle, warrant-go's native evaluator (via `ski@v1`), and Rust — plus a Lean 4 mechanization of the evaluator's determinism/totality and memory bound (`proofs/EvalMachine.lean`).
 
 ## For AI reviewers
 

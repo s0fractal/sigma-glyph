@@ -9,6 +9,14 @@ jobs:
         with: { python-version: '3.12' }
       - name: Reference test vectors (Book I, hash-thunk machine)
         run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
+      - name: Book I third implementation (Rust) + conformance differential
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd impl-rs && cargo build --release && cd ..
+          ./impl-rs/target/release/book1 selftest | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
+          ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
+            | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"
       - name: Wave reference (Book II, LUT arbiter + interfere coupling)
         run: python3 impl/sigma_wave.py | tee /dev/stderr | grep -q "WAVE. ALL PASS"
       - uses: actions/setup-go@v5
