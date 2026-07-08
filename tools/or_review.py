@@ -37,6 +37,8 @@ PRIMARY_SOURCES = [
     "proposals/refs/warrant-SPEC-v0.3-snapshot.md",
     "proofs/README.md",
     "proofs/SizeBound.lean",
+    "proposals/ADR-007-governed-anchors.md",
+    "tools/anchor_governance.py",
 ]
 PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-v0.6.0-pedantic-audit.md",
                       "reviews/2026-07-codex-v0.6.0-pedantic-audit-response.md",
@@ -53,6 +55,8 @@ GATES = [
     ["python3", "tools/verify_anchors.py"],
     ["python3", "tools/check_lazy_edges.py"],
     ["python3", "tools/warrant_verify.py"],
+    ["python3", "tools/anchor_governance.py", "selftest"],
+    ["python3", "examples/two-jurisdictions/demo.py"],
 ]
 
 

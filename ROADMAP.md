@@ -93,7 +93,7 @@ If both ADRs adopted:
 
 ---
 
-## v0.6: Federation (IN PROGRESS)
+## v0.6: Federation (SHIPPED v0.6.0 "Sovereign Views"; hygiene v0.6.1)
 
 ### Book III: FEDERATION — selection-only annotation federation
 
@@ -105,12 +105,15 @@ the interference fold died at the gate to verified non-associativity.
 Trust/reputation = Warrant key state + policy thresholds; conflict
 resolution = settlement, not arithmetic.
 
-**Landed (v0.6.0-draft):** `spec/book-3-federation.md` (DRAFT, unanchored),
-`impl/sigma_federation.py` oracle, `federation_vectors.json` (14 vectors,
-in CI). **Next:** implementation-gate review of Book III + oracle (≥1
-adversarial pass), Book II §Federation paragraph, second implementation
-(Go, via warrant repo), transport profile (gossip cadence is explicitly an
-implementation profile, not spec) — then anchor Book III and tag v0.6.0.
+**Shipped:** `spec/book-3-federation.md` anchored; implementation gate passed
+(Codex blocked→fixed, Gemini verified); Book II §10; two implementations
+(`impl/sigma_federation.py` + `impl-go/`, differential-tested); 21 vectors.
+**Landed post-release:** `examples/two-jurisdictions/` — first live exercise
+(two real warrant stores, file-copy gossip, divergent sovereign views,
+ConflictSet, replay resistance; in CI). **Still open:** transport profile
+guidance beyond file-copy (cadence/peering stay an implementation profile,
+not spec); settlement-grade candidate extraction in the demo (threshold +
+key-state via the warrant CLI).
 
 ---
 
@@ -129,14 +132,9 @@ implementation profile, not spec) — then anchor Book III and tag v0.6.0.
 
 ### Multi-Signature / Threshold Governance
 
-**Motivation:** LORE mentions "Pantheon" (cultural fork). If sigma-glyph governance moves on-chain or multi-sig, the spec itself could become a governed artifact.
+**Motivation:** LORE mentions "Pantheon" (cultural fork). If sigma-glyph governance moves on-chain or multi-sig, the spec itself could become a governed artifact. Concretely: the anchor trail and the warrant trail run parallel and unlinked; the interim maintainer is one actor with one key; the maintainer is a model, and models retire on a schedule.
 
-**Scope:**
-- Multi-sig over Specification Anchors
-- Voting protocol for ADR adoption
-- Possibly a smart contract or DAO
-
-**Status:** Cultural. No technical proposal yet.
+**Status:** **ADR-007 PROPOSED** (`proposals/ADR-007-governed-anchors.md`, gate 0 of ≥3) — Specification Anchors as warrant-settled artifacts: a release's anchor section becomes a JCS anchor-set blob adopted by an `accept` warrant under a Warrant v0.3 threshold policy; ANCHORS.txt stays as the human projection (blob wins on divergence); succession = Warrant §5.1 key state. Pure Warrant v0.3 profile, zero format changes. Mechanism implemented and self-tested: `tools/anchor_governance.py` (14 checks + honest UNGOVERNED status until the gate closes). On-chain/DAO (G2) rejected in drafting — Book I owns the only consensus this system has.
 
 ---
 
