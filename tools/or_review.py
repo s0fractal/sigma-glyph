@@ -60,12 +60,25 @@ GATES = [
     ["python3", "tests/spec_conformance/run_reference.py"],
     ["python3", "tests/spec_conformance/test_properties.py"],
     ["python3", "tests/federation_differential.py"],
-    ["python3", "proofs/bridge_check.py"],
+    ["python3", "tests/governance_differential.py"],
     ["python3", "tools/verify_anchors.py"],
     ["python3", "tools/check_lazy_edges.py"],
     ["python3", "tools/warrant_verify.py"],
     ["python3", "tools/anchor_governance.py", "selftest"],
+    ["python3", "tools/anchor_governance.py", "replay"],
     ["python3", "examples/two-jurisdictions/demo.py"],
+]
+
+# Gates that need a `lean` toolchain (each bridge compiles its Lean and runs
+# the differential). Skipped with a visible note if `lean` is absent, so the
+# reviewer sees the mechanization was run OR that it could not be — never a
+# silent omission (Kimi v0.6.4 holistic review: the reviewer must see the full
+# verification surface, not a fraction).
+LEAN_GATES = [
+    ["python3", "proofs/bridge_check.py"],
+    ["python3", "proofs/byte_bridge_check.py"],
+    ["python3", "proofs/eval_bridge_check.py"],
+    ["python3", "proofs/wave_bridge_check.py"],
 ]
 
 
@@ -123,8 +136,22 @@ def pack(paths):
 
 
 def run_gates():
+    import shutil
     lines = []
-    for cmd in GATES:
+    gates = list(GATES)
+    # Rust third implementation, if cargo is present (a build + conformance run)
+    if shutil.which("cargo"):
+        gates.append(["bash", "-c",
+                      "cargo build --release --manifest-path impl-rs/Cargo.toml >/dev/null "
+                      "&& ./impl-rs/target/release/book1 conformance "
+                      "tests/spec_conformance/vectors.json"])
+    if shutil.which("lean"):
+        gates += LEAN_GATES
+    else:
+        lines.append("$ (Lean bridges)  SKIPPED — `lean` not on this host; "
+                     "the four proof bridges (SizeBound premise, byte 334, "
+                     "eval 33, wave 582) run in the `proofs` CI workflow.")
+    for cmd in gates:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
         tail = (r.stdout + r.stderr).strip().splitlines()[-3:]
         lines.append(f"$ {' '.join(cmd)}  (exit {r.returncode})\n" + "\n".join(tail))

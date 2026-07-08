@@ -1,0 +1,730 @@
+The user wants an adversarial review of the current master (v0.6.4) of the Σ-GLYPH specification. I need to review four assigned sections:
+
+1. FORMAL VERIFICATION (Lean mechanization soundness, TCB, EvalMachine faithfulness, memory bound gap)
+2. THREE IMPLEMENTATIONS (Python oracle, warrant-go, Rust - are they truly cross-checking or sharing blind spots?)
+3. GOV STANDARD (spec/GOV-anchors.md v1.0.0 coherence, under-specified parts)
+4. CONSENSUS SAFETY (residual divergence paths)
+
+Severity ladder: P0 = consensus divergence, P1 = spec silent where implementers must guess, P2 = clarity, P3 = roadmap.
+
+I must do the arithmetic myself, show it, not trust claims. I need to attack the mathematics and specification text.
+
+Let me carefully analyze each section.
+
+First, let me understand the system:
+- Book I: SKI evaluation, content-addressed, ATP-budgeted, lazy left-spine, size-priced.
+- Book II: Wave algebra, interference, pins.
+- Book III: Federation via Warrant v0.3.
+- GOV-anchors.md: STANDARD v1.0.0 for governance of spec anchors.
+
+Key files provided:
+- reviews/README.md (settled points)
+- README.md
+- CHANGELOG.md
+- ROADMAP.md
+- spec/book-1-truth.md
+- spec/book-2-navigation.md
+- spec/book-3-federation.md
+- proposals/refs/warrant-SPEC-v0.3-snapshot.md
+- proofs/README.md
+- proofs/SizeBound.lean
+- proofs/WaveAlgebra.lean
+- proofs/MachineBytes.lean
+- proofs/Sha256.lean
+- proofs/EvalMachine.lean
+- proposals/ADR-007-governed-anchors.md
+- spec/GOV-anchors.md
+- tools/anchor_governance.py
+
+Gate transcripts show all passing.
+
+Let me start with section (1) FORMAL VERIFICATION.
+
+**1. FORMAL VERIFICATION**
+
+The Lean fronts are: SizeBound, WaveAlgebra, MachineBytes+Sha256, EvalMachine.
+
+TCB story:
+- LUT facts: use `native_decide` (Lean compiler trusted)
+- 65536-case amplitude scan: uses `native_decide`
+- genesis hash pins: use `native_decide`
+- byte/eval bridges: use `native_decide`
+- structural theorems: symbolic
+
+Attacks:
+- `native_decide` compiles the goal to native code and runs it. This trusts the Lean compiler and the runtime. If there's a bug in Lean's code generation or the arithmetic operations, these facts could be wrong. This is a standard TCB issue but the review asks to attack it honestly.
+- Is EvalMachine a faithful model?
+  - EvalMachine is built on MachineBytes, so redex recognition uses proven byte layer.
+  - But wait: in EvalMachine.lean, `step` uses `sizeOf t` for termination. The Lean model uses structural recursion on `sizeOf t`. The Python oracle uses a while loop with fuel/atp. The Lean model's totality is guaranteed by structural recursion on `Term` size? Actually, look at the Lean code:
+
+```lean
+def step (t : Term) (remaining : Nat) (st : Store) : StepResult :=
+  match t with
+  | .thunk h =>
+      if isGenesis h then .nf
+      else if remaining < 1 then .exhausted
+      else match force h st with ...
+  | .ref h =>
+      if remaining < 1 then .exhausted
+      else .step (.thunk h) 1
+  | .lit _ => .nf
+  | .dis _ => .nf
+  | .app f a =>
+      -- descent logic...
+      match f with
+      | ... -- R-S, R-K, R-I logic
+      | _ => descend
+  termination_by sizeOf t
+```
+
+Wait, does `step` structurally recurse on `t`? For `thunk`, if `force h st` returns `some v`, it calls `step v ...` but `v` is a `Term` materialized from the store. Is `sizeOf v` smaller than `sizeOf (.thunk h)`? The `force` returns a `Term` constructed from deserialized bytes. The Lean `sizeOf` for `Term` counts constructors. A `thunk` is one constructor. A materialized node could be larger. But `force` returns `Option Term`, and in the `some v` case, we call `step v ...`. But `v` is not necessarily smaller than `t`! In fact, materializing a thunk could produce an `app` which is larger. So structural recursion on `sizeOf t` is NOT justified for the `force` case.
+
+Wait, looking more carefully:
+
+```lean
+  | .thunk h =>
+      if isGenesis h then .nf
+      else if remaining < 1 then .exhausted
+      else match force h st with
+        | none => .unresolved
+        | some v =>
+            let c := size v
+            if c > remaining then .exhausted
+            else .step v c
+```
+
+This is a recursive call to `step` with `v`! But `v` is the materialized term. A `thunk` could materialize to an `app` which is structurally larger than a `thunk`. The `termination_by sizeOf t` would NOT cover this because `sizeOf v` could be greater than `sizeOf (.thunk h)`.
+
+Wait, but `step` is defined with `termination_by sizeOf t`. How does Lean accept this? Let me look at `force`:
+
+```lean
+def force (h : Bytes) (st : Store) : Option Term :=
+  if h = gI then some (.lit atomI)
+  else if h = gK then some (.lit atomK)
+  else if h = gS then some (.lit atomS)
+  else match storeGet st h with
+    | none => none
+    | some b => match MachineBytes.deserialize b with
+        | none => some (.dis rInvalid)
+        | some n => some (ofNode n)
+```
+
+`ofNode` constructs a term from a node. For `.app l r`, it returns `.app (.thunk l) (.thunk r)`. So a materialized APPLY node becomes an `app` with two `thunk` children. The `sizeOf` of `.app (.thunk l) (.thunk r)` is definitely larger than `sizeOf (.thunk h)`.
+
+So how does `step` terminate? In Lean 4, `termination_by sizeOf t` should fail if there's a recursive call with a larger term. Unless... the `force` branch doesn't actually recurse on `step` with `v`? Let me re-read:
+
+Wait, no! The code says:
+
+```lean
+        | some v =>
+            let c := size v
+            if c > remaining then .exhausted
+            else .step v c
+```
+
+Yes, it calls `step v c`! This is a recursive call. But `v` is larger. How is this accepted?
+
+Unless Lean's `sizeOf` for `Term` is defined differently. The default `sizeOf` for an inductive type measures the structural height. For `.app f a`, it's `1 + sizeOf f + sizeOf a`. For `.thunk h`, it's `1 + sizeOf h` (but `h` is `Bytes` = `List UInt8`, so sizeOf h is the length of the list). So `sizeOf (.thunk h)` = 1 + length(h). While `sizeOf (.app (.thunk l) (.thunk r))` = 1 + (1+len(l)) + (1+len(r)). This is larger.
+
+So `step` would NOT be accepted by Lean's termination checker with `termination_by sizeOf t` unless there's something I'm missing. Wait, maybe I'm misreading the code. Let me look again at the actual EvalMachine.lean text provided.
+
+```lean
+def step (t : Term) (remaining : Nat) (st : Store) : StepResult :=
+  match t with
+  | .thunk h =>
+      if isGenesis h then .nf                       -- NF leaf by hash (§5.1)
+      else if remaining < 1 then .exhausted
+      else match force h st with
+        | none => .unresolved
+        | some v =>
+            let c := size v                          -- 1/2/3 by node kind
+            if c > remaining then .exhausted         -- fetched bytes discarded
+            else .step v c
+```
+
+Wait, Lean MUST have rejected this unless the `termination_by` is more complex. Let me look at the end:
+
+```lean
+  termination_by sizeOf t
+```
+
+Hmm. Could it be that Lean's `sizeOf` on `Term` where `Bytes` is `List UInt8` and `UInt8` is a scalar (sizeOf = 1?) No, List has size... Actually, maybe the Lean definition is using a custom `sizeOf`? No, deriving Repr and Inhabited, but not sizeOf. The default sizeOf for List counts elements. So `Bytes` = `List UInt8`, and a hash is 32 bytes. So `sizeOf (.thunk h)` is about 33. `sizeOf (.app (.thunk l) (.thunk r))` is about 67. So the recursive call is on a larger term.
+
+This means the Lean code as written might not actually compile unless there's a trick. But the gate transcript says:
+
+```bash
+$ python3 proofs/bridge_check.py  (exit 0)
+```
+
+Wait, does the transcript show Lean compiling? No, it doesn't show `lean` running. The gate transcripts are from Python tools. The Lean compilation is not shown in the provided transcripts. The proofs/README says "Run: `lean proofs/SizeBound.lean`" but the gate transcript does not include it.
+
+This is a critical observation: **The provided gate transcripts do NOT include Lean compilation or execution.** They only show Python scripts. This means we have NOT been shown evidence that the Lean files actually compile and check. The maintainer says they ran the gates and supplied fresh transcripts, but the Lean-specific gates (if any) are not in the transcript list.
+
+Wait, looking at the gate transcripts:
+- `python3 impl/sigma_glyph.py`
+- `python3 impl/sigma_wave.py`
+- `python3 impl/sigma_federation.py`
+- `python3 tests/spec_conformance/run_reference.py`
+- `python3 tests/spec_conformance/test_properties.py`
+- `python3 tests/federation_differential.py`
+- `python3 proofs/bridge_check.py`
+- `python3 tools/verify_anchors.py`
+- `python3 tools/check_lazy_edges.py`
+- `python3 tools/warrant_verify.py`
+- `python3 tools/anchor_governance.py selftest`
+- `python3 examples/two-jurisdictions/demo.py`
+
+No `lean` in the transcripts. So the Lean compilation is an unaudited gap. But the question asks me to review the Lean fronts. I should note that the gate transcripts don't include Lean compilation, so the TCB claim is unverified in the provided evidence.
+
+However, even if Lean compiles, the `termination_by sizeOf t` in `step` looks suspicious. Let me think about this more. Actually, maybe `step` is not recursing on the materialized term in the way I think. Let me re-read:
+
+In the `thunk` case:
+```lean
+  | .thunk h =>
+      if isGenesis h then .nf
+      else if remaining < 1 then .exhausted
+      else match force h st with
+        | none => .unresolved
+        | some v =>
+            let c := size v
+            if c > remaining then .exhausted
+            else .step v c
+```
+
+Wait, is this a recursive call? Yes, `.step v c`. But `v` comes from `force h st`. If `h` is in the store and is an APPLY node, `v = .app (.thunk l) (.thunk r)`. This is larger. So the recursion is not structural. The only way this terminates is if the ATP budget `remaining` decreases. But Lean's structural termination checker doesn't know about `remaining` in `termination_by sizeOf t`.
+
+Unless... the Lean code uses `partial`? No, the file explicitly says "Total: fuel-indexed structural recursion". But `step` is NOT fuel-indexed. `eval` is fuel-indexed:
+
+```lean
+def eval : Nat → Term → Nat → Nat → Store → Term × Nat
+  | 0,        t, _,   spent, _  => (t, spent)
+  | fuel + 1, t, atp, spent, st =>
+      match step t (atp - spent) st with
+      ...
+```
+
+`eval` is structurally recursive on `fuel`. But `step` is called from `eval`. If `step` itself doesn't terminate, `eval` doesn't terminate on its first call.
+
+Wait, maybe `step` doesn't actually recurse in the problematic way in Lean because the `thunk` case returns `.step (.thunk h) 1` in the `ref` case, which is not smaller either! A `ref` contains a `Bytes` hash. `.step (.thunk h) 1` where `h` is the same hash. The `thunk`'s `sizeOf` includes the size of the hash (the list of bytes). The `ref`'s `sizeOf` also includes the size of the hash. So `sizeOf (.thunk h)` is actually larger than `sizeOf (.ref h)`? Let's see:
+
+`Term` constructors:
+- `thunk (h : Bytes)` -- Bytes = List UInt8
+- `ref (target : Bytes)`
+- `lit (atom : Bytes)`
+- `dis (reason : Bytes)`
+- `app (f a : Term)`
+
+The `sizeOf` for `thunk h` is `1 + sizeOf h`.
+The `sizeOf` for `ref h` is `1 + sizeOf h`.
+They are equal! So `ref` calling `.step (.thunk h) 1` is not structurally smaller.
+
+This means `step` as written CANNOT be total by structural recursion alone. It must rely on something else, or it is partial in disguise. But the file claims "Totality is definitional — `step` is well-founded on `sizeOf t`". This appears to be FALSE based on the code shown.
+
+Wait, unless Lean's default `sizeOf` for `ref` and `thunk` are different? No, they both have one argument of the same type `Bytes`, so their sizeOf should be identical.
+
+This is a huge finding: **The EvalMachine.lean `step` function as transcribed contains recursive calls that are not on structurally smaller terms, contradicting its claimed totality.** The `termination_by sizeOf t` is insufficient or misapplied.
+
+Let me verify by reading the Lean code again very carefully.
+
+```lean
+def step (t : Term) (remaining : Nat) (st : Store) : StepResult :=
+  match t with
+  | .thunk h =>
+      if isGenesis h then .nf                       -- NF leaf by hash (§5.1)
+      else if remaining < 1 then .exhausted
+      else match force h st with
+        | none => .unresolved
+        | some v =>
+            let c := size v                          -- 1/2/3 by node kind
+            if c > remaining then .exhausted         -- fetched bytes discarded
+            else .step v c                           -- <-- RECURSIVE CALL
+  | .ref h =>
+      if remaining < 1 then .exhausted
+      else .step (.thunk h) 1                        -- R-R: one level <-- RECURSIVE CALL
+  | .lit _ => .nf
+  | .dis _ => .nf
+  | .app f a =>
+      -- descent: demand the function spine, then the argument (step5's tail)
+      let descend : StepResult :=
+        match step f remaining st with              -- <-- RECURSIVE CALL
+        | .step f' c => .step (.app f' a) c          -- <-- RECURSIVE CALL
+        | .nf =>
+            match step a remaining st with            -- <-- RECURSIVE CALL
+            | .step a' c => .step (.app f a') c      -- <-- RECURSIVE CALL
+            | other => other
+        | other => other
+      match f with
+      | .app (.app f11 f12) f2 =>                    -- f = ((f11 f12) f2)
+          if glyphEq f11 gS then                     -- R-S: x=f12, y=f2, z=a
+            (if 1 + size a > remaining then .exhausted
+             else .step (.app (.app f12 a) (.app f2 a)) (1 + size a)) -- <-- RECURSIVE CALL
+          else descend
+      | .app f1 f2 =>                                -- f = (f1 f2), f1 not an app
+          if glyphEq f1 gK then
+            (if remaining < 1 then .exhausted else .step f2 1)  -- R-K <-- RECURSIVE CALL
+          else descend
+      | _ =>                                         -- f not an app
+          if glyphEq f gI then
+            (if remaining < 1 then .exhausted else .step a 1)   -- R-I <-- RECURSIVE CALL
+          else descend
+  termination_by sizeOf t
+```
+
+Yes, multiple recursive calls where the argument is not structurally smaller:
+1. `.thunk h` → `.step v c`: `v` could be `.app (.thunk l) (.thunk r)`, larger.
+2. `.ref h` → `.step (.thunk h) 1`: same size (both 1 + sizeOf h).
+3. `.app f a` with R-S: `.step (.app (.app f12 a) (.app f2 a)) (1 + size a)`: this term has size greater than the original `.app f a` because it duplicates `a`.
+4. `.app (.app f11 f12) f2` with R-K: `.step f2 1`. Here `f2` is a subterm of `f` which is a subterm of the original `.app f a`. So this one IS structurally smaller.
+5. `.app f a` with R-I: `.step a 1`. `a` is a subterm, so structurally smaller.
+
+But the R-S case creates a larger term. The `ref` case creates an equal term. The `thunk` case creates a potentially larger term.
+
+Therefore, `step` is NOT well-founded on `sizeOf t`. The claim in the file header and proofs/README that "step is well-founded on sizeOf t" is **mathematically incorrect** as transcribed. This is a serious issue in the formal verification claim.
+
+Possible explanations:
+- The transcript might be a simplified version that doesn't actually compile as shown.
+- Or Lean accepts it with some other mechanism? No, Lean 4's termination checker is strict about this.
+- Or `Bytes` is an opaque type with `sizeOf = 0`? If `Bytes` is defined as `List UInt8`, no.
+- Or `Term` is not an inductive but a... no, it's `inductive Term`.
+- Or the code uses `partial`? No.
+
+Wait, in Lean 4, if a function is defined by pattern matching, the termination checker can sometimes use a lexicographic order or additional arguments. But `termination_by sizeOf t` explicitly says just the size of `t`. For the `.ref h` case, calling `.step (.thunk h) 1`, the first argument has the same size. For `.thunk h` calling `.step v c`, the first argument is larger.
+
+Unless... there is a `decreasing_by` tactic that solves it using some other measure? The code doesn't show one.
+
+So this is a bona fide gap. P0 or P1? It's a gap in the formal verification claim. If the Lean code doesn't actually compile as written, then the claim of mechanized totality is false. This undermines confidence but doesn't directly cause consensus divergence in the implementation. However, since the specification points to the Lean proof as assurance, a broken proof is a spec-level issue. I'd classify it as **P1** (spec silent/unsafe in the formal layer) or **P0** if it means the memory bound theorem is unproven. But the question says P0 = consensus divergence. Since this is in the proof layer that underpins the spec's safety claims, and if the proof is broken the assurance of the memory bound collapses, this could be P1. Actually, let's think: the spec claims the memory bound is proven. If the proof is invalid, that's a spec bug. But does it cause two implementations to disagree? No. So P1.
+
+Wait, could there be a typo in the provided text? Maybe `.step v c` is actually `.step v remaining` and it's inside `eval`? No, this is `step`.
+
+Let me look at the `step` function again. Perhaps I misread the indentation. Could it be that the `else .step v c` is not inside the `thunk` branch but part of `eval`? No, the indentation and structure clearly show it inside `thunk`.
+
+Another issue: the bridge between Lean and implementation. The README says: "the differential bridge is the empirical check that the Lean `interfere` is the oracle's." But the bridge only checks 582 cases or 33 vectors. Is that sufficient to guarantee the Lean model matches the Python oracle for ALL inputs? No, it's an empirical check. The spec claims the bridge proves it, but a finite differential does not constitute a proof of equivalence for unbounded domains. This is a standard limitation but should be noted.
+
+Also, regarding `evalHash_size_bound`: the theorem "re-proves the ADR-001 memory bound on the concrete evaluator". But `SizeBound.lean` abstracts the machine to `(size, spent)` pairs. `EvalMachine.lean` proves it on the concrete evaluator. The gap: does `EvalMachine` accurately model the Python oracle's `eval`? The bridge checks 33 vectors. But is there a gap in the semantics of `force`? In Lean, `force` returns `Option Term`. In Python, `resolve` might have different behavior regarding Invalid Object vs Unresolved. The bridge pins some behaviors, but not all corner cases.
+
+Specifically, the Lean `step` function handles `thunk` by doing `force` and then checking `c > remaining`. But in the spec §3.4, the price of `force h` depends on the kind of node: 1 for LITERAL/DISSONANCE, 2 for REF, 3 for APPLY. The Lean code computes `c := size v` and then checks `if c > remaining then .exhausted else .step v c`. But the `size v` in the hash-leaf model is 1/2/3. So `c` is 1, 2, or 3. This matches the cost. But where does the budget get decremented? It returns `.step v c`, and then `eval` increments `spent` by `c`. Wait, no: `step` returns `.step t' c`, then `eval` recurses with `spent + c`. But what about the cost of the `force` operation itself? In the spec, `force` costs `size(node)` and then the redex rule costs additional. In Lean:
+
+For `thunk h`:
+- If `force` returns `v`, it returns `.step v c`. The cost `c` is charged. Then in `eval`, `c` is added to `spent`.
+- But the spec says `cost(force h) = size(v)`. This is exactly what `c` is. So the `thunk` step is priced correctly.
+
+For `ref h`:
+- Returns `.step (.thunk h) 1`. Cost is 1. This matches `cost(R-R) = 1`.
+
+For R-I:
+- Returns `.step a 1`. Cost is 1. Matches `cost(R-I) = 1`.
+
+For R-K:
+- Returns `.step f2 1`. Cost is 1. Matches `cost(R-K) = 1`.
+
+For R-S:
+- Returns `.step (.app (.app f12 a) (.app f2 a)) (1 + size a)`. Cost is `1 + size(a)`. Matches `cost(R-S) = 1 + size(z)`.
+
+So the price model matches. The memory bound proof in EvalMachine uses `size_step`. Let's check `size_step`:
+
+```lean
+theorem size_step (t : Term) (rem : Nat) (st : Store) :
+    (match step t rem st with
+     | .step t' c => size t' + 1 ≤ size t + c
+     | _ => True) := by
+  fun_induction step t rem st <;> grind [size, size_pos]
+```
+
+This says that for a step that fires with cost `c`, the new term's size plus 1 is at most the old term's size plus `c`. This is the memory accounting premise. But this theorem relies on `step` actually terminating (otherwise it's vacuously... no, Lean won't accept the theorem if `step` doesn't terminate). If `step` doesn't terminate, the theorem can't be proven.
+
+So the critical issue is that `step` seems non-terminating as written. I should flag this.
+
+Wait, could `fun_induction` and `grind` handle it because Lean's termination checker actually CAN handle it? Let me recall: Lean 4's termination checker can handle mutual recursion and nested recursion, but it requires the measure to decrease. For the `.ref h` case, `sizeOf (.thunk h)` vs `sizeOf (.ref h)` — if `h : Bytes` has a certain `sizeOf`, both constructors add 1. So they are equal. The termination checker rejects equal measures unless there's another argument that decreases. But `remaining` doesn't decrease in the `.ref` case: it goes from `remaining` to `1`. Actually, in `.ref h`, the call is `.step (.thunk h) 1`. The second argument is `1`, which could be larger or smaller than `remaining`. So no lexicographic decrease there either.
+
+Unless... the `termination_by` in Lean 4 allows complex measures. But the code explicitly says `termination_by sizeOf t`. That means ONLY the first argument.
+
+I think there is a real issue here. Let me consider if maybe `Bytes` is an opaque `abbrev` with `SizeOf` overridden? In the code, `Bytes` is defined as `List UInt8`. The size of a list is its length. So `sizeOf (.thunk (List.ofLength 32))` = 1 + 32 = 33. `sizeOf (.ref (List.ofLength 32))` = 1 + 32 = 33.
+
+So `.ref h -> .thunk h` is NOT decreasing.
+
+Could the Lean code be using `sizeOf` as a custom measure defined elsewhere? No.
+
+What about the `thunk` case? `force h st` returns `v`. `v` could be `.app (.thunk l) (.thunk r)`. `sizeOf v` = 1 + (1+32) + (1+32) = 67 > 33. So NOT decreasing.
+
+This is a cast-iron issue. I will report it as **P1** because the specification text and proof README claim a mechanized totality proof, but the provided Lean code cannot satisfy that claim as written. This casts doubt on the entire EvalMachine assurance story.
+
+Actually, could it be that `step` is intended to be partial, but `eval` is fuel-indexed? In the code `eval` calls `step`. If `step` loops, `eval` loops. The file header explicitly says "Totality is definitional — step is well-founded on sizeOf t". So the claim is definitely made.
+
+Another angle: perhaps I'm misreading `step v c`. Could `c` be a cost that is returned, not a recursive call? No, `.step` is a constructor of `StepResult`. Wait! `.step` is a constructor of `StepResult`! It is NOT a recursive call to the function `step`!
+
+OH! This is crucial. Let's look:
+
+```lean
+inductive StepResult where
+  | nf                              -- normal form
+  | exhausted                       -- demanded action unaffordable
+  | unresolved                      -- demanded hash absent
+  | step (t : Term) (cost : Nat)    -- fired: new term, cost spent
+```
+
+The constructor is `StepResult.step`, and the function is `EvalMachine.step`. In the function `step`, it returns `StepResult.step v c`. So `.step v c` is returning the constructor `StepResult.step` with arguments `v` and `c`! It is NOT a recursive call to the function `step`. The notation `StepResult.step` is namespaced. Inside the `EvalMachine` namespace, `StepResult.step` can be referred to as `.step`. So `else .step v c` means `StepResult.step v c`. It is NOT recursion!
+
+Oh my goodness. I completely missed that. The `.step` inside the function `step` is the constructor, not the function. This is a perfect example of how Lean's namespacing can be confusing. The function is defined as `def step ...` and returns values of type `StepResult`. The constructor `.step` is one of the possible results. So there is NO recursion in the `thunk`, `ref`, R-I, R-K, or R-S cases! The only recursive calls are via `descend`, which calls the function `step` on subterms `f` and `a`.
+
+Let me check the `descend` block:
+
+```lean
+      let descend : StepResult :=
+        match step f remaining st with              -- recursive on f (subterm)
+        | .step f' c => .step (.app f' a) c         -- constructor, not recursive
+        | .nf =>
+            match step a remaining st with          -- recursive on a (subterm)
+            | .step a' c => .step (.app f a') c     -- constructor
+            | other => other
+        | other => other
+```
+
+Yes! The recursive calls are only on `f` and `a`, which are strict subterms of `.app f a`. So structural recursion on `sizeOf t` IS justified. The R-S, R-K, R-I cases return `.step <new term> <cost>`, which are constructors, not recursive calls. The `.ref h` case returns `.step (.thunk h) 1`, a constructor. The `.thunk h` case returns `.step v c`, a constructor.
+
+So `step` IS structurally recursive. The function calls itself only on `f` and `a` in the `.app` case, which are subterms. Wait, but `f` in `.app f a` could be the same size as `.app f a`? No, `f` is a strict subterm. `Term.app` takes two `Term`s. If `t = .app f a`, then `f` is structurally smaller than `t`, and `a` is structurally smaller than `t`. The termination checker handles this.
+
+So my initial alarm was due to misreading the constructor notation. The code is correct. Phew.
+
+But wait, in the `.app f a` case, the `match f with` does:
+- `| .app (.app f11 f12) f2 =>` then check `glyphEq f11 gS`. If true, return `.step (.app (.app f12 a) (.app f2 a)) (1 + size a)`. This is a constructor return. No recursion.
+- `| .app f1 f2 =>` then check `glyphEq f1 gK`. If true, return `.step f2 1`. Constructor.
+- `| _ =>` then check `glyphEq f gI`. If true, return `.step a 1`. Constructor.
+- else `descend`, which recurses on `f` or `a`.
+
+So indeed, all recursive calls are on strict subterms. The code is structurally sound.
+
+Okay, so that finding evaporates. Good. I must be careful.
+
+Now, what else can I attack?
+
+**EvalMachine faithfulness:**
+The Lean model uses `Term` with `.thunk` for unresolved hashes. The Python oracle uses a similar model. But there might be a subtle gap.
+
+In Lean, `force` does:
+```lean
+def force (h : Bytes) (st : Store) : Option Term :=
+  if h = gI then some (.lit atomI)
+  else if h = gK then some (.lit atomK)
+  else if h = gS then some (.lit atomS)
+  else match storeGet st h with
+    | none => none
+    | some b => match MachineBytes.deserialize b with
+        | none => some (.dis rInvalid)
+        | some n => some (ofNode n)
+```
+
+Wait, `storeGet` is:
+```lean
+def storeGet (st : Store) (h : Bytes) : Option Bytes :=
+  st.find? (fun b => Sha256.sha256 b = h)
+```
+
+This is looking for a blob `b` such that `SHA-256(b) = h`. But the spec says `resolve(h)` looks up `h` in the store. The store maps hash->bytes. The oracle's store is probably a mapping from hash to bytes. `storeGet` searches linearly through a list of bytes and computes the SHA-256 of each until it finds one matching `h`. This is behaviorally equivalent to a map lookup ONLY if the store contains the blob keyed by its hash. It is a valid model of a content-addressed store.
+
+However, what if there are two blobs with the same hash? In the Lean model, `find?` returns the first such blob. In a real CAS, there should only be one blob per hash (collision resistance). But the spec doesn't say what to do on hash collision. The Lean model implicitly picks the first.
+
+More importantly: in the spec §3.5, `resolve(h)` says: (a) `h` not found in store and not intrinsic → Unresolved; (b) bytes failing validation → Canonical Invalid Object.
+
+In the Lean model, `force` does:
+- if hash matches genesis, return genesis lit.
+- else `storeGet st h` gives `some b`.
+- if `deserialize b` returns `none`, return `.dis rInvalid`.
+- else return `ofNode n`.
+
+But what if the store contains a blob `b` where `SHA-256(b) = h`, but `b` deserializes to a node whose canonical serialization is NOT `b`? That is, a non-canonical blob. `deserialize` accepts any valid buffer (§4.1). But what if the blob passes validation but is not the canonical serialization of the node? The spec says `resolve(h)` materializes the node from the blob. The node's identity is its canonical hash, but the blob might be non-canonical yet valid? Wait, §4.1 says validation checks length, flags, etc. It doesn't enforce that the buffer is the canonical serialization of the parsed node — because the canonical serialization IS the only valid buffer for a given node. Actually, `deserialize` produces `Option Node`. If the buffer is valid, it produces the node. But the node's canonical serialization might differ if there is any ambiguity? The spec says canonical serialization is deterministic: `[Op][Flags][fields]`. So there's exactly one valid buffer per node. So any valid buffer is canonical by construction. This is fine.
+
+Now, the spec says in §3.4: "If ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано."
+
+The Lean model does:
+```lean
+        | some v =>
+            let c := size v
+            if c > remaining then .exhausted
+            else .step v c
+```
+
+This computes `v` via `force`, which fully materializes the node from the store, THEN checks if `c > remaining`. But if `c > remaining`, it returns `.exhausted`. However, it has already materialized `v` in the process of computing `size v`. In a lazy implementation, one might want to avoid fetching the bytes if the cost is too high. But the spec says bytes are fetched to know the cost, then discarded if unaffordable. For `thunk`, we know the cost only after materialization because the cost is `size(v)`. Actually, for `thunk`, the cost is determined by the node kind: 1/2/3. We need to read the bytes to know the kind. The spec explicitly says: "Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано." But in the Lean model, `force` returns the full `Term v`, and then we check `c > remaining`. If `c > remaining`, we still computed `v`. In terms of the Lean model, this doesn't matter because it's a pure function. But for the memory bound theorem, it matters because `force` creates a `Term` in the meta-theory. However, the spec says the bytes are discarded without materialization. The Lean model, by constructing `v` and then discarding it, does not model "discard without materialization" faithfully. But since it's a pure mathematical model, this isn't a consensus issue.
+
+Wait, but `eval_size_bound` theorem uses:
+```lean
+      · rename_i t' c heq
+        have hs := size_step t (atp - spent) st
+        rw [heq] at hs
+        exact ih t' (spent + c) (by omega)
+```
+
+This recurses on the result of `eval`, which returns `t'`. So `t'` is part of the state. If the step was `.exhausted`, `t'` is not used (the match in `eval` handles `.exhausted`). Actually, look at `eval`:
+```lean
+      match step t (atp - spent) st with
+      | .nf => (t, spent)
+      | .exhausted => (.dis rATP, spent)
+      | .unresolved => (.dis rUnres, spent)
+      | .step t' c => eval fuel t' atp (spent + c) st
+```
+
+So if the step was `.step v c` but `c > remaining`, the `step` function would have returned `.exhausted` instead of `.step v c`. Wait! In the `thunk` case:
+```lean
+        | some v =>
+            let c := size v
+            if c > remaining then .exhausted
+            else .step v c
+```
+
+So it checks `c > remaining` and returns `.exhausted`. Good. So it never returns `.step` with a cost exceeding remaining. But it computes `v` internally. In Lean, this is pure computation.
+
+However, there's a subtle gap: the spec says that for a `REF` node, `cost(force h) = 2`. But `force` on a `REF` hash in the store: the blob for a REF node is `0x01 0x01 <32 bytes>`. The `ofNode` for `.ref t` returns `.ref t`. The `size` of `.ref t` is 2. So `c = 2`. Correct.
+
+For an APPLY node, blob is `0x02 0x06 <32 bytes left> <32 bytes right>`. `ofNode` returns `.app (.thunk l) (.thunk r)`. `size` of this is `1 + size (.thunk l) + size (.thunk r)` = 1 + 1 + 1 = 3. Correct.
+
+For LITERAL/DISSONANCE, size = 1. Correct.
+
+But what about `size` of a materialized node with thunk children? The hash-leaf model says every materialized node counts as 1, and unresolved hash leaves count 1. But `size (.app (.thunk l) (.thunk r))` = 1 + 1 + 1 = 3, which matches the cost of forcing an APPLY. However, in the memory bound theorem, `size` is used to track the number of materialized nodes. The theorem `size_step` proves that if a step fires with new term `t'` and cost `c`, then `size t' + 1 ≤ size t + c`. Let's verify this for the force case:
+
+`t = .thunk h`. After `force`, `t' = v`. `size t = 1`. `c = size v`. Then `size t' + 1 = size v + 1`. The inequality requires `size v + 1 ≤ 1 + size v`, which is `size v + 1 ≤ size v + 1`, i.e., true. Good.
+
+For R-R: `t = .ref h`. `t' = .thunk h`. `size t = 2`. `c = 1`. `size t' = 1`. Check: `1 + 1 ≤ 2 + 1` → `2 ≤ 3`, true.
+
+For R-I: `t = .app (.lit atomI) a`. Wait, `f = .lit atomI` in the R-I case? Actually the `.app` branch:
+```lean
+      match f with
+      ...
+      | _ =>                                         -- f not an app
+          if glyphEq f gI then
+            (if remaining < 1 then .exhausted else .step a 1)
+```
+
+So `t = .app f a` where `f` is not an `app`, and `glyphEq f gI` is true. This means `f` is either `.thunk gI` or `.lit atomI`. `size t = 1 + size f + size a`. `t' = a`. `size t' = size a`. `c = 1`. We need `size a + 1 ≤ size t + 1`, i.e., `size a ≤ size t`. Since `size t = 1 + size f + size a` and `size f ≥ 1`, this holds.
+
+For R-K: `t = .app (.app f1 f2) a` where `f1` is either `.thunk gK` or `.lit atomK`. `t' = f2`. `size t = 1 + (1 + size f1 + size f2) + size a`. `size f1 ≥ 1`. `size t' = size f2`. `c = 1`. Need `size f2 + 1 ≤ size t + 1` → `size f2 ≤ 1 + size f1 + size f2 + size a` → `0 ≤ 1 + size f1 + size a`, true.
+
+For R-S: `t = .app (.app (.app f11 f12) f2) a` where `glyphEq f11 gS`. So `t = .app (.app (.app f11 f12) f2) a`. Wait, the match is:
+```lean
+      | .app (.app f11 f12) f2 =>                    -- f = ((f11 f12) f2)
+          if glyphEq f11 gS then
+            (if 1 + size a > remaining then .exhausted
+             else .step (.app (.app f12 a) (.app f2 a)) (1 + size a))
+```
+
+So `t = .app f a` where `f = .app (.app f11 f12) f2`. `size t = 1 + size f + size a`. `f` is an `app`, so `size f = 1 + size (.app f11 f12) + size f2 = 1 + (1 + size f11 + size f12) + size f2`. Thus `size t = 1 + 1 + 1 + size f11 + size f12 + size f2 + size a` = `3 + size f11 + size f12 + size f22 + size a` (using f22 for f2). Wait, `f2` is the third argument in R-S (z). Actually in R-S: APPLY(APPLY(APPLY(⟨S⟩,x),y), z) → APPLY(APPLY(x,z), APPLY(y,z)). So in the code: `f11` represents the head `S` (thunk or lit), `f12` represents `x`, and `f2` represents `y`. The argument `a` is `z`.
+
+The new term `t' = .app (.app f12 a) (.app f2 a)`. Its size is `1 + size (.app f12 a) + size (.app f2 a) = 1 + (1 + size f12 + size a) + (1 + size f2 + size a) = 3 + size f12 + size f2 + 2*size a`.
+
+The old term size is `size t = 1 + size f + size a = 1 + (1 + size (.app f11 f12) + size f2) + size a = 1 + (1 + (1 + size f11 + size f12) + size f2) + size a = 3 + size f11 + size f12 + size f2 + size a`.
+
+Cost `c = 1 + size a` (since `a` is the duplicated argument `z`).
+
+We need: `size t' + 1 ≤ size t + c`.
+Left side: `3 + size f12 + size f2 + 2*size a + 1 = 4 + size f12 + size f2 + 2*size a`.
+Right side: `3 + size f11 + size f12 + size f2 + size a + 1 + size a = 4 + size f11 + size f12 + size f2 + 2*size a`.
+
+So we need: `4 + size f12 + size f2 + 2*size a ≤ 4 + size f11 + size f12 + size f2 + 2*size a`.
+Cancel: `0 ≤ size f11`. Since `size f11 ≥ 1` (it's either a thunk or lit), this holds strictly.
+
+So the R-S memory accounting holds unconditionally, as the spec says. The Lean theorem is correct.
+
+Okay, so the EvalMachine math checks out. What about the bridge gap?
+
+The question asks: "does evalHash_size_bound genuinely re-prove the ADR-001 memory bound on the concrete evaluator, or is there a gap between the Lean model and impl/sigma_glyph.py that the differential bridges do not cover?"
+
+The ADR-001 bound is `materialized size − 1 ≤ spent`. In Lean, `size` is the hash-leaf node count. In Python, the oracle tracks `size` similarly. The bridge `bridge_check.py` checks the premise `Δsize ≤ cost − 1` on live traces. But `EvalMachine.lean` proves `size_step` directly. However, the gap is: does the Lean `size` function exactly match the Python `materialized_size`? The Lean `size`:
+- `.app f a` => `1 + size f + size a`
+- `.ref _` => `2`
+- `_` => `1`
+
+In Python, for a materialized APPLY node with thunk children, the size is 1 (node) + size(left) + size(right). For a materialized REF node, size is 2 (the REF node plus the thunk target). For a thunk, size is 1. This matches.
+
+But what about the actual memory consumption in the Python implementation? The spec's memory bound is about the number of materialized nodes (hash-leaf model). The Lean theorem proves a bound on `size`, which is an abstract count. It doesn't prove anything about actual bytes or memory usage in the Python interpreter. The gap is that the abstract `size` might not correspond to the actual memory allocation in Python (e.g., Python object overhead, hash maps, etc.). However, the spec explicitly defines `materialized_size` as the hash-leaf model count, not actual memory bytes. So this is not a gap in the spec.
+
+BUT: there is a subtle gap in the bridge between Lean and Python. The `eval_bridge_check.py` checks 33 vectors for result hash AND atp_spent. This covers some cases. But does it cover lazy left-spine cases where a dead branch is skipped? The vectors include `EV-TV8` and `EV-TV11` which test this. But the bridge doesn't check the *internal* sizes during evaluation, only the final result. The `bridge_check.py` checks the per-step premise on the Python oracle's internal traces. So between the two bridges (`eval_bridge_check.py` for final results, `bridge_check.py` for internal step premises), the gap is small.
+
+However, there is a potential gap: `eval_bridge_check.py` uses Lean's `evalHash` via `EvalRun.lean`, which presumably extracts the Lean code to run it. But the gate transcripts do not show `eval_bridge_check.py`! Wait, the transcripts show `bridge_check.py` but NOT `eval_bridge_check.py`. The README says it exists, but it's not in the transcripts. This means the empirical check tying the Lean evaluator to the oracle is unaudited in the provided gates.
+
+Wait, looking at the gate transcripts:
+- `python3 proofs/bridge_check.py` (exit 0) — this is the SizeBound bridge, NOT the eval bridge.
+- No `python3 proofs/eval_bridge_check.py`.
+- No `python3 proofs/wave_bridge_check.py`.
+- No `python3 proofs/byte_bridge_check.py`.
+
+So the bridges for EvalMachine, WaveAlgebra, and MachineBytes are NOT shown in the transcripts. The only bridge shown is `proofs/bridge_check.py` (the SizeBound one). This is a major issue: the maintainer claims the bridges pass, but the transcript only includes one bridge. The other three bridges are missing from the provided gates.
+
+Wait, let me re-read the transcripts carefully:
+
+```
+$ python3 proofs/bridge_check.py  (exit 0)
+steps observed: 861; premise (Δsize ≤ cost − 1) violations: 0
+BRIDGE: PREMISE HOLDS ON ALL OBSERVED STEPS
+```
+
+That's it. No eval_bridge, no wave_bridge, no byte_bridge.
+
+So I can attack this: the gate transcripts do not demonstrate that the Lean eval, wave, or byte bridges were run. This leaves a gap in the claimed mechanization coverage.
+
+Now, regarding the TCB and `native_decide`: the spec pins the amplitude normalization divisor at 65535. The Lean proof `am_fixed_scan` uses `native_decide` to check all 65536 cases. The claim is that `a² / 65535 (rounded) = a` exactly at `a = 0` and `a = 65535`. The `dr_cancel_65535` theorem says `divRoundHalfUp (x * 65535) 65535 = x`. Wait, is that true for all x? Let's test with `x = 1`: `1 * 65535 = 65535`. `divRoundHalfUp 65535 65535`: `65535 / 65535 = 1` with remainder 0, so result is 1. Good. `x = 2`: `131070 / 65535 = 2` remainder 0, result 2. In fact, since `65535 * x` is an exact multiple, `divRoundHalfUp` always returns x. So `dr_cancel_65535` is trivially true and doesn't need `native_decide`. In the proof, it's proven by `simp only [divRoundHalfUp]; split <;> split <;> omega`. So that's symbolic.
+
+But `am_fixed_scan` uses `native_decide` to check all 65536 cases. This is a brute-force enumeration. The claim is that the fixed points of `a² / 65535` in `[0, 65535]` are exactly 0 and 65535. Let's verify the arithmetic.
+
+We need to find `a` such that `divRoundHalfUp(a*a) 65535 = a`.
+
+Let `a² = q * 65535 + r`, where `0 ≤ r < 65535`.
+`divRoundHalfUp(a*a) 65535` = `q + (if 2r >= 65535 then 1 else 0)`.
+We want this to equal `a`.
+
+So `a = q` or `a = q + 1`.
+
+Case 1: `a = q`. Then `a² = a * 65535 + r` with `r < 65535/2` (so no rounding up).
+Thus `a² - a*65535 = r`, i.e., `a(a - 65535) = r`.
+Since `0 ≤ r < 65535/2 ≈ 32767.5`.
+If `a = 0`, then `r = 0`, which is `< 32767.5`. So `a = 0` works.
+If `a = 65535`, then `a(a - 65535) = 0`, so `r = 0`, which would mean no rounding up. But then result would be `q = a`, so `65535` works? Wait, `a = 65535`: `a² = 65535²`. `q = a = 65535`, `r = 0`. Then `divRoundHalfUp` = `q = 65535`. So yes, it works without rounding.
+
+But wait, for `a = 65535`, `a(a-65535)=0`, so `r=0`. `2r = 0 < 65535`, so no rounding. Result is `q = 65535`. So `a = 65535` is a fixed point.
+
+Case 2: `a = q + 1`. Then `a² = (a-1)*65535 + r` with `2r >= 65535` (rounding up).
+So `a² = a*65535 - 65535 + r`.
+Thus `r = a² - a*65535 + 65535 = a(a - 65535) + 65535`.
+We need `65535 ≤ 2r < 2*65535` and `0 ≤ r < 65535`. Wait, `r` must be `< 65535`. But `r = a(a-65535) + 65535`. For `0 ≤ a ≤ 65535`:
+- If `a < 65535`, then `a - 65535` is negative. Let `b = 65535 - a > 0`. Then `r = -a*b + 65535 = 65535 - a*b`.
+For `r` to be in `[0, 65535)`, we need `0 ≤ 65535 - a*b < 65535`, so `0 < a*b ≤ 65535`.
+Also need `2r >= 65535`, so `2(65535 - a*b) >= 65535` → `65535 - a*b >= 32767.5` → `a*b <= 32767.5`.
+Since `b = 65535 - a`, we need `a(65535 - a) ≤ 32767`.
+For integer `a`. The product `a(65535-a)` is maximized at `a = 32767` or `32768`. `32767 * 32768 = 2,147,450,496 / 2? Actually 32767*32768 = 1,073,676,  ... let's compute: 32768² = 2^30 = 1,073,741,824. 32767*32768 = 32768*(32768-1) = 1,073,741,824 - 32768 = 1,073,709,056. This is huge, way bigger than 32767.
+So for `a` in `(0, 65535)`, `a*b` is huge except near the edges. For `a=1`, `b=65534`, product=65534 > 32767. So `a*b > 32767` for all `a` in `[1, 65534]`. Thus `r < 32767.5` for all these, meaning no rounding up. So `a = q + 1` never happens for `a` in `[1, 65534]`.
+
+So the only fixed points are indeed 0 and 65535. The `native_decide` check is valid.
+
+But the claim says "the unique non-zero fixed point". The scan checks this. This is fine.
+
+Now, another mathematical attack: the `divRoundHalfUp` in Lean is defined as:
+```lean
+def divRoundHalfUp (n : Int) (d : Nat) : Int :=
+  let a := n.natAbs
+  let q : Nat := a / d + (if d ≤ 2 * (a % d) then 1 else 0)
+  if n < 0 then -(q : Int) else (q : Int)
+```
+
+This is round-half-AWAY-FROM-ZERO. For positive numbers, it's standard round half up. For negative numbers, e.g., `n = -1`, `d = 2`: `a = 1`, `q = 1/2 + (if 2 ≤ 2*1 then 1 else 0) = 0 + 1 = 1`. Result: `-1`. So `-1 / 2` rounds to `-1` (away from zero). For `n = -3`, `d = 2`: `a=3`, `q = 1 + (if 2 ≤ 2 then 1 else 0) = 2`. Result: `-2`. So `-3/2 = -2` (away from zero). This matches the spec claim "round-half-away-from-zero" and the vector `WV-NEG-TIE` (`avg(-1, -2) = -2`).
+
+But wait, `avg(-1, -2)` in the spec context is `div_round_half_up(int32(w1.en) + int32(w2.en), 2)`. If `w1.en = -1` and `w2.en = -2`, sum is `-3`. `-3 / 2` with away-from-zero is `-2`. So the result should be `-2`. The vector `WV-NEG-TIE` pins this. Good.
+
+Now, what about the `interfere` function? Let's check the amplitude formula:
+`prod01 = div_round_half_up(int64(w1.am)*int64(w2.am), 65535)`
+`amp_factor = div_round_half_up(int64(r+32767)*65535, 65534)`
+`new_am = div_round_half_up(uint64(prod01)*uint64(amp_factor), 65535)`
+
+The spec says `65535` is the unit scale. Let's verify the amp_factor range.
+`r ∈ [-32767, 32767]`. So `r + 32767 ∈ [0, 65534]`.
+`amp_factor = div_round_half_up((r+32767)*65535, 65534)`.
+For `r = 32767`: `(65534)*65535 / 65534 = 65535` exactly? Actually `65534 * 65535 / 65534 = 65535`. Remainder 0. So amp_factor = 65535. Good.
+For `r = -32767`: `0 * 65535 / 65534 = 0`. amp_factor = 0. Good.
+For `r = 0`: `32767 * 65535 / 65534`. Let's compute: `32767 * 65535 = 32767 * (65534 + 1) = 32767*65534 + 32767`. Dividing by 65534: `32767 + 32767/65534`. Since `2*32767 = 65534`, the remainder is exactly half the divisor? Wait: `32767*65535 = 2,147,450,  ... let's compute exactly:
+65534 * 32767 = 65534 * 32767.
+32767 * 65535 = 32767 * 65534 + 32767 = 65534*32767 + 32767.
+Divided by 65534: quotient = 32767, remainder = 32767.
+Is `2 * remainder >= divisor`? `2 * 32767 = 65534 >= 65534`, yes. So round up to 32768.
+So `amp_factor` for `r=0` is 32768.
+
+Does this match the spec intent? The spec says `amp_factor` maps `[-32767, 32767]` to `[0, 65535]` linearly. At `r=0` (midpoint of range), it should map to the midpoint of amplitude, which is `32767.5`. Rounding half up gives 32768. So yes.
+
+Now, the `new_en` computation:
+`new_en = clamp_i16(div_round_half_up(int32(w1.en)+int32(w2.en), 2) + delta_en)`
+`delta_en = div_round_half_up(-r, 128)`.
+
+Let's test with the crystallization fixed point: `w = {am=65535, en=-32768}`.
+`interfere(w, w)`: `d32 = 0`, `delta = 0`, `r = lut 0 = 32767`.
+`delta_en = divRoundHalfUp(-32767, 128)`.
+Compute: `a = 32767`, `32767 / 128 = 255` remainder `127` (since `255*128 = 32640`, `32767 - 32640 = 127`).
+`2*r = 254 < 128`? No, `254 >= 128`, so round up to 256.
+Result: `-256`.
+`divRoundHalfUp(-32768 + -32768, 2) = divRoundHalfUp(-65536, 2) = -32768`.
+`new_en = clamp_i16(-32768 + -256) = clamp_i16(-33024) = -32768`. So `en` stays at -32768.
+
+`am`: `amp_factor = 65535` (as above). `prod01 = divRoundHalfUp(65535*65535, 65535) = 65535`.
+`new_am = divRoundHalfUp(65535*65535, 65535) = 65535`. So `am` stays at 65535.
+Phase stays same. So `{am=65535, en=-32768}` is indeed a fixed point.
+
+Now check if there are other fixed points. The `am_fixed_scan` proves only the amplitude fixed points for `a²/65535 = a`. But the full fixed point also requires `en` and `ph` to match. `ph` is left-dominant, so `interfere(w,w).ph = w.ph`. For `en`, we need:
+`clamp_i16(divRoundHalfUp(2*en, 2) + divRoundHalfUp(-32767, 128)) = en`.
+`divRoundHalfUp(2*en, 2) = en` exactly (since `2*en` is an even multiple of 2? Actually for any integer `en`, `2*en / 2 = en` exactly, remainder 0. So `dr_double` proves this).
+So we need `clamp_i16(en - 256) = en` (since `delta_en = -256` when `r=32767`). This means `en - 256 = en` after clamping. This is only possible if `en` is at the lower clamp boundary, i.e., `en = -32768`. Because `-32768 - 256 = -33024`, which clamps back to `-32768`. If `en = -32767`, then `-32767 - 256 = -33023`, which clamps to `-32768 ≠ -32767`. So the only `en` that is fixed under self-interference (with `r=32767`) is `-32768`. Thus the full fixed point is unique. Good.
+
+So the WaveAlgebra theorems hold.
+
+Now, what about the LUT? The Lean code imports `LutData.lean`. The `lutCos[delta]!` is used. The `lut_range` theorem says `∀ d < 32769, -32767 ≤ lut d ≤ 32767`. This uses `native_decide`. The spec claims 64-bit IEEE double is sufficient. The Lean proof trusts the generated data. If the LUT generation in Python had a bug (e.g., off-by-one in rounding), the Lean proof would inherit it. The bridge `wave_bridge_check.py` is supposed to check 582 cases against the oracle. But this wasn't in the transcripts.
+
+Let's now consider the **SHA-256 in Lean**. `Sha256.lean` is provided. It implements FIPS 180-4. The `sha256` function uses `pad`, `compress`. The `pad` function uses `lenBytes` computed as `(List.range 8).map (fun i => UInt8.ofNat ((bitLen >>> ((7 - i) * 8)) % 256))`.
+
+Wait, `bitLen = len * 8`. For a message of length `len` bytes. The 64-bit big-endian length is appended. The computation:
+`(bitLen >>> ((7 - i) * 8)) % 256` for `i = 0..7`.
+This extracts the big-endian bytes of `bitLen`. For `i=0`: `>>> (7*8) = >>> 56`, top byte. For `i=7`: `>>> 0`, bottom byte. So this is correct.
+
+The `compress` function uses `Std.Range` `[0:nBlocks]` and `[0:16]`, `[16:64]`, `[0:64]`. In Lean, `for i in [0:nBlocks]` is total. But what about `w.getD (t - 2) 0` etc.? It uses `getD` with default 0, so it won't crash on out-of-bounds. But for `t in [16:64]`, `w` is built up to index `t-1`, so `t-2`, `t-7`, `t-15`, `t-16` should exist. `getD` with default 0 is defensive.
+
+However, notice that in `compress`, the loop variable is named `t`, but there's also a `let t1 := ...` and `let t2 := ...` inside the loop. This shadows the outer `t`. In the `for t in [0:64]`, Lean's `do`-notation binds `t`. Then inside:
+`let t1 := hh + bsig1 e + ...`
+`let t2 := bsig0 a + ...`
+Then the updates use `t1` and `t2`, not the loop variable. So shadowing is fine.
+
+But wait, the `w` array: `w.push` is used. For `t in [16:64]`, `w` should have size `t` before the push. At `t=16`, `w` has size 16. After push, size 17. At `t=17`, `w` has size 17. This is correct.
+
+The compression uses mutable variables `a`, `b`, ..., `hh`. The final sum uses `h.getD 0 0 + a` etc. This is correct for SHA-256.
+
+One potential issue: `pad` computes `zeros := (119 - len % 64) % 64`. Let's check:
+For `len = 0`: `0 % 64 = 0`. `119 - 0 = 119`. `119 % 64 = 55`. So 55 zero bytes after `0x80`, then the 8 length bytes: total padding = 1 + 55 + 8 = 64. `padded length = 64`. Correct.
+For `len = 55`: `55 % 64 = 55`. `119 - 55 = 64`. `64 % 64 = 0`. So 0 zero bytes. Padding: 1 + 0 + 8 = 9. `55 + 9 = 64`. Correct.
+For `len = 56`: `56 % 64 = 56`. `119 - 56 = 63`. `63 % 64 = 63`. Padding: 1 + 63 + 8 = 72. `56 + 72 = 128`. Correct.
+So the padding formula is correct.
+
+Thus the SHA-256 implementation seems correct. The differential bridge with Python's hashlib would confirm. But again, not in transcripts.
+
+Now, about the **MachineBytes.lean** `deserialize` function:
+```lean
+def deserialize : Bytes → Option Node
+  | 0x00 :: 0x01 :: rest =>
+      if rest.length = 32 then some (.lit rest) else none
+  | 0x01 :: 0x01 :: rest =>
+      if rest.length = 32 then some (.ref rest) else none
+  | 0x02 :: 0x06 :: rest =>
+      if rest.length = 64 then some (.app (rest.take 32) (rest.drop 32))
+      else none
+  | 0xFF :: 0x01 :: rest =>
+      if rest.length = 32 then some (.dis rest) else none
+  | _ => none
+```
+
+This matches the spec exactly: `expected_len = 2 + 32·popcount(Flags)`. For `LITERAL` and `REF` and `DISSONANCE`, flags are `0x01` (1 bit set), so `2 + 32 = 34`. For `APPLY`, flags are `0x06` (2 bits set), so `2 + 64 = 66`.
+
+But wait: the spec says `Flags & ~0x07 MUST be zero`. The Lean `deserialize` doesn't check this! It only checks the exact flags per opcode:
+- `0x00 :: 0x01 :: ...` — only accepts LITERAL if flags == 0x01.
+- `0x01 :: 0x01 :: ...` — only accepts REF if flags == 0x01.
+- `0x02 :: 0x06 :: ...` — only accepts APPLY if flags == 0x06.
+- `0xFF :: 0x01 :: ...` — only accepts DISSONANCE if flags == 0x01.
+
+But what about `0xFF :: 0x05 :: ...`? The opcode `0xFF` with flags `0x05` (F_ATOM + F_RIGHT?) is not in the table. The `_ => none` catch-all would reject it because the pattern `0xFF :: 0x01 :: rest` doesn't match, and the general `_ => none` catches it. So any flags other than the exact normative value are rejected. This effectively enforces `Flags` exactly equal to the normative value, which implies `Flags & ~0x07 == 0`. Because the valid flags are `0x01` (`00000001`), `0x06` (`00000110`). All have zeros outside `0x07`. So checking exact flags is stronger than the spec's check. This is fine.
+
+But what about opcodes `0x03..0xFE` (except `0xFF`)? The `_ => none` rejects them. Good.
+
+However, the spec's §1.1 says `0x03 та всі інші значення: INVALID`. The Lean code handles `0xFF` as DISSONANCE. Any other opcode falls to `_ => none`. So `0x03` is rejected. Good.
+
+The `valid_threshold_policy` in `anchor_governance.py` checks `set(doc) != {"warrant_policy", "threshold"}` leading to `return None`. But the spec says `set(doc) != {"warrant_policy", "threshold"}`? Let's look:
+
+```python
+def valid_threshold_policy(doc):
+    """Exact Warrant v0.3 §5 grammar: two top-level fields, closed threshold."""
+    if not isinstance(doc, dict) or set(doc) != {"warrant_policy", "threshold"}:
+        return None
+```
+
+The Warrant SPEC v0.3 snapshot says the body schema has fields: `warrant`, `decision`, `subject`, `under`, `because`, `evidence`, `actor`, `prior`, `ts`. This is the body. The threshold policy blob is different; it's a separate blob pointed to by `under`.
+
+Wait, `valid_threshold_policy` validates the threshold policy blob, not the warrant body. The threshold policy blob is:
+```json
+{ "warrant_policy": "0.3", "threshold": { "min_sigs": 2, "actors": ["a@x", "b@y", "c@z"] } }
+```
+
+This matches the code. But the Warrant SPEC v0.3 snapshot says:
+> A v0.3 threshold policy blob MUST be JCS-canonical JSON:
+> `{ "warrant_policy": "0.3", "threshold": { "min_sigs": 2, "actors": ["a@x", "b@y", "c@z"] } }`
+
+So the code matches the spec.
+
+But wait, the Warrant spec snapshot in the repo is `proposals/refs/warrant-SPEC-v0.3-snapshot.md`. The `valid_threshold_policy
