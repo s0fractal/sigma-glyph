@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Zero-relay cycle: brief (briefs/BRIEF-governance-go.md) -> codex exec on isolated clone (110k tokens, single shot) -> maintainer cold verification on the clone BEFORE merge: all five acceptance surfaces green, only brief-permitted paths touched, 'Deviations: None' checked against the diff and holds. Codex reused the battle-tested jcs() canonicalizer from the federation code and implemented the s3 pipeline independently (closure fixpoint, lineage walk, quorum-scoped key-state, rival freeze). The 7 adversarial mutations from the brief all delivered. With pinned vectors (obligation 2) and this second implementation (obligation 3), GOV-anchors.md meets its stated preconditions for leaving DRAFT; status change deferred to a future release decision. Lesson upheld from the twin's log: diff HANDOFF coverage against the brief - this time 13/13."
+      },
+      {
+        "check": "5560bfa359090c3a1111adade0d177eda10a966f5aeca0c05127d242d7825369",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "e30e775b79a9345245c8f905e5fa5bffc1f9aecf17a56df422519fe83ae6892b",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "26cf44f07f947ac61f618117fbf35af2cd8e0824400c7feab0f441382fefe40b"
+    ],
+    "subject": {
+      "hash": "9e05d229fb7a4a7c550f154d5328b5c9398bf733f201215d11144975e9e055ca",
+      "note": "codex zero-relay: Go GOV verifier (gov-replay 16/16 + differential 23/23) - GOV conformance obligations 2+3 met"
+    },
+    "ts": 1783520676,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "b3b54a5317c8e31a014fc3d0eadaf79b1cbcf620b43ea6046ed0c9df206b03ce83369b22bbbe0df3fb91be880571b4277492ffcd05d71ae802f6309afc80b902"
+    }
+  ]
+}
