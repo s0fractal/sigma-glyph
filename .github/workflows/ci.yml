@@ -24,6 +24,15 @@ jobs:
             | tee /dev/stderr | grep -q "FEDERATION-GO: ALL PASS"
           python3 tests/federation_differential.py \
             | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
+      - name: Governance second implementation (Go) + differential
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet cryptography
+          ./impl-go/sigma-federation-go gov-replay tests/spec_conformance/governance_vectors.json \
+            | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
+          python3 tests/governance_differential.py \
+            | tee /dev/stderr | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
       - name: Conformance vectors are fresh (regenerate == no diff)
         run: |
           python3 tests/spec_conformance/generate.py
