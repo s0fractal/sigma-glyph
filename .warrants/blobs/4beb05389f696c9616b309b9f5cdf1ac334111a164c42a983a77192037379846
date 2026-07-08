@@ -1,0 +1,6 @@
+genuine serialize/deser/force/step present, no hardcoded hashes
+cargo build --release: ok
+SELFTEST: ALL PASS
+RUST-CONFORMANCE: ALL PASS (49/49)
+oracle vectors regenerate byte-identical (Rust matches the live oracle)
+Rust Book I third implementation verified

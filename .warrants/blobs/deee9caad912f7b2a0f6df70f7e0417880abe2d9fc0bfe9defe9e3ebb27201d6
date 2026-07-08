@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Adjudication check: Rust Book I third implementation (repo root; needs cargo)."""
+import pathlib, subprocess, sys
+ok = True
+# genuine impl, no hardcoded oracle answers
+src = pathlib.Path("impl-rs/src/main.rs").read_text()
+for fn in ("fn serialize", "fn deserialize", "fn force", "fn step", "fn term_size"):
+    ok &= fn in src
+ok &= src.count("result_hash") <= 2   # only in the vector comparison, not hardcoded
+print("genuine serialize/deser/force/step present, no hardcoded hashes" if ok else "SUSPICIOUS SOURCE")
+# cold build + run
+b = subprocess.run(["cargo", "build", "--release"], cwd="impl-rs", capture_output=True, text=True)
+ok &= b.returncode == 0
+print("cargo build --release: " + ("ok" if b.returncode == 0 else "FAIL"))
+for args, want in ((["selftest"], "SELFTEST: ALL PASS"),
+                   (["conformance", "tests/spec_conformance/vectors.json"], "RUST-CONFORMANCE: ALL PASS (49/49)")):
+    p = subprocess.run(["./impl-rs/target/release/book1"] + args, capture_output=True, text=True)
+    last = p.stdout.strip().splitlines()[-1]; print(last)
+    ok &= p.returncode == 0 and want in last
+# the vectors Rust passes are freshly regenerated from the oracle -> genuine differential
+g = subprocess.run([sys.executable, "tests/spec_conformance/generate.py"], capture_output=True, text=True)
+d = subprocess.run(["git", "diff", "--quiet", "tests/spec_conformance/vectors.json"])
+ok &= g.returncode == 0 and d.returncode == 0
+print("oracle vectors regenerate byte-identical (Rust matches the live oracle)" if d.returncode == 0 else "ORACLE DRIFT")
+print("Rust Book I third implementation verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

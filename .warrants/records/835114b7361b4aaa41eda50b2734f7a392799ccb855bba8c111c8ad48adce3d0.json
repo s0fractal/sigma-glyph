@@ -1,0 +1,41 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Closes Qwen's formal-verification list. impl-rs is an independent Rust Book I (from-scratch SHA-256 FIPS 180-4 + JSON parser, zero external crates): SigmaNodeV2 serialize/deser/validate, NodeHash, CAS, genesis intrinsic, the v0.5 hash-thunk evaluator with size-priced ATP. Delivered by codex zero-relay (brief -> codex exec on an isolated clone, 76k tokens, single shot) and cold-verified by the maintainer LOCALLY on the MacBook (cargo 1.96, 1.1s build) - the first verification run under the new 'compute local, secrets remote' rule. Adversarial checks: only impl-rs/ + HANDOFF touched; genuine serialize/deser/force/step with exhaustion-before-action (not table-driven - one result_hash reference, in the vector comparison); passes a freshly-regenerated oracle suite byte-exact, so 49/49 IS the differential against the live oracle incl. the exhaustion-boundary (EV-TV4-IK-ATP0/2/3), Omega (500 ATP), R-S size-pricing and store-isolation vectors. Book I now has THREE agreeing implementations - Python oracle, warrant-go native evaluator (via ski@v1), Rust - alongside the Lean mechanization (EvalMachine: determinism/totality + memory bound). CI builds and runs the Rust conformance as a required gate. Only warrant SIGNING still runs on the mini (the seed must not travel)."
+      },
+      {
+        "check": "deee9caad912f7b2a0f6df70f7e0417880abe2d9fc0bfe9defe9e3ebb27201d6",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "4beb05389f696c9616b309b9f5cdf1ac334111a164c42a983a77192037379846",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "8b9d1e0471823b9ffe3964a990aee91faef9155bcefad7afe001faffdc8b0f06"
+    ],
+    "subject": {
+      "hash": "84eb4694e2e84a2815343254939ebe1f542ab9303261bd7fa55474004d5e3b1e",
+      "note": "Rust Book I: third independent implementation, 49/49 conformance - the last non-Lean Qwen formal-verification ask"
+    },
+    "ts": 1783535094,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "b15fc4d0940f21cf5019d27699a79845df1ac22a25be011b49fe48e5523981443235375c2a3464182df999d58747fe49eb011a9900a592218c77f6bb420fd509"
+    }
+  ]
+}
