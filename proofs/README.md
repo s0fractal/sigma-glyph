@@ -86,15 +86,46 @@ TCB honesty: the SHA-256 correctness and the genesis pins rest on
 differential; the structural theorems (injectivity, round-trip,
 canonicity, validation totality) are symbolic.
 
+## Book I evaluator (`EvalMachine.lean`)
+
+The v0.5 hash-thunk machine itself — the beating heart of Book I — is
+modeled faithfully (mirrors `step5`/`eval_hash`): leftmost-outermost
+reduction with lazy left-spine resolution and size-priced ATP, redex
+recognition by hash (§3.1/§3.2), genesis I/K/S intrinsic (§5.1). It is
+built on `MachineBytes`, so redex recognition uses the *proven*
+serialization/hash layer, not a re-axiomatized one.
+
+- **Totality is definitional** — `step` is well-founded on `sizeOf t`, `eval`
+  is fuel-indexed structural recursion: `evalHash` is a *total function*, no
+  partial/unsafe.
+- **Determinism is definitional** — it is a function.
+- `step_bounds` (via `fun_induction`) ⇒ `step_cost_le` (a fired action costs
+  ≤ the remaining budget) and `step_cost_pos` (≥ 1: the §3.4 "minimum cost 1",
+  so reduction cannot stall at zero cost).
+- `eval_spent_le` / `evalHash_spent_le` — **`spent ≤ atp`**: the evaluator
+  never overspends its budget, for ALL terms and budgets, now a theorem and
+  not just a per-vector observation.
+
+**Bridge** — `eval_bridge_check.py`: no-`sorry` guard, compile (theorems check
+on compile), and the executed Lean evaluator (`EvalRun.lean`) matched against
+the live oracle on **all 33 eval conformance vectors** — result NodeHash AND
+`atp_spent`, byte-exact — including Omega divergence (500 ATP → ATP
+Exhausted), R-S size-pricing, genesis-intrinsic, store-isolation and stuck
+forms. This is the empirical determinism/totality check: the total,
+budget-respecting Lean function IS the oracle on the whole pinned surface.
+
 ## Mechanization status
 
-The three ROADMAP formal-verification targets are now covered: the Book I
-memory bound (`SizeBound`), the Book II wave algebra (`WaveAlgebra`), and
-Book I byte-level correspondence (`MachineBytes`/`Sha256`). Not mechanized:
-row-by-row correspondence between runtime evaluator steps and the seven
-`SizeBound` constructors (the `bridge_check` step-tag classifier — a bridge
-upgrade, not a missing theorem), and the evaluator's reduction semantics
-themselves (redex recognition is pinned by the conformance vectors, not
-yet by a Lean reduction relation).
+The three ROADMAP formal-verification targets are covered — the Book I
+memory bound (`SizeBound`), the Book II wave algebra (`WaveAlgebra`), Book I
+byte-level correspondence (`MachineBytes`/`Sha256`) — plus a fourth: the
+**Book I evaluator** (`EvalMachine`), giving Qwen's requested
+determinism/totality (definitional) with the budget bound as a theorem and a
+33-vector oracle differential. The Lean reduction relation now *contains*
+redex recognition (built on the proven byte layer), rather than deferring it
+to vectors. Not mechanized: row-by-row correspondence between the runtime
+step tags and the seven `SizeBound` constructors (the `bridge_check` step-tag
+classifier — a bridge upgrade, not a missing theorem); a Rust production
+implementation.
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).

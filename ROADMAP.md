@@ -182,9 +182,10 @@ key-state via the warrant CLI).
 
 ## Formal verification (from the Qwen web review, 2026-07)
 
-**Three targets mechanized (Lean 4 core, no mathlib; `proofs/`):**
+**Four targets mechanized (Lean 4 core, no mathlib; `proofs/`):**
 - ADR-001 **memory bound** — `SizeBound.lean` (§3.4 accounting ⇒ `size ≤ spent + 1`) + `bridge_check.py` (step premise on live traces).
 - Book II **wave algebra** — `WaveAlgebra.lean` (interfere range closure, zero-amplitude cascade, Left Dominance, the §5.1 crystallization fixed point, fold non-associativity) + `wave_bridge_check.py` (582-case Lean-vs-oracle differential).
 - Book I **byte-level correspondence** — `MachineBytes.lean` + a from-scratch FIPS 180-4 `Sha256.lean` (serialize injectivity/round-trip/canonicity, §4.1 validation totality, reserved-opcode rejection, genesis + FALSE + Invalid-Object hash pins) + `byte_bridge_check.py` (334-buffer differential incl. every conformance CAS key).
+- Book I **evaluator determinism/totality** — `EvalMachine.lean`: a faithful hash-thunk machine (built on `MachineBytes`, so redex recognition rides the proven byte layer) that is total by construction (fuel-indexed) and deterministic (a function), with `spent ≤ atp` proven for all terms (`eval_spent_le`) and step cost ∈ `[1, remaining]` (`step_cost_le`/`step_cost_pos`) + `eval_bridge_check.py` (33-vector Lean-vs-oracle differential on result hash AND atp_spent, incl. Omega divergence).
 
-**Remaining:** a Lean reduction relation for the evaluator (redex recognition is pinned by vectors, not yet a proof); the `bridge_check` step-tag classifier for row-by-row SizeBound correspondence; a Rust production implementation. Vectors remain the contract.
+**Remaining:** the `bridge_check` step-tag classifier for row-by-row SizeBound↔step correspondence (a bridge upgrade, not a missing theorem); a Rust production implementation. Vectors remain the contract.

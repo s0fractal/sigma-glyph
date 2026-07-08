@@ -24,3 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 proofs/byte_bridge_check.py | tee /dev/stderr | grep -q "BYTE-BRIDGE: ALL AGREE"
+      - name: Evaluator determinism/totality + differential bridge (Book I eval)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 proofs/eval_bridge_check.py | tee /dev/stderr | grep -q "EVAL-BRIDGE: ALL AGREE"
