@@ -1,0 +1,8 @@
+OK depth-limit early-NF -> ResourceFault
+OK size-limit early-NF -> ResourceFault
+OK exact-bound control returns
+ALL PASS
+CONFORMANCE: ALL PASS (49/49)
+RUST-CONFORMANCE: ALL PASS (49/49)
+TEST-ALL: ALL GREEN
+hardening audit fixes verified

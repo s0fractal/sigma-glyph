@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Adjudication check: sigma-glyph v0.6.4 hardening audit fixes (repo root)."""
+import subprocess, sys
+sys.path.insert(0, "impl")
+import sigma_glyph as s
+ok = True
+st = s.Store(); root = st.put(s.FALSE_BYTES)
+def lim(d,m): return dict(max_node_depth=d, max_materialized_nodes=m, max_store_fetches=100)
+# P1: over-limit early-NF now faults, not returns
+for args, what in ((lim(1,100),"depth"), (lim(100,1),"size")):
+    try:
+        s.eval_hash(root, 10, st, args); ok=False; print(f"FAIL {what}: returned over-limit")
+    except s.ResourceFault: print(f"OK {what}-limit early-NF -> ResourceFault")
+# control: exact bound returns
+r,sp = s.eval_hash(root, 10, st, lim(2,3)); ok &= (s.size(r)==3 and sp==3)
+print("OK exact-bound control returns" if s.size(r)==3 else "FAIL control")
+# suites green
+for cmd, want in ((["python3","impl/sigma_glyph.py"],"ALL PASS"),
+                  (["python3","tests/spec_conformance/run_reference.py"],"CONFORMANCE: ALL PASS (49/49)"),
+                  (["./impl-rs/target/release/book1","conformance","tests/spec_conformance/vectors.json"],"RUST-CONFORMANCE: ALL PASS (49/49)"),
+                  (["bash","tools/test-all.sh"],"TEST-ALL: ALL GREEN")):
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    last = p.stdout.strip().splitlines()[-1]; print(last)
+    ok &= p.returncode==0 and want in last
+print("hardening audit fixes verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)

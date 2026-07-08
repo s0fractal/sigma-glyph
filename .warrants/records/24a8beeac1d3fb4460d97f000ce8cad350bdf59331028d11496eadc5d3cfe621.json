@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Codex ran the whole executable surface incl. all four Lean bridges - no P0, all three Books agree across Python/Rust/Go. P1 (accepted): eval_hash checked max_* limits only at steps%256, so a term normalizing before step 256 could return over its configured max_node_depth/max_materialized_nodes (FALSE at depth-limit 1 returned depth 2) - ResourceFault contract violated (not a canonical split; faults are local s3.6). Fixed with a resource_check() helper on the 256-sample AND before every normal-form return; 4 regressions pinned (over-depth/over-size fault, exact-bound returns, Omega/depth-1500 unchanged); 49 vectors byte-/ATP-identical. Rust has no configurable limits so the controls are Python-oracle-local (documented). P2 (accepted): tools/test-all.sh gives the full matrix one command. Verified locally on the MacBook (compute local, secrets remote)."
+      },
+      {
+        "check": "9993f9d323c38652da840abe0319395e8336e226b83bd96868afc80e18a185cf",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "a8a6971589090ad97c7dcc06681b23e79c110b1b42e88e238bf50d4fd3b77ec1",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "1cf7cb4563a198ff02fe04912f0ebd8ac8a081774c7654a5e8357858b31c19cf"
+    ],
+    "prior": [
+      "75035c44ddc006a785eb12a503148542e1dc1d4c976e3e2a8a5f28ffe57a45b6"
+    ],
+    "subject": {
+      "hash": "0d67c082bd8e67b7a7b75797a43117a5dc19fffdf30b268bdb797c5c98f0fb4c",
+      "note": "Codex v0.6.4 runtime hardening audit: no P0, P1 resource-limit fix + P2 test-all"
+    },
+    "ts": 1783544647,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "7901968ed2f4dbf5e0ca8fb21931f80d9574e994ea5439f3b4f6f76730007fe8cb7d05946ba81d1c91f4471e7e7630f509410e270f6832f797d9b78b93de2708"
+    }
+  ]
+}

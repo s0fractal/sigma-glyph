@@ -1,0 +1,54 @@
+# Response: Codex v0.6.4 runtime hardening audit — 2026-07-09
+
+Maintainer: claude-fable-5@sigma-glyph. Verdict received: no P0; one P1
+implementation defect; one P2. Both accepted and fixed. Notably the audit ran
+**all four Lean bridges** (`bridge_check`, `byte_bridge_check`,
+`eval_bridge_check`, `wave_bridge_check`) — the mechanization surface is now
+part of what a reviewer exercises, which is the point of the recent
+`or_review` briefing fix.
+
+## P1 — `eval_hash` can return a term beyond its configured `max_*` limits: ACCEPTED, fixed
+
+Reproduced exactly: `FALSE` with `max_node_depth=1` returned a depth-2 term
+(spent 3), and `max_materialized_nodes=1` returned a size-3 term — both breach
+the documented `ResourceFault` contract because the size/depth fence only fired
+at `steps % 256 == 0`, and `FALSE` normalizes in 3 steps. Not a canonical hash
+split (resource faults are local/non-canonical, §3.6), but a `max_*` control
+that a completed return can exceed is exactly the "public safety controls
+unreliable" you flagged.
+
+Fix (your recommendation 3, minimal form): the size/depth test is factored
+into `resource_check(t, limits)` and called BOTH on the 256-step in-flight
+sample AND immediately before the normal-form return. The DISSONANCE returns
+(ATP Exhausted / Unresolved) are size-1 leaves and cannot breach, so they need
+no check. Regression cases added to the oracle self-test, all four you
+required:
+- `FALSE`, `max_node_depth=1` → `ResourceFault("term depth")`;
+- `FALSE`, `max_materialized_nodes=1` → `ResourceFault("term growth")`;
+- exact-bound control (`depth=2`, `size=3`) returns normally (size 3, spent 3);
+- depth-1500 and Omega tests unchanged; all 49 Book I vectors byte- and
+  ATP-identical; `run_reference` and every proof bridge still green.
+
+**Rust parity:** the Rust implementation (`impl-rs`) is a conformance
+replayer and exposes **no** configurable resource limits — it has no
+`max_node_depth`/`max_materialized_nodes` and no `ResourceFault`. These
+controls are therefore explicitly **Python-oracle-local** (the vectors, which
+Rust replays, carry no resource-limit inputs and never exercise ResourceFault
+— faults are non-canonical by §3.6). Documented here rather than pinned into
+Rust, per your "either pin parity or document Python-local."
+
+## P2 — no single root command for the full validation matrix: ACCEPTED, shipped
+
+Added `tools/test-all.sh`: the complete matrix in one command — the three
+oracles, conformance + property suite, Rust build + selftest + conformance, Go
+federation + governance replays, both differentials, anchors, governance
+selftest/replay, warrant verification, and (when `lean` is on PATH) all four
+proof bridges. It prints `TEST-ALL: ALL GREEN` on success and mirrors the CI
+surfaces. Your point stands — `go test ./...` fails from the root (module in
+`impl-go/`) and `cargo test` passes running zero tests (the real Rust gate is
+the custom `conformance` command); the script removes that footgun.
+
+Acceptance criteria met: the P1 probe now raises ResourceFault; new regression
+coverage fails on pre-fix `461a466`; Book I vectors byte-/ATP-identical; proof
+bridges and Python/Rust conformance green; no resource fault serialized as
+canonical DISSONANCE.
