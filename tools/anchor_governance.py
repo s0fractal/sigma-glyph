@@ -253,17 +253,24 @@ def _under_is(body, profile_hash, threshold_hash):
 def derive_current_profile(recs, closure, bdir, trust):
     """Walk profile adoptions from the genesis profile; each hop must be
     authorized under the policy being replaced (Warrant §5.1 current-policy
-    rule applied to governance). Returns (profile_hash, error|None)."""
+    rule applied to governance). Returns (profile_hash, gov, error|None)
+    where gov is the AUTHORIZED lineage: [(profile_hash, threshold_dict,
+    threshold_hash), ...] for every policy that ever governed. Only this set
+    may scope anything downstream — a profile-shaped blob whose adoption
+    never carried a quorum is not governance, it is litter (Kimi
+    verification pass, P1-R: the collector must not trust unsigned shapes)."""
     cur = trust["genesis_profile"]
     seen = {cur}
+    gov = []
     while True:
         p_doc = parse_json_blob(bdir, cur)
         if not valid_profile(p_doc):
-            return cur, f"current profile {cur[:12]} missing or schema-invalid"
+            return cur, gov, f"current profile {cur[:12]} missing or schema-invalid"
         t_hash = p_doc["threshold"]
         t = valid_threshold_policy(parse_json_blob(bdir, t_hash))
         if t is None:
-            return cur, f"threshold {t_hash[:12]} pinned by profile is invalid"
+            return cur, gov, f"threshold {t_hash[:12]} pinned by profile is invalid"
+        gov.append((cur, t, t_hash))
         nxt = set()
         for rid, body, doc in _accepts_of(recs, closure, bdir):
             if not valid_profile(doc):
@@ -275,40 +282,49 @@ def derive_current_profile(recs, closure, bdir, trust):
             nxt.add(body["subject"]["hash"])
         nxt -= seen
         if not nxt:
-            return cur, None
+            return cur, gov, None
         if len(nxt) > 1:
-            return cur, ("profile-succession conflict: "
-                         + ", ".join(h[:12] for h in sorted(nxt))
-                         + " — chain frozen, resolve by settlement")
+            return cur, gov, ("profile-succession conflict: "
+                              + ", ".join(h[:12] for h in sorted(nxt))
+                              + " — chain frozen, resolve by settlement")
         cur = nxt.pop()
         seen.add(cur)
 
 
-def governance_blob_hashes(recs, closure, bdir, trust):
-    """Every profile/threshold hash that ever governed this jurisdiction."""
-    out = {trust["genesis_profile"]}
-    p = parse_json_blob(bdir, trust["genesis_profile"])
-    if valid_profile(p):
-        out.add(p["threshold"])
-    for rid, body, doc in _accepts_of(recs, closure, bdir):
-        if valid_profile(doc):
-            out.add(body["subject"]["hash"])
-            out.add(doc["threshold"])
-    return out
-
-
-def key_state_under_governance(recs, closure, bdir, gov_hashes):
-    """Key-state warrants filed under a governance policy blob (scoped —
-    key-state under unrelated policies is not our business)."""
+def key_state_under_governance(recs, closure, bdir, gov, trust):
+    """Quorum-authorized key-state warrants filed under an AUTHORIZED
+    governance policy force refusal to a key-state-deriving verifier.
+    Two scopings, both required (Kimi P1-R):
+      - the policy hash must come from the authorized lineage, not from any
+        profile-shaped blob in the store;
+      - the key-state warrant itself must satisfy the quorum of the lineage
+        policy it cites — per Warrant §5.1 a key-state record that fails
+        current-policy authorization is an invalid record, not a conflict,
+        and an attacker without a quorum cannot manufacture one."""
+    by_hash = {h: (p, t) for p, t, h in
+               [(p, t, th) for p, t, th in gov]}
+    gov_hashes = set(by_hash) | {p for p, _, _ in gov}
+    threshold_of = {}
+    for p, t, th in gov:
+        threshold_of[p] = t
+        threshold_of[th] = t
     for rid in sorted(closure):
-        body = recs[rid].get("body", {})
+        env = recs[rid]
+        body = env.get("body", {})
         if body.get("decision") not in ("accept", "supersede"):
             continue
-        if not set(body.get("under", [])) & gov_hashes:
+        cited = set(body.get("under", [])) & gov_hashes
+        if not cited:
             continue
         doc = parse_json_blob(bdir, body.get("subject", {}).get("hash", ""))
-        if isinstance(doc, dict) and set(doc) == {"actor", "key"}:
-            return True
+        if not (isinstance(doc, dict) and set(doc) == {"actor", "key"}):
+            continue
+        if sha256(canon(body)) != rid:
+            continue
+        for h in cited:
+            t = threshold_of[h]
+            if len(counted_sigs(env, rid, t, trust["actors"])) >= t["min_sigs"]:
+                return True
     return False
 
 
@@ -337,13 +353,12 @@ def verify_adoption(recs, blobs, bdir, blob_hash, trust, prior_set_hash):
     closure = settlement_closure(recs, trust["jurisdiction"])
     if not closure:
         return False, [f"jurisdiction root {trust['jurisdiction'][:12]} not in store"]
-    gov = governance_blob_hashes(recs, closure, bdir, trust)
-    if key_state_under_governance(recs, closure, bdir, gov):
-        return False, ["ERR: key-state warrants under governance policy — "
-                       "derive key state with the warrant CLI first"]
-    cur_profile, err = derive_current_profile(recs, closure, bdir, trust)
+    cur_profile, gov, err = derive_current_profile(recs, closure, bdir, trust)
     if err:
         return False, ["ERR: " + err]
+    if key_state_under_governance(recs, closure, bdir, gov, trust):
+        return False, ["ERR: key-state warrants under governance policy — "
+                       "derive key state with the warrant CLI first"]
     p_doc = parse_json_blob(bdir, cur_profile)
     t_hash = p_doc["threshold"]
     t = valid_threshold_policy(parse_json_blob(bdir, t_hash))
@@ -630,11 +645,36 @@ def selftest():
         recs, blobs, bdir = load_store(td)
         ok, _ = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
         check("key-state under unrelated policy is ignored (scoped)", ok)
+
+        # Kimi P1-R, part 1: an UNAUTHORIZED profile-shaped accept (no quorum)
+        # must not expand the governance set — key-state filed under it is litter
+        t_fake = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
+                                      {"min_sigs": 1, "actors": [ACTORS[1]]}}))
+        p_fake = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
+                                      "scope": "spec/ANCHORS.txt",
+                                      "threshold": t_fake}))
+        _file(td, "accept", ACTORS[1], p_fake, [p_fake, t_fake], [hx["root"]],
+              [ACTORS[1]], note="unauthorized profile-shaped adoption")
+        _file(td, "accept", ACTORS[1], rot, [p_fake], [hx["root"]],
+              [ACTORS[1]], note="key-state under the unauthorized profile")
+        recs, blobs, bdir = load_store(td)
+        ok, _ = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
+        check("unauthorized profile cannot expand key-state scope (P1-R)", ok)
+
+        # Kimi P1-R, part 2: a key-state warrant citing the REAL governance
+        # policy but lacking its quorum is an invalid record (Warrant s5.1),
+        # not a refusal trigger
+        _file(td, "accept", ACTORS[1], rot, [hx["t1"]], [hx["root"]],
+              [ACTORS[1]], note="key-state under governance, NO quorum")
+        recs, blobs, bdir = load_store(td)
+        ok, _ = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
+        check("unquorumed key-state under governance ignored (s5.1)", ok)
+
         _file(td, "accept", ACTORS[0], rot, [hx["t1"]], [hx["root"]],
               [ACTORS[0], ACTORS[2]], note="key-state under GOVERNANCE policy")
         recs, blobs, bdir = load_store(td)
         ok, notes = verify_adoption(recs, blobs, bdir, hx["h1"], trust, None)
-        check("key-state under governance policy refused to warrant CLI",
+        check("quorum-authorized key-state under governance refused to warrant CLI",
               (ok, any("warrant CLI" in n for n in notes)), (False, True))
 
     with tempfile.TemporaryDirectory() as td:  # schema edges

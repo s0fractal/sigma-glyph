@@ -1,6 +1,6 @@
 # ADR-007: Governed anchors — Specification Anchors as warrant-settled artifacts
 
-**Status:** PROPOSED, rev 2 (2026-07-08) — **gate round 1 complete, 3/3 families reviewed rev 1 blind** (GPT-5, Gemini 3.1 Pro, DeepSeek v4 Pro via `tools/or_review.py`); every P0/P1 integrated in this revision and in `tools/anchor_governance.py` (20-check deterministic selftest). Gate remains open pending ≥1 verification pass over rev 2. No adoption warrants exist yet and none may exist before the gate closes.
+**Status:** PROPOSED, rev 3 (2026-07-08) — **gate round 1 complete, 3/3 families blind** (GPT-5, Gemini 3.1 Pro, DeepSeek v4 Pro); every P0/P1 integrated in rev 2. **Verification pass complete** (Kimi k2.6, fresh eyes over rev 2 + all round-1 dispositions): round-1 closures confirmed item by item; asks 1–2 answered (no spurious lineage freeze without a quorum — the freeze condition is unreachable below `min_sigs`; replay closed); **one residual P1-R found and confirmed** — the governance-hash collector trusted unsigned profile-shaped blobs, so an attacker without a quorum could pollute the key-state refusal scope and freeze the verifier (liveness). Closed in rev 3: scoping derives exclusively from the authorized lineage, and the key-state warrant itself must satisfy the cited policy's quorum (§5.1: unauthorized key-state records are invalid records, not events). Selftest 20 → 22 checks, both P1-R directions pinned. Verdict on file: *close P1-R and ADOPT*. No adoption warrants exist yet and none may exist before the founder sets the initial roster and the gate formally closes.
 **Gate round 1 (blind, parallel):**
 - Gemini 3.1 Pro: *revise* — two tool P0s, both real (fail-open signature counting without `cryptography`; UNGOVERNED exits 0 so deleting `.warrants/` greens CI) + the **in-tree trust anchor** attack (a verifier reading `trust-config.json` from the tree it verifies is *weaker* than signed git tags); answered ask 2 "no embedded root needed" (overruled 2:1) and ask 4's §5.1 subtlety: genesis keys are not rotation-warrant-born, so roster change MUST be a bundled policy rotation, not a key-state supersede.
 - DeepSeek v4 Pro: *amend-then-adopt* — jurisdiction root MUST embed in the anchor-set blob (Book III §2 precedent); competing-adoption verifier divergence (its smallest-WarrantID tie-break **rejected** in adjudication as grindable — ties freeze instead); key-state refusal must be scoped to governance-policy warrants; versioned trust config; pinned conformance vectors as an adoption precondition; the N−M liveness arithmetic and deadlock-by-design.
@@ -162,9 +162,15 @@ For a candidate anchor-set blob B against trust config C and store S:
    current threshold). Each hop is authorized by the policy **being
    replaced** (Warrant §5.1 current-policy rule applied to governance). Two
    unconsumed successors at any hop = **succession conflict, chain frozen**.
-5. **Key state:** key-state warrants filed under a governance policy blob
-   force refusal to a key-state-deriving verifier (the warrant CLI); key
-   state under unrelated policies is out of scope and ignored.
+5. **Key state:** a key-state warrant forces refusal to a key-state-deriving
+   verifier (the warrant CLI) only when BOTH: it is filed under a policy from
+   the **authorized lineage** of step 4 (a profile-shaped blob whose adoption
+   never carried a quorum is not governance — Kimi verification pass, P1-R),
+   AND the key-state warrant itself satisfies that policy's quorum — per
+   Warrant §5.1 a key-state record failing current-policy authorization is an
+   invalid record, not a conflict, and an attacker without a quorum cannot
+   manufacture one. Key state under unrelated policies is out of scope and
+   ignored.
 6. **Cardinality + adoption:** an adoption warrant for B has `under` of
    exactly two hashes — the current profile and its pinned threshold, nothing
    else — and signatures by ≥ `min_sigs` distinct roster actors whose keys

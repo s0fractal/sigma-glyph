@@ -40,10 +40,14 @@ PRIMARY_SOURCES = [
     "proposals/ADR-007-governed-anchors.md",
     "tools/anchor_governance.py",
 ]
-PRIOR_REVIEWS_GLOB = ["reviews/2026-07-codex-v0.6.0-pedantic-audit.md",
-                      "reviews/2026-07-codex-v0.6.0-pedantic-audit-response.md",
-                      "reviews/2026-07-qwen-web-holistic.md",
-                      "reviews/2026-07-qwen-web-holistic-response.md"]
+PRIOR_REVIEWS_GLOB = ["reviews/2026-07-gpt5-adr007-gate.md",
+                      "reviews/2026-07-gpt5-adr007-gate-response.md",
+                      "reviews/2026-07-gemini-adr007-gate.md",
+                      "reviews/2026-07-gemini-adr007-gate-response.md",
+                      "reviews/2026-07-deepseek-adr007-gate.md",
+                      "reviews/2026-07-deepseek-adr007-gate-response.md",
+                      "reviews/2026-07-codex-v0.6.0-pedantic-audit.md",
+                      "reviews/2026-07-codex-v0.6.0-pedantic-audit-response.md"]
 GATES = [
     ["python3", "impl/sigma_glyph.py"],
     ["python3", "impl/sigma_wave.py"],

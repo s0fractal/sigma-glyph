@@ -1,0 +1,508 @@
+The user wants me to act as an independent adversarial reviewer of ADR-007 rev 2. I need to verify whether rev 2 actually closes the round-1 findings, check dispositions against actual ADR text and tool code, and answer three specific rev-2 asks:
+
+1. Can the policy-lineage walk be SPURIOUSLY frozen — a succession conflict manufactured without a quorum?
+2. Does settlement-closure scoping + embedded jurisdiction root close the replay surface completely against a verifier with a CORRECT out-of-band trust config, or name the residual confusion attack?
+3. Attack tools/anchor_governance.py rev 2 directly — its 20-check selftest is the claim surface, find the case it missed.
+
+I also need to flag any maintainer disposition that claims more than the code delivers, and give a verdict: READY TO ADOPT or specific blockers.
+
+Key constraints:
+- I cannot run code.
+- The maintainer ran the gates and supplied fresh transcripts.
+- I must do the arithmetic myself and show it — do not trust claims.
+- Severity ladder: P0 = consensus divergence, P1 = spec silent where implementers must guess, P2 = clarity, P3 = roadmap.
+- Give concrete text proposals for every P1/P2.
+
+I need to carefully read all provided primary sources, especially:
+- proposals/ADR-007-governed-anchors.md
+- tools/anchor_governance.py
+- The gate transcripts (which just show passes, but I need to analyze the actual text and code)
+
+Let me digest the ADR and the tool.
+
+First, let's understand the ADR-007 rev 2 specification:
+
+Overview:
+- Governance over Specification Anchors using Warrant v0.3.
+- Anchor-set blobs: JSON with governance tag, jurisdiction (genesis root WarrantID), release, ancestor, anchors.
+- Governance profile blob: tags governance policy, scope, hash-pins threshold policy.
+- Trust config: out-of-band, versioned, not read from the tree being verified.
+- Verification steps:
+  1. Crypto or refuse: need Ed25519.
+  2. Schema + jurisdiction: B.jurisdiction == C.jurisdiction; genesis no ancestor; successor has ancestor = prior adopted set.
+  3. Settlement closure: only warrants reachable from C.jurisdiction via prior edges.
+  4. Policy lineage: start from genesis_profile, walk profile adoptions. Each hop: accept with subject=valid profile blob, under exactly {current profile, its pinned threshold}, signatures satisfy current threshold. "Each hop is authorized by the policy being replaced". Two unconsumed successors at any hop = succession conflict, chain frozen.
+  5. Key state: key-state warrants filed under a governance policy blob force refusal to a key-state-deriving verifier.
+  6. Cardinality + adoption: adoption warrant for B has under of exactly two hashes — current profile and its pinned threshold, nothing else — and signatures by >= min_sigs distinct roster actors whose keys are bound in C.
+  7. No tie-breaks: rival authorized adoption of a different valid anchor-set sharing B's ancestor freezes chain as adoption conflict.
+
+Now let's analyze the tool code.
+
+The tool `anchor_governance.py` has functions:
+
+- `valid_trust`: validates trust config. Checks governance_trust tag, jurisdiction hex64, genesis_profile hex64, actors dict with non-empty lists of hex64 pubkeys. Closed schema (set equality). Good.
+
+- `valid_threshold_policy`: checks exact warrant v0.3 threshold grammar. closed.
+
+- `valid_profile`: checks governance_policy, scope, threshold hex64. closed.
+
+- `valid_anchor_set`: checks governance tag, jurisdiction hex64, release string, optional ancestor hex64, anchors sorted by path, unique paths, each anchor has path and anchor hex64.
+
+- `settlement_closure(recs, root)`: BFS/DFS closure of prior edges from root. Note: It only follows `prior` edges. If root is in recs, includes root, then iteratively adds records whose prior intersects closure. This is descendant closure (records that descend from root). But ADR says "only warrants reachable from C.jurisdiction via prior edges". Wait: In Warrant, `prior` points to previous records. So a record with prior = [root] is a descendant. `settlement_closure` as implemented finds all records reachable by following prior edges *backward*? Let's check:
+  ```python
+  def settlement_closure(recs, root):
+      if root not in recs: return set()
+      closure = {root}
+      changed = True
+      while changed:
+          changed = False
+          for rid, env in recs.items():
+              if rid in closure: continue
+              if any(p in closure for p in env.get("body", {}).get("prior", [])):
+                  closure.add(rid)
+                  changed = True
+      return closure
+  ```
+  This finds all records that have a prior in the closure. So it's the *descendant* closure (forward from root through the DAG). Yes, that's correct: if root has empty prior, then records that list root in their prior are added, then records that list those, etc. So it's descendants. Good.
+
+- `counted_sigs(env, rid, threshold, trust_actors)`: counts signatures. For each sig, checks actor in threshold actors, actor not already counted, key matches trust_actors[actor], verifies Ed25519 signature over rid bytes. Returns set of counted actors. Good.
+
+- `_accepts_of(recs, closure, bdir)`: yields records in closure with decision=accept, matching sha256(canon(body))==rid, and subject parsed as JSON blob. Good.
+
+- `_under_is(body, profile_hash, threshold_hash)`: checks under has len 2 and set(u) == {profile_hash, threshold_hash}. Good.
+
+- `derive_current_profile(recs, closure, bdir, trust)`:
+  Starts with cur = trust["genesis_profile"].
+  seen = {cur}
+  Loop:
+    - parse profile blob cur. if invalid, error.
+    - parse threshold blob t_hash = p_doc["threshold"]. if invalid, error.
+    - nxt = set()
+    - for each accept in closure:
+      - if valid_profile(doc) and _under_is(body, cur, t_hash) and sigs >= min_sigs:
+          nxt.add(subject.hash)
+    - nxt -= seen
+    - if not nxt: return cur, None
+    - if len(nxt) > 1: return cur, error about succession conflict
+    - cur = nxt.pop(); seen.add(cur)
+  This implements the lineage walk. Each step requires an accept of a new profile blob, under the *current* profile and its threshold, signed by >= min_sigs of current threshold's actors.
+
+  Wait: The ADR says "each hop is authorized by the policy being replaced (Warrant §5.1 current-policy rule applied to governance)". In the code, `_under_is(body, cur, t_hash)` means the adoption warrant's `under` must contain the current profile hash `cur` and the threshold hash `t_hash`. The threshold used is the one pinned by `cur`. The signatures are checked against `t` (the threshold from `cur`). So yes, the new profile is adopted under the *old* policy. Good.
+
+  But wait: what if the new profile P2 is adopted, but it pins a new threshold T2. The adoption warrant for P2 has under = {P1, T1}, signed by T1's quorum. That's correct. Then P2 becomes current. Next hop would require under = {P2, T2}, signed by T2's quorum. This seems correct.
+
+  However, there's a subtle issue: the code uses `valid_profile(doc)` to confirm the *subject* of the adoption is a valid profile blob. But it doesn't check that the subject's threshold hash actually resolves to a valid threshold policy blob. Actually, that will be checked in the next iteration when `cur` becomes that new profile and we parse its threshold. But what if the current profile points to an invalid threshold? The code would catch it at the top of the loop when processing the new cur. Good.
+
+  But wait: at the first step, it parses `trust["genesis_profile"]` and checks its threshold. That genesis profile is part of the trust config (out-of-band). The code trusts it. That's fine.
+
+  Is there any issue with the lineage walk being spuriously frozen? Ask 1.
+
+  Attack idea: can someone create a succession conflict without having a quorum? The code only adds to `nxt` if the adoption warrant is signed by >= min_sigs distinct actors *of the current threshold*. So without a quorum of the current policy, you cannot get a valid successor into `nxt`. But wait: what about the *genesis* profile? The genesis profile is given in trust config and is not itself adopted by a warrant in the store (it could be, but it's the starting point). So you can't freeze the genesis step by manufacturing a conflicting acceptance because you need a quorum of the genesis threshold to adopt anything.
+
+  However, consider this: suppose there is a valid adoption warrant for a new profile P2 under {P1, T1}. And another valid adoption warrant for P3 under {P1, T1}. Both are properly signed. Then `nxt` would have size 2, triggering a freeze. Can an attacker manufacture this? Yes, if they control a quorum of T1. But if they control a quorum, they are authorized. So it's not "without a quorum". The question is: "Can the policy-lineage walk be SPURIOUSLY frozen — a succession conflict manufactured without a quorum?" According to the code and spec, no. Because the adoption warrants must be signed by >= min_sigs of the *current* threshold. So without a quorum, you can't even get one valid successor, let alone two.
+
+  But wait: is there a way to create a conflict using *old* warrants? Suppose at some point there was a valid adoption of P2, and later a valid adoption of P3, both under {P1, T1}. But wait, if T1 is replaced by T2 in P2, then to adopt P3 you'd need to be under {P2, T2}, not {P1, T1}. But if both P2 and P3 are adopted under {P1, T1}, and then P2 supersedes P1? Actually, the code doesn't consider supersession for profile adoption; it only looks at `decision=="accept"`. Could a rival profile adoption be filed later but pointing to the same prior, creating a conflict? Yes, but again, it needs quorum of T1. So not spurious.
+
+  Wait: what about the key-state rule? The code checks `key_state_under_governance` and returns an error if any key-state warrant is filed under a governance policy blob. This is to prevent trying to derive key state ourselves when we should use the warrant CLI. But this is just a refusal; it doesn't create a freeze.
+
+  Let's look atAsk 1 drafting position: "no — a lineage hop requires min_sigs under the policy being replaced, so only a quorum can create a rival hop, and a quorum that attacks itself is outside any mechanism's threat model."
+
+  Is there any edge case where `derive_current_profile` could produce a false conflict without quorum? Let's examine the code more carefully.
+
+  In `_accepts_of`, it iterates over all records in the closure. For each, it checks if `valid_profile(doc)` where doc is the parsed JSON blob of the subject. However, `_accepts_of` already checks `sha256(canon(body)) == rid` and `decision == "accept"`. It yields `rid, body, doc`. But `doc` is from `parse_json_blob(bdir, body.get("subject", {}).get("hash", ""))`. It could be None if missing. The code checks `valid_profile(doc)` inside the loop.
+
+  The attack path: what if a warrant adopts a profile, but the profile blob is not a valid profile? Then it's skipped. Fine.
+
+  What if there is a *key rotation* warrant that has subject being a key-state blob, but also happens to satisfy `_under_is`? The code checks `valid_profile(doc)`, so key-state blobs would be dicts with `{"actor":..., "key":...}` which fails `valid_profile`. So they are ignored.
+
+  Could an attacker create an adoption warrant for a profile blob that is valid, but the adoption itself is not authorized? No, because `counted_sigs` enforces the threshold.
+
+  But here's a subtle point: The adoption warrant's `under` must be exactly {cur_profile, t_hash}. However, `cur_profile` is a hash. The attacker could create a profile blob that hashes to the same value? No, SHA-256 collision assumed infeasible.
+
+  Could the attacker create a conflict by having two different warrants adopting the *same* profile? That wouldn't create a conflict because nxt is a set of subject hashes. If two warrants adopt the same P2, nxt still has size 1. So no conflict.
+
+  Could the attacker create a conflict at the *genesis* profile level? The genesis profile is given out-of-band. The code starts with cur = genesis_profile. The first iteration looks for accepts whose subject is a valid profile and under is {genesis_profile, its_threshold}. If there are two such distinct profiles with valid quorums, it freezes. Can this happen without a quorum? No.
+
+  So Ask 1: The answer is NO, the drafting position holds. But I need to check if the code actually enforces this correctly. Yes, it does.
+
+  However, there might be a subtle issue: the code checks `counted_sigs(recs[rid], rid, t, trust["actors"])`. What if the threshold `t` has actors A, B, C with min_sigs 2, but the trust config only lists pubkeys for A and B, not C? Then a warrant signed by A and C would fail because C's key is not bound in trust. But if the warrant is signed by A and B, it passes. This is correct: the trust config is out-of-band and pins keys. But what if the trust config has C's key wrong? That's a trust config issue. The mechanism works.
+
+  Now, could a freeze be manufactured if the attacker controls *one* actor but not a quorum, by exploiting the fact that the trust config might not list all keys? No, because `counted_sigs` requires >= min_sigs distinct actors whose keys are in trust. If trust doesn't have enough keys, no quorum can be satisfied. But that's a config error, not an attack. The ADR says "only a quorum can create a rival hop". If the trust config is incomplete, even the legitimate quorum might not be able to act, but that's not an attack without a quorum.
+
+  So for Ask 1, my answer: No, spurious freeze is not possible without a quorum. The lineage walk's conflict condition requires two distinct valid successor profile adoptions, each satisfying the current threshold's min_sigs with bound keys. The tool correctly enforces this. I should show arithmetic or logic.
+
+  But wait! There's a nuance. In the code, `derive_current_profile` adds all valid successors to `nxt`. But what if one successor is adopted by a quorum of T1, and then later a *different* successor is also adopted by a quorum of T1, but the first successor has already been used to adopt further anchor-sets? The code would still see both in the store and freeze at the point where it processes that step. Even if one chain is "ahead" in the DAG, the existence of both valid adoptions in the closure means the chain is frozen from that point on. That's by design: any rival authorized successor creates a freeze. The ADR says "Two unconsumed successors at any hop = succession conflict, chain frozen." So yes. This is intentional.
+
+  Is there any way to have two unconsumed successors without a quorum? No.
+
+  Wait, is there an attack using *supersede* warrants? Warrant v0.3 allows supersede. If the current profile P1 is superseded by P2, but there is also a P3... However, the code only looks at `decision=="accept"`. It ignores `supersede`. Is that correct? The ADR says "profile-adoption warrants (an accept whose subject is a valid profile blob...)". So supersede is not considered a valid profile adoption. But in Warrant v0.3, a supersede of a profile might replace it. However, the ADR explicitly defines the lineage walk via `accept` warrants. This is a design choice. So an attacker cannot use supersede to create a profile hop. Good? The spec says the policy lineage walks profile adoptions. So that's fine.
+
+  Ask 1 conclusion: No, it cannot be spuriously frozen without quorum. The mechanism is sound.
+
+  But I need to double-check the code for the exact condition. `derive_current_profile`:
+  ```python
+  nxt = set()
+  for rid, body, doc in _accepts_of(recs, closure, bdir):
+      if not valid_profile(doc): continue
+      if not _under_is(body, cur, t_hash): continue
+      if len(counted_sigs(recs[rid], rid, t, trust["actors"])) < t["min_sigs"]: continue
+      nxt.add(body["subject"]["hash"])
+  nxt -= seen
+  if not nxt: return cur, None
+  if len(nxt) > 1: return cur, "profile-succession conflict..."
+  ```
+  So yes, requires valid profile, correct under, sufficient sigs.
+
+  Ask 2: Does settlement-closure scoping + embedded jurisdiction root close the replay surface completely against a verifier with a CORRECT out-of-band trust config, or name the residual confusion attack?
+
+  Let's analyze.
+  - Settlement closure: only descendants of the genesis root are considered.
+  - Embedded jurisdiction root: the anchor-set blob contains the jurisdiction root; the trust config pins the same root. If they mismatch, rejected.
+
+  Residual confusion attack possibilities:
+  - What if a verifier has a correct trust config, but there are multiple *roots* in the store? The settlement closure scopes to the jurisdiction root. So other roots' warrants are ignored. Good.
+  - Replay across stores: if an attacker copies a valid warrant from the original jurisdiction into a new store with a different root, the trust config would not match the jurisdiction root in the anchor-set blob (if the attacker tries to claim it's the original). But what if the attacker creates a *new* jurisdiction root that *adopts* the original root? Wait, Warrant v0.3 §9 says adoption is scoped: "adopting root A makes root B settlement-active for A's jurisdiction only". So if the attacker's root A adopts the original root B, then in A's jurisdiction, B's records are settlement-active. But the trust config points to A (the attacker's root). The verifier using trust config for the original jurisdiction (root = B) would not look at A's records. However, if the verifier is *fresh* and has no trust config, could they be confused? The ADR says trust config is out-of-band and correct. So we assume the verifier has the correct trust config for the intended jurisdiction.
+
+  But is there a residual confusion attack even with a correct trust config?
+  Let's think. Suppose the store contains not only the legitimate genesis root and its descendants, but also a *fork* root that was created by someone else. The fork root might have its own anchor-set adoption chain. The verifier's settlement closure from the correct root would not include the fork root (unless the fork root is adopted by the correct root). So the fork is invisible. Good.
+
+  However, consider an attack where a record is filed *under* a governance policy but in a way that is valid in multiple contexts? Wait, a warrant's `under` field contains policy blob hashes. The settlement closure only cares about `prior` edges, not `under`. But the governance scoping in `governance_blob_hashes` collects all profile/threshold hashes that ever governed this jurisdiction. And `key_state_under_governance` checks if a key-state warrant has `under` intersecting those hashes. This is scoped to the jurisdiction.
+
+  Could there be a replay attack where an attacker uses the *same* blob hash as a valid profile but with different contents? No, content-addressed.
+
+  Could there be an attack where the verifier's trust config is correct, but the *store* contains a record that appears to be a descendant of the root but actually is a "parallel" record that references the root in its prior but is unrelated? E.g., a record with prior=[root] but content is malicious. The settlement closure would include it because prior edge leads to root. The verification functions then check the record's schema and signatures. If the record is a valid accept but signed by unauthorized keys, it would be ignored by `counted_sigs`. So no problem.
+
+  But what about the *ancestor* field? The anchor-set blob has an ancestor. The verifier checks `doc.get("ancestor") == prior_set_hash`. Could an attacker replay an old anchor-set blob with a *different* release name but same ancestor and valid signatures? The tool checks the anchor-set blob hash, so if the attacker reuses the exact same blob, it would have the same hash. That's not a replay, it's the same adoption. But what if the attacker creates a *new* anchor-set blob with the same ancestor but a *different* content (e.g., fake anchors), and gets it adopted? If they have a quorum, they can do that. That's authorized change, not replay.
+
+  However, the question is about replay: "Can a fork replay the original anchor-set chain (public blobs, public warrants) into its own store and present as the original to a fresh verifier with no trust config?" The ADR says "canonicity is a trust decision". But the question specifically asks: "does settlement-closure scoping + embedded jurisdiction root close the replay surface completely against a verifier with a CORRECT out-of-band trust config". So the verifier has the correct trust config. The trust config contains the jurisdiction root. The anchor-set blob contains the jurisdiction root. If they match, settlement closure includes only descendants of that root. So any replayed warrant from another jurisdiction would not be in the closure unless it descends from the trusted root. Thus, replay is closed.
+
+  But is there a residual confusion attack? Let's think about "confusion" rather than replay. What if a legitimate actor files an adoption warrant for a *different* anchor-set that is equally valid, creating an adoption conflict? That's not replay, that's a fork/attack by authorized parties. But the verifier would see "chain frozen". That's by design.
+
+  Could there be confusion from the *bundle convention*? The v0.6.1 CHANGELOG says "an untouched file keeps its bytes, per-document version and anchor from the last release that changed it". In the anchor-set blob, untouched files carry old anchors. If a verifier checks the anchor-set blob against the ANCHORS.txt projection, could there be confusion if ANCHORS.txt has multiple sections and the tool picks the "live" one? The tool `parse_anchors` reads sections and marks historical ones. It uses the live section. The trust config pins the jurisdiction which is the root. The ancestor chain is independent of git. So ANCHORS.txt ↔ blob divergence: the blob wins. That's fine.
+
+  Let's look for a subtle attack: the tool's `cmd_status` iterates over live sections in reverse order. For each release, it computes the blob hash and checks the store. But what if ANCHORS.txt has been manipulated to include a *newer* release that is not yet in the store? Then it says NOT AUTHORIZED. What if it has an older release? The blob is computed from the current anchors content. The trust config is out-of-band. So the verifier only authorizes what's in ANCHORS.txt if the corresponding blob is in the store and valid.
+
+  Is there a possibility that an attacker can confuse the verifier by placing a valid anchor-set blob for a *future* release (e.g., v0.99.0) in the store, and somehow the trust config's root leads to it? No, because there is no adoption warrant for it (unless attacker has quorum).
+
+  What about the *policy lineage*? Could an attacker replay an *old* profile adoption that was valid under an older threshold, but the current threshold has changed? The code uses the current lineage, so old profile adoptions that are no longer on the active path are ignored unless they are ancestors in the current chain. But they are in the store. Could they cause a conflict? Only if they are under the current policy and have valid sigs. But if the threshold changed, the old adoptions might not satisfy the new threshold. However, if the old adoption was under the old threshold, and the current profile is a successor of that old profile? Let's trace.
+
+  Suppose:
+  - P1 is genesis profile, pins T1.
+  - P2 adopted under {P1, T1} with quorum of T1. P2 pins T2.
+  - Now current is P2. An attacker wants to create a conflict by presenting an old adoption of P2' under {P1, T1} (a rival to P2). If P2' was also adopted under {P1, T1} with quorum of T1, then when the lineage walks from P1, it would see both P2 and P2' as successors, causing a freeze. But if the current profile is already P2, how does the lineage walk work? The code starts at genesis, walks to P2. It builds seen={P1, P2}. It only looks for successors of P2. The old P2' is a successor of P1, not P2. So it wouldn't be considered at the P2 step. But wait! The code subtracts `seen` from `nxt` at *each* hop. At the first hop (from P1), if both P2 and P2' were valid, it would freeze *before* reaching P2. So if the store contains both from the beginning, the chain is frozen at the first hop. This means you cannot have a hidden history that later surfaces; any valid rival at any hop is detected when that hop is walked.
+
+  But what if a rival successor is added *after* the chain has moved past that hop? Example: The lineage is at P2 (which succeeded P1). Then a new rival P2' is filed with prior pointing to P1 (or some prior in the closure) and under {P1, T1} with valid quorum. The lineage walk, when run later, would start from genesis P1. At the first hop, it would see both P2 and P2' as successors of P1 and freeze. The tool would refuse to authorize any anchor-set adopted after P1. That's correct by design: "Two unconsumed successors at any hop = succession conflict, chain frozen." This prevents hidden histories.
+
+  However, is there a residual attack where an attacker replays a *key-state warrant* filed under an old governance policy hash? The `key_state_under_governance` function collects all governance hashes ever used. So even if a key-state warrant is filed under P1 (old), it would be caught if P1 was ever in the jurisdiction's governance lineage. The code does:
+  ```python
+  gov = governance_blob_hashes(recs, closure, bdir, trust)
+  if key_state_under_governance(..., gov):
+      return False, ["ERR: key-state warrants under governance policy..."]
+  ```
+  This is a blanket refusal if *any* key-state warrant in the closure is filed under *any* governance hash that has ever governed. That might be overly broad but it's safe. However, does it create a liveness issue? If a key rotation is legitimately needed, the tool tells you to use the warrant CLI first. The ADR says "key-state refusal scoped to warrants under governance policy blobs". So the tool refuses to be the key-state deriver. That's fine.
+
+  But let's think about confusion attack against a verifier with correct trust config. What if the store has *two different stores merged*? The `.warrants` directory is just a blob store. The settlement closure scopes to descendants of the root. But what if there are records that are descendants of the root but are *malformed* in a way that makes them seem like accepts but actually are not? `load_store` reads all `.json` files. An attacker could add a `.json` file that is not a valid envelope but parses as JSON. It could have a body with decision "accept" but invalid fields. `_accepts_of` checks `sha256(canon(body)) == rid`, so the file's name (rid) must match the body hash. So an attacker cannot create a fake accept record without knowing the private key to sign it (if they want it to pass signature checks). But they could create a record that passes the hash check but fails signature checks. That record would be ignored by `counted_sigs`. So no confusion.
+
+  Is there a way to create a *denial* by adding many records to the closure? The code iterates over all records in the closure. A large closure could make verification slow. But that's not a confusion attack causing wrong authorization.
+
+  Consider the possibility that the *ancestor* link could be confused by a "wrap-around" or replay of old anchor-set blobs. For example, the ANCHORS.txt might have multiple live sections? Actually, `parse_anchors` collects sections and `live` filters `not hist`. Historical sections are marked with `(historical)`. The tool only verifies the non-historical sections. What if ANCHORS.txt contains two non-historical sections? The code `live = [s for s in sections if not s[1]]` might have multiple. But `cmd_status` iterates `for rel, ent in reversed(live):`. If there are multiple live sections, it processes them in reverse order. For each, it computes a blob hash using `prior` (which is the previous authorized blob hash). If both are live, it would try to authorize both independently? That seems like a bug: ANCHORS.txt should have exactly one live section. But the code only checks `if not live: print ERR`. It doesn't check `len(live) == 1`. If ANCHORS.txt has two live sections, `cmd_status` would attempt to authorize both, using the same `prior` chain? Let's trace:
+
+  ```python
+  prior, all_ok = None, True
+  for rel, ent in reversed(live):
+      h = sha256(canon(anchor_set_blob(rel, ent, trust["jurisdiction"], prior)))
+      ...
+      if ok:
+          prior = h
+      else:
+          all_ok = False
+  ```
+
+  If there are two live sections, say v0.6.1 and v0.7.0 (both not marked historical), reversed puts v0.7.0 first. It computes h with prior=None (since prior starts None). Then it verifies. If it authorizes, prior becomes h. Then v0.6.1 is processed with prior=h (v0.7.0's hash). This would fail because v0.6.1's ancestor should be the previous adopted set, which would be v0.7.0? That's backwards. The tool would fail. So having multiple live sections causes false negatives, not false positives. However, ANCHORS.txt is supposed to be maintained so only the latest is live; older ones become historical. This is probably out of scope for the spec; it's an operational detail. But is it a P1? The spec says ANCHORS.txt is the projection. It doesn't define "historical" markers formally in the ADR, but the tool uses `(historical)` regex. This is a bit implicit.
+
+  Now, returning to Ask 2: residual confusion attack. I need to find one or confirm closure.
+
+  One potential attack: the "jurisdiction" field in the anchor-set blob is a hex64 WarrantID. The trust config pins a root WarrantID. But what if the root warrant is *not* a governance genesis root, but some other warrant? The trust config type doesn't enforce that the jurisdiction root is a `propose` warrant or anything. However, the settlement closure from that root includes all descendants. If the root is an arbitrary warrant, the closure might include many things. But with a correct trust config, the operator is supposed to pin the correct root. So that's not an attack against a correct config.
+
+  What about *key rotation*? The ADR says key-state is derived from warrants. The tool refuses to derive key state if any key-state warrant is filed under a governance policy. But the *adoption* warrants themselves must be signed by keys bound in the trust config `actors`. The trust config does *not* support key rotation for the verifier: it's a static mapping. So if an actor rotates their key, the trust config must be updated out-of-band. The ADR acknowledges this: "out-of-band trust config; versioned". That's fine.
+
+  But here's a residual confusion: the attacker could create a *new* governance profile blob that is identical in content to the current one but has a different hash (impossible if content-addressed and identical). Or they could create a *threshold* blob with the same threshold but wrapped differently? No, JCS canonicalization ensures identical content has identical hash.
+
+  Let's look at the `verify_adoption` function's `rivals` check:
+  ```python
+  rivals = set()
+  for rid, body, rdoc in _accepts_of(recs, closure, bdir):
+      if not (isinstance(rdoc, dict) and valid_anchor_set(rdoc)):
+          continue
+      h = body["subject"]["hash"]
+      if h == blob_hash or rdoc["jurisdiction"] != trust["jurisdiction"]:
+          continue
+      if rdoc.get("ancestor") != (prior_set_hash if prior_set_hash else None):
+          if not (prior_set_hash is None and "ancestor" not in rdoc):
+              continue
+      if not _under_is(body, cur_profile, t_hash):
+          continue
+      if len(counted_sigs(recs[rid], rid, t, trust["actors"])) >= t["min_sigs"]:
+          rivals.add(h)
+  ```
+  Wait: `rivals` collects authorized adoptions of *different* valid anchor-sets that share the same ancestor. But the code checks `h = body["subject"]["hash"]` and `rivals.add(h)`. Then later, `if rivals: return False, ["adoption conflict..."]`. However, this is done *before* checking if the current `blob_hash` itself is adopted. So even if `blob_hash` is properly adopted, if there is a rival adoption that is also authorized under the same profile/threshold and same ancestor, the *current* adoption is rejected? Let's read:
+  The `rivals` loop iterates over all accepts in closure. It collects all authorized adoptions of anchor-sets that:
+  - are valid anchor-set
+  - subject hash != blob_hash
+  - jurisdiction matches trust
+  - ancestor == prior_set_hash (or both None)
+  - under is exactly {cur_profile, t_hash}
+  - signatures satisfy threshold
+
+  If any such rival exists, `verify_adoption` returns False regardless of whether `blob_hash` itself is also adopted. So if there are two competing authorized adoptions of different anchor-sets sharing the same ancestor, the chain freezes.
+
+  Is there a confusion attack here? If an attacker can create a rival authorized adoption for a *different* anchor-set with the same ancestor, they can freeze the chain. But to do so, they need quorum. So authorized attacker. The question is against a verifier with correct trust config. If the attacker doesn't have quorum, they cannot.
+
+  But is there a case where a rival can be created *without* quorum? Let's look at the `ancestor` check:
+  `if rdoc.get("ancestor") != (prior_set_hash if prior_set_hash else None):`
+  `  if not (prior_set_hash is None and "ancestor" not in rdoc): continue`
+
+  This logic is a bit messy. Let's parse it carefully.
+  - `desired_ancestor = prior_set_hash if prior_set_hash else None`
+  - `if rdoc.get("ancestor") != desired_ancestor:`
+      `if not (prior_set_hash is None and "ancestor" not in rdoc): continue`
+  So:
+  If prior_set_hash is None (genesis), then `desired_ancestor = None`. If `rdoc` has no ancestor key, `rdoc.get("ancestor")` is None. Then `None != None` is False, so it passes (good). If `rdoc` has ancestor key with any value, `rdoc.get("ancestor") != None` is True, then it checks `prior_set_hash is None and "ancestor" not in rdoc` — but `"ancestor" in rdoc`, so condition is False, so it continues (skips). Good.
+  If prior_set_hash is not None, then `desired_ancestor` is some string. If `rdoc.get("ancestor") == prior_set_hash`, it passes. If not, it checks `prior_set_hash is None and "ancestor" not in rdoc`. Since prior_set_hash is not None, this is always False, so it continues. Good.
+  So the logic correctly handles genesis vs successor.
+
+  However, note that `rdoc` is the parsed JSON blob of the *subject* of the adoption warrant. The body of the adoption warrant has `subject.hash`. The tool parses that blob to get `rdoc`. It checks `valid_anchor_set(rdoc)`. So the rival anchor-set must be schema-valid.
+
+  Could there be a confusion where a rival adoption for the *same* anchor-set blob hash exists? The code excludes `h == blob_hash`. So if there are multiple adoption warrants for the same blob, it's fine. But what if there are two rival adoptions for two *different* blobs? Then conflict.
+
+  Is there any way to create a conflict without a quorum? The only path is if `counted_sigs` could be fooled. Let's examine `counted_sigs` again:
+  ```python
+  def counted_sigs(env, rid, threshold, trust_actors):
+      counted = set()
+      for s in env.get("sigs", []):
+          actor = s.get("actor")
+          if actor not in threshold["actors"] or actor in counted:
+              continue
+          if s.get("key") not in trust_actors.get(actor, []):
+              continue
+          try:
+              Ed25519PublicKey.from_public_bytes(
+                  bytes.fromhex(s["key"])).verify(
+                  bytes.fromhex(s["sig"]), bytes.fromhex(rid))
+          except Exception:
+              continue
+          counted.add(actor)
+      return counted
+  ```
+  It checks the actor is in the threshold roster, key is in trust config for that actor, and signature verifies. This seems correct. Attackers cannot forge signatures. So no.
+
+  Wait: one subtle thing. The `env` is the warrant envelope. The `body` is inside. The `rid` is the WarrantID (hash of canon(body)). The tool checks `sha256(canon(body)) == rid` in `_accepts_of`. Actually `_accepts_of` doesn't check that! Let's look:
+  ```python
+  def _accepts_of(recs, closure, bdir):
+      """Yield (rid, body, subject_doc) for id-sound accepts inside the closure."""
+      for rid in sorted(closure):
+          env = recs[rid]
+          body = env.get("body", {})
+          if body.get("decision") != "accept":
+              continue
+          if sha256(canon(body)) != rid:
+              continue
+          doc = parse_json_blob(bdir, body.get("subject", {}).get("hash", ""))
+          yield rid, body, doc
+  ```
+  Yes, it does check `sha256(canon(body)) == rid`. Good. So the record file name must match the body hash. So no fake body under a real ID.
+
+  Could an attacker create a record with a valid body and valid signatures, but with a `prior` that doesn't actually connect to the root? The settlement closure checks prior edges. If the record's prior is empty (root), but the body is an accept, then it would be in the closure only if its prior includes the root or some descendant. If prior is empty, it's a root. It would only be in the closure if `root == rid`. So the only root in the closure is the trusted root.
+
+  But what if a record has prior=[root] but the record itself is *not* part of the trusted jurisdiction's DAG because it's not signed by valid keys? Settlement closure doesn't check signatures; it just follows prior edges. So the record would be in the closure. However, `counted_sigs` would reject it later. So it's just noise.
+
+  Is there a potential for a "birthday attack" on blob hashes to create a collision? Not feasible.
+
+  Let's think about "confusion attack" more concretely. The ADR says:
+  "Does settlement-closure scoping + embedded jurisdiction root close the replay surface completely against a verifier with a CORRECT out-of-band trust config, or name the residual confusion attack?"
+
+  I need to see if there's any way to confuse the verifier into accepting a wrong anchor-set.
+
+  One possibility: the tool `cmd_status` computes the anchor-set blob from ANCHORS.txt and the trust config. It uses `anchor_set_blob(rel, ent, trust["jurisdiction"], prior)`. The `ent` entries come from parsing ANCHORS.txt. However, the parser `parse_anchors` includes all entries in the section, sorted by the tool's own logic? Actually `parse_anchors` preserves file order. But `anchor_set_blob` sorts entries by path: `[{"path": p, "anchor": a} for p, a in sorted(entries)]`. So the blob is canonical regardless of file order. Good.
+
+  But what if ANCHORS.txt has duplicate paths in a section? `valid_anchor_set` checks `len(set(paths)) == len(paths)`. The tool's `anchor_set_blob` uses `sorted(entries)`. If ANCHORS.txt has duplicate paths, `anchor_set_blob` would include both in the list, and `valid_anchor_set` would reject it because `len(set(paths)) < len(paths)`. So the verifier would reject. But ANCHORS.txt is just a projection. Could an attacker modify ANCHORS.txt to include duplicate paths? That would make the blob invalid. But the verifier computes the blob from ANCHORS.txt and finds it's invalid. So it wouldn't authorize. The attacker could also add extra paths. But then the blob hash wouldn't match the store. The tool checks `h not in blobs`. So it would say NOT AUTHORIZED.
+
+  Wait, what if the attacker modifies ANCHORS.txt to remove a file, but the blob in the store still has it? Then the computed blob hash differs, so not in store. NOT AUTHORIZED.
+
+  So ANCHORS.txt tampering cannot cause unauthorized acceptance; it can only cause denial or "not authorized".
+
+  Could the attacker cause a false positive by putting a blob in the store that matches the computed hash but is maliciously crafted? The blob is computed from ANCHORS.txt. If ANCHORS.txt is honest, the blob is honest. The tool then verifies adoption of that blob. So no.
+
+  What about the *profile lineage*? Could an attacker confuse the verifier by including a profile adoption in the closure that is *not* a governance profile but has the same structure? `_under_is` checks the under. But `valid_profile` requires `governance_policy: PROFILE_TAG` etc. So it would be ignored.
+
+  Is there any issue with `_under_is` checking `set(u) == {profile_hash, threshold_hash}`? It uses `set(u)`. What if the under array contains duplicates? Then `len(u) == 2` fails. Good. What if it contains the same hash twice? `set(u)` size would be 1, fails. So exact cardinality enforced.
+
+  Could an attacker create an adoption warrant whose `under` contains the *jurisdiction root* instead of the profile? No, `_under_is` would reject.
+
+  Hmm. Let's revisit the `rivals` check. It checks `rdoc.get("ancestor") != prior_set_hash`. However, `prior_set_hash` is the hash of the *previously adopted anchor-set blob*, not the ancestor field inside that blob. The ADR's verification step 2 says: "successors carry the currently adopted set's hash". In the code, `prior` is tracked as the hash of the previously verified blob. Good.
+
+  But consider this: The `rivals` check compares the rival's ancestor to `prior_set_hash`. What if there is a rival adoption for a blob that has ancestor = prior_set_hash, but the rival is actually for an older release? For example, the current chain has v0.6.1 (hash h1) adopted, and now we're verifying v0.7.0 (h2) with prior=h1. A rival could be an adoption of a blob h2' that also has prior=h1. This is detected. But what if there is a rival adoption of h1' (a different v0.6.1 blob) also with prior=None? When verifying h1 (the genesis anchor-set), the rivals check would find h1'. Good.
+
+  However, the `rivals` check is performed for *every* call to `verify_adoption`. When verifying h2 (v0.7.0), it looks for rivals with ancestor=h1. It finds h2'. Good. But what about h1 itself? Could h1 be a rival to h2? No, because h1's ancestor is None (or something else), not h1.
+
+  Is there a scenario where a *past* conflict prevents adoption of a *later* release, even though the conflict is resolved by settlement? The ADR says "Conflicts are resolved by settlement (a later adoption under the policy in force whose ancestor is the frozen set)". But the tool's `rivals` check only looks at adoptions sharing the *same* ancestor. If there is a conflict at ancestor=X (so two rival adoptions for different blobs with ancestor=X), the chain freezes. To resolve, a *later* adoption whose ancestor is the *frozen* set? The ADR says "a later adoption under the policy in force whose ancestor is the frozen set". But wait, the frozen set would be the point of conflict? Let's parse the ADR: "Two unconsumed successors at any hop = succession conflict, chain frozen." and "Conflicts are resolved by settlement (a later adoption under the policy in force whose ancestor is the frozen set), not by arithmetic." This is about *profile* succession conflicts, not anchor-set adoption conflicts. Actually, the ADR says this in two places:
+  1. Policy lineage: "Two unconsumed successors at any hop = succession conflict, chain frozen."
+  2. No tie-breaks (anchor-set adoption): "rival authorized adoption of a different valid anchor-set sharing B's ancestor freezes the chain as an adoption conflict. There is deliberately no deterministic winner rule... Conflicts are resolved by settlement (a later adoption under the policy in force whose ancestor is the frozen set)".
+
+  Wait, the latter sentence is in the "No tie-breaks" paragraph which describes anchor-set adoptions. It says: "Conflicts are resolved by settlement (a later adoption under the policy in force whose ancestor is the frozen set)". But `verify_adoption` only checks for rivals sharing B's ancestor. If there is a rival, it returns False. It does *not* check for a resolution warrant that supersedes the rivals. So the tool does not implement conflict resolution for anchor-set adoption conflicts! It just freezes.
+
+  But wait, is conflict resolution for anchor-set adoptions possible given the code? The code checks rivals at the time of verifying a specific blob. If there is a rival adoption of a different blob with same ancestor, it rejects. Even if there is a later adoption with ancestor = the frozen set? Actually, there is no concept of "frozen set" as an ancestor in the anchor-set blob. The anchor-set blob's ancestor is the prior adopted set hash. If there is a conflict at ancestor h1 (two rivals h2a and h2b), then a later adoption of h3 with ancestor=h2a would not be a rival to h2b? Let's see: When verifying h3 with prior=h2a, the rivals check looks for rivals with ancestor=h2a. There would be none (assuming only one successor from h2a). So h3 would be accepted. But h2b is still in the store. However, when verifying h2a, the rivals check would have found h2b and rejected h2a. So h3 cannot be adopted because h2a was never authorized. Unless there is a superseding warrant that adopts h3 directly over h1? But the ancestor must be the prior adopted set. If h2a is not adopted, then h3's ancestor should be h1, and it would be a rival to h2b. Actually, if the policy resolves to adopt h3 with ancestor=h1, the rivals check for h3 would find h2b (if h2b is under the current policy) and maybe other rivals, causing freeze again. Wait, what if the conflicting adoptions h2a and h2b are *not* under the current policy? They are under the old policy. The current policy is P2. The tool's `verify_adoption` uses `cur_profile` (the current derived profile) to check rivals. The rivals loop checks `_under_is(body, cur_profile, t_hash)`. So if the current policy has changed (e.g., to P2) after the conflict, the old rival adoptions (under P1) are not counted as rivals because they are under the old profile/threshold pair. So the freeze might be automatically resolved by a policy change? No, because the rival adoptions for the anchor-set are also checked against the *current* profile. Let's re-read:
+
+  ```python
+  for rid, body, rdoc in _accepts_of(recs, closure, bdir):
+      ...
+      if not _under_is(body, cur_profile, t_hash):
+          continue
+      ...
+  ```
+  Yes, the rival must be adopted under the *current* profile and threshold. So old rivals under a superseded policy are ignored. That means a policy succession can "clear" anchor-set adoption conflicts. That's elegant, but is it intended? The ADR says "Conflicts are resolved by settlement (a later adoption under the policy in force whose ancestor is the frozen set)". A policy rotation could be that settlement. But the tool doesn't explicitly look for a settlement warrant that resolves the conflict; it just derives the current profile, and if the rivals are not under the current profile, they are ignored. This is consistent.
+
+  However, what if the current policy *is* the same as the one under which the rivals were adopted? Then the freeze persists. That's correct: the conflict must be resolved by some authoritative action. Since the tool doesn't implement supersession checks for anchor-set adoptions, the only way to "unfreeze" is to rotate the policy (adopt a new profile under the old policy, then adopt under the new). But rotating the policy requires a quorum. So an attacker without quorum cannot unfreeze, but also cannot freeze without quorum.
+
+  Wait, is there a subtle confusion attack where an attacker can freeze the chain by adopting a rival anchor-set under a *future* policy that is not yet active? No, because the current profile derivation would not have reached that future policy yet.
+
+  Actually, there's a subtle issue: The `rivals` check uses `cur_profile` and `t_hash` derived from the current policy lineage. If the lineage walk is frozen (i.e., derive_current_profile returned an error because of a profile succession conflict), then `verify_adoption` returns False before reaching the rivals check? Let's see:
+  ```python
+  cur_profile, err = derive_current_profile(...)
+  if err:
+      return False, ["ERR: " + err]
+  ```
+  So if the *profile lineage* is frozen, no anchor-set can be authorized. That's a separate freeze. The attacker can freeze the profile lineage by creating a valid profile succession conflict. To do that, they need quorum of the current threshold. Again, authorized attack.
+
+  So with a correct trust config, is there any replay/confusion attack? I think the answer is: the replay surface is closed. But I need to name any residual confusion attack.
+
+  Let me think about the `ancestor` field more. The anchor-set blob includes `ancestor: <hex64>`. The tool checks that the blob's ancestor matches `prior_set_hash`. The `prior_set_hash` is the hash of the previously verified anchor-set blob in the live chain. But what about *historical* sections? The tool processes only live sections. It uses the live section's entries. The historical sections are ignored.
+
+  Is there an attack on the *trust config* itself? The trust config is out-of-band. The attacker cannot modify it if the verifier has a correct one.
+
+  Could an attacker cause confusion by placing a *second* trust config inside the repo? The tool explicitly refuses trust configs inside the verified tree. Good.
+
+  Hmm, look at `cmd_status`:
+  ```python
+  for rel, _ in reversed(live):
+      print(f"{rel:10s} UNGOVERNED (no out-of-band trust config)")
+  ```
+  If no trust config is passed, it prints UNGOVERNED. It doesn't verify anything. The `--enforce` flag makes it exit 1. So without trust config, it's not claiming anything is authorized. Good.
+
+  What if ANCHORS.txt has no live sections? It prints ERR. Good.
+
+  Now, could there be a residual "time-of-check to time-of-use" confusion? The tool loads the store once, then iterates. Since the store is just a directory of files, if the store changes during verification, the loaded state is consistent. Not an issue for a static call.
+
+  Is there a possibility of Unicode confusion in the collation of actor IDs or paths? The ADR mentions collation of Unicode scalar values for federation. Here, the tool doesn't sort actors; it uses sets. For paths, it sorts Python strings. Python's default string sort uses Unicode code points. That's consistent with the ADR's "byte order"? The ADR for anchor-set says `anchors MUST be sorted by path ascending (byte order)`. Python `sorted(paths)` sorts by Unicode code points, which for ASCII is byte order. For non-ASCII paths, Unicode code point order is not necessarily byte order if UTF-8 is considered, but since JCS uses UTF-8 and JSON strings are Unicode, sorting by Unicode code points is standard for JCS? Actually, JCS sorts strings by Unicode code point (lexicographic). So this is fine.
+
+  Now let's think about the `ancestor` chain across jurisdictions. The ADR says: "A successor whose ancestor is not the currently adopted set is a fork, not an upgrade — verifiers in the original jurisdiction MUST reject it as the next release; a genesis set carrying ancestor is invalid."
+
+  But what if a *previous* release in ANCHORS.txt was not governed (pre-governance)? The tool processes live sections in reverse. If the current section is governed, but the prior sections are not, the `prior` starts as None. For the first live section (latest release), prior is None. The blob hash is computed with prior=None. The tool checks: if prior is None and ancestor is in doc, reject. So the latest release must be a genesis anchor-set if prior is None. But wait, if governance started at v0.6.1, and v0.6.1 is the latest live section, its blob must have no ancestor. But v0.6.1 should have an ancestor if there were previous releases? The ADR says: "ancestor: MUST be absent for the genesis set". The genesis set is the *first governed* release, not necessarily the first release ever. Pre-governance releases stay in ANCHORS.txt labeled as ancestors. The ADR's bootstrap stage uses a 1-of-1 policy for the first governed release. So the first governed anchor-set is the genesis set (no ancestor). But wait, the ADR also says "Bootstrap honesty: the first governed release is self-adopted by the incumbent... governance proves that every release after activation was authorized under the policy in force — it MUST NOT fabricate authority for history."
+
+  The tool's `cmd_status` iterates through live sections. If there are pre-governance live sections (shouldn't happen if older ones are marked historical), what happens? Let's think: suppose ANCHORS.txt has v0.6.0 (historical) and v0.6.1 (live). `live` only contains v0.6.1. `prior` starts None. So v0.6.1 is treated as genesis set (must have no ancestor). But what if the anchor-set blob for v0.6.1 has an ancestor pointing to v0.6.0's blob? The ADR says for the genesis set, ancestor MUST be absent. But the spec also says "Pre-governance sections stay in ANCHORS.txt labeled as ancestors, exactly like the v0.4.2 retroactive-anchor precedent." Wait, that says "labeled as ancestors" meaning in ANCHORS.txt they are listed as historical sections, not that the genesis anchor-set carries an ancestor hash. The genesis anchor-set has no ancestor field.
+
+  So if a pre-governance release is somehow still "live" in ANCHORS.txt, the tool would try to authorize it as a governed set, fail (no blob in store), and mark it not authorized. That's fine; it's a tool behavior issue, not a spec issue.
+
+  Now, a potential residual confusion attack: The tool uses `recs` from `load_store(STORE)`. `STORE` is hardcoded as `.warrants` relative to repo. But what if the repo contains *multiple* warrant stores (e.g., from different jurisdictions)? The tool only loads `.warrants`. It doesn't know about other roots. The settlement closure follows prior edges from the trusted root. If there are records in `.warrants` that are roots of other jurisdictions, they are simply not in the closure. So they are ignored. Good.
+
+  But what if the trusted root itself is present, but there are also *adoptions* of the trusted root from a foreign jurisdiction that make it settlement-active there? Warrant v0.3 §9: "A root is settlement-active only if either (1) it is listed in the verifier's local trust configuration as a genesis root... or (2) it is adopted by a settlement-active root". So if a foreign root adopts the trusted root, the trusted root becomes settlement-active in the foreign jurisdiction, but not in the original. The tool's closure starts from the trusted root and follows descendants (records whose prior includes the root). Wait, the tool's settlement closure starts from the root and adds records whose prior is in the closure. That's descendants. It doesn't consider whether a record is adopted by another root. But a record that adopts the trusted root would have prior including the trusted root? Actually, an adoption warrant for the trusted root would have subject=trusted_root, but its prior would be something else. The tool's closure would include it if its prior is in the closure, but the trusted root is in the closure. However, such a record would be an `accept` of the root hash, not the root itself as a warrant. Wait, the root is a WarrantID. A record that wants to adopt the root would have `subject.hash` = root WarrantID? No, adoption is of an anchor-set blob, not a warrant. The root warrant is the genesis. The closure includes the root record. A record whose prior includes the root is a descendant. So any record that references the root in its prior is included. That's correct.
+
+  But what about the reverse: a record that references a descendant of the root in its prior, but is from a different jurisdiction? It would still be in the closure because the prior chain leads back to the root. The tool then checks jurisdiction in the anchor-set blob. So a record that is part of the DAG but for a foreign anchor-set would be ignored because its blob's jurisdiction doesn't match the trust config. Good.
+
+  Could there be a "jurisdiction混淆" where a record in the closure has a valid anchor-set blob for the correct jurisdiction, but the *warrant* itself is from a different jurisdiction's store copy? The record's signature is checked against the threshold. The threshold comes from the current profile, which is derived from the trust config. The trust config's actors are the ones in the root jurisdiction. If the foreign record's signatures don't match those keys, it's ignored. If it does (e.g., same actors in a fork), it would be counted. But if the fork has the same actor identities and keys, it's essentially the same jurisdiction. The trust config out-of-band is supposed to pin the correct root. If the verifier uses the correct root, the fork's records that share the same root are just part of the same jurisdiction. If the fork has a different root, the records are not in the closure (unless they reference the trusted root, but then they are part of the trusted jurisdiction's DAG). So no confusion.
+
+  Wait, could an attacker create a *loop* in the prior edges? The settlement closure algorithm terminates because it adds records to a set until no new ones. Loops are harmless.
+
+  Could an attacker create a *massive* number of records in the closure to cause a DoS? The tool loads all records. That's a performance issue, not a confusion attack.
+
+  Let's think about the question again: "Does settlement-closure scoping + embedded jurisdiction root close the replay surface completely against a verifier with a CORRECT out-of-band trust config, or name the residual confusion attack?"
+
+  I suspect there might be a residual attack related to the *assertion_set_root* or *WarrantID* confusion from Book III, but ADR-007 doesn't use those.
+
+  Hmm, look at `governance_blob_hashes`:
+  ```python
+  def governance_blob_hashes(recs, closure, bdir, trust):
+      """Every profile/threshold hash that ever governed this jurisdiction."""
+      out = {trust["genesis_profile"]}
+      p = parse_json_blob(bdir, trust["genesis_profile"])
+      if valid_profile(p):
+          out.add(p["threshold"])
+      for rid, body, doc in _accepts_of(recs, closure, bdir):
+          if valid_profile(doc):
+              out.add(body["subject"]["hash"])
+              out.add(doc["threshold"])
+      return out
+  ```
+  This returns all hashes of valid profiles and thresholds that appear as subjects of accepts in the closure. But it doesn't walk the policy lineage! So it includes profiles/thresholds from *any* valid profile adoption in the closure, even if that adoption is not reachable in the current active lineage. For example, if there is a frozen lineage with two rival successors P2 and P2', both are in `_accepts_of` and both would be added to `gov`. Then `key_state_under_governance` would treat key-state warrants filed under P2' as "under governance policy" even though P2' is not active. Is that a problem? The tool refuses key-state under any governance hash ever used. This is conservative; it might refuse legitimate key rotations if they were filed under a rival profile in a conflict. But the ADR says "key-state under governance policy blob force refusal to a key-state-deriving verifier". It doesn't say "only active". So it's consistent. Does it cause confusion? Not really, just conservatism.
+
+  But wait: could an attacker create a fake profile adoption (without quorum) and file a key-state warrant under its (invalid) profile? `_accepts_of` checks `sha256(canon(body)) == rid` and signatures? No! `_accepts_of` does NOT check signatures. It only checks body hash and decision=accept. So a record that is not properly signed but has a valid body would be yielded by `_accepts_of`, and `valid_profile(doc)` would be true, so its subject hash would be added to `gov`. Then any key-state warrant filed under that fake profile hash would trigger the refusal in `key_state_under_governance`!
+
+  Let's check:
+  In `_accepts_of`:
+  ```python
+  for rid in sorted(closure):
+      env = recs[rid]
+      body = env.get("body", {})
+      if body.get("decision") != "accept":
+          continue
+      if sha256(canon(body)) != rid:
+          continue
+      doc = parse_json_blob(bdir, body.get("subject", {}).get("hash", ""))
+      yield rid, body, doc
+  ```
+  It does NOT check signatures. So an attacker can create a warrant record with `decision="accept"`, valid body, subject being a fake profile blob, prior pointing to the root (so it's in the closure). The body doesn't need valid signatures for `_accepts_of` to yield it. Then `governance_blob_hashes` adds this fake profile's hash to `gov`. Then `key_state_under_governance` checks if any key-state warrant in the closure has `under` intersecting `gov`. If so, it returns True, causing `verify_adoption` to fail.
+
+  So an attacker can cause a denial of service (refusal to authorize any anchor-set) by creating an un-signed (or self-signed but with wrong keys) profile adoption in the closure! Because `key_state_under_governance` will see the fake profile hash in `gov`, see a key-state warrant under it, and refuse.
+
+  Wait, does the attacker need to also file a key-state warrant under that fake profile? The attacker controls the store (`.warrants`). They can add a key-state warrant (accept of a key blob) with `under` containing the fake profile hash. `key_state_under_governance` iterates:
+  ```python
+  for rid in sorted(closure):
+      body = recs[rid].get("body", {})
+      if body.get("decision") not in ("accept", "supersede"):
+          continue
+      if not set(body.get("under", [])) & gov_hashes:
+          continue
+      doc = parse_json_blob(bdir, body.get("subject", {}).get("hash", ""))
+      if isinstance(doc, dict) and set(doc) == {"actor", "key"}:
+          return True
+  ```
+  It checks if `under` intersects `gov_hashes`. So the attacker files a key-state warrant with `under` including the fake profile hash. The body doesn't need valid signatures (it's not checked). The record just needs to be in the closure (prior to root). This would trigger the refusal.
+
+  But wait: `load_store` reads all `.json` files in `.warrants/records/`. The attacker could add any JSON file there. The file name should be the WarrantID (hex64). The body hash must match the filename. The attacker can do that without signatures because the WarrantID is just the hash of the body. So they can create a body with `decision="accept"`, `subject.hash = fake_profile_hash`, `prior=[root]`, calculate the hash, name the file accordingly. No signatures needed to get into `_accepts_of` or `key_state_under_governance`. The `env` would have whatever `sigs` they want (even empty). So yes, this is a valid attack on the tool's selftest? Wait, the selftest uses a temp directory, but in real use, the store is `.warrants`. An attacker who can write to `.warrants/records` and `.warrants/blobs` can DoS the verifier.
+
+  But is writing to `.warrants` in scope? The ADR says the store is `.warrants`. If the attacker can modify the local store, they can cause a denial. But the goal is to check if the verifier with a correct trust config can be confused. A DoS is not confusion. However, the `key_state_under_governance` check is supposed to detect key-state warrants that require the warrant CLI. But it's overbroad: it triggers on invalid records that aren't actually part of the governance lineage. This is a bug in the tool: it should only consider key-state warrants that are filed under a governance policy blob *that is actually part of the current lineage* or at least properly signed. But because `governance_blob_hashes` and `key_state_under_governance` don't verify signatures, an attacker can pollute the store with invalid warrants and cause the tool to refuse to work.
+
+  Is this a "confusion attack"? It causes the verifier to incorrectly refuse authorization (false negative). That's a liveness issue, not safety. But the user asked for "residual confusion attack". Maybe.
+
+  Let's check if the selftest covers this. The selftest has "key-state under unrelated policy is ignored (scoped)" and "key-state under governance policy refused". In the selftest, the key-state warrant under unrelated policy has `under` set to `other_policy`. The code correctly ignores it because `gov_hashes` doesn't contain `other_policy`. The key-state under governance policy is filed under `hx["t1"]` which is in `gov_hashes`. But in the selftest, the key-state warrant under governance policy is a properly formed warrant? It doesn't need signatures for `key_state_under_governance`. The selftest passes because `key_state_under_governance` just checks the record's `under` and whether the subject doc is `{"actor","key"}`. It doesn't check signatures or body hash. So the selftest doesn't catch the fact that unvalidated records can pollute `gov_hashes` or trigger key-state refusal.
+
+  So the tool missed a case: unvalidated records (invalid signatures or not signature-checked) should not influence `governance_blob_hashes` or `key_state_under_governance`. This is a bug.
+
+  Wait, but `_accepts_of` is also used in `derive_current_profile`. There, the signatures *are* checked because it calls `counted_sigs`. But `governance_blob_hashes` uses `_accepts_of` directly without checking signatures. This means `gov_hashes` includes profile hashes from records that may not be properly signed. If an attacker creates an invalid profile adoption, it gets added to `gov`. Then a key-state warrant filed under that hash triggers refusal. This is a DoS/confusion.
+
+  But is there a more direct confusion attack? `governance_blob_hashes` might also cause the tool to refuse key-state warrants that are legitimately filed under an old profile if the lineage has moved on. But that's by design (conservative). The issue is the lack of signature verification.
+
+  However, the ADR's Verification step 5 says: "Key-state verifiers filed under a governance policy blob force refusal to a key-state-deriving verifier". It doesn't explicitly say "settlement-active and authorized". But the spirit is that the governance policy blob is one that governs the jurisdiction. A fake profile that is not authorized shouldn't count.
+
+  This is a bug in the tool. The tool claims to implement the ADR, but `governance_blob_hashes` is too permissive. It should only include profiles that are part of the current lineage or at least have valid signatures.
+
+  Wait, could the attacker use this to *unfreeze* a chain? If `key_state_under_governance` returns True, `verify_adoption` returns False with an error. This is a refusal. It doesn't help the attacker.
+
+  Let's think about Ask 2 again: replay surface. Could an attacker replay a key-state warrant from a different jurisdiction into the store? The key-state warrant would have a subject blob `{"actor":"...", "key":"..."}`. The `under` field contains some policy hash. If that policy hash is a governance hash from the original jurisdiction, `key_state_under_governance` would trigger, causing refusal. So replaying a foreign key-state warrant that happens to cite a governance hash (which is public) could cause a DoS. But the attacker can just create a local fake one.
+
+  Actually, the more fundamental issue is that the tool does not verify record integrity (WarrantID matches body) when just scanning for governance blobs? Wait, `_accepts_of` *does* verify `sha256(canon(body)) == rid`. So the body is correctly hashed. But it doesn't verify signatures. In Warrant, a record without valid signatures is not an "accept" that counts for settlement, but it is a valid blob in the store. The ADR's settlement closure includes all records, but adoption checks require signatures. For `governance_blob_hashes`, it probably should only consider records with valid signatures too, otherwise anyone can pollute the set of governance hashes.
+
+  Is this a P1? Yes: "spec silent where implementers must guess" — actually the tool is wrong. Or maybe P2. Let's see: The ADR says "only warrants reachable from C.jurisdiction via prior edges (Warrant §9 scoping) are eligible; everything else in the store is ignored." But for key-state refusal, it doesn't say signatures must be valid. However, the intent is that the governance policy blob is one that is authorized. The tool's `governance_blob_hashes` includes unauthorized ones.
+
+  But wait, `governance_blob_hashes` is only used for `key_state_under_governance`. The ADR says: "key-state verifiers filed under a governance policy blob force refusal to a key-state-deriving verifier". If an unauthorized profile is in the store, is it a "governance policy blob"? It's a blob with the schema of a profile, but not authorized. The ADR likely means "under a governance policy that has been adopted". But it's ambiguous. However, the tool's implementation uses all profile subjects in the closure. This is a bug.
+
+  Let's look at the selftest. The selftest for "key-state under unrelated policy is ignored (scoped)" uses an `other_policy` blob. But what if an attacker creates a profile blob that is schema-valid but not authorized, and files a key-state warrant under it? The selftest doesn't test that. It only tests correctly signed key-state warrants under related/unrelated policies? Actually, the code for the selftest:
+  ```python
+  rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
+  other_policy = _put_blob(td, b"an unrelated policy blob")
+  _file(td, "accept", ACTORS[0], rot, [other_policy], [hx["root"]],
+        [ACTORS[0], ACTORS[2]], note="key-state under UNRELATED policy")
+  ```
+  Here `_file` creates a warrant with valid signatures from ACTORS[0] and ACTORS[2]. So it's a properly signed warrant. Then:
+  ```python
+  _file(td, "accept", ACTORS[0], rot, [hx["t1"]], [hx["root"]
