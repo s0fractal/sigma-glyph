@@ -172,6 +172,18 @@ def step5(t, remaining, store, stats, limits):
 DEFAULT_LIMITS = dict(max_node_depth=4096, max_materialized_nodes=1_000_000,
                       max_store_fetches=1_000_000)
 
+
+def resource_check(t, limits):
+    """Raise ResourceFault (local, non-canonical §3.6) if the term breaches a
+    configured maximum. Called on the 256-step in-flight sample AND before any
+    normal-form return, so a `max_*` control is never exceeded on a completed
+    return (Codex v0.6.4 hardening audit P1)."""
+    if size(t) > limits["max_materialized_nodes"]:
+        raise ResourceFault("term growth")
+    if depth(t) > limits["max_node_depth"]:
+        raise ResourceFault("term depth")
+
+
 def eval_hash(h, atp, store, limits=None):
     """eval(term_hash, atp) -> (result_term, atp_spent).
     Canonical outcomes: normal form | DISSONANCE(ATP Exhausted) | DISSONANCE(Unresolved Reference).
@@ -200,10 +212,7 @@ def eval_hash(h, atp, store, limits=None):
             # so the check cadence is an implementation choice, s3.6).
             steps += 1
             if steps % 256 == 0:
-                if size(t) > limits["max_materialized_nodes"]:
-                    raise ResourceFault("term growth")
-                if depth(t) > limits["max_node_depth"]:
-                    raise ResourceFault("term depth")
+                resource_check(t, limits)          # in-flight runaway fence
             try:
                 r = step5(t, atp - spent, store, stats, limits)
             except BudgetExhausted:
@@ -211,6 +220,12 @@ def eval_hash(h, atp, store, limits=None):
             except Unresolved:
                 return ("dis", R_UNRES), spent
             if r is None:
+                # normal form: a `max_*` limit MUST hold on the returned term,
+                # even for evaluations that finish before the 256-step sample
+                # (Codex v0.6.4 hardening audit P1 — a completed return must
+                # never exceed the configured maximum). DISSONANCE returns
+                # above are size-1 leaves and cannot breach.
+                resource_check(t, limits)
                 return t, spent
             t = r[0]
             spent += r[1]
@@ -402,6 +417,29 @@ def run_tests():
         chk("depth-1500 spine, depth limit 512 -> resource fault (non-canonical)", True)
     except RecursionError:
         chk("depth-1500 spine, depth limit 512 -> resource fault", False)
+
+    # Codex v0.6.4 hardening audit P1: a `max_*` control must hold on a
+    # COMPLETED normal-form return, even for evaluations that finish before
+    # the 256-step in-flight sample. FALSE = APPLY(K,I): size 3, depth 2.
+    stf = Store(); hf = stf.put(FALSE_BYTES)
+    def _lim(d, m): return dict(max_node_depth=d, max_materialized_nodes=m,
+                                max_store_fetches=100)
+    try:
+        eval_hash(hf, 10, stf, _lim(1, 100))
+        chk("early-NF over depth limit -> ResourceFault", False)
+    except ResourceFault:
+        chk("early-NF over depth limit -> ResourceFault (not an over-limit return)", True)
+    try:
+        eval_hash(hf, 10, stf, _lim(100, 1))
+        chk("early-NF over size limit -> ResourceFault", False)
+    except ResourceFault:
+        chk("early-NF over size limit -> ResourceFault (not an over-limit return)", True)
+    try:
+        r, sp = eval_hash(hf, 10, stf, _lim(2, 3))     # exact bound: must return
+        chk("early-NF at exact bound (depth=2,size=3) returns normally",
+            size(r) == 3 and depth(r) == 2 and sp == 3)
+    except ResourceFault:
+        chk("early-NF at exact bound returns normally", False)
 
     print("\nALL PASS" if all(ok) else "\nFAILURES PRESENT")
     return all(ok)
