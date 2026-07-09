@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.5 — GOV 1.0.1 (2026-07)
+
+First **PATCH** through the governed-anchor process: `spec/GOV-anchors.md` → v1.0.1, three §3 prose clarifications from the Kimi focused formal review, **zero behavioral change** (the reference verifier already behaves as each specifies; all 17 governance vectors byte-identical) — a SemVer patch, not a new schema `@v2` tag. Proves the constitution's maintenance path handles routine clarity work, not only landmark releases.
+
+- §3 step 4: the zero-hop lineage base case (profile in force = `genesis_profile` when the closure holds no adoption) stated explicitly.
+- §3 step 5: reworded so the subject of the key-state refusal is unambiguous — the **scoped** verifier refuses and defers to a key-state-deriving verifier.
+- §3 step 7: the competing-adoption freeze stated as **total by construction** (an unauthorized set is not a valid ancestor, so no verifier advances the chain; none may pick a winner).
+- Also: `proofs/README` TCB note sharpened (the interference theorems transitively consume `native_decide` LUT lemmas — the compiler is in their cone; only the pure integer lemmas + `left_dominance_ph` are fully kernel-checked); `EvalMachine.lean` gains a `grind` tactic-transparency comment. `or_review` now briefs reviewers on the full gate surface (all four proof bridges + governance replay/differential + Rust).
+- Governed adoption warrant, 2-of-3 signatures. Anchor set: only `spec/GOV-anchors.md` changes; all other anchors carry over from v0.6.4.
+
 ## v0.6.4 — "Standing Constitution" (2026-07)
 
 `spec/GOV-anchors.md` leaves DRAFT: **the project's first STANDARD** (document version 1.0.0, independent of this v0.6.4 bundle). Promoted through the process it defines — a second 3-family gate on the promotion itself (Gemini 3.1 Pro, GPT-5, DeepSeek v4 Pro; unanimous PROMOTE-WITH-AMENDMENTS) — not by maintainer fiat.

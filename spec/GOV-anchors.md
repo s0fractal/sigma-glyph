@@ -1,8 +1,8 @@
 # Σ-GLYPH — GOV: GOVERNED ANCHORS
 
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Type:** Specification-Anchor Governance (Warrant v0.3 profile)
-**Status:** STANDARD — the first STANDARD in the project. Adopted from ADR-007 (3-family blind gate + verification pass), promoted from DRAFT STANDARD by the v0.6.4 governed release after a second 3-family gate on the promotion itself (Gemini 3.1 Pro, GPT-5, DeepSeek v4 Pro, 2026-07-08 — verdict unanimous PROMOTE-WITH-AMENDMENTS; all P0/P1 integrated below). Anchored in `spec/ANCHORS.txt` since v0.6.2. The document version (1.0.0) is independent of the repo bundle version (v0.6.4), per the ANCHORS bundle convention.
+**Status:** STANDARD — the first STANDARD in the project. Adopted from ADR-007 (3-family blind gate + verification pass), promoted from DRAFT STANDARD by the v0.6.4 governed release after a second 3-family gate on the promotion itself (Gemini 3.1 Pro, GPT-5, DeepSeek v4 Pro, 2026-07-08 — verdict unanimous PROMOTE-WITH-AMENDMENTS; all P0/P1 integrated below). **1.0.1 (v0.6.5 bundle):** three §3 prose clarifications from the Kimi focused formal review — zero behavioral change (the reference verifier already behaves as each specifies, all 17 vectors unchanged), so a SemVer PATCH, not a new schema tag. Anchored in `spec/ANCHORS.txt` since v0.6.2. The document version is independent of the repo bundle version, per the ANCHORS bundle convention.
 **Normative dependencies (pinned — MUST):** a STANDARD MUST NOT rest on a moving target (promotion gate P1, 3/3). This profile is defined against **Warrant SPEC v0.3** exactly as pinned in [`proposals/refs/warrant-SPEC-v0.3-snapshot.md`] — content SHA-256 `73758bdb735912709a0b6280b6c6e8b32cd3f99e31004bee2bed147d9d87cd8e` — authoritative for settlement (§7), key state (§5.1) and multi-root stores (§9) as used here; and against **Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1** as anchored in this release (the anchor definition `NodeHash(LITERAL, SHA-256(bytes))` rides Book I's hashing). Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0).
 **Scope Guard (MUST):** this document governs which *bytes* constitute the anchored specification set. Nothing here changes reduction, serialization, hashing (Book I), the wave algebra (Book II) or federation semantics (Book III) — governance is meta to protocol. On conflict: Book I > Book II > Book III > this document. It is a **pure Warrant v0.3 profile**: zero changes to the Warrant format.
 **Placement rationale:** deliberately *not* a fourth Book (gate, 2:1) — the Books are protocol; this is the protocol text's constitution, and a Book governing Book-updates would judge itself. It still carries Book-grade conformance obligations (§7).
@@ -131,9 +131,14 @@ For candidate anchor-set blob B against trust config C and store S:
    {profile, its pinned threshold}, and whose signatures satisfy the current
    threshold — each hop authorized by the policy **being replaced** (Warrant
    §5.1 current-policy rule applied to governance). Two unconsumed
-   successors at a hop = succession conflict, chain frozen.
-5. **Key state** — a key-state warrant forces refusal to a key-state-deriving
-   verifier only when ALL of: it is filed under a policy from the authorized
+   successors at a hop = succession conflict, chain frozen. **Zero-hop base
+   case:** if the closure holds no profile adoption, the profile in force is
+   `C.genesis_profile` itself — valid by the out-of-band pin, no adoption
+   warrant required (Kimi focused review, GOV 1.0.1).
+5. **Key state** — a governance key-state rotation forces the **scoped**
+   verifier (`anchor_governance.py`, which does not derive key state) to
+   refuse — deferring to a key-state-deriving verifier such as the Warrant
+   CLI — only when ALL of: it is filed under a policy from the authorized
    lineage of step 4; it satisfies that policy's quorum (per Warrant §5.1 an
    unauthorized key-state record is an invalid record, not a conflict); and
    its WarrantID is NOT in `C.resolved_key_state`. A rotation the operator has
@@ -151,7 +156,12 @@ For candidate anchor-set blob B against trust config C and store S:
    anchor-set sharing B's ancestor freezes the chain. Deliberately no
    deterministic winner rule: any such rule over attacker-influenceable
    identifiers is grindable position-selection (the class that killed the
-   ADR-006 interference fold). Conflicts resolve by settlement.
+   ADR-006 interference fold). Conflicts resolve by settlement. **The freeze
+   is total by construction** (Kimi focused review, GOV 1.0.1): the contested
+   set stays unauthorized, and step 2 requires a successor's `ancestor` to
+   equal the currently *adopted* set — so no conforming verifier authorizes
+   any successor while the conflict stands, until a single later adoption
+   re-establishes a unique adopted tip. No verifier may pick a winner.
 
 The `release` string is advisory metadata only: authorization depends solely
 on jurisdiction, lineage, cardinality and quorum — never on the `release`

@@ -1,0 +1,35 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Successor of the v0.6.4 set 8fbb1500. First PATCH through the governed process: GOV-anchors.md 1.0.0 -> 1.0.1, three §3 prose clarifications (zero-hop lineage base, scoped-verifier key-state subject, freeze total-by-construction) from the Kimi focused formal review. Zero behavioral change - reference verifier unchanged, all 17 governance vectors byte-identical (a SemVer patch, no @v2 tag). Only GOV-anchors.md's anchor changes. Filed by the maintainer; second roster signature pending - authorizes nothing until 2-of-3."
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "b8f45412165db9b9357ff747754b3db1cdf04d284511c214de1001bb3008d40a"
+    ],
+    "subject": {
+      "hash": "8cfc2c635dea15c68055fbf1302024b2910ad8408a666bf87f795b3c2a312784",
+      "note": "ADOPT v0.6.5 anchor-set (GOV 1.0.1: three non-behavioral §3 clarifications from the Kimi focused review — first governed PATCH)"
+    },
+    "ts": 1783592585,
+    "under": [
+      "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c",
+      "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "c0890421acad93187be480208feccaf93b10dc56ee31a18817f4b34f4c717a3050bfb2299f983156faa4baef3ee0c8d7edd6cec298f7d5be9e47775dc7577909"
+    }
+  ]
+}

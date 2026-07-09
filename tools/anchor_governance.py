@@ -857,8 +857,8 @@ def selftest():
     live = [s for s in sections if not s[1]]
     check("ANCHORS.txt parses (governed line of descent)",
           len(live) >= 1 and live[-1][0] == "v0.6.2")
-    check("current section is v0.6.4 with 10 anchors",
-          (live[0][0], len(live[0][2])), ("v0.6.4", 10))
+    check("current section is v0.6.5 with 10 anchors",
+          (live[0][0], len(live[0][2])), ("v0.6.5", 10))
     check("current anchor-set blob schema-valid",
           valid_anchor_set(anchor_set_blob(live[0][0], live[0][2], "a" * 64)))
 
