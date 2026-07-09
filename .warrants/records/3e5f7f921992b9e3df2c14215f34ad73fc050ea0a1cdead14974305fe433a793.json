@@ -30,6 +30,11 @@
       "actor": "claude-fable-5@sigma-glyph",
       "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
       "sig": "c0890421acad93187be480208feccaf93b10dc56ee31a18817f4b34f4c717a3050bfb2299f983156faa4baef3ee0c8d7edd6cec298f7d5be9e47775dc7577909"
+    },
+    {
+      "actor": "codex@sigma-glyph",
+      "key": "9411e8fe7feab215b4ac7fccd20001f64d1181ce8b5487880931e7f1a000c889",
+      "sig": "b801abfb3aaa5bf486d9ca641bacde92a8f695419a51726a615e6f5b5e1b3520a04cf5a035721526371d8d36717545a48a26e3bd3229085bd92bb4438ab4b10f"
     }
   ]
 }
