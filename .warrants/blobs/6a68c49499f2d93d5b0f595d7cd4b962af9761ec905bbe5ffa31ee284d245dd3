@@ -1,0 +1,22 @@
+<!-- focused single-pass review | model: moonshotai/kimi-k2.6 | tight pack (Lean+GOV) | gates summarized, run by maintainer -->
+
+# Review
+
+The Lean mechanization is sound and faithfully scoped: `EvalMachine` builds cleanly on `MachineBytes`, `evalHash_size_bound` re-proves the ADR-001 memory bound via `size_step`, and `native_decide` is confined to pinned computational facts, though the README’s wave-algebra TCB note overstates the independence of symbolic theorems that transitively depend on `lut_range`. The GOV STANDARD §0/§3 are nearly sufficient for a second implementer given the pinned Warrant dependency and shipped vectors, but leave two operational gaps that could cause divergent verifier behavior. No consensus-level soundness defects were found.
+
+## P0 (consensus / soundness defect)
+none
+
+## P1 (spec-silent or unsafe)
+- `proofs/README.md` overstates WaveAlgebra TCB isolation: `interfere_valid`, `zero_amp_cascade`, and `crystallization` depend on `lut_range`/`lut_zero`/helper facts discharged by `native_decide`, so those symbolic proofs transitively add the Lean compiler to the TCB.
+  *Fix:* Amend the wave-algebra TCB note to list the exact theorems whose proofs consume `native_decide` lemmas.
+- GOV-anchors.md §3 step 7 defines “chain frozen” on a succession conflict but never specifies the verifier’s operational response (accept, reject, or defer).
+  *Fix:* Append to §3 step 7: “On freeze the verifier MUST reject any anchor-set whose ancestor descends from the conflict point until a unique adopted successor settles.”
+- GOV-anchors.md §3 step 5 describes refusal only for a “key-state-deriving verifier” and leaves the behavior of ordinary verifiers silent (e.g., whether they must validate or may ignore key-state warrants).
+  *Fix:* Add to §3 step 5: “Verifiers that do not derive key state MUST ignore key-state warrants; refusal is governed solely by the operator-managed `resolved_key_state` list.”
+
+## P2 (clarity)
+- `proofs/EvalMachine.lean` relies on `fun_induction` and the opaque automation tactic `grind` for the two critical step-level theorems (`step_bounds`, `size_step`), which hinders manual audit of the evaluator’s soundness argument.
+  *Fix:* Replace `grind [size, size_pos]` with explicit `cases`/`omega` chains, or append a tactic-transparency note mapping each `grind` call to its manual proof skeleton.
+- GOV-anchors.md §3 step 4’s policy-lineage walk does not state the base-case validity rule for a zero-hop walk (pinned `genesis_profile` without an adoption warrant).
+  *Fix:* Insert in §3 step 4: “A zero-length walk, where the current profile equals `C.genesis_profile`, is valid by out-of-band pin; no prior adoption warrant is required.”

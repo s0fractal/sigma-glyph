@@ -1,0 +1,73 @@
+# Response: Kimi k2.6 v0.6.4 focused formal review — 2026-07-09
+
+Maintainer: claude-fable-5@sigma-glyph. Re-run of the holistic review with a
+**tight pack** (the four Lean fronts + `GOV-anchors.md` only, gate results
+summarized, single pass, hard "emit the finished document" instruction). It
+worked: 351 words, a clean verdict, zero briefing artifacts (the model was
+told the Warrant pin and governance vectors ship, and given the actual Lean
+sources). Five real findings, all accepted.
+
+## P0: none — confirmed.
+
+## P1-1 — README overstates WaveAlgebra TCB isolation: ACCEPTED, fixed
+
+Correct and precise. My `proofs/README` claimed the interference theorems
+"do not" rest on `native_decide`. They do, transitively: `interfere_valid`
+consumes `lut_range` (line 146), `zero_amp_cascade` and `crystallization`
+consume `lut_zero` / inline `native_decide` witnesses — all `native_decide`
+facts, so the Lean compiler is in their dependency cone. Only the pure
+integer lemmas (`divRoundHalfUp` bounds, `size_pos`) and `left_dominance_ph`
+(via `Int.emod_eq_of_lt`) are fully kernel-checked. The TCB note is rewritten
+to say exactly this. A genuinely sharper honesty statement than I had.
+
+## P2-1 — `grind`/`fun_induction` opacity in `step_bounds`/`size_step`: ACCEPTED, note added
+
+Fair — `grind` closes the two step-level theorems without showing the
+argument. Rather than risk rewriting working proofs into brittle explicit
+tactic chains, a **tactic-transparency comment** now sits above `step_bounds`
+mapping each `fun_induction` branch to the manual skeleton `grind` automates
+(the guard-and-`size_pos` reasoning per redex/force/descend case), and notes
+the 33-vector eval bridge as the empirical cross-check. Both proofs still
+compile; the eval bridge is still 33/33.
+
+## P1-2, P1-3, P2-2 — three GOV §3 clarity gaps: ACCEPTED, held for the next GOV revision
+
+All three are real precision gaps for a second implementer, and I accept the
+proposed text nearly verbatim:
+- **§3 step 7 (freeze operational response):** state that on a freeze the
+  verifier MUST reject any anchor-set whose ancestor descends from the
+  conflict point until a unique successor settles.
+- **§3 step 5 (non-deriving verifier):** state that a verifier which does not
+  derive key state MUST treat governance key-state warrants via
+  `resolved_key_state` only (the scoped-verifier refusal path), so the two
+  verifier classes are unambiguous.
+- **§3 step 4 (zero-hop base case):** state that a zero-length lineage walk,
+  where the current profile equals `C.genesis_profile`, is valid by the
+  out-of-band pin with no adoption warrant required.
+
+**Severity, adjudicated:** these are P2 (clarity), not P1 (divergence). The
+reference verifier already *behaves* exactly as each clarification would
+specify — a freeze returns NOT AUTHORIZED and an unauthorized set is not a
+valid ancestor (so no conforming verifier advances the chain — total by
+construction); the scoped `anchor_governance.py` already routes key state
+through `resolved_key_state`; and `derive_current_profile` already treats the
+genesis profile as the zero-hop base. So no two conforming implementations
+diverge today; the gaps are in the *prose*, which a second implementer reads.
+
+**Disposition:** §3 is frozen at STANDARD (§0), and these are non-behavioral
+clarifications, so they do not force a `@v2` schema tag — but they do change
+the anchored bytes, which is a governed release. The exact text above is
+prepared and will ride the next governed GOV revision as a **1.0.1 patch**
+(re-anchor + 2-of-3 adoption). They block nothing: the reference verifier and
+the 17 conformance vectors remain the operative contract in the meantime. If
+the founder wants them shipped now, a GOV 1.0.1 governed release can be cut on
+request.
+
+## Note on the two Kimi runs
+
+The first (holistic, full pack) exhausted its budget on reasoning and its
+findings were half briefing-artifacts; the fix was completing the reviewer
+brief (`or_review` now runs all four bridges + governance replay + Rust and
+feeds the vectors). The second (this one, tight pack, single pass) produced a
+clean, accurate, artifact-free review. The lesson for the review harness:
+for a deep-but-narrow audit, a small focused pack beats the full firehose.
