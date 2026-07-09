@@ -176,7 +176,18 @@ theorem size_pos (t : Term) : 1 ≤ size t := by
   cases t <;> simp [size] <;> omega
 
 /-- both bounds at once, in a shape `fun_induction step` can chew on: whatever
-    `step` returns, a fired action's cost sits in `[1, remaining]`. -/
+    `step` returns, a fired action's cost sits in `[1, remaining]`.
+
+    Tactic transparency (Kimi v0.6.4 focused review P2): `fun_induction step`
+    produces one goal per branch of `step`; `grind [size_pos, size]` discharges
+    each. The manual skeleton it automates, per branch:
+    - `.nf`/`.exhausted`/`.unresolved`: goal is `True` — trivial.
+    - thunk-force: `c = size v`, guarded by `¬(size v > rem)`; `1 ≤ c` from
+      `size_pos`, `c ≤ rem` from the guard.
+    - `.ref` (R-R) / R-I / R-K: `c = 1`, guard `¬(rem < 1)`.
+    - R-S: `c = 1 + size a`, guard `¬(1 + size a > rem)`.
+    - descend: the sub-call's bound is the induction hypothesis.
+    (The `grind`s are cross-checked empirically by the 33-vector eval bridge.) -/
 theorem step_bounds (t : Term) (rem : Nat) (st : Store) :
     (match step t rem st with
      | .step _ c => 1 ≤ c ∧ c ≤ rem

@@ -44,12 +44,18 @@ live oracle on a 582-case deterministic boundary grid incl. the
 crystallization point, the FV-FOLD-UNSOUND triple and negative-tie
 parities. Run: `python3 proofs/wave_bridge_check.py`.
 
-TCB honesty: LUT-dependent facts (`lut_range`, the 65536-case amplitude
-fixed-point scan, the concrete witnesses) use `native_decide`, which adds
-the Lean compiler to the trusted base for those facts; the symbolic
-theorems (`interfere_valid`, cascade, dominance, the crystallization
-skeleton) do not. The differential bridge is the empirical check that the
-Lean `interfere` is the oracle's.
+TCB honesty (sharpened by the Kimi v0.6.4 focused review): the base LUT
+facts (`lut_range`, `lut_zero`, `lut_size`), the 65536-case amplitude
+fixed-point scan (`am_fixed_scan`) and the concrete `divRoundHalfUp`
+witnesses use `native_decide`, which adds the Lean compiler to the trusted
+base. The interference theorems are *reasoning*-symbolic but not
+TCB-independent: `interfere_valid` consumes `lut_range`, `zero_amp_cascade`
+and `crystallization` consume `lut_zero`/`native_decide` witnesses — so
+their soundness transitively rests on the compiler too. Only the pure
+integer lemmas (`divRoundHalfUp` bounds, `size_pos`) and `left_dominance_ph`
+(via `Int.emod_eq_of_lt`) are fully kernel-checked with no `native_decide`
+in their dependency cone. The differential bridge is the empirical check
+that the Lean `interfere` is the oracle's, independent of the TCB question.
 
 ## Book I byte-level machine correspondence (`MachineBytes.lean` + `Sha256.lean`)
 
