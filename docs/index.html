@@ -94,7 +94,7 @@ $ python3 impl/sigma_federation.py
   <p class="note">Outputs above are real, pasted from a v0.6.5 run. The reference implementation is pure standard-library Python.</p>
 
   <h3>Compute one thing</h3>
-  <p><code>eval</code> is <em>total</em>: every term with every budget returns exactly one of a normal form, <code>ATP Exhausted</code>, or <code>Unresolved Reference</code>. A non-terminating term is not an error — it is a priced, canonical outcome. Work <em>and peak materialised size</em> are bounded by the budget (<code>size − 1 ≤ spent</code>, a proved invariant — see below).</p>
+  <p><code>eval</code> is <em>total</em>: every term with every budget resolves to exactly one <em>canonical</em> outcome — a normal form, <code>ATP Exhausted</code>, or <code>Unresolved Reference</code>. A non-terminating term is not an error — it is a priced, canonical outcome. (A concrete implementation may additionally hit a local limit, e.g. stack depth, and raise a <em>non-canonical</em> resource fault; by design those are never part of the canonical result.) Work <em>and peak materialised size</em> are bounded by the budget (<code>size − 1 ≤ spent</code>, a proved invariant — see below).</p>
 <pre>$ python3 &lt;&lt;'PY'
 <span class="cmt"># I K  ->  K      (a two-step reduction)</span>
 <span class="cmt"># then run Omega = (S I I)(S I I) forever, with a budget of 1000</span>
@@ -149,11 +149,11 @@ $ lean proofs/EvalMachine.lean &amp;&amp; python3 proofs/eval_bridge_check.py</p
   </table>
 
   <h2>Held to its own standard: adversarial review</h2>
-  <p>No change lands on the maintainer's say-so alone. Each substantive change is attacked by independent models before it is adopted, and the critiques <em>and</em> the point-by-point responses are published. Seven distinct model families have reviewed this repository — Claude, Codex, DeepSeek, Gemini, GPT, Kimi, Qwen; the <a href="https://github.com/s0fractal/sigma-glyph/tree/master/reviews">reviews/</a> archive holds 64 documents (external critiques, maintainer responses, and gate records).</p>
+  <p>No change lands on the maintainer's say-so alone. Each substantive change is attacked by independent models before it is adopted, and the critiques <em>and</em> the point-by-point responses are published. Seven distinct model families have reviewed this repository — Claude, Codex, DeepSeek, Gemini, GPT, Kimi, Qwen; the open <a href="https://github.com/s0fractal/sigma-glyph/tree/master/reviews">reviews/</a> archive collects the external critiques, maintainer responses, and gate records.</p>
   <p>Why a panel and not one reviewer: in v0.6.4, one reviewer of three (Gemini) caught a defect in the governance verifier — it refused on the mere <em>presence</em> of a settled key-state warrant, so the first roster rotation would have frozen the chain permanently. A single sign-off would have shipped it. It is fixed, with a regression vector, and recorded in the <a href="https://github.com/s0fractal/sigma-glyph/blob/master/CHANGELOG.md">CHANGELOG</a>.</p>
 
   <h2>Governed by its own constitution</h2>
-  <p>The specification amends itself through a written process, not a maintainer's fiat. Releases are anchor-set blobs adopted by <strong>2-of-3 threshold warrants</strong> (signed, hash-addressed decision records — see the sister project <a href="https://github.com/s0fractal/warrant">warrant</a>). The constitution — <a href="https://github.com/s0fractal/sigma-glyph/blob/master/spec/GOV-anchors.md">GOV-anchors.md</a> — is deliberately <em>not</em> one of the Books: a document must not judge itself.</p>
+  <p>The specification amends itself through a written process, not a maintainer's fiat. Releases are anchor-set blobs adopted by <strong>2-of-3 threshold warrants</strong> — Ed25519-signed, hash-addressed decision records (see the sister project <a href="https://github.com/s0fractal/warrant">warrant</a>). The constitution — <a href="https://github.com/s0fractal/sigma-glyph/blob/master/spec/GOV-anchors.md">GOV-anchors.md</a> — is deliberately <em>not</em> one of the Books: a document must not judge itself.</p>
   <p>Governance chain, each link an independently co-signed adoption warrant (signers and rationale in the <a href="https://github.com/s0fractal/sigma-glyph/blob/master/CHANGELOG.md">CHANGELOG</a>):</p>
 <pre>genesis
  └ v0.6.2   founder  + maintainer
@@ -180,7 +180,7 @@ $ lean proofs/EvalMachine.lean &amp;&amp; python3 proofs/eval_bridge_check.py</p
       <a href="https://github.com/s0fractal/sigma-glyph/blob/master/spec/book-3-federation.md">Book III — Federation</a> ·
       <a href="https://github.com/s0fractal/sigma-glyph/blob/master/QUICKSTART.md">Quickstart</a>
     </p>
-    <p class="note">The naming of the glyphs, why FALSE sits at 270°, why the wave left the hash — that is <a href="https://github.com/s0fractal/sigma-glyph/blob/master/spec/LORE.md">LORE.md</a>, non-normative and kept separate from the specification on purpose.</p>
+    <p class="note">Why the glyphs are named as they are, and other non-normative design rationale, live in <a href="https://github.com/s0fractal/sigma-glyph/blob/master/spec/LORE.md">LORE.md</a> — kept separate from the specification on purpose.</p>
     <p><a href="https://github.com/s0fractal/sigma-glyph">github.com/s0fractal/sigma-glyph</a></p>
   </footer>
 
