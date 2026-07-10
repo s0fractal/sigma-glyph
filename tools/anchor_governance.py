@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Read-only verifier for ADR-007 governed anchors (PROPOSED, rev 2 — see proposals/ADR-007-governed-anchors.md).
+"""Read-only verifier for ADR-007 governed anchors (ACTIVE — GOV-anchors.md 1.0.2; see proposals/ADR-007-governed-anchors.md).
 
 Answers "is this ANCHORS.txt release authorized?" as a pure function of
-(.warrants store, out-of-band trust config), with an exit code. Until ADR-007
-passes its gate and a first adoption warrant is filed, `status` honestly
-reports UNGOVERNED — this tool existing first is the Decision Process's
-implementation precondition, not an activation.
+(.warrants store, out-of-band trust config), with an exit code. Governance is
+active since v0.6.2 (first adoption warrant filed under a 2-of-3 roster); with
+no out-of-band trust config `status` still reports UNGOVERNED, since authority
+is a fact of the trust anchor, not of this tree.
 
 Rev 2 (adjudicating the 2026-07 three-family gate round — GPT-5, Gemini 3.1
 Pro, DeepSeek v4 Pro):
@@ -114,9 +114,21 @@ def parse_json_blob(bdir, h):
     if b is None:
         return None
     try:
-        return json.loads(b)
+        doc = json.loads(b)
     except ValueError:
         return None
+    # RFC 8785 (JCS) canonicality is a store invariant, not a claim: a blob
+    # addressed by sha256(canon(doc)) MUST equal canon(doc) on the wire.
+    # Re-canonicalizing the parsed value and demanding byte-equality rejects
+    # pretty-printed, duplicate-key and non-minimal encodings that would
+    # otherwise let implementations diverge on whitespace and escape forms
+    # (Go parity — parseJSONBlob enforces the same there).
+    try:
+        if canon(doc) != b:
+            return None
+    except (TypeError, ValueError):
+        return None
+    return doc
 
 
 # ---------- schema validation ----------
@@ -207,9 +219,26 @@ def valid_anchor_set(doc):
 
 # ---------- settlement scoping ----------
 
+def _sound_body(env, rid):
+    """The body of an id-sound record, else None: the filename WarrantID MUST
+    equal sha256(canon(body)) (Warrant §3). A malformed record is litter, not
+    a graph node — it must never create settlement reachability (Go parity:
+    soundRecord() gates every closure hop and every accept there too)."""
+    if not isinstance(env, dict):
+        return None
+    body = env.get("body")
+    if not isinstance(body, dict) or sha256(canon(body)) != rid:
+        return None
+    return body
+
+
 def settlement_closure(recs, root):
-    """Root + descendants via prior edges (Warrant §9 scoping)."""
-    if root not in recs:
+    """Root + descendants via prior edges (Warrant §9 scoping). Only id-sound
+    records participate — an unsound `prior`-bridge must not extend the
+    closure, else a forged intermediate record makes a foreign adoption
+    reachable (Python was too permissive here; Go already gated on
+    soundRecord())."""
+    if _sound_body(recs.get(root), root) is None:
         return set()
     closure = {root}
     changed = True
@@ -218,7 +247,10 @@ def settlement_closure(recs, root):
         for rid, env in recs.items():
             if rid in closure:
                 continue
-            if any(p in closure for p in env.get("body", {}).get("prior", [])):
+            body = _sound_body(env, rid)
+            if body is None:
+                continue
+            if any(p in closure for p in body.get("prior", [])):
                 closure.add(rid)
                 changed = True
     return closure
@@ -712,6 +744,58 @@ def _scn_keystate_resolved(td):
     return trust, hx["h1"], None, True, "adopted by"
 
 
+def _scn_malformed_bridge_ignored(td):
+    # Codex P0 (F2): an id-unsound record (filename != sha256(canon(body)))
+    # must not extend the settlement closure. The successor adoption hangs off
+    # a forged bridge alone, so it stays unreachable — it would authorize only
+    # if the collector wrongly trusted a malformed shape as a graph node.
+    trust, hx = _fixture(td)
+    h2 = _successor_blob(td, hx)
+    bridge_body = {"warrant": "0.2", "decision": "accept",
+                   "subject": {"hash": "0" * 64, "note": "x"},
+                   "under": [], "because": [{"kind": "prose", "text": "x"}],
+                   "evidence": [], "actor": {"id": ACTORS[0]},
+                   "prior": [hx["wid1"]], "ts": 1783400000}
+    bad_rid = "f" * 64                    # deliberately != sha256(canon(body))
+    open(os.path.join(td, "records", bad_rid + ".json"), "w").write(
+        json.dumps({"body": bridge_body, "sigs": []}, indent=2, sort_keys=True))
+    _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [bad_rid],
+          [ACTORS[0], ACTORS[2]], note="adoption reachable only via forged bridge")
+    return trust, h2, hx["h1"], False, "no satisfying adoption"
+
+
+def _scn_noncanonical_blob_rejected(td):
+    # Codex P1 (F4): a non-canonical (pretty-printed) anchor-set blob, even if
+    # duly adopted 2-of-3, is not JCS and must be refused. Canonicality is a
+    # store invariant, not an implementation's whitespace preference — the
+    # blob no longer equals canon(doc), so parse rejects it.
+    trust, hx = _fixture(td)
+    doc = anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
+                          hx["root"], ancestor=hx["h1"])
+    pretty = json.dumps(doc, indent=2).encode()       # not canon(doc)
+    hp = sha256(pretty)
+    open(os.path.join(td, "blobs", hp), "wb").write(pretty)
+    _file(td, "accept", ACTORS[0], hp, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0], ACTORS[2]], note="adopt a non-canonical blob")
+    return trust, hp, hx["h1"], False, "missing or corrupt"
+
+
+def _scn_trailing_json_rejected(td):
+    # Codex P0 (F3): a blob carrying a second JSON value after the anchor-set
+    # object. Python's json.loads rejects trailing data; a lone Go Decode()
+    # accepted it, flipping the verdict across implementations. Both must
+    # refuse — trailing content is not a canonical blob.
+    trust, hx = _fixture(td)
+    doc = anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
+                          hx["root"], ancestor=hx["h1"])
+    trailing = canon(doc) + b" true"
+    hp = sha256(trailing)
+    open(os.path.join(td, "blobs", hp), "wb").write(trailing)
+    _file(td, "accept", ACTORS[0], hp, [hx["p1"], hx["t1"]], [hx["wid1"]],
+          [ACTORS[0], ACTORS[2]], note="adopt a blob with trailing JSON")
+    return trust, hp, hx["h1"], False, "missing or corrupt"
+
+
 SCENARIOS = [
     ("GV-GENESIS-ADOPTED", "2-of-3 genesis adoption authorizes", _scn_genesis_adopted),
     ("GV-SUCCESSION-ROTATED", "successor adopted under rotated policy (lineage hop)", _scn_succession_rotated),
@@ -730,6 +814,9 @@ SCENARIOS = [
     ("GV-KEYSTATE-UNQUORUMED", "unquorumed key-state under governance ignored (Warrant s5.1)", _scn_keystate_unquorumed),
     ("GV-KEYSTATE-QUORUM-REFUSED", "quorum-authorized key-state refuses to the warrant CLI", _scn_keystate_quorum_refused),
     ("GV-KEYSTATE-RESOLVED", "acknowledged rotation (resolved_key_state) proceeds, no deadlock (Gemini STANDARD-gate P0)", _scn_keystate_resolved),
+    ("GV-MALFORMED-BRIDGE-IGNORED", "id-unsound record cannot extend the settlement closure (Codex P0, Go parity)", _scn_malformed_bridge_ignored),
+    ("GV-NONCANONICAL-BLOB-REJECTED", "non-canonical (non-JCS) anchor-set blob is refused even if adopted (Codex P1)", _scn_noncanonical_blob_rejected),
+    ("GV-TRAILING-JSON-REJECTED", "blob with trailing JSON after the object is refused (Codex P0, Go EOF parity)", _scn_trailing_json_rejected),
 ]
 
 VEC_PATH = os.path.join(REPO, "tests", "spec_conformance", "governance_vectors.json")
@@ -857,8 +944,8 @@ def selftest():
     live = [s for s in sections if not s[1]]
     check("ANCHORS.txt parses (governed line of descent)",
           len(live) >= 1 and live[-1][0] == "v0.6.2")
-    check("current section is v0.6.5 with 10 anchors",
-          (live[0][0], len(live[0][2])), ("v0.6.5", 10))
+    check("current section is v0.6.6 with 10 anchors",
+          (live[0][0], len(live[0][2])), ("v0.6.6", 10))
     check("current anchor-set blob schema-valid",
           valid_anchor_set(anchor_set_blob(live[0][0], live[0][2], "a" * 64)))
 

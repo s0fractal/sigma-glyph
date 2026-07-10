@@ -1,8 +1,8 @@
 # Σ-GLYPH — GOV: GOVERNED ANCHORS
 
-**Version:** 1.0.1
+**Version:** 1.0.2
 **Type:** Specification-Anchor Governance (Warrant v0.3 profile)
-**Status:** STANDARD — the first STANDARD in the project. Adopted from ADR-007 (3-family blind gate + verification pass), promoted from DRAFT STANDARD by the v0.6.4 governed release after a second 3-family gate on the promotion itself (Gemini 3.1 Pro, GPT-5, DeepSeek v4 Pro, 2026-07-08 — verdict unanimous PROMOTE-WITH-AMENDMENTS; all P0/P1 integrated below). **1.0.1 (v0.6.5 bundle):** three §3 prose clarifications from the Kimi focused formal review — zero behavioral change (the reference verifier already behaves as each specifies, all 17 vectors unchanged), so a SemVer PATCH, not a new schema tag. Anchored in `spec/ANCHORS.txt` since v0.6.2. The document version is independent of the repo bundle version, per the ANCHORS bundle convention.
+**Status:** STANDARD — the first STANDARD in the project. Adopted from ADR-007 (3-family blind gate + verification pass), promoted from DRAFT STANDARD by the v0.6.4 governed release after a second 3-family gate on the promotion itself (Gemini 3.1 Pro, GPT-5, DeepSeek v4 Pro, 2026-07-08 — verdict unanimous PROMOTE-WITH-AMENDMENTS; all P0/P1 integrated below). **1.0.1 (v0.6.5 bundle):** three §3 prose clarifications from the Kimi focused formal review — zero behavioral change (the reference verifier already behaves as each specifies, all 17 vectors unchanged), so a SemVer PATCH, not a new schema tag. **1.0.2 (v0.6.6 bundle):** §3 steps 2–3 now spell out two invariants that §2 and Warrant §3 already mandated but the reference implementations under-enforced — JCS byte-canonicality of every blob/record on the wire, and id-soundness (`WarrantID == sha256(canon(body))`) as a precondition for closure reachability — plus rejection of trailing content after a JSON value. A verifier already conforming to §2/§3 rejected these inputs; the fix removes an implementation loophole (Python closure admitted id-unsound bridges; Go admitted trailing JSON; neither byte-checked canonicality). All 17 prior vectors are byte-identical; three adversarial vectors added (17 → 20). A SemVer PATCH, not a new schema tag — independently gated (DeepSeek v4 Pro + Gemini 3.1 Pro, both APPROVE-PATCH, 2026-07-10). Anchored in `spec/ANCHORS.txt` since v0.6.2. The document version is independent of the repo bundle version, per the ANCHORS bundle convention.
 **Normative dependencies (pinned — MUST):** a STANDARD MUST NOT rest on a moving target (promotion gate P1, 3/3). This profile is defined against **Warrant SPEC v0.3** exactly as pinned in [`proposals/refs/warrant-SPEC-v0.3-snapshot.md`] — content SHA-256 `73758bdb735912709a0b6280b6c6e8b32cd3f99e31004bee2bed147d9d87cd8e` — authoritative for settlement (§7), key state (§5.1) and multi-root stores (§9) as used here; and against **Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1** as anchored in this release (the anchor definition `NodeHash(LITERAL, SHA-256(bytes))` rides Book I's hashing). Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0).
 **Scope Guard (MUST):** this document governs which *bytes* constitute the anchored specification set. Nothing here changes reduction, serialization, hashing (Book I), the wave algebra (Book II) or federation semantics (Book III) — governance is meta to protocol. On conflict: Book I > Book II > Book III > this document. It is a **pure Warrant v0.3 profile**: zero changes to the Warrant format.
 **Placement rationale:** deliberately *not* a fourth Book (gate, 2:1) — the Books are protocol; this is the protocol text's constitution, and a Book governing Book-updates would judge itself. It still carries Book-grade conformance obligations (§7).
@@ -123,8 +123,18 @@ For candidate anchor-set blob B against trust config C and store S:
    anchor is weaker than signed git tags).
 2. **Schema + jurisdiction** — B schema-valid, `B.jurisdiction ==
    C.jurisdiction`; genesis omits `ancestor`, successors chain exactly.
+   **JCS-canonical on the wire (§2):** every blob and record body read from S
+   or C MUST be byte-identical to the canonicalization of its parsed value; a
+   verifier MUST reject any that is not — pretty-printed, duplicate-key,
+   non-minimal, or carrying trailing content after the JSON value — so no two
+   conforming verifiers diverge on whitespace or escape form (clarified GOV
+   1.0.2).
 3. **Settlement closure** — only warrants reachable from `C.jurisdiction`
-   via `prior` edges (Warrant §9 descendant closure) are eligible.
+   via `prior` edges (Warrant §9 descendant closure) are eligible. **Only
+   id-sound records are graph nodes:** a record whose filename WarrantID does
+   not equal `sha256(canon(body))` (Warrant §3) is not a warrant and MUST NOT
+   create reachability — a malformed intermediate record cannot bridge a
+   foreign adoption into the closure (clarified GOV 1.0.2).
 4. **Policy lineage** — the profile in force derives from
    `C.genesis_profile` by walking profile adoptions: an `accept` whose
    subject is a valid profile blob, whose `under` is exactly the current
@@ -167,9 +177,10 @@ The `release` string is advisory metadata only: authorization depends solely
 on jurisdiction, lineage, cardinality and quorum — never on the `release`
 label.
 
-Reference verifier: `tools/anchor_governance.py` (22-check deterministic
-selftest over 17 pinned scenarios incl. the rotation→refuse→acknowledge
-transition; `status --enforce` fails on any non-authorized state, so a
+Reference verifier: `tools/anchor_governance.py` (deterministic
+selftest over 20 pinned scenarios incl. the rotation→refuse→acknowledge
+transition and the id-soundness / JCS-canonicality / trailing-content refusals
+(GOV 1.0.2); `status --enforce` fails on any non-authorized state, so a
 deleted `.warrants/` cannot green a governed CI). Implementer note: the
 descendant closure is structural; signatures are re-verified only where they
 count toward a quorum (steps 4–7), not across the whole closure.
@@ -233,15 +244,17 @@ All four are met as of the STANDARD promotion (v0.6.4); each is a required
 CI gate:
 
 1. A reference verifier with a deterministic selftest — `tools/anchor_governance.py`
-   (22 checks; fixtures regenerate byte-identically). ✓
+   (deterministic selftest; fixtures regenerate byte-identically). ✓
 2. Pinned conformance vectors replayable by a second implementation —
-   `governance_vectors.json` (17 scenarios); negative fixtures MUST include
+   `governance_vectors.json` (20 scenarios); negative fixtures MUST include
    *unauthorized records in authorized positions* (e.g. `GV-HIJACK-MINTED-PAIR`,
-   `GV-KEYSTATE-UNAUTH-PROFILE`) and MUST include *state transitions*, not
-   only static states (`GV-KEYSTATE-RESOLVED` — the promotion gate P0 lesson).
+   `GV-KEYSTATE-UNAUTH-PROFILE`), *state transitions* not only static states
+   (`GV-KEYSTATE-RESOLVED` — the promotion gate P0 lesson), and *malformed
+   inputs in valid positions* (`GV-MALFORMED-BRIDGE-IGNORED`,
+   `GV-TRAILING-JSON-REJECTED`, `GV-NONCANONICAL-BLOB-REJECTED` — GOV 1.0.2).
    ✓
-3. A second independent implementation — `impl-go` `gov-replay` (17/17) with a
-   differential harness (24/24). This obligation gated leaving DRAFT; met. ✓
+3. A second independent implementation — `impl-go` `gov-replay` (20/20) with a
+   differential harness (27/27). This obligation gated leaving DRAFT; met. ✓
 4. CI: a governed repository MUST run the verifier with `--enforce` against an
    out-of-band trust config once the first adoption exists. ✓
 

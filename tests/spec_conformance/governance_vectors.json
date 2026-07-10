@@ -2643,6 +2643,479 @@
      "3253d46aad315c6050491d354f8815bfdaa5734072a8c029036e4405062974b4"
     ]
    }
+  },
+  {
+   "candidate": "66ec5cfd25bd499daa0cddbf9f4a4a6ae0fca4f5b55f5467fa35c948b17903de",
+   "description": "id-unsound record cannot extend the settlement closure (Codex P0, Go parity)",
+   "expected": {
+    "authorized": false,
+    "note": "no satisfying adoption"
+   },
+   "id": "GV-MALFORMED-BRIDGE-IGNORED",
+   "prior_set": "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d",
+   "store": {
+    "blobs": {
+     "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d": "7b227468726573686f6c64223a7b226163746f7273223a5b22666f756e6465724073306672616374616c222c226d6f64656c2d61407369676d612d676c797068222c226d6f64656c2d62407369676d612d676c797068225d2c226d696e5f73696773223a327d2c2277617272616e745f706f6c696379223a22302e33227d",
+     "66ec5cfd25bd499daa0cddbf9f4a4a6ae0fca4f5b55f5467fa35c948b17903de": "7b22616e636573746f72223a2238376565303164383233653764383861383863643665616234616439303861393933356330356331663262336433393361323665303364633866626131353064222c22616e63686f7273223a5b7b22616e63686f72223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c2270617468223a22737065632f626f6f6b2d312d74727574682e6d64227d5d2c22676f7665726e616e6365223a227369676d612d676c7970682e616e63686f722d736574407631222c226a7572697364696374696f6e223a2235373239366266623733666261666166323730353439636531323333613363633331393736356336333965333737643465336266666437633333666562383366222c2272656c65617365223a2276302e372e30227d",
+     "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c": "7b22676f7665726e616e63655f706f6c696379223a227369676d612d676c7970682e616e63686f722d676f7665726e616e6365407631222c2273636f7065223a22737065632f414e43484f52532e747874222c227468726573686f6c64223a2234666366666636386638666162333964373236396637373238376235363433386331376366653530333239353536316631653361643630616664303663323264227d",
+     "7c0664fd04f6f8509532bbcf64252fce9f536eba14ccdf633f07efe41502a474": "676f7665726e616e6365206a7572697364696374696f6e206d616e69666573746f",
+     "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d": "7b22616e63686f7273223a5b7b22616e63686f72223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c2270617468223a22737065632f626f6f6b2d312d74727574682e6d64227d5d2c22676f7665726e616e6365223a227369676d612d676c7970682e616e63686f722d736574407631222c226a7572697364696374696f6e223a2235373239366266623733666261666166323730353439636531323333613363633331393736356336333965333737643465336266666437633333666562383366222c2272656c65617365223a2276302e362e31227d"
+    },
+    "records": {
+     "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "governance genesis"
+        }
+       ],
+       "decision": "propose",
+       "evidence": [],
+       "prior": [],
+       "subject": {
+        "hash": "7c0664fd04f6f8509532bbcf64252fce9f536eba14ccdf633f07efe41502a474",
+        "note": "governance genesis"
+       },
+       "ts": 1783400000,
+       "under": [
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "67ea5bb15f7bb35133c393037149f0eaa6517bed2fb9ff383e17ecc30b081243e3cd664f627601cb1d0e46ac0f92ed06abdadc4ad945eed5d903756b91111f06"
+       }
+      ]
+     },
+     "cd6e3b584225f2ca30813e9aae50e47cfc138dcee805a200efd6b6c5394dcd15": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "adoption reachable only via forged bridge"
+        }
+       ],
+       "decision": "accept",
+       "evidence": [],
+       "prior": [
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+       ],
+       "subject": {
+        "hash": "66ec5cfd25bd499daa0cddbf9f4a4a6ae0fca4f5b55f5467fa35c948b17903de",
+        "note": "adoption reachable only via forged bridge"
+       },
+       "ts": 1783400000,
+       "under": [
+        "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "52424404c0f4b4101463b08d9a316955c29c2034dfd40e37c3371c35027bf2e7be8169e76c4708fabbc7a6bbb9cf9aa41a2ff3d399420fdd91f449f4bd863802"
+       },
+       {
+        "actor": "model-b@sigma-glyph",
+        "key": "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8",
+        "sig": "916eea07f8b56c860673b10cbc88b0c3ba2463365af99ed0de22526d2d0b0876d713fba220c107ebdeb6a71c4b28729c8f52005789e32ffff772d18ddf90c504"
+       }
+      ]
+     },
+     "e5371ccfc933e96049a8abe894554ffe39c9eddf4a1705df3507b46ed20e6bd3": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "adopt v0.6.1"
+        }
+       ],
+       "decision": "accept",
+       "evidence": [],
+       "prior": [
+        "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f"
+       ],
+       "subject": {
+        "hash": "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d",
+        "note": "adopt v0.6.1"
+       },
+       "ts": 1783400000,
+       "under": [
+        "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "cb16a1a8ab889400dbc5a9eb607dcafbf131e6a7803aa97a025459049ee7ea017729ffabb9c71ade296cbfc847bf48d6c4f97ce7cb509173d4365ae7771ef003"
+       },
+       {
+        "actor": "model-b@sigma-glyph",
+        "key": "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8",
+        "sig": "55f118f30342a48930ef2a3248d400416fa0df59cc0e316c3ed31692f90d8c288a20e2f78b9b7632a289a875ba14c7accade1635f7527173302811f319a1bf09"
+       }
+      ]
+     },
+     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "x"
+        }
+       ],
+       "decision": "accept",
+       "evidence": [],
+       "prior": [
+        "e5371ccfc933e96049a8abe894554ffe39c9eddf4a1705df3507b46ed20e6bd3"
+       ],
+       "subject": {
+        "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "note": "x"
+       },
+       "ts": 1783400000,
+       "under": [],
+       "warrant": "0.2"
+      },
+      "sigs": []
+     }
+    }
+   },
+   "trust": {
+    "actors": {
+     "founder@s0fractal": [
+      "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216"
+     ],
+     "model-a@sigma-glyph": [
+      "4e6230f946db68a4d4cb0b3dc45bd6e52f597335fc7e1a40c846b82c98cb29fb"
+     ],
+     "model-b@sigma-glyph": [
+      "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8"
+     ]
+    },
+    "genesis_profile": "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+    "governance_trust": "sigma-glyph.anchor-trust@v1",
+    "jurisdiction": "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f"
+   }
+  },
+  {
+   "candidate": "e19102c14bc8ca6779dd26e341398911016a7f2be4ad569cc5f8193c80d00024",
+   "description": "non-canonical (non-JCS) anchor-set blob is refused even if adopted (Codex P1)",
+   "expected": {
+    "authorized": false,
+    "note": "missing or corrupt"
+   },
+   "id": "GV-NONCANONICAL-BLOB-REJECTED",
+   "prior_set": "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d",
+   "store": {
+    "blobs": {
+     "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d": "7b227468726573686f6c64223a7b226163746f7273223a5b22666f756e6465724073306672616374616c222c226d6f64656c2d61407369676d612d676c797068222c226d6f64656c2d62407369676d612d676c797068225d2c226d696e5f73696773223a327d2c2277617272616e745f706f6c696379223a22302e33227d",
+     "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c": "7b22676f7665726e616e63655f706f6c696379223a227369676d612d676c7970682e616e63686f722d676f7665726e616e6365407631222c2273636f7065223a22737065632f414e43484f52532e747874222c227468726573686f6c64223a2234666366666636386638666162333964373236396637373238376235363433386331376366653530333239353536316631653361643630616664303663323264227d",
+     "7c0664fd04f6f8509532bbcf64252fce9f536eba14ccdf633f07efe41502a474": "676f7665726e616e6365206a7572697364696374696f6e206d616e69666573746f",
+     "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d": "7b22616e63686f7273223a5b7b22616e63686f72223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c2270617468223a22737065632f626f6f6b2d312d74727574682e6d64227d5d2c22676f7665726e616e6365223a227369676d612d676c7970682e616e63686f722d736574407631222c226a7572697364696374696f6e223a2235373239366266623733666261666166323730353439636531323333613363633331393736356336333965333737643465336266666437633333666562383366222c2272656c65617365223a2276302e362e31227d",
+     "e19102c14bc8ca6779dd26e341398911016a7f2be4ad569cc5f8193c80d00024": "7b0a202022676f7665726e616e6365223a20227369676d612d676c7970682e616e63686f722d736574407631222c0a2020226a7572697364696374696f6e223a202235373239366266623733666261666166323730353439636531323333613363633331393736356336333965333737643465336266666437633333666562383366222c0a20202272656c65617365223a202276302e372e30222c0a202022616e63686f7273223a205b0a202020207b0a2020202020202270617468223a2022737065632f626f6f6b2d312d74727574682e6d64222c0a20202020202022616e63686f72223a202262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262220a202020207d0a20205d2c0a202022616e636573746f72223a202238376565303164383233653764383861383863643665616234616439303861393933356330356331663262336433393361323665303364633866626131353064220a7d"
+    },
+    "records": {
+     "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "governance genesis"
+        }
+       ],
+       "decision": "propose",
+       "evidence": [],
+       "prior": [],
+       "subject": {
+        "hash": "7c0664fd04f6f8509532bbcf64252fce9f536eba14ccdf633f07efe41502a474",
+        "note": "governance genesis"
+       },
+       "ts": 1783400000,
+       "under": [
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "67ea5bb15f7bb35133c393037149f0eaa6517bed2fb9ff383e17ecc30b081243e3cd664f627601cb1d0e46ac0f92ed06abdadc4ad945eed5d903756b91111f06"
+       }
+      ]
+     },
+     "796c1f81e5fec65895e14820a227f1f34dd788fe8a72cfd1127cf8743cf84eeb": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "adopt a non-canonical blob"
+        }
+       ],
+       "decision": "accept",
+       "evidence": [],
+       "prior": [
+        "e5371ccfc933e96049a8abe894554ffe39c9eddf4a1705df3507b46ed20e6bd3"
+       ],
+       "subject": {
+        "hash": "e19102c14bc8ca6779dd26e341398911016a7f2be4ad569cc5f8193c80d00024",
+        "note": "adopt a non-canonical blob"
+       },
+       "ts": 1783400000,
+       "under": [
+        "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "960cfda40cf4968766d808d32f3c956e1ad75d7996fcdb4d9508c0d9e5dc3c6ac9fcd84ac126370395233c2c5666aa0127d301dd61efc1e32a495b6e4b403e07"
+       },
+       {
+        "actor": "model-b@sigma-glyph",
+        "key": "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8",
+        "sig": "2711a3679ec2e4358176403cfd649985d8f556ba8a93edbea30b6ad5b7c85bbde6262b967948fc69a4330b9f1411cad9fef7b119f6a75c4a81b8e0333327e103"
+       }
+      ]
+     },
+     "e5371ccfc933e96049a8abe894554ffe39c9eddf4a1705df3507b46ed20e6bd3": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "adopt v0.6.1"
+        }
+       ],
+       "decision": "accept",
+       "evidence": [],
+       "prior": [
+        "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f"
+       ],
+       "subject": {
+        "hash": "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d",
+        "note": "adopt v0.6.1"
+       },
+       "ts": 1783400000,
+       "under": [
+        "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "cb16a1a8ab889400dbc5a9eb607dcafbf131e6a7803aa97a025459049ee7ea017729ffabb9c71ade296cbfc847bf48d6c4f97ce7cb509173d4365ae7771ef003"
+       },
+       {
+        "actor": "model-b@sigma-glyph",
+        "key": "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8",
+        "sig": "55f118f30342a48930ef2a3248d400416fa0df59cc0e316c3ed31692f90d8c288a20e2f78b9b7632a289a875ba14c7accade1635f7527173302811f319a1bf09"
+       }
+      ]
+     }
+    }
+   },
+   "trust": {
+    "actors": {
+     "founder@s0fractal": [
+      "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216"
+     ],
+     "model-a@sigma-glyph": [
+      "4e6230f946db68a4d4cb0b3dc45bd6e52f597335fc7e1a40c846b82c98cb29fb"
+     ],
+     "model-b@sigma-glyph": [
+      "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8"
+     ]
+    },
+    "genesis_profile": "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+    "governance_trust": "sigma-glyph.anchor-trust@v1",
+    "jurisdiction": "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f"
+   }
+  },
+  {
+   "candidate": "0b7d57deface0ca4e2faf8d5f13296e406b428fdc317116f937f729e66997197",
+   "description": "blob with trailing JSON after the object is refused (Codex P0, Go EOF parity)",
+   "expected": {
+    "authorized": false,
+    "note": "missing or corrupt"
+   },
+   "id": "GV-TRAILING-JSON-REJECTED",
+   "prior_set": "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d",
+   "store": {
+    "blobs": {
+     "0b7d57deface0ca4e2faf8d5f13296e406b428fdc317116f937f729e66997197": "7b22616e636573746f72223a2238376565303164383233653764383861383863643665616234616439303861393933356330356331663262336433393361323665303364633866626131353064222c22616e63686f7273223a5b7b22616e63686f72223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c2270617468223a22737065632f626f6f6b2d312d74727574682e6d64227d5d2c22676f7665726e616e6365223a227369676d612d676c7970682e616e63686f722d736574407631222c226a7572697364696374696f6e223a2235373239366266623733666261666166323730353439636531323333613363633331393736356336333965333737643465336266666437633333666562383366222c2272656c65617365223a2276302e372e30227d2074727565",
+     "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d": "7b227468726573686f6c64223a7b226163746f7273223a5b22666f756e6465724073306672616374616c222c226d6f64656c2d61407369676d612d676c797068222c226d6f64656c2d62407369676d612d676c797068225d2c226d696e5f73696773223a327d2c2277617272616e745f706f6c696379223a22302e33227d",
+     "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c": "7b22676f7665726e616e63655f706f6c696379223a227369676d612d676c7970682e616e63686f722d676f7665726e616e6365407631222c2273636f7065223a22737065632f414e43484f52532e747874222c227468726573686f6c64223a2234666366666636386638666162333964373236396637373238376235363433386331376366653530333239353536316631653361643630616664303663323264227d",
+     "7c0664fd04f6f8509532bbcf64252fce9f536eba14ccdf633f07efe41502a474": "676f7665726e616e6365206a7572697364696374696f6e206d616e69666573746f",
+     "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d": "7b22616e63686f7273223a5b7b22616e63686f72223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c2270617468223a22737065632f626f6f6b2d312d74727574682e6d64227d5d2c22676f7665726e616e6365223a227369676d612d676c7970682e616e63686f722d736574407631222c226a7572697364696374696f6e223a2235373239366266623733666261666166323730353439636531323333613363633331393736356336333965333737643465336266666437633333666562383366222c2272656c65617365223a2276302e362e31227d"
+    },
+    "records": {
+     "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "governance genesis"
+        }
+       ],
+       "decision": "propose",
+       "evidence": [],
+       "prior": [],
+       "subject": {
+        "hash": "7c0664fd04f6f8509532bbcf64252fce9f536eba14ccdf633f07efe41502a474",
+        "note": "governance genesis"
+       },
+       "ts": 1783400000,
+       "under": [
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "67ea5bb15f7bb35133c393037149f0eaa6517bed2fb9ff383e17ecc30b081243e3cd664f627601cb1d0e46ac0f92ed06abdadc4ad945eed5d903756b91111f06"
+       }
+      ]
+     },
+     "beb23ef206e448f5ddaf3ab462eb244e079d64ef17cf34882fb4f248cd128502": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "adopt a blob with trailing JSON"
+        }
+       ],
+       "decision": "accept",
+       "evidence": [],
+       "prior": [
+        "e5371ccfc933e96049a8abe894554ffe39c9eddf4a1705df3507b46ed20e6bd3"
+       ],
+       "subject": {
+        "hash": "0b7d57deface0ca4e2faf8d5f13296e406b428fdc317116f937f729e66997197",
+        "note": "adopt a blob with trailing JSON"
+       },
+       "ts": 1783400000,
+       "under": [
+        "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "e3e06e8ad4217f8d292589ba9817fe0f362afd81670b027321b19617d1664b35adf2aaf2f96d8b7e3e60017059ba822c5be9e060fc1d56bd5a34824971ff160f"
+       },
+       {
+        "actor": "model-b@sigma-glyph",
+        "key": "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8",
+        "sig": "1c4f07c5580af64f7d4d300d5df2fc15849f7a0bb56aad6e246b14619bf14d5a1c85c454233e3e08c1e24171b2ceb8bd595371fa05f2ef79d6e49046dc2a8509"
+       }
+      ]
+     },
+     "e5371ccfc933e96049a8abe894554ffe39c9eddf4a1705df3507b46ed20e6bd3": {
+      "body": {
+       "actor": {
+        "id": "founder@s0fractal"
+       },
+       "because": [
+        {
+         "kind": "prose",
+         "text": "adopt v0.6.1"
+        }
+       ],
+       "decision": "accept",
+       "evidence": [],
+       "prior": [
+        "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f"
+       ],
+       "subject": {
+        "hash": "87ee01d823e7d88a88cd6eab4ad908a9935c05c1f2b3d393a26e03dc8fba150d",
+        "note": "adopt v0.6.1"
+       },
+       "ts": 1783400000,
+       "under": [
+        "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+        "4fcfff68f8fab39d7269f77287b56438c17cfe503295561f1e3ad60afd06c22d"
+       ],
+       "warrant": "0.2"
+      },
+      "sigs": [
+       {
+        "actor": "founder@s0fractal",
+        "key": "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216",
+        "sig": "cb16a1a8ab889400dbc5a9eb607dcafbf131e6a7803aa97a025459049ee7ea017729ffabb9c71ade296cbfc847bf48d6c4f97ce7cb509173d4365ae7771ef003"
+       },
+       {
+        "actor": "model-b@sigma-glyph",
+        "key": "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8",
+        "sig": "55f118f30342a48930ef2a3248d400416fa0df59cc0e316c3ed31692f90d8c288a20e2f78b9b7632a289a875ba14c7accade1635f7527173302811f319a1bf09"
+       }
+      ]
+     }
+    }
+   },
+   "trust": {
+    "actors": {
+     "founder@s0fractal": [
+      "7600ed54a741f89cb42fc84c45de9fd4e95ba1a00282d893be4f28c09d817216"
+     ],
+     "model-a@sigma-glyph": [
+      "4e6230f946db68a4d4cb0b3dc45bd6e52f597335fc7e1a40c846b82c98cb29fb"
+     ],
+     "model-b@sigma-glyph": [
+      "75c6b2d8dfefce693e03e42266d2014908542e2f287075505264b89f4baa3ad8"
+     ]
+    },
+    "genesis_profile": "6c66602332b48a78f9294c9eb9b922b9f867bde02fe5e5a6f658b58da2e9bb3c",
+    "governance_trust": "sigma-glyph.anchor-trust@v1",
+    "jurisdiction": "57296bfb73fbafaf270549ce1233a3cc319765c639e377d4e3bffd7c33feb83f"
+   }
   }
  ]
 }

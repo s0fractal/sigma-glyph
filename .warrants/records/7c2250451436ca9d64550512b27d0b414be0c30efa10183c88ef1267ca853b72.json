@@ -1,0 +1,40 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Successor of the v0.6.5 set 8cfc2c63. Conformance-hardening PATCH: GOV-anchors.md 1.0.1 -> 1.0.2, §3 steps 2-3 now spell out JCS byte-canonicality of every blob/record on the wire and closure id-soundness (a record is a graph node only if filename WarrantID == sha256(canon(body)), Warrant §3), plus rejection of trailing content after a JSON value — invariants §2 and Warrant §3 already mandated but the reference implementations under-enforced (Python settlement_closure admitted id-unsound bridges; Go parseJSONBlob admitted trailing JSON; neither byte-checked canonicality). Surfaced by an external Codex adversarial audit. All 17 prior governance vectors byte-identical; three adversarial vectors added (17 -> 20); Go gov-replay 20/20, differential 27/27, both implementations agree. Independently gated: DeepSeek v4 Pro + Gemini 3.1 Pro both APPROVE-PATCH (a conformance fix to already-normative text, not a @v2 mechanism change); codex CLI was unavailable (blocked by its vendor content filter on the repo security-testing vocabulary). Only GOV-anchors.md and governance_vectors.json anchors change. Filed by the maintainer; second roster signature pending — authorizes nothing until 2-of-3."
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "3e5f7f921992b9e3df2c14215f34ad73fc050ea0a1cdead14974305fe433a793"
+    ],
+    "subject": {
+      "hash": "95e736be86bc8b45975ad59f604f0c268ab46df293f176cf2fc5eee673eddde9",
+      "note": "ADOPT v0.6.6 anchor-set (GOV 1.0.2: JCS byte-canonicality + closure id-soundness + trailing-content refusal made explicit in §3; 3 adversarial vectors; independently gated conformance PATCH)"
+    },
+    "ts": 1783684175,
+    "under": [
+      "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c",
+      "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "684b787b51a902dc80c9c72e275fa0a4bb75767bcaf8c7a72ecc12f3b4ca965fb014dd3ea342c52a66e6232f87cb91a6297aed7317599a75dc9620a932c28e08"
+    },
+    {
+      "actor": "s0fractal@sigma-glyph",
+      "key": "a44c7a84b7ab91a2d5654ebd0647cbb3224551dce294c87255d3538e0fc39ca3",
+      "sig": "d79958347e360c4cd0ba017498382d70cc448611a8c927850767442e7c9c6be1706df1e00c8a183000f4c814a259dbc1cc51edbf0b11a45d583f607d61604f03"
+    }
+  ]
+}

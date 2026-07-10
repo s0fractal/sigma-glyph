@@ -1161,6 +1161,21 @@ func (s GovStore) parseJSONBlob(h string) any {
 	if err := dec.Decode(&v); err != nil {
 		return nil
 	}
+	// Reject trailing content after the first JSON value: a lone Decode()
+	// accepts "<object> true" that Python's json.loads() rejects, which flips
+	// authorization verdicts between the two implementations. A second decode
+	// must hit io.EOF (Python parity).
+	var rest json.RawMessage
+	if err := dec.Decode(&rest); err != io.EOF {
+		return nil
+	}
+	// Canonicality (RFC 8785 / JCS) is a store invariant: a blob addressed by
+	// sha256(canon(doc)) MUST equal canon(doc) on the wire. Demanding the raw
+	// bytes equal the re-canonicalization rejects pretty-printed, duplicate-key
+	// and non-minimal encodings (Python parity — parse_json_blob does the same).
+	if !bytes.Equal(jcs(v), b) {
+		return nil
+	}
 	return v
 }
 

@@ -15,9 +15,13 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 
 ---
 
-## Current: v0.5.0 (Breaking release, shipped 2026-07-05)
+## Milestone: v0.5.0 (Breaking release, shipped 2026-07-05)
 
-**Status:** DRAFT STANDARD.
+> Current repo bundle is **v0.6.6** (see README and `spec/ANCHORS.txt`); the
+> v0.5.0 entry below is retained as milestone history. Its "Known limitations"
+> were closed by the v0.6 Federation + Governance releases (see below).
+
+**Status:** DRAFT STANDARD (superseded by the v0.6.x line).
 
 **Scope:**
 - Book I (TRUTH) — bit-exact computational core: **hash-thunk machine** (lazy left-spine, ADR-003) with **size-priced ATP** under the hash-leaf model (ADR-001), genesis intrinsic I/K/S
@@ -34,9 +38,9 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 - Genesis axioms intrinsic (FALSE is a theorem, needs no intrinsic status)
 - `div_round_half_up` = round-half-away-from-zero (Book II §3; negative-tie wave vector pins it)
 
-**Known limitations:**
-- No federation/gossip protocol (wave sync is future work)
-- Wave annotation trust/reputation undefined (v0.6+)
+**Known limitations (both closed in v0.6):**
+- ~~No federation/gossip protocol (wave sync is future work)~~ → Book III shipped (v0.6.0)
+- ~~Wave annotation trust/reputation undefined~~ → selection policies + key-state via Warrant v0.3 (Book III)
 
 ---
 

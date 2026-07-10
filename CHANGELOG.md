@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.6 — GOV 1.0.2 (2026-07)
+
+Conformance-hardening **PATCH** from an external Codex adversarial audit of the anchor-governance verifier — three cross-implementation defects where a §2/Warrant-§3-conforming verifier should already have refused, but the reference implementations under-enforced. `spec/GOV-anchors.md` → v1.0.2 (§3 steps 2–3 spell out the invariants). **Not** a new schema `@v2` tag — all 17 prior governance vectors are byte-identical; only inputs the spec already forbade change verdict. Independently gated: **DeepSeek v4 Pro + Gemini 3.1 Pro, both APPROVE-PATCH** (§0 conformance-not-mechanism-change reasoning; codex CLI was unavailable — blocked by its vendor's cybersecurity content filter on the repo's own security-testing vocabulary).
+
+- **F2 (P0):** Python `settlement_closure()` admitted records reachable via `body.prior` without checking id-soundness (`sha256(canon(body)) == filename WarrantID`); Go already gated on `soundRecord()`. A malformed intermediate record could bridge a foreign adoption into the closure in Python only. Fixed with `_sound_body()` gating root + every hop → Go parity. Locked by `GV-MALFORMED-BRIDGE-IGNORED`.
+- **F3 (P0):** Go `parseJSONBlob()` decoded once and ignored trailing bytes (`<object> true` parsed in Go, rejected by Python's `json.loads`). Now requires `io.EOF` after the value. Locked by `GV-TRAILING-JSON-REJECTED`.
+- **F4 (P1):** neither implementation compared raw blob bytes to `canon(parsed)`, so a pretty-printed (non-JCS) blob authorized. Both now enforce byte-canonicality (also rejects duplicate-key / non-minimal encodings). Locked by `GV-NONCANONICAL-BLOB-REJECTED`. Book III (`sigma_federation.py`) canonicality is deferred to the settlement-integration layer (ROADMAP), since that oracle takes no raw bytes.
+- `governance_vectors.json` 17 → 20 scenarios; Go `gov-replay` 20/20; governance differential 27/27; all 17 originals byte-identical.
+- Tooling/docs (non-anchored): `tools/test-all.sh` reaches CI parity (freshness regen, Book III live demo, network-gated `status --enforce` + settlement Warrant CLI); README/ROADMAP drift corrected; `reviews/2026-07-codex-governance-hardening-response.md` (+ independent gate reviews). 
+- Governed adoption warrant, 2-of-3 signatures. Anchor set: `spec/GOV-anchors.md` and `tests/spec_conformance/governance_vectors.json` change; all other anchors carry over from v0.6.5.
+
 ## v0.6.5 — GOV 1.0.1 (2026-07)
 
 First **PATCH** through the governed-anchor process: `spec/GOV-anchors.md` → v1.0.1, three §3 prose clarifications from the Kimi focused formal review, **zero behavioral change** (the reference verifier already behaves as each specifies; all 17 governance vectors byte-identical) — a SemVer patch, not a new schema `@v2` tag. Proves the constitution's maintenance path handles routine clarity work, not only landmark releases.
