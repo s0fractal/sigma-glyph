@@ -3,7 +3,7 @@
   Σ-GLYPH — credibility-first landing page.
   Hand-written, zero dependencies, zero build step: a project whose core is
   "SHA-256 from scratch, no external crates" does not pull a toolchain to make
-  a brochure. Every command shown was actually run on v0.6.5; every pasted
+  a brochure. Every command shown was actually run on v0.6.6; every pasted
   output is real. Where a check runs only in CI (Lean), the command is shown
   without a fabricated result. If this page and the code disagree, the code
   wins — that rule is in the spec.
@@ -74,7 +74,7 @@
 
   <h1>Σ-GLYPH</h1>
   <p class="lede">Deterministic compute by content. The same term with the same budget yields the same result hash — on any machine, across conforming implementations.</p>
-  <p class="sub">A content-addressed SKI evaluation core with a bit-exact determinism guarantee. Integer-only, total, budgeted. <span style="color:var(--accent)">v0.6.5.</span></p>
+  <p class="sub">A content-addressed SKI evaluation core with a bit-exact determinism guarantee. Integer-only, total, budgeted. <span style="color:var(--accent)">v0.6.6.</span></p>
 
   <span class="formula">result_hash = eval(term_hash, atp)&nbsp;&nbsp;&nbsp;// deterministic · integer-only · total</span>
 
@@ -91,7 +91,7 @@ $ python3 impl/sigma_wave.py
 <span class="cmt"># Book III — selection-only annotation federation</span>
 $ python3 impl/sigma_federation.py
 <span class="out">FEDERATION: ALL PASS (37/37)</span></pre>
-  <p class="note">Outputs above are real, pasted from a v0.6.5 run. The reference implementation is pure standard-library Python.</p>
+  <p class="note">Outputs above are real, pasted from a v0.6.6 run. The reference implementation is pure standard-library Python.</p>
 
   <h3>Compute one thing</h3>
   <p><code>eval</code> is <em>total</em>: every term with every budget resolves to exactly one <em>canonical</em> outcome — a normal form, <code>ATP Exhausted</code>, or <code>Unresolved Reference</code>. A non-terminating term is not an error — it is a priced, canonical outcome. (A concrete implementation may additionally hit a local limit, e.g. stack depth, and raise a <em>non-canonical</em> resource fault; by design those are never part of the canonical result.) Work <em>and peak materialised size</em> are bounded by the budget (<code>size − 1 ≤ spent</code>, a proved invariant — see below).</p>
@@ -159,7 +159,8 @@ $ lean proofs/EvalMachine.lean &amp;&amp; python3 proofs/eval_bridge_check.py</p
  └ v0.6.2   founder  + maintainer
    └ v0.6.3   maintainer + codex     <span class="cmt"># first independent co-signature</span>
      └ v0.6.4   maintainer + codex   <span class="cmt"># constitution DRAFT -> STANDARD</span>
-       └ v0.6.5   maintainer + codex <span class="cmt"># GOV 1.0.0 -> 1.0.1, a governed patch</span></pre>
+       └ v0.6.5   maintainer + codex <span class="cmt"># GOV 1.0.0 -> 1.0.1, a governed patch</span>
+         └ v0.6.6   maintainer + founder <span class="cmt"># GOV 1.0.2, conformance hardening</span></pre>
 
   <h2>Machine-checked, and where the trust actually sits</h2>
   <ul>
