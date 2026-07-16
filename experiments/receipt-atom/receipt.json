@@ -1,0 +1,18 @@
+{
+  "body": {
+    "claim": "The governance conformance vectors replay ALL PASS (20/20) — the exact fact deepseek/gemini had to TRUST from a pasted transcript at the v0.6.6 §0 gate. This receipt lets a second node re-derive it instead of trusting the producer.",
+    "computation": {
+      "expect_substring": "GOVERNANCE-REPLAY: ALL PASS (20/20)",
+      "reexecute": "tools/anchor_governance.py replay <inputs/governance_vectors.json>"
+    },
+    "inputs": {
+      "governance_vectors.json": "2ab354b4ede71cc4d9a28429649761073c973a3a7ee0725e9e1f20c3315c2a30"
+    },
+    "producer": {
+      "id": "receipt-atom:demo-producer",
+      "key": "39e9ed618196f0bd905a80e001e543f872228fb95cd1e851a6149a578e1f6309"
+    },
+    "receipt": "sigma-glyph.verdict-receipt@v1"
+  },
+  "sig": "09792645ece9eec52f0e5d57d14d1240c05cce23dea20ff3e73c46da52c2f19ef0cabcf71323dd696319769bbe7ca81826d35cafded3e4c8022d3f7a0cb30300"
+}
