@@ -13,7 +13,7 @@ result_hash = eval(term_hash, atp)     // deterministic, integer-only, total
 
 | Document | Status | Contract between |
 |---|---|---|
-| [`spec/book-1-truth.md`](spec/book-1-truth.md) | Normative | **nodes** — everything two independent nodes need to agree on a result hash: canonical bytes, SHA-256 identity, SKI normal-order reduction, ATP totalization, resolution contract, canonical compiler profile C1 |
+| [`spec/book-1-truth.md`](spec/book-1-truth.md) (informative [EN](spec/book-1-truth.en.md)) | Normative | **nodes** — everything two independent nodes need to agree on a result hash: canonical bytes, SHA-256 identity, SKI normal-order reduction, ATP totalization, resolution contract, canonical compiler profile C1 |
 | [`spec/book-2-navigation.md`](spec/book-2-navigation.md) | Normative | **nodes** (annotation layer) — WaveVectorQ as detached annotation, pinned LUT (SHA-256 arbitrated), `interfere()` with the Law of Left Dominance, coordinate pins, Mass, CP-24 |
 | [`spec/book-3-federation.md`](spec/book-3-federation.md) | Normative | **jurisdictions** — annotation assertions as Warrant v0.3 records, machine-readable selection policies, ConflictSets that clients never merge, AnnotationViewID + assertion-set commitments, ten conformance criteria |
 | [`spec/LORE.md`](spec/LORE.md) | Non-normative | **humans & agents** — why the glyphs are named, why FALSE sits at 270°, why the wave left the hash, and what deliberately isn't here yet |
