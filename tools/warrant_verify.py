@@ -39,6 +39,11 @@ _ED25519_SMALL_ORDER = {bytes.fromhex(h) for h in (
     "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85",
     "0000000000000000000000000000000000000000000000000000000000000000",
     "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa",
+    # non-canonical sign-bit variants of the x=0 torsion points (y=1, y=p-1):
+    # current libs reject these at decode; blocklisted as defense-in-depth so a
+    # lenient third implementation cannot accept them (Gemini 3.1 Pro audit).
+    "0100000000000000000000000000000000000000000000000000000000000080",
+    "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 )}
 
 

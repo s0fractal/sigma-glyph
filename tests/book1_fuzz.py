@@ -99,22 +99,32 @@ def main():
     args = ap.parse_args()
     rng = random.Random(args.seed)
 
+    # A term that reaches normal form within EVAL_CAP has the SAME (result,
+    # spent) at any larger budget, so we can hand the engines a genuine uint32
+    # BOUNDARY budget (2^32-1) for it — exercising the exact integer-width path
+    # the Go/Rust evaluators must get right, which capping every atp at EVAL_CAP
+    # would blind the fuzzer to (Gemini 3.1 Pro audit, 2026-07).
+    atp_exhausted = sg.term_hash(("dis", sg.R_ATP)).hex()
+
     objects = {}
     vectors = []
     for i in range(args.terms):
         th, objs, store = build(rng)
         objects.update(objs)
         for atp in atp_grid(rng, th, store):
-            # atp capped at EVAL_CAP for the oracle call (eval is total; huge
-            # budgets that would materialize forever are meaningless to compare)
             eval_atp = min(atp, EVAL_CAP)
             r, spent = sg.eval_hash(th, eval_atp, store)
+            rh = sg.term_hash(r).hex()
+            terminated = rh != atp_exhausted
+            # emit the REAL atp when the term halts within EVAL_CAP (result valid
+            # for any atp >= spent); otherwise the capped value the oracle ran.
+            emit_atp = atp if (atp <= EVAL_CAP or terminated) else eval_atp
             vectors.append({
                 "id": f"FUZZ-{i}-{atp}",
                 "kind": "eval",
                 "term": th.hex(),
-                "atp": eval_atp,
-                "expected": {"result_hash": sg.term_hash(r).hex(), "atp_spent": spent},
+                "atp": emit_atp,
+                "expected": {"result_hash": rh, "atp_spent": spent},
             })
 
     # Reuse the pinned suite's metadata header so both engines' strict parsers
