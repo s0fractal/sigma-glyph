@@ -61,6 +61,30 @@ def sha256(b):
     return hashlib.sha256(b).hexdigest()
 
 
+# Reject small-order / non-canonical Ed25519 public keys (Warrant SPEC §5). A
+# small-order key lets an all-zero signature verify for a fraction of messages,
+# so it could spuriously count toward a governance quorum — and libraries
+# disagree on which such keys they accept, splitting two verifiers. Byte/integer
+# checks only, agreeing with the Warrant CLI. (Fable 5 review, 2026-07.)
+_ED25519_P = (1 << 255) - 19
+_ED25519_SMALL_ORDER = {bytes.fromhex(h) for h in (
+    "0100000000000000000000000000000000000000000000000000000000000000",
+    "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+    "0000000000000000000000000000000000000000000000000000000000000080",
+    "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+    "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+    "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa",
+)}
+
+
+def weak_ed25519_pubkey(raw):
+    if len(raw) != 32 or raw in _ED25519_SMALL_ORDER:
+        return True
+    return (int.from_bytes(raw, "little") & ((1 << 255) - 1)) >= _ED25519_P
+
+
 # ---------- ANCHORS.txt projection ----------
 
 def parse_anchors(path):
@@ -265,8 +289,10 @@ def counted_sigs(env, rid, threshold, trust_actors):
         if s.get("key") not in trust_actors.get(actor, []):
             continue
         try:
-            Ed25519PublicKey.from_public_bytes(
-                bytes.fromhex(s["key"])).verify(
+            key = bytes.fromhex(s["key"])
+            if weak_ed25519_pubkey(key):
+                continue
+            Ed25519PublicKey.from_public_bytes(key).verify(
                 bytes.fromhex(s["sig"]), bytes.fromhex(rid))
         except Exception:
             continue
