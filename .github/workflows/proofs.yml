@@ -29,3 +29,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 proofs/eval_bridge_check.py | tee /dev/stderr | grep -q "EVAL-BRIDGE: ALL AGREE"
+      - name: C1 compiler FV-preservation/closedness + differential bridge (Book I §6)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 proofs/c1_bridge_check.py | tee /dev/stderr | grep -q "C1-BRIDGE: ALL AGREE"

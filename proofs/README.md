@@ -128,6 +128,31 @@ Exhausted), R-S size-pricing, genesis-intrinsic, store-isolation and stuck
 forms. This is the empirical determinism/totality check: the total,
 budget-respecting Lean function IS the oracle on the whole pinned surface.
 
+## Book I §6 C1 compiler (`C1Compiler.lean`)
+
+The canonical λ→SKI compiler (Profile C1) is mechanized: `Lam`/`Ski` terms, the
+§6 bracket-abstraction `abstr` (A-1/A-2/A-3 **in order** — A-2 `x∉FV M → K M`
+before A-3), and `c1`. Theorems:
+
+- `mem_skiFv_abstr` — `A(x,·)` removes exactly `x` from the free variables;
+- `mem_skiFv_c1` — **C1 preserves free variables exactly**;
+- `c1_closed` — **a closed λ-term compiles to a variable-free SKI term**: the
+  reference's runtime "free variable escapes abstraction" guard can never fire
+  on closed input — a theorem, not a check. Determinism is definitional (`c1`
+  is a total pure function). §6/TV-10 pinned by `rfl` (`C1[λx.x]=⟨I⟩`,
+  `C1[λx.λy.x]=S(KK)I`).
+
+TCB: these are **fully kernel-checked** — `#print axioms` shows only `propext`,
+no `native_decide`, so the compiler in `Sha256`/wave `native_decide` facts is
+NOT in this front's trusted base.
+
+**Bridge** — `c1_bridge_check.py`: no-`sorry` guard + `lean` check, then a
+faithful transcription of the Lean `abstr`/`c1` is diffed against the oracle's
+`sigma_glyph.c1` on **3000 random closed λ-terms**, NodeHash-exact. (This bridge
+already earned its keep: it caught an A-2/A-3 ordering bug in the first draft of
+the Lean model — the oracle checks `x∉FV → K M` before the `S` rule for
+applications too, and the model didn't.) Run: `python3 proofs/c1_bridge_check.py`.
+
 ## Mechanization status
 
 The three ROADMAP formal-verification targets are covered — the Book I
