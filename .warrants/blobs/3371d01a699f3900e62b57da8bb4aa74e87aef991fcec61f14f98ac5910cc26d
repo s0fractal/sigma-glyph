@@ -1,0 +1,13 @@
+ok  python3 impl/sigma_glyph.py -> ALL PASS
+ok  python3 impl/sigma_wave.py -> WAVE: ALL PASS (30/30)
+ok  python3 impl/sigma_federation.py -> FEDERATION: ALL PASS (37/37)
+ok  python3 tests/federation_differential.py -> FEDERATION-DIFFERENTIAL: ALL AGREE (40/40)
+ok  python3 tests/governance_differential.py -> GOVERNANCE-DIFFERENTIAL: ALL AGREE (27/27)
+ok  python3 tools/anchor_governance.py selftest -> ANCHOR-GOVERNANCE: ALL PASS
+ok  python3 tools/warrant_verify.py -> records 48, blobs 158, roots ['14d413f2952b', '276b6f983900', 'a30bd20205cb'], errors 0
+ok  python3 tools/verify_anchors.py -> anchors verified
+ok  /Users/s0fractal/Projects/sigma-glyph/impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json -> RUST-CONFORMANCE: ALL PASS (49/49)
+ok  /Users/s0fractal/Projects/warrant/impl-go/warrant-go sigma-conformance tests/spec_conformance/vectors.json -> SIGMA CONFORMANCE: ALL PASS (33/33 eval)
+ok  book1_fuzz seed=1337 -> BOOK1-FUZZ: ALL AGREE (1280 vectors, 150 terms, python-oracle+rust+warrant-go) seed=1337
+ok  book1_fuzz seed=4242 -> BOOK1-FUZZ: ALL AGREE (1292 vectors, 150 terms, python-oracle+rust+warrant-go) seed=4242
+gemini audit sigma-side verified

@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "First external acceptance-gate audit of the architect-mode hardening (Gemini 3.1 Pro High via agy). Most findings were warrant-side (2 verifier crashes + a fuzzer blind spot, adjudicated there). Sigma-side: (1) the two Ed25519 tools (warrant_verify.py, anchor_governance.py) add the 2 non-canonical sign-bit torsion encodings the auditor named -- current libs already reject them at decode (verified 0/128 in Python AND Go), so belt-and-suspenders for a lenient third impl. (2) book1_fuzz previously capped every atp at EVAL_CAP, blinding the three-engine differential to the uint32 boundary; it now emits a genuine 2^32-1 budget for terms that halt within EVAL_CAP, so Python/Rust/warrant-go are all exercised at the integer boundary. Refuted findings (ATP force wrap, scalar-record crash) verified false. cmd@v1 re-runs all Book suites, both differentials, governance selftest, warrant_verify, anchors, Rust + warrant-go conformance, and the three-engine fuzzer (2 seeds); transcript pinned. Sibling adjudication filed in warrant as c321e5a7."
+      },
+      {
+        "check": "05ba8aa31b0bdb3a2860a9400418d828bb267cf9d83789229218a1396863a341",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "3371d01a699f3900e62b57da8bb4aa74e87aef991fcec61f14f98ac5910cc26d",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "09fad7f2e4c1cef645084d4d4ca6ad3c51302d5ba4d95564bde52718e57874a5"
+    ],
+    "prior": [
+      "49cdeec6d067c6e3320200c497a30f82f309c8c9add918a63165b22209183851"
+    ],
+    "subject": {
+      "hash": "a92ffffd3ed755ae6337c56a1933602fd2275f330831840e8b0a2c6d5932310b",
+      "note": "Gemini 3.1 Pro external audit (cross-repo): sigma tools get 2 non-canonical torsion keys as defense-in-depth; book1_fuzz now sends 2^32-1 budgets to all 3 Book I engines. Green."
+    },
+    "ts": 1784314130,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "9996dc3d24a1c648d5d1bb8b854605a689788127dca5032a5690351b6f3fea2c1ac16bc682ffd3513daed11a39ccdce97b10e168982f1b7f2b9eb50b5bffe905"
+    }
+  ]
+}
