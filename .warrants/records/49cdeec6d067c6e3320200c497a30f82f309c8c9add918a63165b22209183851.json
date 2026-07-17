@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Self-conducted Book I/GOV/Book III review at v0.6.6 (run-first: full suite re-run green before critique). TWO P0 found and fixed. P0-a warrant-go -- the third independent Book I evaluator -- truncated the R-S cost to uint32: 1+size(z) wraps at 2^32, making an unaffordable step look affordable and splitting warrant-go from the Python (bignum) and Rust (u64) impls; Book I s3.4 mandates ATP Exhausted for any step priced over 2^32-1. Fixed: cost in uint64, narrow only after the affordability check. P1 warrant-go carried a non-normative memory fence returning canonical DISSONANCE(ATP) on the size-1<=spent theorem -- if it ever fired (via the P0 wrap) it would launder an impl bug into a canonical outcome, which Book I s3.6 forbids; removed (Python/Rust have none). P0-b EVERY Ed25519 verifier in the federation (warrant PY+GO, sigma warrant_verify.py + anchor_governance.counted_sigs) accepted small-order/non-canonical public keys: an all-zero key lets an all-zero signature verify for ~17/64 messages under Python and ~16/64 under Go -- the mismatch is itself a consensus split, and without a keyring it binds a decision to any actor id. Fixed everywhere: reject the 8 canonical torsion encodings + non-canonical y>=p, byte/integer-only so all impls agree; roster keys unaffected, all real sigs still verify. P2 cross-repo co-sig skew documented (sigma insulated by the pinned 73758bdb Warrant SPEC snapshot). Fixes live in the warrant repo (d8350df) and here (tools). cmd@v1 check re-runs all Book suites + both differential harnesses + governance selftest + warrant_verify + anchors + Rust + warrant-go conformance; transcript pinned. Next: independent external audit of the ATP-boundary arithmetic and the Ed25519 blocklist completeness."
+      },
+      {
+        "check": "a9321216d9412823022bfd6c5bade81da7eba073cd22987d075c467ae668078d",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "9bcc0f4043defc5cb188a3a51784aa0f7f9cae77dc5acff25f17130a72de1c57",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "631ad4a385ccdeb4611d33f932304785d6d351d646b4a846123e6f371545fb2e",
+      "6b715124bd98351cef8682103be873e7e02381669a19c38e8856938551eaf8a5",
+      "eaa398efeb0f24d90e153e8948a6d58de35a97d9d921e1e9cd745500d0a42221"
+    ],
+    "subject": {
+      "hash": "0cdea380e2627c1d70647ff313eff711393185fb25678a9beb37dfaf966abcf5",
+      "note": "Fable 5 self-review v0.6.6: two P0 fixed -- warrant-go Book I R-S uint32 overflow (consensus split) and small-order Ed25519 keys accepted by every verifier; merges 3 review tips. Suites green."
+    },
+    "ts": 1784307946,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "5cb0ab31a96b1a60f1c1ec8b26fa800287a99461262b0252f419c5a533ae3633079b47d63905121be554203d28951416e5445b2c312b62b3f3536e0f1f365f0c"
+    }
+  ]
+}

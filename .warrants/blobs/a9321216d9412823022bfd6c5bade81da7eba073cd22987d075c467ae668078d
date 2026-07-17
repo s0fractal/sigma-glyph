@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Adjudication check: Fable 5 v0.6.6 review fixes (run from sigma-glyph root).
+Re-runs every Book suite, both differential harnesses, the governance verifier,
+the shipped warrant auditor, anchors, and the two external Book I impls (Rust +
+warrant-go). Exit 0 iff every gate passes."""
+import os, subprocess, sys
+root = os.getcwd()
+ok = True
+def gate(cmd, want, cwd=None):
+    global ok
+    p = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd or root)
+    last = p.stdout.strip().splitlines()[-1] if p.stdout.strip() else "(no output)"
+    good = p.returncode == 0 and want in p.stdout
+    print(f"{'ok ' if good else 'FAIL'} {' '.join(cmd)} -> {last}")
+    ok &= good
+gate(["python3","impl/sigma_glyph.py"], "ALL PASS")
+gate(["python3","impl/sigma_wave.py"], "WAVE: ALL PASS")
+gate(["python3","impl/sigma_federation.py"], "FEDERATION: ALL PASS")
+gate(["python3","tests/federation_differential.py"], "FEDERATION-DIFFERENTIAL: ALL AGREE")
+gate(["python3","tests/governance_differential.py"], "GOVERNANCE-DIFFERENTIAL: ALL AGREE")
+gate(["python3","tools/anchor_governance.py","selftest"], "ANCHOR-GOVERNANCE: ALL PASS")
+gate(["python3","tools/warrant_verify.py"], "errors 0")
+gate(["python3","tools/verify_anchors.py"], "anchors verified")
+rust = os.path.join(root,"impl-rs/target/release/book1")
+if os.path.exists(rust):
+    gate([rust,"conformance","tests/spec_conformance/vectors.json"], "RUST-CONFORMANCE: ALL PASS")
+wgo = os.path.expanduser("~/Projects/warrant/impl-go/warrant-go")
+if os.path.exists(wgo):
+    gate([wgo,"sigma-conformance","tests/spec_conformance/vectors.json"], "SIGMA CONFORMANCE: ALL PASS")
+print("fable5 v0.6.6 review fixes verified" if ok else "CHECK FAILED")
+sys.exit(0 if ok else 1)
