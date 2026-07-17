@@ -41,6 +41,23 @@ jobs:
             | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
           python3 tests/governance_differential.py \
             | tee /dev/stderr | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
+      - name: "Book I fourth engine: warrant-go ski@v1 conformance + three-way differential fuzzer (Python/Rust/warrant-go, pinned)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Symmetric to warrant's CI pinning sigma: pin warrant-go by commit so
+          # this gate is reproducible. Refresh deliberately when Book I changes.
+          git clone -q https://github.com/s0fractal/warrant /tmp/warrant
+          git -C /tmp/warrant checkout -q 0858b9da2c2b711b05e3405180a6a68800f86494
+          ( cd /tmp/warrant/impl-go && go build -o warrant-go . )
+          /tmp/warrant/impl-go/warrant-go sigma-conformance tests/spec_conformance/vectors.json \
+            | tee /dev/stderr | grep -q "SIGMA CONFORMANCE: ALL PASS"
+          for s in 1337 4242 20240717; do
+            RUST_BOOK1=./impl-rs/target/release/book1 \
+            WARRANT_GO=/tmp/warrant/impl-go/warrant-go \
+            python3 tests/book1_fuzz.py --terms 200 --seed "$s" \
+              | tee /dev/stderr | grep -q "BOOK1-FUZZ: ALL AGREE"
+          done
       - name: Conformance vectors are fresh (regenerate == no diff)
         run: |
           python3 tests/spec_conformance/generate.py
