@@ -818,7 +818,51 @@ func jcs(v any) []byte {
 	if err := enc.Encode(v); err != nil {
 		panic(err)
 	}
-	return bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	return unescapeLineSeparators(bytes.TrimSuffix(buf.Bytes(), []byte("\n")))
+}
+
+// unescapeLineSeparators rewrites the   and   escapes that Go's
+// encoding/json emits UNCONDITIONALLY (even with SetEscapeHTML(false)) back to
+// their raw UTF-8 bytes. RFC 8785 / JCS — the anchored canonicalization (spec/
+// GOV-anchors.md §2: "RFC 8785: sorted keys, no whitespace") — escapes only the
+// control characters U+0000..U+001F and the two mandatory characters (" and \);
+// U+2028/U+2029 are >= 0x20 and MUST appear raw, exactly as Python's
+// json.dumps(ensure_ascii=False) already emits them. Without this, a governance
+// record body carrying U+2028/U+2029 in a string field hashes to a DIFFERENT
+// WarrantID under Go than under the Python oracle, so the two implementations
+// would DISAGREE on id-soundness / canonicality — a federation-consensus split
+// (Kimi full-audit, 2026-07). Escape sequences are consumed atomically so a
+// literal "\\u2028" (an escaped backslash followed by the text u2028) is never
+// mis-read as the line-separator escape.
+func unescapeLineSeparators(b []byte) []byte {
+	if !bytes.Contains(b, []byte(`\u202`)) {
+		return b // fast path: nothing to rewrite
+	}
+	var out bytes.Buffer
+	out.Grow(len(b))
+	i := 0
+	for i < len(b) {
+		if b[i] == '\\' && i+1 < len(b) {
+			if b[i+1] == 'u' && i+5 < len(b) {
+				switch string(b[i+2 : i+6]) {
+				case "2028":
+					out.WriteRune('\u2028')
+				case "2029":
+					out.WriteRune('\u2029')
+				default:
+					out.Write(b[i : i+6]) // some other \uXXXX (e.g. a control char)
+				}
+				i += 6
+				continue
+			}
+			out.Write(b[i : i+2]) // \", \\, \n, \b, ... consumed as a unit
+			i += 2
+			continue
+		}
+		out.WriteByte(b[i])
+		i++
+	}
+	return out.Bytes()
 }
 
 func shaHex(b []byte) string {
