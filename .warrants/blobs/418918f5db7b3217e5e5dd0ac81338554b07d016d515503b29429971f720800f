@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Re-runnable cmd@v1 check for the Kimi K3 full-audit adjudication (sigma-glyph).
+# Proves the U+2028/U+2029 canon fix: Go jcs() now byte-agrees with the Python
+# oracle, the new unit test passes, and no differential regressed.
+set -euo pipefail
+python3 impl/sigma_glyph.py | tail -1 | grep -q "ALL PASS"
+( cd impl-go && go test ./... >/dev/null && echo "go test ok" )
+python3 tests/federation_differential.py  | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
+python3 tests/governance_differential.py  | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
+python3 tests/book1_fuzz.py               | grep -q "BOOK1-FUZZ: ALL AGREE"
+echo "PASS: Go jcs U+2028/U+2029 raw (matches Python/RFC8785); all differentials agree"

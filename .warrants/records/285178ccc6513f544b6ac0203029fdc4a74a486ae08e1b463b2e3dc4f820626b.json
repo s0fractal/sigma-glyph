@@ -1,0 +1,43 @@
+{
+  "body": {
+    "actor": {
+      "id": "claude-fable-5@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "Recovered from an interrupted Kimi Code multi-agent run (session_ccff46ce, 2026-07-18): the audit confirmed, but never wrote up or fixed, that Go jcs() over-escapes U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR). Go encoding/json emits them as the six-byte ASCII escapes even with SetEscapeHTML(false), while Python json.dumps(ensure_ascii=False) -- which is RFC 8785, the anchored canon per GOV-anchors.md sections 2 and 3 -- emits them raw. jcs() feeds the consensus-critical WarrantID / id-soundness / on-wire canonicality checks (soundRecord, keyStateUnderGovernance, parseJSONBlob), so a governance record body carrying either character hashes differently under Go than under the Python oracle: a federation-consensus split between conforming nodes. Latent only because no current vector contains those code points. Reproduced at the byte level (Go a\u2028b vs Python raw e2 80 a8). Python is RFC-correct; Go was the bug. Fixed in impl-go/main.go: jcs() routes the encoder output through unescapeLineSeparators, which rewrites the two escapes back to raw UTF-8; escape sequences are consumed atomically so a literal backslash-u2028 is never mis-rewritten, control chars stay escaped per RFC 8785, and a fast path keeps the common case allocation-free. Implementation fix only -- no anchored spec byte changes. Regression: impl-go/jcs_test.go, byte-exact vs the Python canon and confirmed to FAIL without the fix. No differential regressed. Adding a U+2028 governance VECTOR touches the anchored set and is queued for a 2-of-3 governed release alongside the Book III clarifications."
+      },
+      {
+        "check": "418918f5db7b3217e5e5dd0ac81338554b07d016d515503b29429971f720800f",
+        "kind": "check",
+        "runtime": "cmd@v1",
+        "transcript": "1e55658e9dfeeddc0fcbd858641fb7c4048cb37b4d7956bcf874abba2e1e18b0",
+        "verdict": "pass"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [
+      "2b224caf15920f0e38ad82c218d2b21e155d47553c4d98aa7176fe2bfb0b241a"
+    ],
+    "prior": [
+      "a0e516bf087203345e96ad576107e972cb1c9566afde02cbf2ac6a5a56f5a9db"
+    ],
+    "subject": {
+      "hash": "4be710f4b6c9e267386b33f94e6a78dc8aa03778cea26e540c49d9aad52624ea",
+      "note": "Kimi K3 full audit: fixed Go jcs() U+2028/U+2029 over-escaping (was a latent federation-consensus split vs the Python/RFC8785 canon). Impl fix only; no anchored spec bytes changed."
+    },
+    "ts": 1784461527,
+    "under": [
+      "db45b5fc1640e96b9b8bd6e9c0617e272f0812d2341fca9327e028d3aa04832b"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "b9db7e2a9c6cb14dd2a41f805ae562bb4005ffe5a3bf61ad121e03193868b0a3e130178a4da78244303d3bfb89a33e19fc03965f2c3ea438e0aba7c03dab0b0f"
+    }
+  ]
+}

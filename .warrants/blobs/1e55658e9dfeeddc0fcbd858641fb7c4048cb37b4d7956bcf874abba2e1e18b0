@@ -1,0 +1,2 @@
+go test ok
+PASS: Go jcs U+2028/U+2029 raw (matches Python/RFC8785); all differentials agree
