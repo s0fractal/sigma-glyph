@@ -12,17 +12,24 @@ non-portable human prose).
 
 Everything else is FAIL-CLOSED — "not verified" — so a broken or hostile producer
 can never be read as a pass:
-  * anything on stderr (human-text contamination);
-  * stdout that is not exactly one physical line / one JSON value (truncated or
-    multiple objects);
+  * any bytes on stderr (contamination — including whitespace);
+  * stdout that is not exactly one physical line / one JSON value (truncated,
+    multiple objects, or an extra blank line);
+  * output that is not valid UTF-8 (bounded rejection, not a decode traceback);
+  * duplicate JSON members at any level (``"ok":false,"ok":true`` is ambiguous);
   * a JSON value that is not an object, or whose ``report`` tag is not the exact
     version this consumer understands;
   * a top-level or finding field set that is not the documented schema;
+  * a grade that does not match the one requested (a settlement request answered
+    with a base report is a silent downgrade);
   * a self-inconsistent report (``ok != (errors == 0)``, or the finding levels do
     not match the error/warning counts);
   * an exit code that disagrees with ``ok``;
   * ``ok:false`` (verification failed, including a missing/uninitialised store
     under --store-mode).
+
+Invalid option combinations are rejected at the boundary before running the
+verifier: settlement without a trust config, or a trust config without settlement.
 
 Usage:
     warrant_gate.py [store] [--settlement --trust-config FILE]
@@ -75,19 +82,35 @@ def build_argv(cmd, store, settlement=False, trust_config=None):
     return cmd + ["--store", store] + verb          # Python: --store is global
 
 
-def check_report(stdout, stderr, returncode):
+def _reject_dups(pairs):
+    """object_pairs_hook that rejects duplicate members at EVERY nesting level.
+    Stock json.loads collapses `"ok":false,"ok":true` last-wins, so an ambiguous
+    report would pass the exact-field-set check — reject it as malformed instead
+    (Codex gate P1)."""
+    seen = set()
+    for k, _ in pairs:
+        if k in seen:
+            raise ValueError(f"duplicate JSON member {k!r}")
+        seen.add(k)
+    return dict(pairs)
+
+
+def check_report(stdout, stderr, returncode, expected_grade=None):
     """Pure fail-closed validation of the machine boundary. No subprocess, no I/O —
     so the exact contract can be tested against hostile synthetic output.
+    `expected_grade` (base|settlement), when given, MUST equal the report grade —
+    a producer that ignores --settlement and returns a base report is a downgrade.
     Returns (verified: bool, reason: str)."""
-    if stderr.strip() != "":
-        return False, "stderr contamination (verifier emitted human text)"
-    body = stdout.rstrip("\n")
-    if body == "" or "\n" in body:
+    if stderr != "":
+        return False, "stderr is not empty (verifier emitted extra output)"
+    # exactly ONE physical line: the JSON, plus at most a single trailing newline.
+    line = stdout[:-1] if stdout.endswith("\n") else stdout
+    if line == "" or "\n" in line:
         return False, "stdout is not exactly one physical JSON line"
     try:
-        rep = json.loads(stdout)
-    except ValueError:
-        return False, "stdout is not a single valid JSON value (truncated/garbage)"
+        rep = json.loads(stdout, object_pairs_hook=_reject_dups)
+    except ValueError as e:
+        return False, f"stdout is not a single unambiguous JSON value ({e})"
     if not isinstance(rep, dict):
         return False, "report is not a JSON object"
     if rep.get("report") != REPORT_TAG:
@@ -96,6 +119,8 @@ def check_report(stdout, stderr, returncode):
         return False, "report top-level field set is not the documented v0 schema"
     if rep["grade"] not in ("base", "settlement"):
         return False, f"unknown grade {rep['grade']!r}"
+    if expected_grade is not None and rep["grade"] != expected_grade:
+        return False, f"grade {rep['grade']!r} != requested {expected_grade!r} (downgrade?)"
     if type(rep["ok"]) is not bool:
         return False, "ok is not a bool"
     for k in ("records", "errors", "warnings"):
@@ -126,13 +151,29 @@ def check_report(stdout, stderr, returncode):
 
 
 def verify(store, settlement=False, trust_config=None, cmd=None, env=None):
+    # Reject ambiguous/unsafe option combinations at the boundary BEFORE running, so
+    # a requested control can never be silently dropped (Codex gate P1):
+    #  * settlement without a trust source is not a real settlement verification;
+    #  * a trust config without --settlement would be silently ignored by argv.
+    if settlement and not trust_config:
+        return False, "settlement requested without a trust config (not a real settlement verification)"
+    if trust_config and not settlement:
+        return False, "trust config given without --settlement (the option would be silently ignored)"
     cmd = cmd or default_warrant_cmd()
     argv = build_argv(cmd, store, settlement, trust_config)
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, env=env)
+        # capture BYTES: invalid UTF-8 must be a bounded rejection, not a decode
+        # traceback (Codex gate P2).
+        proc = subprocess.run(argv, capture_output=True, env=env)
     except OSError as e:
         return False, f"could not run verifier {argv[0]!r}: {e}"
-    return check_report(proc.stdout, proc.stderr, proc.returncode)
+    try:
+        stdout = proc.stdout.decode("utf-8")
+        stderr = proc.stderr.decode("utf-8")
+    except UnicodeDecodeError:
+        return False, "verifier output is not valid UTF-8"
+    expected = "settlement" if settlement else "base"
+    return check_report(stdout, stderr, proc.returncode, expected_grade=expected)
 
 
 def main():

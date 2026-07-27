@@ -83,7 +83,8 @@ jobs:
           # closed on anything else.
           curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/eb03cebad94d84d6077c18a36dd05e97fd653d9a/impl/warrant.py -o /tmp/warrant.py
           export WARRANT="python3 /tmp/warrant.py" WARRANT_PY=/tmp/warrant.py
-          SIGMA_GLYPH=impl python3 tools/warrant_gate.py .warrants
+          # ONE settlement gate: settlement grade already includes base integrity, so a
+          # single invocation binds both to one snapshot (no base/settlement TOCTOU).
           SIGMA_GLYPH=impl python3 tools/warrant_gate.py .warrants --settlement --trust-config trust-config.json
           # prove the connector's fail-closed contract (real + hostile countervectors)
           SIGMA_GLYPH=impl python3 tests/warrant_gate_test.py | tee /dev/stderr | grep -q "WARRANT-GATE: ALL PASS"

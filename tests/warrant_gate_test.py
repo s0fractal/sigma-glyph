@@ -146,15 +146,48 @@ def hostile_contract():
         ("records is a bool (JSON true)",
          '{"report":"warrant.verify-report@v0","grade":"base","ok":true,"records":true,'
          '"errors":0,"warnings":0,"findings":[]}\n', "", 0),
+        # Codex re-gate additions:
+        ("duplicate ok member (last-wins ambiguity)",
+         '{"report":"warrant.verify-report@v0","grade":"base","ok":false,"ok":true,'
+         '"records":0,"errors":0,"warnings":0,"findings":[]}\n', "", 0),
+        ("duplicate member inside a finding",
+         '{"report":"warrant.verify-report@v0","grade":"base","ok":false,"records":1,'
+         '"errors":1,"warnings":0,"findings":[{"level":"ERR","level":"WARN",'
+         '"subject":"x","message":"y"}]}\n', "", 1),
+        ("extra blank line after the object", GOOD + "\n", "", 0),
+        ("whitespace-only stderr", GOOD, "  \n", 0),
     ]
     for name, out, err, rc in cases:
         ok, reason = G.check_report(out, err, rc)
         check(f"[contract] {name} -> REJECTED", not ok, f"unexpectedly verified: {reason}")
 
+    # grade binding (Codex re-gate P1): a settlement REQUEST answered with a base
+    # report is a downgrade and must be rejected; a matching grade verifies.
+    ok, reason = G.check_report(GOOD, "", 0, expected_grade="settlement")
+    check("[contract] base report for a settlement request -> REJECTED (downgrade)",
+          not ok, f"unexpectedly verified: {reason}")
+    ok, reason = G.check_report(GOOD, "", 0, expected_grade="base")
+    check("[contract] matching grade verifies", ok, reason)
+
+
+def option_and_process():
+    """verify()-level boundary: invalid option combinations rejected before running,
+    and non-UTF-8 verifier output is a bounded rejection, not a traceback."""
+    ok, r = G.verify("/tmp/whatever", settlement=True, trust_config=None)
+    check("[combo] settlement without trust config -> REJECTED", not ok, r)
+    ok, r = G.verify("/tmp/whatever", settlement=False, trust_config="/tmp/t.json")
+    check("[combo] trust config without --settlement -> REJECTED", not ok, r)
+    # a fake verifier that emits invalid UTF-8 on stdout
+    fake = [sys.executable, "-c",
+            "import sys; sys.stdout.buffer.write(b'\\xff\\xfe not-utf8'); sys.exit(0)"]
+    ok, r = G.verify("store", cmd=fake)
+    check("[proc] invalid UTF-8 output -> bounded REJECTED", not ok, r)
+
 
 def main():
     real_integration()
     hostile_contract()
+    option_and_process()
     print()
     if FAILS:
         print(f"WARRANT-GATE: {len(FAILS)} FAIL(S): " + ", ".join(FAILS))
