@@ -88,10 +88,14 @@ jobs:
           # prints one line per vector and a vector id is free-form data.
           python3 tools/book1_coverage.py --selftest | tee /dev/stderr \
             | grep -q "BOOK1-COVERAGE: SELFTEST ALL PASS"
-          EXPECT="$(python3 tools/book1_coverage.py tests/spec_conformance/vectors.json)"
-          echo "expecting: $EXPECT"
-          /tmp/warrant/impl-go/warrant-go sigma-conformance tests/spec_conformance/vectors.json \
-            | tee /dev/stderr | grep -qxF "$EXPECT"
+          V=tests/spec_conformance/vectors.json
+          echo "expecting: $(python3 tools/book1_coverage.py "$V")"
+          # --check, not grep: the rule is POSITIONAL (the summary must be the
+          # transcript's last line) because a vector id may contain newlines and
+          # can otherwise forge a standalone line anywhere above it. pipefail
+          # binds the producer's own exit status into the same decision.
+          /tmp/warrant/impl-go/warrant-go sigma-conformance "$V" \
+            | tee /dev/stderr | python3 tools/book1_coverage.py --check "$V"
           for s in 1337 4242 20240717; do
             RUST_BOOK1=./impl-rs/target/release/book1 \
             WARRANT_GO=/tmp/warrant/impl-go/warrant-go \
