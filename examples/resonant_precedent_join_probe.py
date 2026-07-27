@@ -74,12 +74,44 @@ PROFILE_ANCHOR = "a9096dd245ab474cabc8811f1d452bb05489eddc3dc3d348e7ebd3d2497557
 RULESET_OBJ = {"anchor_set": ANCHOR_TAG, "books": sorted({BOOK_II, BOOK_III, PROFILE_ANCHOR})}
 WAVE_RULESET = sha_hex(jcs(RULESET_OBJ))
 
-# --- WRT-001 §8 re-execution budget (prototype) --------------------------------
-# Deterministic integer cost meter: +(1 + len(raw)) per blob resolved (the 1 =
-# resolution/digest, len = materialization). A citation commits check["budget"];
-# the local re-execution cap below mirrors ski@v1's SKI_REEXEC_MAX_ATP.
-WAVE_MAX_COST = 10_000_000
-_METER = {"cost": 0}
+# --- WRT-001 §8 re-execution budget (DRAFT framework prototype) ----------------
+# WRT-001 §8 is a DRAFT cost FRAMEWORK: it fixes the bootstrap (budget in the
+# reason, in hand before any blob work) and resource-completeness (selection is
+# metered + bounded), but the EXACT event trace (which scans run, caching, failed-
+# load charging, traversal order) is frozen only after authorized lifecycle/
+# key-state (Deferred item 2). This prototype therefore demonstrates the meter's
+# SHAPE, not final arithmetic: a PER-INVOCATION Meter (no mutable global) that
+# charges BEFORE each action and refuses one it cannot afford (stop-before-action),
+# with the dominant attacker-controlled cost -- CAS blob resolution + bytes --
+# fully metered. Per-record scan charges and the select() actor.id comparator are
+# part of the deferred exact trace and are only partially realized here.
+WAVE_MAX_COST = 10_000_000                              # mirrors ski@v1 SKI_REEXEC_MAX_ATP
+WAVE_MAX_CANDIDATES = 100_000                           # §8 profile bound on select()
+WAVE_MAX_ACTOR_ID_BYTES = 256                           # §8 profile bound on comparator
+
+
+class BudgetExhausted(Exception):
+    """Raised the instant a charge would exceed the ceiling -- BEFORE the work it
+    would pay for happens. Caught in verify_citation as `unverified`."""
+    def __init__(self, would_reach, ceiling):
+        super().__init__(f"cost would reach {would_reach} > ceiling {ceiling}")
+        self.would_reach, self.ceiling = would_reach, ceiling
+
+
+class Meter:
+    """Per-invocation §8 cost meter. `charge(n)` accrues n only if affordable, else
+    raises BudgetExhausted without accruing; `can(n)` is a non-mutating affordability
+    probe used to refuse an oversize blob before materializing it."""
+    def __init__(self, ceiling):
+        self.ceiling, self.cost = ceiling, 0
+
+    def charge(self, n):
+        if self.cost + n > self.ceiling:
+            raise BudgetExhausted(self.cost + n, self.ceiling)
+        self.cost += n
+
+    def can(self, n):
+        return self.cost + n <= self.ceiling
 
 
 def effective_active(sctx):
@@ -140,14 +172,25 @@ def _no_dupes(pairs):
 def _sorted_hex_set(x):
     return isinstance(x, list) and all(_is_hex64(i) for i in x) and list(x) == sorted(set(x))
 
-def load(store, h, validator):
+def load(store, h, validator, meter=None):
     if not _is_hex64(h):
         return None, "hash not hex64"
+    # WRT-001 §8 charge-before-action. (1) Resolution+digest is charged FIRST, so a
+    # missing/oversize blob still costs the attempt (Codex: "handle missing-blob
+    # cost"). (2) The byte read is bounded: an oversize blob is refused via can()
+    # BEFORE materializing it, so nothing over-ceiling is ever read into memory.
+    if meter is not None:
+        meter.charge(1)                                # resolution + digest
     p = store.blobs / h
     if not p.exists():
-        return None, "unresolved reference"
+        return None, "unresolved reference"            # resolution already charged
+    if meter is not None:
+        size = p.stat().st_size
+        if not meter.can(size):                        # oversize -> stop before read
+            raise BudgetExhausted(meter.cost + size, meter.ceiling)
     raw = p.read_bytes()
-    _METER["cost"] += 1 + len(raw)                      # WRT-001 §8: 1 + bytes read
+    if meter is not None:
+        meter.charge(len(raw))                         # materialization (affordable)
     if sha_hex(raw) != h:
         return None, "digest mismatch"
     try:
@@ -156,6 +199,8 @@ def load(store, h, validator):
         return None, "malformed/dup JSON"
     if jcs(obj) != raw:
         return None, "non-canonical bytes"
+    if meter is not None:
+        meter.charge(1)                                # closed-schema validation
     err = validator(obj)
     return (None, err) if err else (obj, None)
 
@@ -210,15 +255,17 @@ def v_entry(d):
                 "projection", "wave_assertion_warrant", "wave_assertion",
                 "index_view") if not _is_hex64(d[k])), None)
 def v_check(d):
-    base = {"check", "entry", "query_assertion", "threshold", "ruleset"}
-    if not isinstance(d, dict) or set(d) not in (base, base | {"budget"}):
+    # WRT-001 §8: budget is MANDATORY (was optional). A check without a committed
+    # ceiling has no re-execution bound -- reject it rather than metering nothing.
+    if not isinstance(d, dict) or set(d) != {
+            "check", "entry", "query_assertion", "threshold", "ruleset", "budget"}:
         return "check field set"
     if d["check"] != CHECK_TAG:
         return "check tag"
     if not (_is_hex64(d["entry"]) and _is_hex64(d["query_assertion"]) and _is_hex64(d["ruleset"])):
         return "check hashes"
-    if "budget" in d and not (isinstance(d["budget"], int) and not isinstance(d["budget"], bool)
-                              and 0 <= d["budget"] < (1 << 32)):
+    if not (isinstance(d["budget"], int) and not isinstance(d["budget"], bool)
+            and 0 <= d["budget"] < (1 << 32)):
         return "budget uint32"
     return None if _is_int16(d["threshold"]) else "threshold int16"
 
@@ -246,22 +293,44 @@ class _Ctx:
 
 
 # ---------- the runtime: derives its own snapshot; binds the ruleset ----------
-def verify_citation(check_hash, cw_wid, sctx, store, use_effective=True):
-    _METER["cost"] = 0                                  # WRT-001 §8: fresh cost meter
-    chk, e = load(store, check_hash, v_check)
+def verify_citation(check_hash, cw_wid, sctx, store, use_effective=True, reason_budget=None):
+    # WRT-001 §8 bootstrap: a STORED citation's ceiling is the reason budget -- in
+    # hand from the record body before any blob work -- so reading the check blob is
+    # already bounded. A genuine R0 query files no reason; its ephemeral ceiling is
+    # the pre-read cap until the check's committed budget is learned. The meter is
+    # PER-INVOCATION (no mutable global) and stops BEFORE any unaffordable action.
+    boot = (min(reason_budget, WAVE_MAX_COST)
+            if cw_wid is not None and reason_budget is not None else WAVE_MAX_COST)
+    meter = Meter(boot)
+    try:
+        return _verify_citation(check_hash, cw_wid, sctx, store,
+                                use_effective, reason_budget, meter)
+    except BudgetExhausted as ex:
+        return "unverified", f"budget exhausted ({ex})"
+
+
+def _verify_citation(check_hash, cw_wid, sctx, store, use_effective, reason_budget, meter):
+    chk, e = load(store, check_hash, v_check, meter)
     if e: return "unverified", f"check: {e}"
     # RULESET binds semantics: this runtime implements exactly one governed set
     if chk["ruleset"] != WAVE_RULESET:
         return "unverified", "unsupported ruleset (runtime binds one anchor-set)"
     # §8 over-cap: a committed budget beyond the local re-execution cap is
     # unaffordable to re-verify -> unverified (mirrors ski@v1 atp-over-cap).
-    if "budget" in chk and chk["budget"] > WAVE_MAX_COST:
+    if chk["budget"] > WAVE_MAX_COST:
         return "unverified", "budget exceeds re-execution cap"
-    _, e = load(store, chk["ruleset"], v_anchorset)
+    # §8 bootstrap match: the content-addressed check must repeat the reason's
+    # committed ceiling, so it cannot authenticate a bound different from the one
+    # that governed reading it. (A genuine query has no reason; it adopts check's.)
+    if cw_wid is not None and reason_budget is not None and chk["budget"] != reason_budget:
+        return "unverified", "budget mismatch (check != reason)"
+    # tighten the meter to the committed, now-consistent ceiling.
+    meter.ceiling = min(chk["budget"], WAVE_MAX_COST)
+    _, e = load(store, chk["ruleset"], v_anchorset, meter)
     if e: return "unverified", f"ruleset anchor: {e}"
-    entry, e = load(store, chk["entry"], v_entry)
+    entry, e = load(store, chk["entry"], v_entry, meter)
     if e: return "unverified", f"entry: {e}"
-    view, e = load(store, entry["index_view"], v_view)
+    view, e = load(store, entry["index_view"], v_view, meter)
     if e: return "unverified", f"view: {e}"
     if view["sigma_ruleset"] != chk["ruleset"]:
         return "unverified", "view ruleset != check ruleset"
@@ -296,19 +365,19 @@ def verify_citation(check_hash, cw_wid, sctx, store, use_effective=True):
         return "unverified", "jurisdiction not in genesis_roots"
     ctx = _Ctx(store, index)
 
-    c0, e = load(store, entry["projection"], v_projection)
+    c0, e = load(store, entry["projection"], v_projection, meter)
     if e: return "unverified", f"C0: {e}"
     if view["projection_profile"] != c0["profile"]:
         return "unverified", "C0 profile != view profile"
-    ppol, e = load(store, c0["profile"], v_ppolicy)
+    ppol, e = load(store, c0["profile"], v_ppolicy, meter)
     if e: return "unverified", f"projection policy: {e}"
     if c0["vocabulary"] != ppol["vocabulary"]:
         return "unverified", "C0 vocabulary != governed vocabulary"
-    _, e = load(store, ppol["vocabulary"], v_vocab)
+    _, e = load(store, ppol["vocabulary"], v_vocab, meter)
     if e: return "unverified", f"vocabulary anchor: {e}"
-    cited, e = load(store, entry["wave_assertion"], sf.validate_assertion)
+    cited, e = load(store, entry["wave_assertion"], sf.validate_assertion, meter)
     if e: return "unverified", f"cited: {e}"
-    query, e = load(store, chk["query_assertion"], sf.validate_assertion)
+    query, e = load(store, chk["query_assertion"], sf.validate_assertion, meter)
     if e: return "unverified", f"query: {e}"
 
     dw, pw, aw = entry["decision_warrant"], entry["projection_warrant"], entry["wave_assertion_warrant"]
@@ -328,8 +397,9 @@ def verify_citation(check_hash, cw_wid, sctx, store, use_effective=True):
         return "unverified", "projection under != [profile]"
     rivals = []
     for wid in ctx.active:
+        meter.charge(1)                                # §8: per active record examined
         h = ctx.subject_hash(wid)
-        cand, err = (load(store, h, v_projection) if h else (None, "x"))
+        cand, err = (load(store, h, v_projection, meter) if h else (None, "x"))
         if not err and cand["source_warrant"] == dw and cand["profile"] == c0["profile"]:
             rivals.append(wid)
     if rivals != [pw]:
@@ -344,25 +414,34 @@ def verify_citation(check_hash, cw_wid, sctx, store, use_effective=True):
         return "unverified", "assertion subject != assertion blob"
     if cited["jurisdiction"] != J:
         return "unverified", "cited jurisdiction != view jurisdiction"
-    selpol, e = load(store, view["wave_selection_policy"], sf.validate_policy)
+    selpol, e = load(store, view["wave_selection_policy"], sf.validate_policy, meter)
     if e: return "unverified", f"selection policy: {e}"
+    # §8 profile bound: selection cannot begin an unbounded scan even under a large
+    # budget. WAVE_MAX_CANDIDATES caps the set handed to Book III select(); over it
+    # is unverified, not a silent truncation. (WAVE_MAX_ACTOR_ID_BYTES + the per-
+    # comparison actor.id charge are part of the deferred exact trace, WRT-001 §8.)
     cands = []
     for wid in ctx.active:
+        meter.charge(1)                                # §8: per active record examined
         h = ctx.subject_hash(wid)
-        ab, err = (load(store, h, sf.validate_assertion) if h else (None, "x"))
+        ab, err = (load(store, h, sf.validate_assertion, meter) if h else (None, "x"))
         if err or ctx.decision(wid) != "accept":
             continue
-        cands.append({"warrant_id": wid, "actor": ctx.actor(wid), "ts": ctx.ts(wid), "assertion": ab})
+        aid = ctx.actor(wid)
+        if aid is not None and len(aid.encode()) > WAVE_MAX_ACTOR_ID_BYTES:
+            return "unverified", "selection bound exceeded (actor.id too long)"
+        meter.charge(1 + (len(aid.encode()) if aid is not None else 0))  # §8: candidate + comparator
+        cands.append({"warrant_id": wid, "actor": aid, "ts": ctx.ts(wid), "assertion": ab})
+        if len(cands) > WAVE_MAX_CANDIDATES:
+            return "unverified", "selection bound exceeded (too many candidates)"
     sel = sf.select(cands, selpol, J, cited["node"], view["epoch"])
     if sel["status"] != "selected" or sel["selected"]["warrant_id"] != aw:
         return "unverified", f"cited loses selection ({sel['status']})"
 
-    # §8 exhaustion: enforce the committed budget over the accrued cost. (Spec
-    # requires stopping mid-evaluation with bounded reads; this prototype meters
-    # the full cost and enforces at the end — same verdict on the exact/one-under
-    # boundary; the mid-way stop is the anti-DoS refinement a real runtime adds.)
-    if "budget" in chk and _METER["cost"] > chk["budget"]:
-        return "unverified", f"budget exhausted (cost={_METER['cost']} > budget={chk['budget']})"
+    # §8: no post-hoc exhaustion check -- the meter has already stopped BEFORE any
+    # unaffordable action above (charge()/can() raise BudgetExhausted, caught by
+    # verify_citation as "budget exhausted"). Reaching here means every step was
+    # affordable, so a verdict is emitted.
     coh = coherence(query["wave"], cited["wave"])
     return ("pass" if coh >= chk["threshold"] else "fail"), f"coherence={coh}"
 
@@ -408,7 +487,10 @@ def install_wave_runtime(W):
                     verdict = "unverified"             # FAIL-CLOSED, not a silent pass
                 else:
                     try:
-                        verdict, _ = verify_citation(r.get("check"), wid, sctx, store)
+                        # a real wave-version reason carries `budget`; the wrapper's
+                        # core-clean reason does not, so None falls back to check's.
+                        verdict, _ = verify_citation(r.get("check"), wid, sctx, store,
+                                                     reason_budget=r.get("budget"))
                     except Exception:
                         verdict = "unverified"
                 if verdict == "unverified" or verdict != r.get("verdict"):
@@ -555,10 +637,15 @@ def build(**o):
              "projection": c0_h, "wave_assertion_warrant": AW, "wave_assertion": cited_h,
              "index_view": o.get("index_view", view_h)}
     entry_h = put(entry)
+    # WRT-001 §8: budget is MANDATORY and lives in the REASON; the check blob
+    # repeats it. `reason_budget` is the ceiling a verifier has in hand from the
+    # record body BEFORE any blob work; `check_budget` (defaults equal) lets a
+    # vector force check != reason to exercise the "budget mismatch" path.
+    reason_budget = o.get("budget", WAVE_MAX_COST)
+    check_budget = o.get("check_budget", reason_budget)
     check = {"check": CHECK_TAG, "entry": entry_h, "query_assertion": query_h,
-             "threshold": o.get("threshold", 30000), "ruleset": o.get("check_ruleset", ruleset)}
-    if o.get("budget") is not None:                     # WRT-001 §8 committed ceiling
-        check["budget"] = o["budget"]
+             "threshold": o.get("threshold", 30000), "ruleset": o.get("check_ruleset", ruleset),
+             "budget": check_budget}
     check_h = put(check)
 
     borrower = None
@@ -575,7 +662,8 @@ def build(**o):
                               "verdict": o.get("claimed_verdict", "pass")}])
     n_records = len(list(store.records.glob("*.json")))
     return {"store": store, "trust": str(trust), "check_h": check_h, "CW": CW,
-            "universe": universe, "JUR": JUR, "borrower": borrower, "n_records": n_records}
+            "universe": universe, "JUR": JUR, "borrower": borrower, "n_records": n_records,
+            "budget": reason_budget}  # the reason's committed ceiling (see §8 bootstrap)
 
 
 def main():
@@ -656,41 +744,51 @@ def main():
 
     print("\n=== effective-records (P1-B): supersede lifecycle applied, not raw eligibility ===")
     fxs = build(supersede_cited=True)
-    v_sup = verify_citation(fxs["check_h"], fxs["CW"], W._settlement_context(fxs["store"], trust_config=fxs["trust"]), fxs["store"])
+    v_sup = verify_citation(fxs["check_h"], fxs["CW"], W._settlement_context(fxs["store"], trust_config=fxs["trust"]), fxs["store"], reason_budget=fxs["budget"])
     print(f"  superseded cited assertion -> {v_sup[0]} ({v_sup[1]})  (a replaced wave cannot be cited)")
     fxp = build(supersede_projection=True)
-    v_prj = verify_citation(fxp["check_h"], fxp["CW"], W._settlement_context(fxp["store"], trust_config=fxp["trust"]), fxp["store"])
+    v_prj = verify_citation(fxp["check_h"], fxp["CW"], W._settlement_context(fxp["store"], trust_config=fxp["trust"]), fxp["store"], reason_budget=fxp["budget"])
     print(f"  superseded projection + replacement -> {v_prj[0]} ({v_prj[1]})  (effective cardinality 1, not 2)")
     fxu = build(unauth_supersede=True)
-    v_un = verify_citation(fxu["check_h"], fxu["CW"], W._settlement_context(fxu["store"], trust_config=fxu["trust"]), fxu["store"])
+    v_un = verify_citation(fxu["check_h"], fxu["CW"], W._settlement_context(fxu["store"], trust_config=fxu["trust"]), fxu["store"], reason_budget=fxu["budget"])
     print(f"  ⚠ KNOWN-OPEN: FOREIGN actor supersede censors AW -> {v_un[0]} ({v_un[1]})")
     print(f"    (any self-signed actor can remove another's record; needs key-state authorization — deferred)")
 
-    print("\n=== WRT-001 §8 re-execution budget (deterministic cost meter) ===")
+    print("\n=== WRT-001 §8 re-execution budget (DRAFT cost framework) ===")
+    print("  §8 fixes bootstrap (budget-in-reason) + resource-completeness; exact")
+    print("  integers are deferred to post-item-2. This shows the meter SHAPE:")
+    print("  per-invocation, charge-BEFORE-action, stop on the first unaffordable step.")
     sc = lambda fx: W._settlement_context(fx["store"], trust_config=fx["trust"])
-    # learn the cost + determinism on ONE store, re-running BEFORE any rebuild
-    # (build() wipes the shared scratch, so hold no fixture across a build):
+    # observe the true cost with an explicit per-invocation Meter, re-running BEFORE
+    # any rebuild (build() wipes the shared scratch, so hold no fixture across build):
     fx = build(budget=WAVE_MAX_COST)
     ctx = sc(fx)
-    v1 = verify_citation(fx["check_h"], fx["CW"], ctx, fx["store"]); C = _METER["cost"]
-    verify_citation(fx["check_h"], fx["CW"], ctx, fx["store"]); C2 = _METER["cost"]
-    print(f"  happy citation cost = {C}  (verdict {v1[0]}); deterministic re-run: {C == C2}")
-    # boundary far from the digit-noise (budget is committed IN the check blob, so
-    # its width nudges the cost — exact equality is a fixed point; under/over is clean):
+    m1 = Meter(WAVE_MAX_COST)
+    v1 = _verify_citation(fx["check_h"], fx["CW"], ctx, fx["store"], True, fx["budget"], m1)
+    C = m1.cost
+    m2 = Meter(WAVE_MAX_COST)
+    _verify_citation(fx["check_h"], fx["CW"], ctx, fx["store"], True, fx["budget"], m2)
+    print(f"  happy citation cost = {C}  (verdict {v1[0]}); deterministic re-run: {C == m2.cost}")
+    # boundary far from the check-blob digit-noise (the committed budget's width
+    # nudges the blob size, so exact equality is a moving fixed point — deferred;
+    # under/over/cap/mismatch are clean and hold today):
     fu = build(budget=C // 2)
-    vu = verify_citation(fu["check_h"], fu["CW"], sc(fu), fu["store"])
+    vu = verify_citation(fu["check_h"], fu["CW"], sc(fu), fu["store"], reason_budget=fu["budget"])
     fo = build(budget=C * 2)
-    vo = verify_citation(fo["check_h"], fo["CW"], sc(fo), fo["store"])
+    vo = verify_citation(fo["check_h"], fo["CW"], sc(fo), fo["store"], reason_budget=fo["budget"])
     fc = build(budget=WAVE_MAX_COST + 1)
-    vc = verify_citation(fc["check_h"], fc["CW"], sc(fc), fc["store"])
-    print(f"  under-budget (C//2 = {C // 2}) -> {vu}")
+    vc = verify_citation(fc["check_h"], fc["CW"], sc(fc), fc["store"], reason_budget=fc["budget"])
+    fm = build(budget=WAVE_MAX_COST, check_budget=WAVE_MAX_COST - 1)
+    vm = verify_citation(fm["check_h"], fm["CW"], sc(fm), fm["store"], reason_budget=fm["budget"])
+    print(f"  under-budget (C//2 = {C // 2}) -> {vu}   (stop-before-action)")
     print(f"  over-budget  (C*2  = {C * 2}) -> {vo[0]} ({vo[1]})")
     print(f"  over local re-execution cap  -> {vc}")
+    print(f"  budget mismatch (check != reason) -> {vm}")
 
     print("\n=== binding edge (P2): a RESOLVABLE borrowed check on a non-citation subject ===")
     fxb = build(borrowed_resolvable=True)
     ctxb = W._settlement_context(fxb["store"], trust_config=fxb["trust"])
-    vb, whyb = verify_citation(fxb["check_h"], fxb["borrower"], ctxb, fxb["store"])
+    vb, whyb = verify_citation(fxb["check_h"], fxb["borrower"], ctxb, fxb["store"], reason_budget=fxb["budget"])
     print(f"  borrower (subject != entry, valid check) -> {vb}: {whyb}")
 
     print("\n=== negatives -> public verify_store MUST report >=1 error (active citation) ===")

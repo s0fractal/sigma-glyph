@@ -117,7 +117,9 @@ problem, isolated behind an executable structural bridge.
 The runtime is specified normatively in **[WRT-001](../../warrant/proposals/WRT-001-wave-v1-runtime.md)**.
 In brief: a Warrant `check` reason under a **new body version** (not a `RUNTIMES["0.2"]`
 extension — that would retroactively change 0.2 validity); a closed check blob
-`{check, entry, query_assertion, threshold, ruleset}`; **dispatched by
+`{check, entry, query_assertion, threshold, ruleset, budget}` with a **mandatory
+re-execution `budget`** that the reason carries and the check repeats (WRT-001
+§1/§8 bootstrap; a mismatch is `unverified`); **dispatched by
 `verify_store`** so the public error count includes wave outcomes; **fail-closed**
 on context failure; **one** settlement context; total over the byte domain;
 `unverified` → ERR for an active record. The `ruleset` binds one exact anchor-set
@@ -163,9 +165,12 @@ rank/authority); index is a set keyed by `(decision_warrant, projection_profile)
 6. **Total verifier, dispatched by `verify_store`** — no byte-domain input raises.
 7. **Digest authentication** — every blob load checks `sha256(raw)==hash`.
 8. **Non-retroactive version** — wave records live under a new body version only.
-9. **Live-head index, role-bound** — the index is `settlement_active_for(J)` minus
-   the current citation (bound by `citation.subject == check.entry`), derived from
-   the settlement context, never supplied; store growth stales a citation.
+9. **Mode-specific index, role-bound** — the candidate universe follows WRT-001
+   §6 (not restated here): **R0** ranks over `raw_active_for(J)`; **R1** (stored,
+   needs key-state) over `authorized_effective_active_for(J, checkpoint)` minus the
+   bound citation. In both, candidates are role-bound (`citation.subject ==
+   check.entry`) and derived from the settlement context, never supplied. Under the
+   implemented R0 query, store growth stales a citation.
 10. **Ruleset binds semantics** — one exact anchor-set selects the runtime (Book II/III governed; profile provisional).
 11. **Accept-gated**; **resolved anchors**; **serialization order ≠ semantics**.
 
@@ -177,9 +182,12 @@ unstable computation): (1) **real single-context verifier** (one context, one
 reporter, inside `verify_store` — not a wrapper); (2) **key-state → the R1
 authorized historical checkpoint**, moved *before* budget because a replayable
 claim is not closed without it; (3) **exact §7 fingerprint + tunnel closure**;
-(4) **externally governed profile anchor**; (5) **deterministic budget** — the
-four counters (canonical bytes read, WarrantIDs examined, assertion candidates,
-fixed per schema/digest check), not ATP verbatim, with exact/one-over vectors;
+(4) **externally governed profile anchor**; (5) **deterministic budget — a DRAFT
+cost framework** (WRT-001 §8): `budget` carried in the reason with a matching
+check field (bootstrap), a meter that charges `1 + bytes` per blob, `+1` per
+record examined, `+(1+idbytes)` per candidate comparison, `+1` per schema check,
+plus profile bounds on selection — with the *exact event trace* and exact-integer
+vectors frozen only after item 2 (key-state), not now;
 (6) **direct-R0 abstention vectors**; (7) **cross-implementation parity** (Go/Rust);
 (8) **governance adoption** (2-of-3 roster) with real signing keys, only after 1–7.
 
