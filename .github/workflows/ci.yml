@@ -1,5 +1,35 @@
 name: conformance
 on: [push, pull_request]
+
+# ONE pin of the sibling repo, for the whole workflow.
+#
+# Three steps below consume warrant artifacts — the Go evaluator, impl/warrant.py,
+# and the out-of-band anchor-trust config — and until now each carried its OWN
+# hard-coded commit. They had drifted to THREE DIFFERENT commits spanning
+# 2026-07-08 to 2026-07-27, so a single CI run tested this repo against a
+# historical composite of the sibling that never existed as a state. Nothing
+# reported it, because each step was individually green.
+#
+# A pin is still the right call — it is what makes the conformance gate
+# reproducible. But there must be exactly one, and it must be visible.
+#
+# WHAT THE PIN MEANS: a VERIFIED COMPATIBLE BASELINE — the warrant commit whose
+# consumed surfaces this repo has been checked against — not "warrant's latest".
+# Being behind HEAD is the normal state and is not a defect.
+#
+# REFRESH ONLY when a surface consumed here actually changes: the Book I
+# evaluator or its conformance behaviour, the verify-report boundary that
+# tools/warrant_gate.py reads, or the anchor-trust roster. Do NOT refresh because
+# `tools/x1_cross_repo.sh` reports drift — that report is context for a human,
+# never a trigger. Treating "behind HEAD" as the trigger is a ping-pong
+# generator: merging the pin bump moves this repo's HEAD, which obliges warrant
+# to bump in reply, forever, over commits that changed nothing either consumes.
+#
+# A refresh commit MUST cite the old and new sibling commits, name the consumed
+# surface that changed, and include the outputs run at the new pin.
+env:
+  WARRANT_PIN: 3972427688730e114507dc6fa14808eff8458fb5
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -45,13 +75,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Symmetric to warrant's CI pinning sigma: pin warrant-go by commit so
-          # this gate is reproducible. Refresh deliberately when Book I changes.
+          # Symmetric to warrant's CI pinning sigma. One pin for the whole
+          # workflow: $WARRANT_PIN, set at the top of this file.
           git clone -q https://github.com/s0fractal/warrant /tmp/warrant
-          git -C /tmp/warrant checkout -q 0858b9da2c2b711b05e3405180a6a68800f86494
+          git -C /tmp/warrant checkout -q "$WARRANT_PIN"
           ( cd /tmp/warrant/impl-go && go build -o warrant-go . )
-          /tmp/warrant/impl-go/warrant-go sigma-conformance tests/spec_conformance/vectors.json \
-            | tee /dev/stderr | grep -q "SIGMA CONFORMANCE: ALL PASS"
+          # Substring "ALL PASS" is what let this gate accept 33 of our 49
+          # vectors for weeks: warrant-go skipped the object and deserialize
+          # classes and still printed a success line. The expected summary is
+          # derived from OUR vector file and matched with -x, ANCHORED to a
+          # whole line -- a substring match is forgeable, because the producer
+          # prints one line per vector and a vector id is free-form data.
+          python3 tools/book1_coverage.py --selftest | tee /dev/stderr \
+            | grep -q "BOOK1-COVERAGE: SELFTEST ALL PASS"
+          V=tests/spec_conformance/vectors.json
+          echo "expecting: $(python3 tools/book1_coverage.py "$V")"
+          # --check, not grep: the rule is POSITIONAL (the summary must be the
+          # transcript's last line) because a vector id may contain newlines and
+          # can otherwise forge a standalone line anywhere above it. pipefail
+          # binds the producer's own exit status into the same decision.
+          /tmp/warrant/impl-go/warrant-go sigma-conformance "$V" \
+            | tee /dev/stderr | python3 tools/book1_coverage.py --check "$V"
           for s in 1337 4242 20240717; do
             RUST_BOOK1=./impl-rs/target/release/book1 \
             WARRANT_GO=/tmp/warrant/impl-go/warrant-go \
@@ -81,7 +125,7 @@ jobs:
           # connector (tools/warrant_gate.py) instead of parsing human text / raw exit
           # codes. The connector trusts ONLY the documented normative fields and fails
           # closed on anything else.
-          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/eb03cebad94d84d6077c18a36dd05e97fd653d9a/impl/warrant.py -o /tmp/warrant.py
+          curl -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/impl/warrant.py" -o /tmp/warrant.py
           export WARRANT="python3 /tmp/warrant.py" WARRANT_PY=/tmp/warrant.py
           # ONE settlement gate: settlement grade already includes base integrity, so a
           # single invocation binds both to one snapshot (no base/settlement TOCTOU).
@@ -94,7 +138,7 @@ jobs:
           set -euo pipefail
           python3 tools/anchor_governance.py selftest | tee /dev/stderr | grep -q "ANCHOR-GOVERNANCE: ALL PASS"
           python3 tools/anchor_governance.py replay | tee /dev/stderr | grep -q "GOVERNANCE-REPLAY: ALL PASS"
-          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/a4270f863f6bcee837f7ef0363536b7e6cdf5ee6/trust/sigma-glyph-anchor-trust.json -o /tmp/anchor-trust.json
+          curl -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" -o /tmp/anchor-trust.json
           python3 tools/anchor_governance.py status --enforce --trust-config /tmp/anchor-trust.json | tee /dev/stderr | grep -q "AUTHORIZED"
       - name: Two-jurisdictions federation demo (Book III live, real stores)
         shell: bash
