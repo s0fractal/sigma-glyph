@@ -72,12 +72,21 @@ jobs:
         run: python3 tests/spec_conformance/test_properties.py
       - name: Verify Specification Anchors
         run: python3 tools/verify_anchors.py
-      - name: Verify adjudication warrants (.warrants/, settlement-grade, incl. ski@v1 re-runs)
+      - name: Verify adjudication warrants via the warrant machine boundary (verify --store-mode --json)
         run: |
           python3 -m pip install --quiet cryptography
-          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/c038ce36b61445a5d82371975afd21d541e07752/impl/warrant.py -o /tmp/warrant.py
-          SIGMA_GLYPH=impl python3 /tmp/warrant.py verify
-          SIGMA_GLYPH=impl python3 /tmp/warrant.py verify --settlement --trust-config trust-config.json
+          # Pinned to the warrant commit that ships the machine boundary (verify
+          # --store-mode --json / warrant.verify-report@v0). We DOGFOOD that boundary:
+          # sigma-glyph consumes the structured report through the single fail-closed
+          # connector (tools/warrant_gate.py) instead of parsing human text / raw exit
+          # codes. The connector trusts ONLY the documented normative fields and fails
+          # closed on anything else.
+          curl -sfL https://raw.githubusercontent.com/s0fractal/warrant/eb03cebad94d84d6077c18a36dd05e97fd653d9a/impl/warrant.py -o /tmp/warrant.py
+          export WARRANT="python3 /tmp/warrant.py" WARRANT_PY=/tmp/warrant.py
+          SIGMA_GLYPH=impl python3 tools/warrant_gate.py .warrants
+          SIGMA_GLYPH=impl python3 tools/warrant_gate.py .warrants --settlement --trust-config trust-config.json
+          # prove the connector's fail-closed contract (real + hostile countervectors)
+          SIGMA_GLYPH=impl python3 tests/warrant_gate_test.py | tee /dev/stderr | grep -q "WARRANT-GATE: ALL PASS"
       - name: Anchor governance (GOV-anchors.md, ENFORCED — trust anchor fetched out-of-band from the warrant repo)
         shell: bash
         run: |
