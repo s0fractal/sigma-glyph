@@ -121,6 +121,114 @@ key-state via the warrant CLI).
 
 ---
 
+## Long-horizon North Star: exchange experience, not state
+
+The ecosystem should eventually let one digital entity receive an **episode of
+another entity's experience** rather than merely copy its terminal state,
+weights, cache, or verdict.
+
+Here, “experience” is an operational term, not a claim about phenomenal
+consciousness. It means a content-addressed, authority-aware decision episode
+whose relevant perspective can be reconstructed:
+
+- what was observed and what was not available;
+- the historical view, jurisdiction, policies, key-state, and resource bounds;
+- the alternatives that were considered or remained reachable;
+- the action or decision, its reasons and evidence;
+- the resulting observations, later challenges, and settlement history.
+
+The receiving machine does not become the source machine and does not obtain
+privileged access to an unknowable first-person interior. The target is
+**perspective-preserving third-person replay**: an observer can re-execute the
+source's declared transformation under the source's committed context, inspect
+why that path was available, and distinguish that reconstruction from its own
+interpretation.
+
+Two operations must remain separate and equally first-class:
+
+1. **Historical re-experiencing** — replay the episode under the exact committed
+   context that existed then. The original must never be silently repaired by
+   later knowledge.
+2. **Contemporary reinterpretation** — replay the same immutable episode under a
+   new view, policy, or body of evidence. The new result is a new,
+   content-addressed interpretation, not a rewrite of the old experience.
+
+This direction composes the ecosystem rather than assigning the whole problem
+to one repository:
+
+- **Warrant** carries provenance, authority, lifecycle, key-state, checkpoints,
+  reasons, and the right to treat an episode as admissible.
+- **OAIP** projects heterogeneous observations and decisions into an explicit
+  shared semantic interface without pretending that the projection is the
+  source itself.
+- **Σ-GLYPH** supplies bounded executable structure, wave/navigation semantics,
+  sovereign views, explicit divergence, and eventually resonant precedent:
+  discovering which prior experience is relevant to the present context.
+
+### Invariants for every step toward this North Star
+
+- **No verdict laundering.** A copied answer without its executable context is
+  evidence at most, never transferred experience.
+- **No retrospective identity.** Replaying a perspective is not becoming its
+  author; similarity of outcome is not identity of subject.
+- **No silent context merge.** Historical and contemporary views, and distinct
+  jurisdictions, stay separately named even when they agree.
+- **Causal legibility before narrative plausibility.** Every claimed dependency
+  must bind to authenticated bytes or be explicitly marked unavailable,
+  projected, or inferred.
+- **Bounded stranger re-execution.** An episode received from an untrusted peer
+  must be total and deterministically resource-bounded before it is safe to
+  “re-live”.
+- **Authority and privacy survive transfer.** Replayability does not imply that
+  every observation may be disclosed; selective revelation and revocation
+  boundaries are part of the experience contract.
+- **Counterfactuals do not rewrite history.** Alternative replays branch from a
+  committed episode and remain distinguishable from what actually settled.
+
+### Research progression
+
+1. Define a minimal cross-project **experience/decision-episode profile** and
+   identify which context dependencies must be committed versus explicitly
+   absent.
+2. Produce one hermetic historical episode that replays byte-identically in two
+   independent implementations.
+3. Reinterpret that same episode under a new governed view and emit a canonical
+   explanation of what changed, while preserving the historical result.
+4. Exchange episodes between sovereign peers and demonstrate useful learning
+   from precedent without sharing model state or collapsing jurisdictions.
+5. Add selective-disclosure or proof-carrying profiles so a peer can verify the
+   relevant causal structure without receiving every private observation.
+
+The decisive gate is not “did the second machine copy the first machine's
+answer?” It is: **did it acquire a portable, inspectable episode that it can
+faithfully replay in the old context, honestly reinterpret in a new one, and
+cite without erasing either perspective?**
+
+### Relation to the near-term wedge (so this stays tethered)
+
+This North Star is **not a pivot away from** the near-term product — it is the
+same object seen at full extension. The immediate, fundable capability is
+*action provenance for regulated agents*: a verifiable record of what an agent
+decided, under whose authority, on what evidence, that a third party can
+re-check. A "decision episode that replays under its committed context" **is**
+that provenance record — just with its context made complete enough to replay,
+not only to audit. So every step earns its keep at the wedge first: the
+episode/decision profile is a richer Warrant reason; historical replay is
+settlement re-verification; selective disclosure is the privacy story
+compliance already asks for. If a North-Star step does not also strengthen the
+verifier-first wedge, it waits. The mission constrains the roadmap; it does not
+license scope that the near-term product cannot justify.
+
+**Status:** philosophical and architectural direction, NON-NORMATIVE. Every
+wire format, runtime, authority rule, privacy rule, and use of the word
+“causal” still requires its own ADR, adversarial countervectors, reference
+implementation, and governance adoption.
+
+Method note: [Compositional Countervectors — from metaphor to engineering
+method](docs/compositional-countervectors.md).
+
+---
+
 ### Provable Computation Layer (ZK / SNARK)
 
 **Motivation:** `eval(h, ATP)` is deterministic → amenable to SNARKs. A ZK-friendly circuit for SKI reduction would enable verifiable compute.

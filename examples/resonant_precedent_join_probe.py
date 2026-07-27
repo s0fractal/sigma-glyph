@@ -177,20 +177,27 @@ def load(store, h, validator, meter=None):
         return None, "hash not hex64"
     # WRT-001 §8 charge-before-action. (1) Resolution+digest is charged FIRST, so a
     # missing/oversize blob still costs the attempt (Codex: "handle missing-blob
-    # cost"). (2) The byte read is bounded: an oversize blob is refused via can()
-    # BEFORE materializing it, so nothing over-ceiling is ever read into memory.
+    # cost"). (2) The byte read is bounded WITHOUT a stat/read TOCTOU: the earlier
+    # `size = p.stat().st_size; ... p.read_bytes()` shape is itself a compositional
+    # countervector (docs/compositional-countervectors.md §5.2/§6) -- stat sees a
+    # small file, a concurrent writer swaps in a huge one, read materializes past
+    # the ceiling before the digest check ever runs. Instead we read at most
+    # `remaining` bytes from a SINGLE handle and probe one byte to classify
+    # oversize, so a crafted/racing blob can never materialize unboundedly.
     if meter is not None:
         meter.charge(1)                                # resolution + digest
     p = store.blobs / h
     if not p.exists():
         return None, "unresolved reference"            # resolution already charged
-    if meter is not None:
-        size = p.stat().st_size
-        if not meter.can(size):                        # oversize -> stop before read
-            raise BudgetExhausted(meter.cost + size, meter.ceiling)
-    raw = p.read_bytes()
-    if meter is not None:
-        meter.charge(len(raw))                         # materialization (affordable)
+    if meter is None:
+        raw = p.read_bytes()
+    else:
+        remaining = meter.ceiling - meter.cost         # affordable bytes (>= 0)
+        with p.open("rb") as f:
+            raw = f.read(remaining)                     # never more than remaining
+            if f.read(1):                               # content beyond remaining
+                raise BudgetExhausted(meter.cost + remaining + 1, meter.ceiling)
+        meter.charge(len(raw))                          # materialization (<= remaining)
     if sha_hex(raw) != h:
         return None, "digest mismatch"
     try:
