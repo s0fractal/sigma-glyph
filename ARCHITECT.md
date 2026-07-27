@@ -32,12 +32,49 @@ an external audit returns 0×P0/P1.
 | S3 | Put **warrant-go** (independent Book I impl) into sigma's own CI as a conformance gate | CI job runs `warrant-go sigma-conformance` on every push | **done** (pinned by commit, in CI) |
 | S1 | Extend Lean → **C1 compiler** (serialization/hash canonicality was already done in `MachineBytes.lean` — my review overstated the gap) | `C1Compiler.lean`: FV-preservation + closed→var-free, kernel-checked (propext-only) + 3000-case oracle bridge | **done** |
 | S4 | ATP-boundary: the cost arithmetic never wraps at `uint32` budgets | Lean `evalHash_spent_le` (`spent ≤ atp`, over ℕ — wrap is unrepresentable in the model) + `book1_fuzz` sends genuine `2³²-1` budgets to all 3 engines + Go R-S in `uint64` | **done** (no new artifact: the semantic proof already existed; an executable wrap vector is infeasible, needs ~2³² ATP) |
-| X1 | Combined CI: Book III verified against a live warrant store, so cross-repo coupling regressions surface | CI job across both repos | todo |
+| X1 | Combined CI: Book III verified against a live warrant store, so cross-repo coupling regressions surface | CI job across both repos | **done** (`tools/x1_cross_repo.sh` + `x1_negative_control.sh` + workflow, mirrored byte-identically in warrant; 11 crossings HEAD-vs-HEAD, 2 effective negative controls per direction) |
 
 **Explicitly NOT doing** (anti-gold-plating): rewriting Book II/III for
 elegance, new features, marketing, or spec prose without a vector behind it.
 
 ## Progress log
+
+- **2026-07-27 — X1 shipped (cross-repo coupling gate), and it found that our
+  own cross-implementation gate was covering 33 of 49 vectors.**
+  `tools/x1_cross_repo.sh` + `tools/x1_negative_control.sh` +
+  `.github/workflows/x1-cross-repo.yml`, mirrored **byte-identically** in
+  `warrant` (X1 checks that mirror itself — section E). Eleven crossings run
+  **HEAD against HEAD**: warrant-go over our Book I vectors; the three-way
+  `book1_fuzz`; our `.warrants` through warrant's `verify --store-mode --json`
+  with the closed-schema contract asserted rather than just `ok`; our own
+  `warrant_gate.py` connector; warrant's `ski@v1` conformance with our HEAD as
+  oracle; warrant-go's own conformance; the anchor-trust roster against our
+  `trust-config.json`; our anchors; and mirror integrity.
+  **Motivation, measured:** our CI pinned *three different* warrant commits at
+  once (07-08 / 07-17 / 07-27) while warrant pinned us at `01a1def` (07-05), so
+  each repo tested a fractured historical composite of the other and nothing ran
+  HEAD vs HEAD. The pins stay as the reproducibility gate; X1 is the canary.
+  **What this cost us to learn:** S3 records "warrant-go in our CI as a
+  conformance gate" as done. It was — but `warrant-go sigma-conformance` silently
+  skipped every vector with `kind != "eval"`, i.e. our 8 `object` and 8
+  `deserialize` vectors, and still printed `ALL PASS`. So the claim "three
+  independent implementations agree on every vector" (ARCHITECT §2, and the
+  README) held over the eval subset only; the §4.1 byte-rejection class — where
+  independent implementations diverge most — was never executed by the third
+  implementation. warrant-go now runs all three classes and treats an unknown
+  `kind` as a failure rather than a skip, matching
+  `tests/spec_conformance/run_reference.py`; it passes **49/49**. The gap was
+  coverage, not divergence — but a coverage claim nobody checks is how a
+  divergence would have arrived unnoticed.
+  Found by X1's negative control, which itself had to be corrected twice before
+  it was worth anything (it first tampered a file absent on one side and went
+  green having tested nothing; then it went red at the wrong step). Controls now
+  name the step they must turn red and hard-error when they have nothing to
+  tamper.
+  **Scope, honestly:** X1 is a REGRESSION gate — it runs suites and hunts no
+  counter-vectors, so it is necessary and never sufficient and is not an
+  independent gate under the Decision Process. Authored by an assisting agent
+  (Claude); **not independently reviewed**.
 
 - **2026-07-17 — S1 shipped (Lean C1 compiler).** `proofs/C1Compiler.lean`
   mechanizes the §6 λ→SKI compiler and proves FV-preservation (`mem_skiFv_c1`)
