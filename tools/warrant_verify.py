@@ -97,9 +97,30 @@ def main():
                 Ed25519PublicKey.from_public_bytes(key).verify(
                     bytes.fromhex(s["sig"]), bytes.fromhex(rid))
             except Exception:
-                errs.append(f"{rid[:12]}: bad signature by {s.get('actor')}")
+                # SEVERITY DIVERGES FROM THE LIVE CLI, DELIBERATELY AND VISIBLY.
+                # Warrant SPEC v0.3 s6(3) makes an invalid signature a WARNING
+                # that is excluded, and errs only if no valid signature by
+                # body.actor.id remains -- so one bad co-signature cannot be used
+                # to invalidate someone else's good record. This tool is pinned to
+                # the v0.1/v0.2 snapshot governed by GOV-anchors, where any bad
+                # signature is fatal. Demonstrated 2026-07-29: on one store with a
+                # single forged co-signature this reports errors=1 and the live
+                # CLI reports 0 errors, 56 warnings.
+                #
+                # Two auditors of one store disagreeing is the exact thing this
+                # project exists to forbid, so the disagreement is printed rather
+                # than left for a reader to discover as a contradiction.
+                errs.append(
+                    f"{rid[:12]}: bad signature by {s.get('actor')} "
+                    f"[pinned v0.1/v0.2 severity: fatal. Warrant SPEC v0.3 s6(3) "
+                    f"would report this as a WARNING and exclude the signature, "
+                    f"erroring only if no valid signature by the record's actor "
+                    f"remained. Re-check with the live CLI before acting on it.]")
     for e in errs:
         print("ERR ", e)
+    print("scope: pinned Warrant v0.1/v0.2 body checks; settlement-grade v0.3 "
+          "(key state, thresholds, tunnels) lives in the full CLI. Signature "
+          "severity differs from v0.3 -- see the note on any bad-signature line.")
     print(f"records {len(records)}, blobs {len(blobs)}, "
           f"roots {[r[:12] for r in roots]}, errors {len(errs)}"
           + ("" if HAVE_ED25519 else " (signatures NOT checked: no 'cryptography')"))
