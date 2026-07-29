@@ -37,6 +37,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
+      # Mirrored from warrant (X1 enforces byte-identity of shared tooling).
+      # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
+      # it demands instead that every citation be accounted for in the committed
+      # MAP.md. Cite a document nobody has located and this fails.
+      - name: Reference map (every cited document is located in MAP.md)
+        run: python3 tools/repo_map.py --check-map
       - name: Reference test vectors (Book I, hash-thunk machine)
         run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
       - name: Book I third implementation (Rust) + conformance differential
