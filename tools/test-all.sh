@@ -8,6 +8,17 @@ cd "$(dirname "$0")/.."
 
 say() { printf '\n=== %s ===\n' "$1"; }
 
+# A skipped surface is not a passed one. This script printed ALL GREEN and exited
+# 0 after skipping the Lean bridges, or the two network-dependent parity checks,
+# so `tools/test-all.sh && echo verified` reported success on a machine where the
+# proofs were never checked. Demonstrated 2026-07-29 by forcing the lean branch to
+# its else arm: "(skipping Lean bridges...)" followed by "ALL GREEN", exit 0.
+#
+# Skips are now counted and named in the verdict, and the exit status says so.
+# ALLOW_SKIPS=1 is how an operator states the gap was accepted on purpose.
+SKIPPED=""
+skip() { SKIPPED="$SKIPPED  - $1"$'\n'; printf '\n(skipping: %s)\n' "$1"; }
+
 say "Book I / II / III oracles"
 python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
 python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
@@ -76,7 +87,7 @@ if curl -sfL "$RAW/$TRUST_REV/trust/sigma-glyph-anchor-trust.json" \
   python3 tools/anchor_governance.py status --enforce \
     --trust-config "$_freshdir/anchor-trust.json" | tee /dev/stderr | grep -q "AUTHORIZED"
 else
-  echo "(skipping: out-of-band anchor trust not reachable — run online for full parity)"
+  skip "out-of-band anchor trust not reachable — run online for full parity"
 fi
 
 say "Settlement-grade adjudication warrants (Warrant CLI, incl. ski@v1 re-runs)"
@@ -84,7 +95,7 @@ if curl -sfL "$RAW/$WARRANT_REV/impl/warrant.py" -o "$_freshdir/warrant.py" 2>/d
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify --settlement --trust-config trust-config.json
 else
-  echo "(skipping: Warrant CLI not reachable — run online for full parity)"
+  skip "Warrant CLI not reachable — run online for full parity"
 fi
 
 # Lean proofs + bridges run only where `lean` is installed (heavy toolchain).
@@ -94,7 +105,16 @@ if command -v lean >/dev/null 2>&1; then
     python3 "proofs/$b.py" | tee /dev/stderr | grep -qE "HOLD|ALL AGREE"
   done
 else
-  printf '\n(skipping Lean bridges: `lean` not on PATH — install elan to include them)\n'
+  skip "Lean bridges: \`lean\` not on PATH — install elan to include them"
 fi
 
-printf '\nTEST-ALL: ALL GREEN\n'
+if [ -n "$SKIPPED" ]; then
+  printf '\nTEST-ALL: NOT COMPLETE — these surfaces were not checked:\n%s' "$SKIPPED"
+  if [ "${ALLOW_SKIPS:-0}" = "1" ]; then
+    printf 'ALLOW_SKIPS=1: the gap above was accepted deliberately.\n'
+    exit 0
+  fi
+  printf 'A skipped surface is not a passed one. Set ALLOW_SKIPS=1 to accept it.\n'
+  exit 2
+fi
+printf '\nTEST-ALL: ALL GREEN\n' 

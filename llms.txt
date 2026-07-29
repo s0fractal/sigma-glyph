@@ -26,6 +26,18 @@ computation safe by construction.
 ## Check anything in one command
 
 ```bash
+tools/test-all.sh                               # everything, one verdict
+```
+
+A surface that could not be checked — no `lean` on PATH, no network for the
+cross-repo parity pulls — is named in the verdict and exits 2, never ALL GREEN.
+Until 2026-07-29 it printed ALL GREEN and exited 0 after skipping, so
+`tools/test-all.sh && echo verified` succeeded on a machine where the Lean
+bridges were never run. `ALLOW_SKIPS=1` is how you say the gap was deliberate.
+
+Individual pieces:
+
+```bash
 python3 impl/sigma_glyph.py                     # ALL PASS            (Book I)
 python3 impl/sigma_wave.py                      # WAVE: ALL PASS      (Book II)
 python3 impl/sigma_federation.py                # FEDERATION: ALL PASS (Book III)
@@ -76,3 +88,27 @@ defect — have been submitted here by three separate reviewers.
   that on the line where it matters.
 - [ROADMAP.md](ROADMAP.md), [archive/](archive/): prior eras kept verbatim. Old
   hashes stay valid artefacts of their era; dirty history is provenance.
+
+## Where the honest gaps are
+
+- **`native_decide` is in the trusted base.** Part of the Lean chain rests on it
+  transitively, so those theorems trust the compiler as well as the kernel.
+  `C1Compiler.lean` does not.
+- **CI checks `SizeBound.lean` directly**; the rest of the proofs reach CI
+  through the differential bridges rather than as kernel checks of their own.
+- **The pinned auditor disagrees with the live CLI on signature severity.**
+  `tools/warrant_verify.py` is pinned to a governed Warrant v0.1/v0.2 snapshot
+  where any bad signature is fatal; SPEC v0.3 §6(3) makes it a warning and
+  excludes the signature. Demonstrated: one store, one forged co-signature, this
+  tool says errors=1 and the live CLI says 0 errors, 56 warnings. The tool prints
+  the divergence on the line where it fires. A re-pin belongs to a §7 gate.
+- **Book III accepts a JCS-equivalent but non-canonical assertion blob.**
+  `sigma_federation.py` does not compare raw bytes against `canon(parsed)`; the
+  v0.6.6 governance fix covered the governance verifier only. Deferred to the
+  settlement-integration layer, which is the layer now being built.
+- **ADR-008 is not on `master`** and not in `spec/ANCHORS.txt`. It lives on
+  `adr-008-rev15-candidate`, is cited from `warrant`, and all fifteen of its
+  gate rounds came from one reviewer family.
+- **No independent gate is currently affordable**, so work lands with the
+  attestation described in warrant's `policies/gate-settlement.json` rather than
+  with a passed gate.
