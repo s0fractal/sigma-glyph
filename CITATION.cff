@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+title: "Sigma-GLYPH: a portable deterministic check engine with size-priced budgets"
+abstract: >-
+  A content-addressed computation core: send a term by hash with a budget, and any
+  machine returns the same result hash — deterministic, integer-only, total, with
+  no clock and no network. One budget prices both work and peak memory, so
+  re-running a stranger's computation is safe by construction. Determinism,
+  totality and the memory bound are mechanised in Lean 4; three independent
+  implementations agree on every conformance vector. A wave/coordinate layer sits
+  above as a view over identity and never as part of it.
+message: "If you use or evaluate this work, please cite it."
+type: software
+license: MIT
+repository-code: "https://github.com/s0fractal/sigma-glyph"
+url: "https://github.com/s0fractal/sigma-glyph"
+authors:
+  - given-names: Serhii
+    family-names: Glova
+    alias: s0fractal
+keywords:
+  - content-addressed computation
+  - combinatory logic
+  - SKI
+  - deterministic evaluation
+  - resource bounds
+  - Lean 4
+  - formal verification
+references:
+  - type: software
+    title: "Warrant: signed, hash-addressed decision records for AI agents"
+    repository-code: "https://github.com/s0fractal/warrant"
+    notes: >-
+      Consumes Book I as the ski@v1 check runtime, and supplies the Warrant v0.3
+      record format that Book III federation and GOV-anchors are profiles of.

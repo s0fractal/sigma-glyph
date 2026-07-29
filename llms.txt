@@ -89,6 +89,12 @@ defect — have been submitted here by three separate reviewers.
 - [ROADMAP.md](ROADMAP.md), [archive/](archive/): prior eras kept verbatim. Old
   hashes stay valid artefacts of their era; dirty history is provenance.
 
+## Reporting a defect
+
+[SECURITY.md](SECURITY.md) — scope, documented limits that are not defects, and
+the severity ladder (P0 = two nodes disagree on a result hash, or the wave layer
+touches identity). Response capacity is stated rather than implied.
+
 ## Where the honest gaps are
 
 - **`native_decide` is in the trusted base.** Part of the Lean chain rests on it
