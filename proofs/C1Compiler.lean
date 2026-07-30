@@ -120,13 +120,19 @@ theorem c1_closed (t : Lam) (h : ∀ z, z ∉ fv t) : ∀ z, z ∉ skiFv (c1 t) 
   intro z hz
   exact h z ((mem_skiFv_c1 z t).mp hz)
 
-/-- §6 / TV-10 pinned concretely: `C1[λx.x] = ⟨I⟩`. -/
-example : c1 (.lam "x" (.var "x")) = .I := rfl
+/-- §6 / TV-10 pinned concretely: `C1[λx.x] = ⟨I⟩`.
+
+These two pins were anonymous `example`s until a 2026-07 second-round review
+pointed out that an anonymous declaration can never be `#print axioms`'d or
+reached by the guard's environment query — a falsified pin passed the bridge.
+They are named theorems now, and both are guarded (axioms + pinned statement)
+like every other load-bearing theorem here. -/
+theorem tv10_id : c1 (.lam "x" (.var "x")) = .I := rfl
 
 /-- §6 / TV-10 pinned concretely: `C1[λx.λy.x] = APPLY(APPLY(⟨S⟩, APPLY(⟨K⟩,⟨K⟩)), ⟨I⟩)`
 (the `S (K K) I` citizen extensionally equal to K; C1 is syntactically, not
 extensionally, canonical). -/
-example : c1 (.lam "x" (.lam "y" (.var "x")))
+theorem tv10_const : c1 (.lam "x" (.lam "y" (.var "x")))
     = .app (.app .S (.app .K .K)) .I := rfl
 
 end Book1.C1

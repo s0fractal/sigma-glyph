@@ -6,8 +6,14 @@ seam that ties them to the live oracle:
 
   1. Freshness: proofs/LutData.lean regenerates byte-identically from the
      oracle's arbiter-checked LUT (a stale or hand-edited table fails).
-  2. No-sorry guard: `lean` exits 0 even when a proof uses `sorry` (it is a
-     warning) — this bridge fails on any sorry/axiom token in WaveAlgebra.lean.
+  2. Soundness guard (proof_guard.py, front "wave"): `lean` exits 0 even when
+     a proof uses `sorry` (it is a warning) — this bridge runs the source
+     layer over LutData/WaveAlgebra/WaveRun (literal-aware comment stripping,
+     sorry/admit/axiom, import allowlist, metaprogramming denylist, coverage
+     registry) AND a data-only environment query asserting the load-bearing
+     theorems stay within the documented TCB (std axioms; native_decide trust
+     axioms only where README attributes them to the compiler) and still
+     state what proofs/theorem_pins.json pins them to state.
   3. Differential: proofs/WaveRun.lean (the Lean `interfere`, executed) must
      agree with impl/sigma_wave.py `interfere` on a deterministic boundary
      grid plus the pinned special points (crystallization, the
@@ -15,12 +21,20 @@ seam that ties them to the live oracle:
 
 Needs a `lean` binary (elan). Exit 2 if unavailable — never a silent pass.
 """
-import itertools, os, re, shutil, subprocess, sys, tempfile
+import itertools, os, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(REPO, "impl"))
+import proof_guard  # noqa: E402
 from sigma_wave import interfere, W  # noqa: E402
+
+#: Load-bearing theorems (proofs/README.md, Book II section) and — per its
+#: TCB-honesty paragraph — which of them may rest on native_decide: both
+#: lists, plus the pinned statements, live in theorem_pins.json.
+FRONT = proof_guard.load_front("wave")
+THEOREMS = FRONT["guarded"]
 
 
 def fail(msg):
@@ -29,8 +43,8 @@ def fail(msg):
 
 
 def main():
-    lean = os.environ.get("LEAN", "lean")
-    if shutil.which(lean) is None:
+    lean = proof_guard.find_lean()
+    if lean is None:
         print("wave bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
         sys.exit(2)
 
@@ -47,11 +61,16 @@ def main():
             fail("LutData.lean is stale — regenerate with proofs/gen_lut_lean.py")
     print("OK    LutData.lean regenerates byte-identically (arbiter-checked)")
 
-    # 2. no-sorry guard
-    body = open(os.path.join(HERE, "WaveAlgebra.lean")).read()
-    if re.search(r"\b(sorry|admit)\b", body) or re.search(r"^\s*axiom\b", body, re.M):
-        fail("WaveAlgebra.lean contains sorry/admit/axiom")
-    print("OK    WaveAlgebra.lean carries no sorry/admit/axiom")
+    # 2. soundness guard, source layer (literal-aware stripping, denylist,
+    #    import allowlist, coverage — the old \b-anchored regex missed
+    #    sorryAx/`private axiom`, and the old stripper was blindable by a
+    #    string literal containing "/-")
+    problems = proof_guard.guard_sources(FRONT)
+    if problems:
+        fail("source guard: " + "; ".join(problems))
+    print("OK    LutData + WaveAlgebra + WaveRun pass the source guard (no "
+          "sorry/admit/axiom, no metaprogramming, imports in-set, every "
+          "theorem accounted for)")
 
     # 3. differential grid
     phs = [0, 1, 8192, 16384, 32767, 32768, 49152, 65535]
@@ -73,14 +92,20 @@ def main():
                     for a, b in cases)
     with tempfile.TemporaryDirectory() as td:
         env = dict(os.environ, LEAN_PATH=td)
-        for mod in ("LutData", "WaveAlgebra"):
-            r = subprocess.run([lean, os.path.join(HERE, mod + ".lean"),
-                                "-o", os.path.join(td, mod + ".olean")],
-                               capture_output=True, text=True, env=env)
-            if r.returncode != 0:
-                fail(f"{mod}.lean does not compile: "
-                     + (r.stderr or r.stdout).strip()[:500])
+        # FRONT["build"] is the single place this front's compiled module set
+        # is spelled — the guard reads the same field, so the two cannot drift
+        # apart (round-4 F17).
+        err = proof_guard.build_front(lean, FRONT, td)
+        if err:
+            fail(err)
         print("OK    LutData + WaveAlgebra compile clean (theorems check)")
+        err = proof_guard.guard_semantics(lean, FRONT, td)
+        if err:
+            fail(err)
+        print(f"OK    axiom cones clean, statements match their pins AND every "
+              f"definition they are stated in terms of matches its pin "
+              f"(`Valid`, `interfere`, the LUT), for {len(THEOREMS)} wave "
+              "theorems (std axioms; native_decide only where the TCB says so)")
         r = subprocess.run([lean, "--run", os.path.join(HERE, "WaveRun.lean")],
                            input=lines, capture_output=True, text=True, env=env)
     if r.returncode != 0:

@@ -12,13 +12,31 @@ fixtures) and asserts every single observed step satisfies it.
 Checked algebra (Lean) + checked premise on live traces (this file) +
 pinned end-results (vectors, property P7) = the assurance stack.
 
+Also carries the soundness guard over SizeBound.lean itself: `lean` exits 0
+on a file containing `sorry` (it is a warning), so CI's compile step alone
+would pass a sorry'd proof. The guard (proof_guard.py, front "size") asserts
+from a data-only environment query that memory_bound/preflight_bound depend
+only on the standard axioms AND still SAY what they are pinned to say — a
+first-round review bypassed the old regex with `sorryAx`/`private axiom`, and
+a second round then passed `theorem memory_bound : True := trivial` through
+the axiom-only check. Needs a `lean` binary (elan). Exit 2 if unavailable —
+never a silent pass.
+
 Usage: python3 proofs/bridge_check.py   (from the repo root)
 """
 import sys
+import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "impl"))
+import proof_guard  # noqa: E402
 import sigma_glyph as sg  # noqa: E402
+
+#: The load-bearing theorems this bridge (and proofs/README.md) claims, with
+#: their pinned statements and allowed axioms: proofs/theorem_pins.json.
+FRONT = proof_guard.load_front("size")
+THEOREMS = FRONT["guarded"]
 
 A = lambda l, r: ("app", l, r)
 Ig, Kg, Sg = ("lit", sg.sha(b"I")), ("lit", sg.sha(b"K")), ("lit", sg.sha(b"S"))
@@ -56,6 +74,33 @@ def trace_steps(st, h, budget):
 
 
 def main():
+    # Soundness guard (same two layers as the eval/byte/wave/c1 bridges):
+    # SizeBound.lean is the one proof CI compiles directly, `lean` exits 0 on
+    # sorry, and the old regex missed sorryAx / `private axiom`.
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("bridge_check needs a `lean` binary for the #print axioms "
+              "guard (elan) — set LEAN=... ; exit 2")
+        return 2
+    problems = proof_guard.guard_sources(FRONT)
+    if problems:
+        print("BRIDGE: FAILED — " + "; ".join(problems))
+        return 1
+    with tempfile.TemporaryDirectory() as td:
+        # `FRONT["build"]` is the single place this front's module set is
+        # spelled: the bridge used to hardcode "SizeBound" while the guard
+        # derived its audit scope from `build`, so the two could disagree.
+        err = (proof_guard.build_front(lean, FRONT, td)
+               or proof_guard.guard_semantics(lean, FRONT, td))
+    if err:
+        print("BRIDGE: FAILED — " + err)
+        return 1
+    print("OK    SizeBound.lean guard: source layer clean (no sorry/admit/"
+          "axiom, no metaprogramming, imports in-set); axiom cone within the "
+          "std axioms, statement matches its pin, and `Step`/`Reach`/`Acc` — "
+          "the definitions the statement is about — match theirs, for "
+          + ", ".join(THEOREMS))
+
     st = build_store()
     payload = A(Ig, Kg)
     towers = []
