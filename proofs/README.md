@@ -331,7 +331,10 @@ about that file: [`GUARD_CLAIMS.txt`](GUARD_CLAIMS.txt)):
    claims file, a driver failure or a missing `lean` binary is an error in
    every bridge (exit 2 for the last), never a skip.
 
-Known residual gaps, stated rather than papered over:
+Scoped assumptions of this front, stated rather than papered over. This is the
+source of truth for the per-front detail; `SECURITY-ASSUMPTIONS.md` states the
+repository-level consequences (SA-1, SA-2, SA-10) and points back here rather
+than copying any of it.
 
 * **Which fronts have a Lean-executing differential, precisely.** An earlier
   version of this section named the four differentials as the control for
