@@ -28,7 +28,7 @@ on: [push, pull_request]
 # A refresh commit MUST cite the old and new sibling commits, name the consumed
 # surface that changed, and include the outputs run at the new pin.
 env:
-  WARRANT_PIN: 8508a4adfd15f95c1acd7b8c64340c5e3d9374a2
+  WARRANT_PIN: 16bd5fb4aab13835a9d8478d6ff8ace28f6e0087
 
 jobs:
   test:
