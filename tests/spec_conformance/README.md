@@ -5,7 +5,7 @@ Machine-readable test vectors for all three Books and the constitution:
 `wave_vectors.json` (Book II, NAVIGATION — interfere/term/iterate/coordinate
 kinds), `federation_vectors.json` (Book III, FEDERATION —
 validation/selection/wave_fed/view kinds), and `governance_vectors.json`
-(GOV-anchors.md — 16 full-store adoption scenarios incl. the gate's attack
+(GOV-anchors.md — 20 full-store adoption scenarios incl. the gate's attack
 fixtures: minted-pair hijack, closure orphans, jurisdiction replay, rival
 freeze, both P1-R directions). Purpose: an implementation in any language can
 claim conformance per document by passing its suite — without reading the

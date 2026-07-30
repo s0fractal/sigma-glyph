@@ -23,8 +23,10 @@ priced action to its exact effect on that pair, as fixed by the spec:
 
 The correspondence of THESE seven rows to the byte-level machine is not proved
 here; it is enforced empirically by the reference oracle and its generated
-vectors (tests/spec_conformance/: property P7 checks the invariant on ~2000
-random traces; TV-6/TV-7 and the EV-* suite pin the per-rule costs). The two
+vectors (tests/spec_conformance/: property P7 checks the invariant along all
+150 random evaluation traces of test_properties.py — 2000 is that file's P2
+fuzz-buffer count and 2103 its whole-suite total, neither of them P7's;
+TV-6/TV-7 and the EV-* suite pin the per-rule costs). The two
 layers together give: checked algebra (this file) + pinned implementation
 (the vectors). Hand-written antecedents: Gemini gate proof and DeepSeek
 re-derivation, 2026-07 (cited in Book I §3.4).
