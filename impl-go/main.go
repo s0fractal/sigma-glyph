@@ -1580,6 +1580,13 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 		if err1 != nil || err2 != nil || len(pub) != ed25519.PublicKeySize || len(sig) != ed25519.SignatureSize {
 			continue
 		}
+		// Warrant SPEC v0.4 §5: the signed message names the protocol, so a key
+		// that signs some other protocol's SHA-256 digest does not thereby sign
+		// a Warrant. This is the Go half of a differential -- verifying the bare
+		// WarrantID here would make the two halves disagree about what a valid
+		// signature is, which is the defect class this project ranks P0. The
+		// separator itself is the warrantSigDomain constant above, so the one
+		// place Go states it is the one place tests/one_signing_path.py checks.
 		if ed25519.Verify(ed25519.PublicKey(pub), sigMsg, sig) {
 			counted[actor] = true
 		}
