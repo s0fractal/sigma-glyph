@@ -112,6 +112,10 @@ we reproduced it before fixing it):
       `proofs/Sub/Lean.lean` made `import Lean` legal inside `proofs/Sub/`
       (F2c by path); and `_shadows_core` was never applied to the module name
       a file's PATH implies (`proofs/Lean/Foo.lean` → `Lean.Foo`).
+  F22 (found by the sibling exit-code audit, handed over) `proof_guard.py`
+      with no arguments printed its docstring and exited 0, so
+      `python3 proofs/proof_guard.py && echo guarded` printed "guarded" — a
+      process that ran no check at all reporting success. Usage now exits 2.
 
 Also asserted: coverage (an unregistered theorem, and an anonymous `example`,
 are errors), an empty guarded list is an error, an unpinned theorem or
@@ -126,6 +130,7 @@ Run: python3 tests/proof_guard_test.py
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 
@@ -718,6 +723,24 @@ def main():
         check("F21 the environment query answers for a subdirectory module",
               bool(got["memory_bound"]["type"]) and loaded == ["Sub.Deep"],
               str(loaded))
+
+    # --- F22: the module's own exit status ---------------------------------
+    # Found by the sibling exit-code audit and handed over rather than edited
+    # across agents. `proof_guard.py` with no arguments printed its docstring
+    # and exited 0, so `python3 proofs/proof_guard.py && echo guarded` printed
+    # "guarded": a process that ran no check reporting success. Same class as
+    # F21 above — UNRUN is not PASS — so usage is exit 2, and only `regen`
+    # (which a human runs deliberately) may return 0.
+    gp = os.path.join(REPO, "proofs", "proof_guard.py")
+    for label, argv in [("no arguments", []), ("an unknown subcommand",
+                                               ["bogus"])]:
+        r = subprocess.run([sys.executable, gp] + argv,
+                           capture_output=True, text=True)
+        check(f"F22 `proof_guard.py` with {label} exits nonzero "
+              "(usage is not a passed check)", r.returncode == 2,
+              f"rc={r.returncode}")
+        check(f"F22 …and still prints the usage line ({label})",
+              "usage: proof_guard.py regen" in r.stdout, r.stdout[-120:])
 
     # --- semantic layer: pin the CLEAN statement, then attack it ----------
     with tempfile.TemporaryDirectory() as td:

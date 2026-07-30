@@ -1318,3 +1318,9 @@ if __name__ == "__main__":
         sys.exit(regen(sys.argv[2:]))
     print(__doc__)
     print("usage: proof_guard.py regen [front ...]   (rewrite statement pins)")
+    # This file is a library with ONE command (`regen`); every check it
+    # implements is run by the bridges. Printing usage and exiting 0 made
+    # `python3 proofs/proof_guard.py && echo guarded` print "guarded" — a
+    # process that checked nothing reporting success, the same class as the
+    # walk that scanned nothing above. Usage is a misuse, so it exits 2.
+    sys.exit(2)
