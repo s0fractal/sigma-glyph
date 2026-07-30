@@ -79,7 +79,27 @@ def build(rng):
             return leaf()
         return ("app", term(depth - 1), term(depth - 1))
 
-    root = term(rng.randint(1, 5))
+    def spine(levels):
+        """A LEFT SPINE, the shape the balanced generator above cannot reach.
+        Built hash-first rather than as a symbolic tree: put_tree/term_hash are
+        O(n^2) and recursive, which is fine at depth 5 and useless at depth 900.
+
+        Depth used to be capped at rng.randint(1, 5), so no gate ever handed any
+        engine a term deeper than five levels — which is why impl-rs shipping
+        with zero resource fences was invisible to all of them. The ceiling here
+        stays under both the Python oracle's max_node_depth and impl-rs's
+        MAX_TERM_DEPTH (4096 each), because these vectors assert AGREEMENT: past
+        the fences the correct behaviour is a local fault, which is not a
+        conformance result at all. tests/book1_resource_fence.py covers that
+        side of the line."""
+        h = put(sg.term_bytes(leaf()))
+        for _ in range(levels):
+            h = put(sg.ser(sg.APPLY, 0x06, left=h, right=put(sg.term_bytes(leaf()))))
+        return h
+
+    if rng.random() < 0.2:
+        return spine(rng.randint(64, 900)), objects, store
+    root = term(rng.randint(1, 9))
     put_tree(root)
     return sg.term_hash(root), objects, store
 
@@ -147,11 +167,16 @@ def main():
         # recompute the same result_hash + atp_spent on every generated vector.
         if os.path.exists(RUST):
             p = subprocess.run([RUST, "conformance", path], capture_output=True, text=True)
-            # Rust's summary line is hardwired to the pinned 49-vector suite size,
-            # so judge per-vector: every vector must print "OK", none "FAIL".
+            # Rust's summary line used to be hardwired to the pinned 49-vector
+            # suite size, so this had to count per-vector lines to work around
+            # it. It now follows the file — but keep the per-vector accounting
+            # as well: it is the stricter check, and it survives the binary
+            # crashing before it prints a summary.
             oks = sum(1 for ln in p.stdout.splitlines() if ln.startswith("OK "))
             fails = sum(1 for ln in p.stdout.splitlines() if ln.startswith("FAIL"))
-            results["rust"] = (fails == 0 and oks == len(vectors), p)
+            summary = f"RUST-CONFORMANCE: ALL PASS ({len(vectors)}/{len(vectors)})"
+            results["rust"] = (fails == 0 and oks == len(vectors)
+                               and summary in p.stdout, p)
         else:
             print(f"SKIP rust (not built at {RUST})")
         if os.path.exists(WGO):
