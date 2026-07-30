@@ -68,6 +68,18 @@ left uncovered — every vector below was green end-to-end on the real files):
   * **F15 — `open X in theorem …` on one line was invisible to coverage.**
     Declaration keywords are matched as tokens wherever a command can start.
 
+Round 4 (a fourth review; it confirmed the round-3 mechanism where it applies
+— SHA-256-pinned large dumps, pinned constructor types, the literal fix, the
+genesis differential — and then went after the guard's SCOPE, which was
+self-authorized. Every vector below was green end-to-end on the real files):
+  * **F16 — the coverage fix was still LINE-based.** Lean separates commands
+    by whitespace, not newlines, and the walk `continue`d on any line matching
+    `namespace …`/`section`/`end`. `namespace Zzz theorem hidden : True :=
+    trivial end Zzz` appended to a real proof file left the bridge green;
+    `namespace Book1.C1 theorem sneaky : … := by native_decide end Book1.C1`
+    did so while the C1 bridge printed "axiom cones are exactly within
+    [propext]". The walk is now over COMMANDS across the whole file.
+
 Layers, strongest first:
 
 * `guard_semantics()` — environment query: for every guarded theorem, the
@@ -258,44 +270,64 @@ _RUNNER_ONLY = [(r"\bpartial\b", "`partial` leaves the kernel without a "
                  "definition while compiled code has one")]
 
 
-#: A declaration keyword as a TOKEN, wherever a command may start — not
-#: anchored to the line. `open Nat in theorem hidden : …` and
-#: `set_option linter.unusedVariables false in theorem hidden : …` were
-#: invisible to the line-anchored matcher, so both defeated the coverage
-#: registry outright (2026-07 round-3 review, F15). Lean identifier characters
+#: The command keywords the coverage walk cares about, matched as TOKENS
+#: wherever a command may begin — never anchored to a line. Lean separates
+#: commands by whitespace, not by newlines, so `namespace X … end X` and
+#: `end X theorem …` are legal on ONE line; the previous line-based walk
+#: `continue`d on any line that *started* with `namespace`/`section`/`end` and
+#: therefore saw nothing at all on such a line (2026-07 round-4 review, F16 —
+#: `namespace Zzz theorem hidden : True := trivial end Zzz` appended to a real
+#: proof file left the bridge printing ALL AGREE). Lean identifier characters
 #: (including `.`, `'`, `!`, `?`) are excluded on both sides, so
 #: `false_is_a_theorem` and `Foo.example` do not match.
-_DECL_KW = re.compile(r"(?<![A-Za-z0-9_'!?.])(theorem|lemma|example)"
-                      r"(?![A-Za-z0-9_'!?])")
+_CMD_KW = re.compile(r"(?<![A-Za-z0-9_'!?.])"
+                     r"(namespace|section|end|theorem|lemma|example)"
+                     r"(?![A-Za-z0-9_'!?])")
+
+#: The identifier following a declaration keyword (`\s*`, because a
+#: declaration's name may sit on the next line) and the one following a
+#: scope keyword (same line only: a bare `end` closes an anonymous section,
+#: and swallowing the next line's `theorem` as its argument would be wrong).
+_AFTER_DECL_KW = re.compile(r"\s*([^\s:({\[⦃⟨]*)")
+_AFTER_SCOPE_KW = re.compile(r"[^\S\n]*([^\s:({\[⦃⟨]*)")
+
+#: A command keyword can never be the *name* of the command before it.
+_KEYWORDS = frozenset({"namespace", "section", "end",
+                       "theorem", "lemma", "example"})
 
 
 def _decl_names(body):
     """[(kind, fully-qualified name or None, line)] for the declarations that
-    the guard has to account for (theorem/lemma/example)."""
+    the guard has to account for (theorem/lemma/example).
+
+    The walk is over COMMANDS, not lines: `body` (already comment-stripped and
+    literal-blanked) is scanned once for command keywords as tokens, and the
+    namespace/section stack is maintained across the whole file. So a
+    declaration is found wherever a command can begin, and its namespace
+    prefix is correct regardless of how the file is broken into lines.
+    """
     stack, out = [], []
-    for lineno, line in enumerate(body.splitlines(), 1):
-        s = line.strip()
-        m = re.match(r"namespace\s+([^\s]+)", s)
-        if m:
-            stack.append(("ns", m.group(1)))
-            continue
-        if re.match(r"section\b", s):
-            stack.append(("sec", re.sub(r"^section\s*", "", s) or None))
-            continue
-        m = re.match(r"end\b\s*([^\s]*)", s)
-        if m:
-            want = m.group(1) or None
-            if stack and (want is None or stack[-1][1] == want):
+    for m in _CMD_KW.finditer(body):
+        kw = m.group(1)
+        lineno = body.count("\n", 0, m.start()) + 1
+        pat = _AFTER_DECL_KW if kw in ("theorem", "lemma", "example") \
+            else _AFTER_SCOPE_KW
+        arg = pat.match(body, m.end()).group(1) or None
+        if arg in _KEYWORDS:
+            arg = None
+        if kw == "namespace":
+            stack.append(("ns", arg))
+        elif kw == "section":
+            stack.append(("sec", arg))
+        elif kw == "end":
+            if stack and (arg is None or stack[-1][1] == arg):
                 stack.pop()
-            continue
-        for m in _DECL_KW.finditer(s):
-            kind = m.group(1)
-            name = re.match(r"[ \t]*([^\s:({\[⦃⟨]*)",
-                            s[m.end():]).group(1) or None
+        else:
+            name = arg
             if name:
-                prefix = ".".join(n for k, n in stack if k == "ns")
+                prefix = ".".join(n for k, n in stack if k == "ns" and n)
                 name = f"{prefix}.{name}" if prefix else name
-            out.append((kind, name, lineno))
+            out.append((kw, name, lineno))
     return out
 
 

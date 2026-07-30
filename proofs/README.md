@@ -264,12 +264,18 @@ allowed axioms and pinned statements: `theorem_pins.json`):
 8. **Coverage** — every `theorem`/`lemma` in `proofs/*.lean` must be either in
    a front's guarded list or registered in `unguarded` with a reason, so a new
    theorem in an already-guarded file cannot slip in unqueried. Anonymous
-   `example`s are rejected outright: nothing can query them. Declaration
-   keywords are matched as *tokens wherever a command can start*, not at the
-   start of a line: `open Nat in theorem …` and
-   `set_option linter.x false in theorem …` on one line used to be invisible
-   to both of the claims in this paragraph. Every `.lean` file in `proofs/` is
-   scanned by every bridge, not only the files its own front lists.
+   `example`s are rejected outright: nothing can query them. The scan walks
+   **commands, not lines**: the file is scanned once for command keywords as
+   tokens and the namespace/section stack is maintained across the whole file,
+   so a declaration is found wherever a command can begin and its prefix is
+   right regardless of newlines. Two rounds of review lived in this paragraph:
+   `open Nat in theorem …` on one line defeated a line-anchored matcher, and
+   then `namespace Zzz theorem hidden : True := trivial end Zzz` — one line,
+   legal Lean — defeated its line-based replacement, including
+   `namespace Book1.C1 theorem sneaky : … := by native_decide end Book1.C1`
+   appended to `C1Compiler.lean` while the bridge printed "axiom cones are
+   exactly within [propext]". Every `.lean` file in `proofs/` is scanned by
+   every bridge, not only the files its own front lists.
 9. **The registry itself** — nothing used to hash, anchor or cross-check
    `theorem_pins.json`, so it authorized itself: moving a theorem from
    `guarded` to `unguarded` with a plausible reason and replacing it with
@@ -329,7 +335,10 @@ string-literal blinding, the `#print axioms` override, `import Lean`,
 `@[implemented_by]`, `@[extern]`, `debug.skipKernelTC`, the fake
 `native_decide`-shaped axiom, the gutted and emptied inductive, the
 `Prop := False` definition, the same-length string-literal swap, the
-prefixed-declaration coverage escapes, the registry demotion, and each
+prefixed-declaration coverage escapes, the one-line
+`namespace`/`section`/`end` coverage escapes (including the
+`native_decide` escalation into a guarded front's own namespace), the
+registry demotion, and each
 fail-closed path — and that none of them fires on the real `proofs/*.lean`.
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).

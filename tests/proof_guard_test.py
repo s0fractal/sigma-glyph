@@ -62,6 +62,22 @@ end-to-end, against the real proof files):
       declaration from the coverage registry entirely (the matcher was
       line-anchored), defeating both README §7 claims.
 
+Round 4 (a fourth fresh-context review; it confirmed round 3 where it applies
+— the SHA-256-pinned large dumps, the pinned constructor TYPES, the literal
+fix and the genesis differential all held — and then attacked the guard's
+SCOPE, which was self-authorized. Every vector below was GREEN end-to-end):
+
+  F16 the round-3 coverage fix was still LINE-based: the walk `continue`d on
+      any line matching `namespace …`/`section`/`end`, and Lean separates
+      commands by whitespace, not newlines. `namespace Zzz theorem
+      hidden_by_ns : True := trivial end Zzz` appended to WaveAlgebra.lean →
+      `WAVE-BRIDGE: ALL AGREE`, rc 0; `end Sec1 theorem hidden_by_end …` and
+      `namespace Zzz2 example …` likewise; and `namespace Book1.C1 theorem
+      sneaky_native : (2:Nat)^10 = 1024 := by native_decide end Book1.C1`
+      appended to C1Compiler.lean printed "axiom cones are exactly within
+      [propext]" with an unqueried native_decide theorem in the file. The walk
+      is now over COMMANDS across the whole file.
+
 Also asserted: coverage (an unregistered theorem, and an anonymous `example`,
 are errors), an empty guarded list is an error, an unpinned theorem or
 definition is an error, a lexer disagreement (unterminated literal) is an
@@ -197,6 +213,34 @@ VECTOR_PREFIXED_DECLS = (
     "open Nat in private theorem hidden_by_private : (1 : Nat) = 1 := rfl\n"
     "open Nat in example : (1 : Nat) = 1 := rfl\n")
 
+# ---- F16: a scope command on the SAME LINE as the declaration -----------
+# Lean separates commands by whitespace, not newlines. The round-3 walk was
+# still line-based and `continue`d on any line starting with a scope keyword,
+# so everything below was invisible to coverage — each of these appended to a
+# real proof file left its bridge printing ALL AGREE, rc 0.
+VECTOR_ONELINE_NS = (
+    "namespace Zzz theorem hidden_by_ns : True := trivial end Zzz\n")
+VECTOR_ONELINE_END = (
+    "section Sec1\nend Sec1 theorem hidden_by_end : True := trivial\n")
+VECTOR_ONELINE_EXAMPLE = (
+    "namespace Zzz2 example : True := trivial end Zzz2\n")
+#: The escalation the reviewer ran against the real C1Compiler.lean: an
+#: unqueried `native_decide` theorem inside the guarded front's own namespace,
+#: while the bridge prints "axiom cones are exactly within [propext]".
+VECTOR_ONELINE_ESCALATION = (
+    "namespace Book1.C1 theorem sneaky_native : (2:Nat)^10 = 1024 := by "
+    "native_decide end Book1.C1\n")
+#: `namespace X … end X` on one line used to push without popping, so the NEXT
+#: declaration got a doubled prefix (`WaveAlgebra.WaveAlgebra.fold_…`) and was
+#: "unregistered" for the wrong reason.
+VECTOR_ONELINE_BALANCED = (
+    "namespace Ns1 theorem inside_ns : True := trivial end Ns1\n"
+    "theorem outside_ns : True := trivial\n")
+#: A bare `end` closes an anonymous section; the next line's `theorem` must not
+#: be swallowed as its argument.
+VECTOR_BARE_END = (
+    "section\nend\ntheorem after_bare_end : True := trivial\n")
+
 failures = []
 
 
@@ -316,6 +360,34 @@ def main():
                   any(what in p for p in probs), str(probs))
         check("F15 coverage still rejects `open … in example`",
               any("example" in p for p in probs), str(probs))
+
+    # F16: a scope command on the SAME LINE as a declaration
+    def covers(body, name="Cover.lean"):
+        with tempfile.TemporaryDirectory() as td:
+            write(td, body, name)
+            return proof_guard.coverage_guard({"fronts": {}, "unguarded": {}}, td)
+
+    for label, body, want in [
+            ("`namespace Zzz theorem … end Zzz` on one line",
+             VECTOR_ONELINE_NS, "Zzz.hidden_by_ns"),
+            ("`end Sec1 theorem …` on one line",
+             VECTOR_ONELINE_END, "hidden_by_end"),
+            ("a declaration after a bare `end`",
+             VECTOR_BARE_END, "after_bare_end"),
+            ("`namespace Book1.C1 theorem … native_decide … end` (the "
+             "escalation into a guarded front's own namespace)",
+             VECTOR_ONELINE_ESCALATION, "Book1.C1.sneaky_native")]:
+        probs = covers(body)
+        check(f"F16 coverage sees a theorem hidden by {label}",
+              any(want in p for p in probs), str(probs))
+    probs = covers(VECTOR_ONELINE_EXAMPLE)
+    check("F16 coverage rejects `namespace Zzz2 example … end Zzz2` on one line",
+          any("example" in p for p in probs), str(probs))
+    probs = covers(VECTOR_ONELINE_BALANCED)
+    check("F16 a one-line namespace POPS: the next declaration is not "
+          "double-prefixed",
+          any("`Ns1.inside_ns`" in p for p in probs)
+          and any("`outside_ns`" in p for p in probs), str(probs))
 
     # the real registry accounts for every theorem in proofs/*.lean
     check("coverage quiet on the real proofs/ tree with the real registry",
