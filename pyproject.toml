@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sigma-glyph"
+version = "0.6.6"
+description = "A portable check engine: send a computation by hash, get the same answer on any machine, with work and memory bounded up front."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "s0fractal" }]
+keywords = ["content-addressed", "deterministic", "ski", "combinators", "provenance"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Interpreters",
+]
+# The reference implementation is deliberately stdlib-only (QUICKSTART:
+# "Three commands to trust nothing"). `cryptography` is used only by the
+# governance/signing helpers under tools/, which are not part of this package.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/s0fractal/sigma-glyph"
+Repository = "https://github.com/s0fractal/sigma-glyph"
+Changelog = "https://github.com/s0fractal/sigma-glyph/blob/master/CHANGELOG.md"
+
+# The repo keeps its flat impl/ layout; the three Books install as three
+# top-level modules, so `import sigma_glyph` works and
+# `python -m sigma_glyph` runs the same self-test as `python3 impl/sigma_glyph.py`.
+[tool.setuptools]
+package-dir = { "" = "impl" }
+py-modules = ["sigma_glyph", "sigma_wave", "sigma_federation"]

@@ -2,6 +2,11 @@
 name = "sigma-glyph-book1"
 version = "0.1.0"
 edition = "2021"
+description = "Second implementation of Sigma-Glyph Book I (compute core): deterministic, budgeted SKI evaluation over content-addressed terms, for cross-implementation differential testing."
+license = "MIT"
+repository = "https://github.com/s0fractal/sigma-glyph"
+# MSRV: src/main.rs uses usize::is_multiple_of, stabilized in Rust 1.87.
+rust-version = "1.87"
 
 [[bin]]
 name = "book1"
