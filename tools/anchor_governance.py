@@ -927,6 +927,7 @@ def cmd_replay(path):
         print("ERR: unknown vector format")
         return 1
     ok_all = True
+    n_ok = 0
     for v in doc["vectors"]:
         with tempfile.TemporaryDirectory() as td:
             _materialize_store(td, v["store"])
@@ -937,12 +938,16 @@ def cmd_replay(path):
         good = (got_ok == v["expected"]["authorized"]
                 and v["expected"]["note"] in joined)
         ok_all &= good
+        n_ok += good
         print(("OK  " if good else "FAIL") + "  " + v["id"])
         if not good:
             print(f"      authorized={got_ok} notes: {joined}")
     n = len(doc["vectors"])
+    # Parenthesized: the conditional expression binds looser than +, so the
+    # unparenthesized form printed "" — swallowing the whole summary line —
+    # exactly when there were failures.
     print("\nGOVERNANCE-REPLAY: " + ("ALL PASS" if ok_all else "FAILURES")
-          + f" ({n}/{n})" if ok_all else "")
+          + f" ({n_ok}/{n})")
     return 0 if ok_all else 1
 
 
