@@ -113,7 +113,8 @@ def main():
         print("C1-BRIDGE: FAIL — " + err)
         return 1
     print("ok  lean proofs/C1Compiler.lean checks; axiom cones are exactly "
-          "within [propext] AND statements match their pins for "
+          "within [propext], statements match their pins, and `c1`/`abstr`/"
+          "`skiFv`/`Lam`/`Ski` match their definition pins, for "
           + ", ".join(THEOREMS))
 
     # 2. Lean model == oracle on random closed λ-terms (NodeHash-exact)

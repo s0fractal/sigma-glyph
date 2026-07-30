@@ -85,7 +85,8 @@ def main():
         err = proof_guard.guard_semantics(lean, FRONT, td)
         if err:
             fail(err)
-        print(f"OK    axiom cones clean AND statements match their pins for "
+        print(f"OK    axiom cones clean, statements match their pins AND every "
+              f"definition they are stated in terms of matches its pin, for "
               f"{len(THEOREMS)} evaluator theorems (std axioms only)")
         r = subprocess.run([lean, "--run", os.path.join(HERE, "EvalRun.lean")],
                            input=stdin, capture_output=True, text=True, env=env)

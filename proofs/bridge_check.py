@@ -94,7 +94,8 @@ def main():
         return 1
     print("OK    SizeBound.lean guard: source layer clean (no sorry/admit/"
           "axiom, no metaprogramming, imports in-set); axiom cone within the "
-          "std axioms AND statement matches its pin for "
+          "std axioms, statement matches its pin, and `Step`/`Reach`/`Acc` — "
+          "the definitions the statement is about — match theirs, for "
           + ", ".join(THEOREMS))
 
     st = build_store()

@@ -43,11 +43,30 @@ Round 2 (what this file now closes):
     guarded or explicitly registered as intentionally-unguarded, and an
     anonymous `example` (which can never be axiom-checked) is an error.
 
+Round 3 (a third review; it confirmed the round-2 fixes and broke what they
+left uncovered — every vector below was green end-to-end on the real files):
+  * **F12 — pinning STATEMENTS does not stop DEFINITIONS being gutted.**
+    Deleting `Reach`'s `| step` constructor, or emptying `Reach`, or
+    `def Valid (_w : Wave) : Prop := False`, leaves every pinned dump
+    byte-identical and every theorem vacuous. The claimed compensating control
+    (the differentials) does not cover it: two of the five bridges never
+    execute Lean at all beyond the guard, and no differential can exercise a
+    `Prop`-valued definition. The dependency set of each guarded statement is
+    now computed from the kernel environment and pinned — values for
+    definitions, constructor lists for inductives — failing closed on any
+    dependency without a pin.
+  * **F13 — string-literal CONTENT was not pinned.** `(strLit 64)` says only
+    "a 64-character string", so `genesis_I` could be made to assert K's digest
+    with every pin matching. Literals now dump as hex of their UTF-8 bytes,
+    and `byte_bridge_check.py` cross-checks the genesis claims against the
+    oracle so the swap also fails a differential.
+
 Layers, strongest first:
 
 * `guard_semantics()` — environment query: for every guarded theorem, the
-  transitive axiom cone must sit inside that front's allowed set, and the
-  canonical dump of its elaborated type must equal the pinned dump. Anything
+  transitive axiom cone must sit inside that front's allowed set, the
+  canonical dump of its elaborated type must equal the pinned dump, and every
+  audited definition its meaning depends on must equal its own pin. Anything
   unobtainable (missing theorem, driver failure) is an error, never a skip.
 * `guard_sources()` — the cheap layer over the source text: literal-aware
   comment stripping, then sorry/admit/axiom, the import allowlist, the
@@ -59,6 +78,7 @@ computed (it could simply print the expected answers). That faithfulness is a
 review matter, and the denylist only removes the mechanical ways to decouple
 compiled code from the kernel definitions.
 """
+import hashlib
 import json
 import os
 import re
@@ -364,6 +384,19 @@ partial def dumpLevel : Level → String
   | .param n => "(p " ++ toString n ++ ")"
   | .mvar _ => "(lmvar)"
 
+/-- String literals are dumped by CONTENT, as the hex of their UTF-8 bytes.
+    They used to be dumped as `(strLit <length>)`, i.e. "some 64-character
+    string" — with which `MachineBytes.genesis_I` could be made to pin K's
+    digest and every pin still matched (2026-07 round-3 review, F13). Hex
+    keeps the dump one whitespace-free token, so no content can collide with
+    the dump's own syntax. -/
+def hexDigit (k : Nat) : Char :=
+  if k < 10 then Char.ofNat (48 + k) else Char.ofNat (87 + k)
+
+def hexOfString (s : String) : String :=
+  s.toUTF8.foldl (fun acc b =>
+    (acc.push (hexDigit (b.toNat / 16))).push (hexDigit (b.toNat % 16))) ""
+
 partial def dumpExpr : Expr → String
   | .bvar i => "#" ++ toString i
   | .fvar id => "(fvar " ++ toString id.name ++ ")"
@@ -376,9 +409,39 @@ partial def dumpExpr : Expr → String
   | .forallE _ t b _ => "(all " ++ dumpExpr t ++ " " ++ dumpExpr b ++ ")"
   | .letE _ t v b _ => "(let " ++ dumpExpr t ++ " " ++ dumpExpr v ++ " " ++ dumpExpr b ++ ")"
   | .lit (.natVal n) => "(natLit " ++ toString n ++ ")"
-  | .lit (.strVal s) => "(strLit " ++ toString s.length ++ ")"
+  | .lit (.strVal s) => "(strLit " ++ toString s.length ++ " " ++ hexOfString s ++ ")"
   | .mdata _ b => dumpExpr b
   | .proj s i b => "(proj " ++ toString s ++ " " ++ toString i ++ " " ++ dumpExpr b ++ ")"
+
+/-- The full structural content of one constant: for a definition its type AND
+    its VALUE, for an inductive its type AND its constructor list. Pinning
+    statements alone left every definition a theorem's meaning rests on free to
+    be gutted (F12). -/
+def dumpConst (env : Environment) (n : Name) : String :=
+  match env.find? n with
+  | none => "MISSING"
+  | some (.axiomInfo v) => "axiom " ++ dumpExpr v.type
+  | some (.thmInfo v) => "thm " ++ dumpExpr v.type
+  | some (.defnInfo v) => "def " ++ dumpExpr v.type ++ " := " ++ dumpExpr v.value
+  | some (.opaqueInfo v) => "opaque " ++ dumpExpr v.type ++ " := " ++ dumpExpr v.value
+  | some (.quotInfo _) => "quot"
+  | some (.ctorInfo v) => "ctor " ++ dumpExpr v.type
+  | some (.recInfo v) => "rec " ++ dumpExpr v.type
+  | some (.inductInfo v) =>
+      "ind " ++ dumpExpr v.type ++ " ctors ["
+        ++ String.intercalate " " (v.ctors.map toString) ++ "]"
+
+/-- Is `c` declared by one of the AUDITED modules? Core-Lean constants are
+    fixed by the toolchain pin and are not pinned here; anything the audited
+    files declare is. A constant with no owning module (impossible for a
+    data-only import) counts as audited — fail closed. -/
+def isAudited (env : Environment) (audit : NameSet) (c : Name) : Bool :=
+  match env.getModuleIdxFor? c with
+  | none => true
+  | some idx =>
+      match env.header.moduleNames[idx.toNat]? with
+      | none => true
+      | some m => audit.contains m
 
 abbrev CM := StateM (NameSet × NameSet)
 
@@ -398,12 +461,47 @@ partial def collectName (env : Environment) (c : Name) : CM Unit := do
   | some (.recInfo v) => visit v.type
   | some (.inductInfo v) => visit v.type; v.ctors.forM (collectName env)
 
+/-- The audited constants a statement's MEANING depends on: everything reachable
+    from the theorem's type, then transitively through the types and VALUES of
+    the definitions it mentions (a theorem reached this way contributes its type
+    only — its proof is irrelevant to what anything means). Computed from the
+    kernel environment, never hand-listed, so a new dependency cannot appear
+    unpinned. -/
+partial def collectDeps (env : Environment) (audit : NameSet) (c : Name)
+    : StateM NameSet Unit := do
+  if (← get).contains c then return
+  if !isAudited env audit c then return
+  modify (·.insert c)
+  let visit (e : Expr) : StateM NameSet Unit :=
+    e.getUsedConstants.forM (collectDeps env audit)
+  match env.find? c with
+  | none => return
+  | some (.axiomInfo v) => visit v.type
+  | some (.thmInfo v) => visit v.type
+  | some (.defnInfo v) => visit v.type; visit v.value
+  | some (.opaqueInfo v) => visit v.type; visit v.value
+  | some (.quotInfo _) => return
+  | some (.ctorInfo v) => visit v.type
+  | some (.recInfo v) => visit v.type
+  | some (.inductInfo v) => visit v.type; v.ctors.forM (collectDeps env audit)
+
+/-- `<import module>… -- <audited module>… -- <declaration>…` -/
+def splitArgs (args : List String) : List (List String) :=
+  args.foldr (fun a acc =>
+    if a == "--" then [] :: acc
+    else match acc with
+         | h :: t => (a :: h) :: t
+         | [] => [[a]]) [[]]
+
 def main (args : List String) : IO UInt32 := do
-  let mods := (args.takeWhile (· != "--")).map String.toName
-  let decls := (args.dropWhile (· != "--")).drop 1
+  let secs := splitArgs args
+  let mods := (secs[0]?.getD []).map String.toName
+  let audit : NameSet := ((secs[1]?.getD []).map String.toName).foldl (·.insert ·) {}
+  let decls := secs[2]?.getD []
   initSearchPath (← findSysroot)
   let imps : Array Import := (mods.map fun m => ({ module := m } : Import)).toArray
   let env ← importModules imps {} 0
+  let mut deps : NameSet := {}
   for d in decls do
     let n := d.toName
     match env.find? n with
@@ -414,6 +512,9 @@ def main (args : List String) : IO UInt32 := do
       IO.println ("DECL " ++ d)
       IO.println ("AXIOMS " ++ String.intercalate " " names.toList)
       IO.println ("TYPE " ++ dumpExpr info.type)
+      deps := (info.type.getUsedConstants.forM (collectDeps env audit)).run deps |>.2
+  for x in deps.toArray.qsort Name.lt do
+    IO.println ("DEP " ++ toString x ++ " " ++ dumpConst env x)
   IO.println "DRIVER-COMPLETE"
   return 0
 '''
@@ -436,8 +537,13 @@ def build_olean(lean, module, olean_dir, src_dir=HERE):
     return None
 
 
-def env_query(lean, modules, decls, olean_dir):
-    """{decl: {"axioms": [...], "type": "<canonical dump>"}} for every decl.
+def env_query(lean, modules, decls, olean_dir, audit=None):
+    """`({decl: {"axioms": [...], "type": dump}}, {const: dump})`.
+
+    The second map is the DEFINITION dependency set: every constant declared by
+    an audited module that the queried statements' meaning rests on, with its
+    full structural content (value for definitions, constructor list for
+    inductives). `audit` defaults to `modules`.
 
     Raises RuntimeError on anything short of a complete answer — a missing
     (renamed/deleted) theorem, a driver crash, truncated output. The bridges
@@ -450,7 +556,8 @@ def env_query(lean, modules, decls, olean_dir):
     with open(qpath, "w") as f:
         f.write(GUARD_DRIVER)
     r = subprocess.run([lean, "--run", qpath] + list(modules) + ["--"]
-                       + list(decls), capture_output=True, text=True,
+                       + list(audit if audit is not None else modules)
+                       + ["--"] + list(decls), capture_output=True, text=True,
                        cwd=olean_dir, env=dict(os.environ, LEAN_PATH=olean_dir))
     if r.returncode != 0:
         raise RuntimeError("environment query failed: "
@@ -459,7 +566,7 @@ def env_query(lean, modules, decls, olean_dir):
     if "DRIVER-COMPLETE" not in lines:
         raise RuntimeError("environment query produced no completion marker: "
                            + (r.stdout + r.stderr).strip()[:500])
-    got, cur = {}, None
+    got, deps, cur = {}, {}, None
     for line in lines:
         if line.startswith("MISSING "):
             raise RuntimeError(f"declaration not in the environment: "
@@ -471,10 +578,52 @@ def env_query(lean, modules, decls, olean_dir):
             got[cur]["axioms"] = line[7:].split()
         elif line.startswith("TYPE ") and cur:
             got[cur]["type"] = " ".join(line[5:].split())
+        elif line.startswith("DEP "):
+            name, _, dump = line[4:].partition(" ")
+            if dump == "MISSING":
+                raise RuntimeError(f"dependency vanished from the environment: "
+                                   f"{name}")
+            deps[name] = " ".join(dump.split())
     missing = [d for d in decls if d not in got or not got[d]["type"]]
     if missing:
         raise RuntimeError("no environment answer for: " + ", ".join(missing))
-    return got
+    return got, deps
+
+
+#: Definition dumps longer than this are pinned by SHA-256 rather than
+#: verbatim: `WaveAlgebra.lutString` is a 200 KB literal, and a pin file no one
+#: can read is not a reviewable claim. The hash pins the same content — only
+#: the diff's readability differs, and the definitions that carry a theorem's
+#: hypotheses (`Valid`, `Wf`, `Reach`, `Step`, `Inv`) are all far below it.
+PIN_INLINE_MAX = 4000
+
+
+def pin_of(dump):
+    """The pinned form of a structural dump (verbatim, or its SHA-256)."""
+    dump = " ".join(dump.split())
+    if len(dump) <= PIN_INLINE_MAX:
+        return dump
+    return "sha256:%s:%d" % (hashlib.sha256(dump.encode()).hexdigest(),
+                             len(dump))
+
+
+def strlits(dump):
+    """Every string literal in a structural dump, decoded, in order.
+
+    The dump carries literals as `(strLit <chars> <utf8-hex>)`, so a bridge can
+    cross-check what a theorem's statement literally CLAIMS against the oracle
+    (`byte_bridge_check.py` does this for the genesis hashes) — independently
+    of whether the statement matches its pin.
+    """
+    out = []
+    for chars, hexed in re.findall(r"\(strLit (\d+) ([0-9a-f]*)\)", dump):
+        try:
+            s = bytes.fromhex(hexed).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            continue
+        if len(s) == int(chars):
+            out.append(s)
+    return out
 
 
 def load_pins(path=PINS_PATH):
@@ -489,16 +638,21 @@ def load_front(name, path=PINS_PATH):
     front = dict(pins["fronts"][name])
     front["name"] = name
     front["statements"] = pins["statements"]
+    front["definitions"] = pins.get("definitions", {})
     front["_pins"] = pins
     return front
 
 
-def guard_semantics(lean, front, olean_dir):
-    """Axiom cone AND pinned statement for every guarded theorem of `front`.
+def guard_semantics(lean, front, olean_dir, out=None):
+    """Axiom cone, pinned statement AND pinned definitions for `front`.
 
     Returns an error string, or None if the front is clean. Fails closed on
-    every unobtainable answer, and on an empty guarded list (which would
-    otherwise pass vacuously).
+    every unobtainable answer, on an empty guarded list (which would otherwise
+    pass vacuously), and on any load-bearing definition without a pin.
+
+    `out`, if given, receives the raw environment answers as
+    `{"decls": …, "deps": …}` so a caller can cross-check what the statements
+    and definitions literally claim (see `strlits`).
     """
     theorems = list(front.get("guarded", []))
     if not theorems:
@@ -507,11 +661,36 @@ def guard_semantics(lean, front, olean_dir):
     allowed = set(front.get("allowed_axioms", STD_AXIOMS))
     native_ok = set(front.get("native_decide_ok", []))
     pinned = front["statements"]
+    defs = front.get("definitions", {})
     try:
-        got = env_query(lean, front["modules"], theorems, olean_dir)
+        got, deps = env_query(lean, front["modules"], theorems, olean_dir,
+                              audit=front.get("build") or front["modules"])
     except RuntimeError as e:
         return str(e)
+    if out is not None:
+        out["decls"], out["deps"] = got, deps
     bad = []
+    # F12: pinning statements does not stop a DEFINITION from being gutted.
+    # `Reach` losing its `step` constructor, or `Valid := False`, leaves every
+    # statement dump byte-identical and makes the theorems vacuous. The set
+    # walked here comes from the kernel environment, so a dependency cannot be
+    # silently left off a hand-written list; anything unpinned is an error.
+    for name in sorted(deps):
+        if name in theorems:
+            continue                       # pinned as a statement, above
+        want = defs.get(name)
+        if want is None:
+            bad.append(
+                f"{name} is a definition the guarded statements' meaning "
+                f"depends on, but it has no pin in "
+                f"{os.path.basename(PINS_PATH)} — refusing to certify a "
+                "theorem whose definitions are unpinned")
+            continue
+        if pin_of(deps[name]) != " ".join(want.split()):
+            bad.append(f"{name}: DEFINITION DRIFT — a definition the guarded "
+                       f"theorems are stated in terms of changed.\n"
+                       f"    pinned:  {want[:400]}\n"
+                       f"    actual:  {pin_of(deps[name])[:400]}")
     for t in theorems:
         for ax in got[t]["axioms"]:
             if ax in allowed:
@@ -571,6 +750,7 @@ def regen(argv):
         print("regen needs a `lean` binary")
         return 2
     pins = load_pins()
+    pins.setdefault("definitions", {})
     fronts = argv or list(pins["fronts"])
     for name in fronts:
         front = pins["fronts"][name]
@@ -580,13 +760,21 @@ def regen(argv):
                 if err:
                     print("FAIL " + err)
                     return 1
-            got = env_query(lean, front["modules"], front["guarded"], td)
+            got, deps = env_query(lean, front["modules"], front["guarded"], td,
+                                  audit=front["build"])
         for t in front["guarded"]:
             old = pins["statements"].get(t)
             pins["statements"][t] = got[t]["type"]
             state = "unchanged" if old == got[t]["type"] else \
                     ("NEW" if old is None else "CHANGED")
             print(f"{state:9s} {t}  axioms={got[t]['axioms']}")
+        for d in sorted(deps):
+            if d in front["guarded"]:
+                continue
+            new, old = pin_of(deps[d]), pins["definitions"].get(d)
+            pins["definitions"][d] = new
+            if old != new:
+                print(f"{'NEW' if old is None else 'CHANGED':9s} def {d}")
     with open(PINS_PATH, "w") as f:
         json.dump(pins, f, indent=2, ensure_ascii=False)
         f.write("\n")

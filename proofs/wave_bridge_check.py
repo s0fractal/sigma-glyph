@@ -103,9 +103,10 @@ def main():
         err = proof_guard.guard_semantics(lean, FRONT, td)
         if err:
             fail(err)
-        print(f"OK    axiom cones clean AND statements match their pins for "
-              f"{len(THEOREMS)} wave theorems (std axioms; native_decide only "
-              "where the TCB says so)")
+        print(f"OK    axiom cones clean, statements match their pins AND every "
+              f"definition they are stated in terms of matches its pin "
+              f"(`Valid`, `interfere`, the LUT), for {len(THEOREMS)} wave "
+              "theorems (std axioms; native_decide only where the TCB says so)")
         r = subprocess.run([lean, "--run", os.path.join(HERE, "WaveRun.lean")],
                            input=lines, capture_output=True, text=True, env=env)
     if r.returncode != 0:

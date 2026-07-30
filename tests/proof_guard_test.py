@@ -34,10 +34,31 @@ Round 2 (a second fresh-context review, which broke the round-1 fix):
       two layers are not independent, so the source layer must catch it even
       when the stripper is under attack (F2a).
 
+Round 3 (a third fresh-context review, which confirmed the round-2 fixes and
+then broke what they left uncovered — all four vectors below were GREEN,
+end-to-end, against the real proof files):
+
+  F12 pinning STATEMENTS does not stop DEFINITIONS from being gutted. Deleting
+      `Reach`'s `| step` constructor (4 lines) or emptying `Reach` altogether
+      left every pinned dump byte-identical and `BRIDGE: PREMISE HOLDS` on a
+      theorem covering one state / nothing; `def Valid (_w : Wave) : Prop :=
+      False` made three wave theorems vacuous with `WAVE-BRIDGE: ALL AGREE
+      (582/582)`. The claimed compensating control did not exist: no
+      differential runs Lean over a Prop-valued definition. Every definition a
+      guarded statement's meaning depends on is now pinned too — value for
+      definitions, constructor list for inductives — over a dependency set
+      computed from the kernel environment.
+  F13 string-literal CONTENT was not pinned: the dump said `(strLit 64)`, "a
+      64-character string". Swapping `hIT`/`hKT`'s bodies and the two pinned
+      hex strings kept every theorem true, every pin matched, and
+      `BYTE-BRIDGE: ALL AGREE (334/334)` — with TV-1 `genesis_I` asserting K's
+      hash. Literals now dump by content, and `byte_bridge_check.py`
+      cross-checks the genesis claims against the oracle.
+
 Also asserted: coverage (an unregistered theorem, and an anonymous `example`,
-are errors), an empty guarded list is an error, an unpinned theorem is an
-error, a lexer disagreement (unterminated literal) is an error, and no false
-positive on the real proofs/*.lean.
+are errors), an empty guarded list is an error, an unpinned theorem or
+definition is an error, a lexer disagreement (unterminated literal) is an
+error, and no false positive on the real proofs/*.lean.
 
 All Lean scratch files live in a temp dir — nothing touches proofs/.
 Needs `lean` for the semantic layer; exit 2 if unavailable (like the bridges).
@@ -117,6 +138,49 @@ VECTOR_SKIP_KERNEL = (
 # ---- lexer honesty ------------------------------------------------------
 VECTOR_UNTERMINATED = 'def s : String := "oops\n'
 
+# ---- F12: the STATEMENT is pinned, the DEFINITIONS it means were not ----
+# `memory_bound`'s elaborated type is `∀ {a}, Reach a → 1 ≤ a` in all three of
+# these. Deleting `Reach`'s recursive constructor shrinks the theorem to the
+# single state `1`; emptying `Reach` makes it about nothing at all. Neither
+# touches the pinned statement dump, and no differential can ever exercise a
+# Prop-valued definition, so nothing else in the stack sees it.
+IND_CLEAN = (
+    "inductive Reach : Nat → Prop where\n"
+    "  | init : Reach 1\n"
+    "  | step {a : Nat} : Reach a → Reach (a + 1)\n"
+    "theorem memory_bound {a : Nat} (r : Reach a) : 1 ≤ a := by\n"
+    "  induction r with\n"
+    "  | init => omega\n"
+    "  | step _ ih => omega\n")
+IND_GUTTED = (
+    "inductive Reach : Nat → Prop where\n"
+    "  | init : Reach 1\n"
+    "theorem memory_bound {a : Nat} (r : Reach a) : 1 ≤ a := by\n"
+    "  cases r; omega\n")
+IND_EMPTY = (
+    "inductive Reach : Nat → Prop where\n"
+    "theorem memory_bound {a : Nat} (r : Reach a) : 1 ≤ a := by\n"
+    "  nomatch r\n")
+
+# `Valid := False` makes every Valid-hypothesis theorem vacuous while the
+# statements stay byte-identical (the reviewer's WaveAlgebra vector).
+PROP_CLEAN = (
+    "def Valid (n : Nat) : Prop := 1 ≤ n\n"
+    "theorem memory_bound (n : Nat) (h : Valid n) : 0 < n := h\n")
+PROP_VACUOUS = (
+    "def Valid (_n : Nat) : Prop := False\n"
+    "theorem memory_bound (n : Nat) (h : Valid n) : 0 < n := h.elim\n")
+
+# ---- F13: string-literal CONTENT was not pinned -------------------------
+# The dump rendered a literal as `(strLit <length>)`, i.e. "a 1-character
+# string" / "a 64-character string". Swapping the atoms kept every theorem
+# true, every statement pin matched, and the genesis hash pins were free.
+STR_I = ('def tag : String := "I"\n'
+         'theorem memory_bound : tag = "I" := rfl\n')
+STR_K = ('def tag : String := "K"\n'
+         'theorem memory_bound : tag = "K" := rfl\n')
+
+
 failures = []
 
 
@@ -134,15 +198,38 @@ def write(td, body, name="GuardCase.lean"):
     return p
 
 
-def front(guarded, statements, **kw):
+def front(guarded, statements, definitions=None, **kw):
     """A minimal front for the fixtures (the registry shape guard_semantics
     and guard_sources consume)."""
-    f = {"name": "test", "modules": ["GuardCase"], "guarded": guarded,
-         "statements": statements, "allowed_axioms": list(proof_guard.STD_AXIOMS),
+    f = {"name": "test", "modules": ["GuardCase"], "build": ["GuardCase"],
+         "guarded": guarded, "statements": statements,
+         "definitions": definitions if definitions is not None else {},
+         "allowed_axioms": list(proof_guard.STD_AXIOMS),
          "native_decide_ok": [], "strict_sources": ["GuardCase.lean"],
          "runner_sources": [], "_pins": {"fronts": {}, "unguarded": {}}}
     f.update(kw)
     return f
+
+
+def pin_fixture(lean, body, decls=("memory_bound",)):
+    """Compile `body` and return (statement pins, definition pins)."""
+    with tempfile.TemporaryDirectory() as td:
+        write(td, body)
+        err = proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
+        if err:
+            raise RuntimeError(err)
+        got, deps = proof_guard.env_query(lean, ["GuardCase"], list(decls), td)
+    return ({d: got[d]["type"] for d in decls},
+            {k: proof_guard.pin_of(v) for k, v in deps.items()})
+
+
+def semantics_of(lean, body, stmts, defs, decls=("memory_bound",), **kw):
+    """Run the full semantic layer over `body` against the given pins."""
+    with tempfile.TemporaryDirectory() as td:
+        write(td, body)
+        return (proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
+                or proof_guard.guard_semantics(
+                    lean, front(list(decls), stmts, defs, **kw), td))
 
 
 def main():
@@ -212,7 +299,8 @@ def main():
         write(td, CLEAN)
         err = proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
         check("clean fixture compiles", not err, str(err))
-        got = proof_guard.env_query(lean, ["GuardCase"], ["memory_bound"], td)
+        got, _deps = proof_guard.env_query(
+            lean, ["GuardCase"], ["memory_bound"], td)
         PIN = got["memory_bound"]["type"]
         check("clean fixture's axioms are within the std set",
               set(got["memory_bound"]["axioms"]) <= set(proof_guard.STD_AXIOMS),
@@ -241,6 +329,53 @@ def main():
             check(name, bool(err) == want_reject, str(err))
             if err and want_reject:
                 print(f"      (guard said: {err.splitlines()[0][:120]})")
+
+    # --- F12: the definitions the statement is ABOUT ----------------------
+    stmts, defs = pin_fixture(lean, IND_CLEAN)
+    check("F12 the pinned dependency set is computed, not hand-listed "
+          "(the inductive and its constructors are in it)",
+          {"Reach", "Reach.init", "Reach.step"} <= set(defs), str(sorted(defs)))
+    check("F12 an inductive is pinned WITH its constructor list",
+          "ctors [Reach.init Reach.step]" in defs["Reach"], defs["Reach"])
+    err = semantics_of(lean, IND_CLEAN, stmts, defs)
+    check("F12 the clean fixture passes the definition pins", not err, str(err))
+    for name, body in [("F12 gutting an inductive (deleting the recursive "
+                        "constructor) is rejected — the STATEMENT is "
+                        "unchanged", IND_GUTTED),
+                       ("F12 an EMPTY inductive (theorem about nothing) is "
+                        "rejected", IND_EMPTY)]:
+        st2, _ = pin_fixture(lean, body)
+        check(name + " [statement really is byte-identical]",
+              st2["memory_bound"] == stmts["memory_bound"], "statement moved")
+        err = semantics_of(lean, body, stmts, defs)
+        check(name, bool(err), str(err))
+        if err:
+            print(f"      (guard said: {err.splitlines()[0][:120]})")
+
+    stmts, defs = pin_fixture(lean, PROP_CLEAN)
+    st2, _ = pin_fixture(lean, PROP_VACUOUS)
+    check("F12 `Valid := False` leaves the statement byte-identical",
+          st2["memory_bound"] == stmts["memory_bound"], "statement moved")
+    err = semantics_of(lean, PROP_VACUOUS, stmts, defs)
+    check("F12 a Prop-valued definition replaced by False is rejected",
+          bool(err), str(err))
+    err = semantics_of(lean, IND_CLEAN, stmts, {})
+    check("F12 an UNPINNED definition fails closed", bool(err), str(err))
+
+    # --- F13: string-literal CONTENT ---------------------------------------
+    stmts_i, defs_i = pin_fixture(lean, STR_I)
+    stmts_k, _ = pin_fixture(lean, STR_K)
+    check("F13 two same-length string literals no longer dump identically",
+          stmts_i["memory_bound"] != stmts_k["memory_bound"],
+          stmts_i["memory_bound"])
+    check("F13 a literal's content is recoverable from the dump",
+          proof_guard.strlits(stmts_i["memory_bound"]) == ["I"],
+          str(proof_guard.strlits(stmts_i["memory_bound"])))
+    err = semantics_of(lean, STR_K, stmts_i, defs_i)
+    check("F13 swapping a string literal for another of the SAME LENGTH is "
+          "rejected (the genesis hash pins)", bool(err), str(err))
+    if err:
+        print(f"      (guard said: {err.splitlines()[0][:120]})")
 
     # F3, stated honestly. Two applications of the same trick:
     #  (a) falsify a PIN (the reviewer rewrote MachineBytes.genesis_I to claim

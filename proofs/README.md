@@ -212,18 +212,38 @@ allowed axioms and pinned statements: `theorem_pins.json`):
    conclusion was equally invisible. Drift is a hard failure with a diff.
    The dump is structural (binder names and `mdata` dropped, constants by full
    name), never pretty-printed, so notation cannot make the printed statement
-   differ from the elaborated one.
-3. **Where the answer comes from** — a driver that loads the audited module's
+   differ from the elaborated one. String literals are dumped **by content**
+   (hex of their UTF-8 bytes): the dump used to say `(strLit 64)`, "some
+   64-character string", which left every genesis hash pin unprotected.
+3. **Definitions** — pinning a statement does not stop the definitions it is
+   *about* from being gutted underneath it. Deleting the `| step` constructor
+   of `SizeBound`'s `Reach` (a 4-line diff) shrinks `memory_bound` to the
+   single state `⟨1,0⟩`; emptying `Reach` makes it a theorem about nothing;
+   `def Valid (_w : Wave) : Prop := False` makes `interfere_valid`,
+   `left_dominance_ph` and `crystallization` vacuous. In all of these every
+   pinned statement dump stayed byte-identical and every bridge stayed green.
+   So each guarded statement's **dependency set** is now computed from the
+   kernel environment — the constants in its type, then transitively through
+   the types and *values* of the definitions those mention, restricted to the
+   audited modules — and every member is pinned: a definition by its type AND
+   value, an inductive by its type AND constructor list (with the
+   constructors' own types). Dumps too long to read in a diff (the 200 KB
+   `lutString`, `Sha256.sha256`) are pinned by SHA-256 of the same dump.
+   A dependency with no pin is a hard failure, so a *new* dependency cannot
+   appear silently, and the compiler-generated auxiliaries the eval statements
+   are phrased in terms of (`EvalMachine.step.match_3`) are pinned like any
+   other definition.
+4. **Where the answer comes from** — a driver that loads the audited module's
    `.olean` as *data* (`Lean.Environment.importModules`) and walks the kernel
    environment. The previous query wrote a `.lean` file that `import`ed the
    audited module and ran `#print axioms`, so the audited module could
    override that syntax and hand the guard a fabricated axiom list; the
    end-to-end vector had `axiom oops : False`, `memory_bound := oops.elim`,
    and a green bridge.
-4. **Imports** — an `import` naming anything outside the `proofs/` module set
+5. **Imports** — an `import` naming anything outside the `proofs/` module set
    is a hard failure. These are core-Lean-only proofs, and `import Lean` in an
-   audited file is what made (3) spellable.
-5. **Metaprogramming / compiler override** — attributes are allowlisted
+   audited file is what made (4) spellable.
+6. **Metaprogramming / compiler override** — attributes are allowlisted
    (`inline`, `simp`, `reducible`) and `implemented_by`, `extern`, `csimp`,
    `initialize`, `run_cmd`, `elab`, `macro`, `syntax`, `notation`, `unsafe`,
    `opaque`, `attribute`, `#`-commands and any non-`linter.*` `set_option`
@@ -234,28 +254,44 @@ allowed axioms and pinned statements: `theorem_pins.json`):
    `lean --run` (the differential harnesses) from the kernel definitions.
    `partial` is allowed only in the `*Run.lean` I/O plumbing, which proves
    nothing.
-6. **Text** — literal-aware comment stripping, then `sorry`/`admit` as
+7. **Text** — literal-aware comment stripping, then `sorry`/`admit` as
    substrings (catching `sorryAx`) and the `axiom` keyword in any position
    (catching `private axiom`). The stripper is literal-aware because
    `def blind : String := "/-"` opened a block comment *for the stripper* and
    hid everything after it, including a bare `axiom oops : False`. A literal
    or comment still open at EOF means our lexer and Lean's disagree about the
    file: that is a failure, not a shrug.
-7. **Coverage** — every `theorem`/`lemma` in `proofs/*.lean` must be either in
+8. **Coverage** — every `theorem`/`lemma` in `proofs/*.lean` must be either in
    a front's guarded list or registered in `unguarded` with a reason, so a new
    theorem in an already-guarded file cannot slip in unqueried. Anonymous
    `example`s are rejected outright: nothing can query them.
-8. **Fail closed** — a missing/renamed theorem, an unpinned theorem, an empty
-   guarded list, a driver failure or a missing `lean` binary is an error in
-   every bridge (exit 2 for the last), never a skip.
+9. **Fail closed** — a missing/renamed theorem, an unpinned theorem, an
+   unpinned definition in a guarded statement's dependency set, an empty
+   guarded list, a driver failure or a missing `lean`
+   binary is an error in every bridge (exit 2 for the last), never a skip.
 
 Known residual gaps, stated rather than papered over:
 
-* The pins fix each theorem's *statement*, not the *definitions* it mentions.
-  Rewriting `serialize` (say) leaves every dump unchanged while changing what
-  the theorems mean. What catches that is the differential half of each bridge
-  — 334 byte buffers, 33 eval vectors, 582 wave cases, 3000 C1 terms against
-  the Python oracle — plus review of the diff.
+* **Which fronts have a Lean-executing differential, precisely.** An earlier
+  version of this section named the four differentials as the control for
+  definition drift. Three of the four do run the compiled Lean model:
+  `byte_bridge_check.py` (334 buffers through `BytesRun.lean`),
+  `eval_bridge_check.py` (33 vectors through `EvalRun.lean`) and
+  `wave_bridge_check.py` (582 cases through `WaveRun.lean`). The other two do
+  **not** run Lean beyond the guard: `bridge_check.py`'s 861 steps drive
+  `impl/sigma_glyph.py` against the SizeBound *premise* (a cross-check of the
+  Python oracle, not of the Lean file), and `c1_bridge_check.py`'s 3000 λ-terms
+  compare `lean_c1` — a hand-written Python transcription of the Lean source —
+  against the oracle. And *no* differential can ever exercise a `Prop`-valued
+  definition (`Valid`, `Wf`, `Reach`, `Step`, `Inv`), which is exactly where
+  each theorem's hypotheses live. That is why definition drift is caught by the
+  pins in (3), not by the differentials.
+* **The genesis pins have a differential now, and only because one was added.**
+  "Compiling IS the check" only says the hex in the file is the digest of
+  whatever `hIT`/`hKT`/`hST` happen to be. `byte_bridge_check.py` now compares
+  the five genesis/FALSE/invalid-object statements — and the atom definitions
+  they are stated over — against `impl/sigma_glyph.py`, so a swap fails the
+  differential even if the pins were regenerated to match.
 * The `*Run.lean` runners are I/O plumbing; nothing proves a runner reports
   what the model computed rather than printing expected answers. The denylist
   removes the mechanical decoupling routes, not the need to read the file.
@@ -267,7 +303,8 @@ Regression: `tests/proof_guard_test.py` asserts every vector above is
 rejected — both round-1 bypasses, the vacuous/weakened/altered statements, the
 string-literal blinding, the `#print axioms` override, `import Lean`,
 `@[implemented_by]`, `@[extern]`, `debug.skipKernelTC`, the fake
-`native_decide`-shaped axiom, coverage, and each fail-closed path — and that
-none of them fires on the real `proofs/*.lean`.
+`native_decide`-shaped axiom, the gutted and emptied inductive, the
+`Prop := False` definition, the same-length string-literal swap, and each
+fail-closed path — and that none of them fires on the real `proofs/*.lean`.
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).
