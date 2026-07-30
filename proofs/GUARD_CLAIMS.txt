@@ -8,28 +8,135 @@
 # and the axiom cone were simply never consulted for it, and the only tell was
 # a count inside a log line no gate greps (2026-07 round-3 review, F14).
 #
-# So the SHAPE of the registry is a gated claim, kept here, deliberately short
-# enough that its diff gets read:
+# Round 4 then showed that COUNTS are not a claim about anything a reader
+# cares about. Hiding `crystallization` from coverage, replacing it with
+# `: True := trivial`, dropping it from `guarded`, and registering a fresh
+# trivial `placeholder_bound` in its place kept every number equal — the whole
+# diff of this file was the one `pins-sha256` line that `regen` rewrites on
+# every run (F18). So the claims are now IDENTITIES, and they cover every
+# field the guard's behaviour depends on:
 #
-#   * `front <name> guarded <n>` — how many theorems that front guards. Any
-#     change, in either direction, fails until this number is changed by hand.
-#   * `unguarded <name>` — the exact set of theorems deliberately outside the
-#     guard. A theorem cannot leave the guard's reach without appearing here.
+#   * `core-modules <root>…` — the ONLY module roots whose constants may go
+#     unpinned. The guard's audit scope is the complement of this, derived
+#     from the kernel environment, so it cannot shrink by editing a per-front
+#     list (F17).
+#   * `front <name> build <mod>…` — the modules the bridge compiles AND the
+#     guard queries. One list, read by both.
+#   * `front <name> modules <mod>…` — what the environment query imports.
+#   * `front <name> strict-sources|runner-sources <file>…` — what the source
+#     layer audits, and at which profile.
+#   * `front <name> axioms <ax>…` — that front's allowed axiom set.
+#   * `front <name> guarded <Name>` — one line per theorem, so adding or
+#     dropping one is a diff line that NAMES it.
+#   * `front <name> native-decide-ok <Name>` — theorems allowed to rest on a
+#     `native_decide` trust axiom at all.
+#   * `front <name> native-decide-sources <Name>` — declarations allowed to
+#     GENERATE such an axiom. A trust axiom used to be accepted on its shape
+#     alone, from any declaration (F20). Each of these is statement-pinned.
+#   * `unguarded <Name>` — the exact set of theorems deliberately outside the
+#     axiom-cone check.
 #   * `pins-sha256 <hex>` — the content hash of theorem_pins.json.
-#     `proof_guard.py regen` refreshes THIS LINE ONLY; the counts and the
-#     allowlist above are never machine-written.
+#     `proof_guard.py regen` refreshes THIS LINE ONLY; every identity above is
+#     hand-written, and a registry edit that is not mirrored here fails.
 #
 # This is a review-visibility control, not an authority: anyone who can edit
 # the registry can edit this file too. What it buys is that the edit is loud
-# and lands in a two-line diff instead of inside a 30 000-line pin file.
+# and names the theorem, instead of hiding inside a 30 000-line pin file.
 
-pins-sha256 2fc9d01bc827a64a0d26c3a05d98ed6c012314005011561e3cf34562c5ed471c
+pins-sha256 fb37ff1ec7350bd9b14e4ac0632173845cc83e58ba71cb587466d9bfbc7a18a0
 
-front size  guarded 2
-front bytes guarded 12
-front eval  guarded 8
-front wave  guarded 6
-front c1    guarded 5
+core-modules Init Lean Std
+
+front size build SizeBound
+front size modules SizeBound
+front size strict-sources SizeBound.lean
+front size runner-sources
+front size axioms propext Classical.choice Quot.sound
+front size guarded SigmaGlyph.memory_bound
+front size guarded SigmaGlyph.preflight_bound
+front size native-decide-ok
+front size native-decide-sources
+
+front bytes build Sha256 MachineBytes
+front bytes modules MachineBytes
+front bytes strict-sources Sha256.lean MachineBytes.lean
+front bytes runner-sources BytesRun.lean
+front bytes axioms propext Classical.choice Quot.sound
+front bytes guarded MachineBytes.serialize_injective
+front bytes guarded MachineBytes.deser_serialize
+front bytes guarded MachineBytes.serialize_deser
+front bytes guarded MachineBytes.deser_wf
+front bytes guarded MachineBytes.valid_lengths
+front bytes guarded MachineBytes.reserved_opcode_invalid
+front bytes guarded MachineBytes.lit_bytes_disjoint
+front bytes guarded MachineBytes.genesis_I
+front bytes guarded MachineBytes.genesis_K
+front bytes guarded MachineBytes.genesis_S
+front bytes guarded MachineBytes.false_is_a_theorem
+front bytes guarded MachineBytes.invalid_object_pins
+front bytes native-decide-ok MachineBytes.genesis_I
+front bytes native-decide-ok MachineBytes.genesis_K
+front bytes native-decide-ok MachineBytes.genesis_S
+front bytes native-decide-ok MachineBytes.false_is_a_theorem
+front bytes native-decide-ok MachineBytes.invalid_object_pins
+front bytes native-decide-sources MachineBytes.genesis_I
+front bytes native-decide-sources MachineBytes.genesis_K
+front bytes native-decide-sources MachineBytes.genesis_S
+front bytes native-decide-sources MachineBytes.false_is_a_theorem
+front bytes native-decide-sources MachineBytes.invalid_object_pins
+
+front eval build Sha256 MachineBytes EvalMachine
+front eval modules EvalMachine
+front eval strict-sources Sha256.lean MachineBytes.lean EvalMachine.lean
+front eval runner-sources EvalRun.lean
+front eval axioms propext Classical.choice Quot.sound
+front eval guarded EvalMachine.step_bounds
+front eval guarded EvalMachine.step_cost_le
+front eval guarded EvalMachine.step_cost_pos
+front eval guarded EvalMachine.eval_spent_le
+front eval guarded EvalMachine.evalHash_spent_le
+front eval guarded EvalMachine.size_step
+front eval guarded EvalMachine.eval_size_bound
+front eval guarded EvalMachine.evalHash_size_bound
+front eval native-decide-ok
+front eval native-decide-sources
+
+front wave build LutData WaveAlgebra
+front wave modules WaveAlgebra
+front wave strict-sources LutData.lean WaveAlgebra.lean
+front wave runner-sources WaveRun.lean
+front wave axioms propext Classical.choice Quot.sound
+front wave guarded WaveAlgebra.interfere_valid
+front wave guarded WaveAlgebra.zero_amp_cascade
+front wave guarded WaveAlgebra.left_dominance_ph
+front wave guarded WaveAlgebra.crystallization
+front wave guarded WaveAlgebra.fold_not_associative
+front wave guarded WaveAlgebra.not_commutative
+front wave native-decide-ok WaveAlgebra.interfere_valid
+front wave native-decide-ok WaveAlgebra.zero_amp_cascade
+front wave native-decide-ok WaveAlgebra.crystallization
+front wave native-decide-ok WaveAlgebra.fold_not_associative
+front wave native-decide-ok WaveAlgebra.not_commutative
+front wave native-decide-sources WaveAlgebra.am_fixed_scan
+front wave native-decide-sources WaveAlgebra.crystallization
+front wave native-decide-sources WaveAlgebra.fold_not_associative
+front wave native-decide-sources WaveAlgebra.lut_range
+front wave native-decide-sources WaveAlgebra.lut_zero
+front wave native-decide-sources WaveAlgebra.not_commutative
+front wave native-decide-sources WaveAlgebra.zero_amp_cascade
+
+front c1 build C1Compiler
+front c1 modules C1Compiler
+front c1 strict-sources C1Compiler.lean
+front c1 runner-sources
+front c1 axioms propext
+front c1 guarded Book1.C1.mem_skiFv_abstr
+front c1 guarded Book1.C1.mem_skiFv_c1
+front c1 guarded Book1.C1.c1_closed
+front c1 guarded Book1.C1.tv10_id
+front c1 guarded Book1.C1.tv10_const
+front c1 native-decide-ok
+front c1 native-decide-sources
 
 unguarded SigmaGlyph.step_preserves
 unguarded EvalMachine.size_pos

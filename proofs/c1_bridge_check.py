@@ -107,7 +107,7 @@ def main():
         print("C1-BRIDGE: FAIL — source guard: " + "; ".join(problems))
         return 1
     with tempfile.TemporaryDirectory() as td:
-        err = (proof_guard.build_olean(lean, "C1Compiler", td)
+        err = (proof_guard.build_front(lean, FRONT, td)
                or proof_guard.guard_semantics(lean, FRONT, td))
     if err:
         print("C1-BRIDGE: FAIL — " + err)

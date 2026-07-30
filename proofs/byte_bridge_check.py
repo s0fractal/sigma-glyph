@@ -148,13 +148,12 @@ def main():
 
     with tempfile.TemporaryDirectory() as td:
         env = dict(os.environ, LEAN_PATH=td)
-        for mod in ("Sha256", "MachineBytes", "BytesRun"):
-            r = subprocess.run([lean, os.path.join(HERE, mod + ".lean"),
-                                "-o", os.path.join(td, mod + ".olean")],
-                               capture_output=True, text=True, env=env)
-            if r.returncode != 0:
-                fail(f"{mod}.lean does not compile: "
-                     + (r.stderr or r.stdout).strip()[:500])
+        # FRONT["build"] + FRONT["runner_sources"] is the single place this
+        # front's compiled module set is spelled — the guard reads the same
+        # field, so the two cannot drift apart (round-4 F17).
+        err = proof_guard.build_front(lean, FRONT, td, runners=True)
+        if err:
+            fail(err)
         print("OK    Sha256 + MachineBytes compile clean "
               "(the genesis pins are theorems, so they are kernel-checked "
               "claims — but see the oracle cross-check below)")
