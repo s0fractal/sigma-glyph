@@ -23,6 +23,12 @@ const (
 	policyTag    = "sigma-glyph.selection@v1"
 	viewTag      = "sigma-glyph.annotation-view@v1"
 	lutArbiter   = "c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2"
+
+	// Warrant SPEC v0.4 §5: a signature covers "warrant-sig-v1:" followed by
+	// the 32 raw bytes of the WarrantID, 47 bytes in all. A Go verifier that
+	// counts a signature the Python verifier refuses is the
+	// two-implementations-disagree outcome this repository exists to forbid.
+	warrantSigDomain = "warrant-sig-v1:"
 )
 
 var orderFields = map[string]bool{"epoch": true, "ts": true, "warrant_id": true, "actor": true}
@@ -1552,6 +1558,7 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 	if err != nil {
 		return counted
 	}
+	sigMsg := append([]byte(warrantSigDomain), ridBytes...)
 	for _, rawSig := range stringListAny(env["sigs"]) {
 		sigMap, ok := asMap(rawSig)
 		if !ok {
@@ -1568,7 +1575,7 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 		if err1 != nil || err2 != nil || len(pub) != ed25519.PublicKeySize || len(sig) != ed25519.SignatureSize {
 			continue
 		}
-		if ed25519.Verify(ed25519.PublicKey(pub), ridBytes, sig) {
+		if ed25519.Verify(ed25519.PublicKey(pub), sigMsg, sig) {
 			counted[actor] = true
 		}
 	}
