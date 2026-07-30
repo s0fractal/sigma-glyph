@@ -8,10 +8,28 @@ line, so two WARRANT_PIN: lines yielded a two-line value; the per-line
 malformed URL and both network parity checks skipped as "not reachable" —
 a forbidden ci.yml state misdiagnosed as a network problem.
 
+A second round-2 review then found three more, all in the same extraction:
+
+  F9  a duplicate pin PASSED (rc=0) when ci.yml has no final newline: the
+      count came from `sed | wc -l`, which counts NEWLINES, so N pin lines
+      counted as N−1 — and `tr -d '[:space:]'` spliced the two values into
+      one. Fixed by counting with `grep -c`, which counts an unterminated
+      last line.
+  F10 the same root cause the other way: one VALID pin with no final newline
+      reported "has 0 WARRANT_PIN: lines" and hard-failed the matrix with a
+      wrong message.
+  F11 `tr -d '[:space:]'` also deleted INTERNAL whitespace, so
+      `39724276887 30e114507…` was accepted as a 40-hex pin, and
+      `${matches%%#*}` truncated the value at a `#` with no preceding space,
+      which YAML keeps in the value. Both let the local matrix validate a
+      DIFFERENT commit than CI resolves.
+
 This test drives tools/read_warrant_pin.sh over fixture ci.yml files in a
-temp dir and asserts: duplicate → hard error naming the duplicate condition;
-missing/malformed → hard error; single pin (bare, commented, quoted) → the
-pin. Run: python3 tests/warrant_pin_guard_test.py
+temp dir and asserts: duplicate → hard error naming the duplicate condition
+(with AND without a final newline); missing/malformed → hard error; internal
+whitespace and a no-space `#` → hard error, never a truncated/spliced pin;
+single pin (bare, commented, quoted, and with no final newline) → the pin.
+Run: python3 tests/warrant_pin_guard_test.py
 """
 import os
 import subprocess
@@ -60,6 +78,29 @@ def main():
     check("39-hex pin fails hard", r.returncode != 0 and "not a 40-hex" in r.stderr,
           r.stderr.strip())
 
+    # F9: the duplicate must still be caught with NO final newline (the old
+    # `sed | wc -l` counted newlines, so two pin lines counted as one and the
+    # spliced value validated — rc=0, a forbidden ci.yml state accepted)
+    r = run_helper(head + f"  WARRANT_PIN:\n  WARRANT_PIN: {PIN}")
+    check("F9 duplicate pin without a final newline fails hard",
+          r.returncode != 0 and "2 WARRANT_PIN" in r.stderr,
+          f"rc={r.returncode} out={r.stdout.strip()!r} err={r.stderr.strip()!r}")
+    r = run_helper(head + f"  WARRANT_PIN: {PIN}\n  WARRANT_PIN: {PIN}")
+    check("F9 two full pins without a final newline fail hard",
+          r.returncode != 0 and "duplicate WARRANT_PIN" in r.stderr,
+          f"rc={r.returncode} out={r.stdout.strip()!r} err={r.stderr.strip()!r}")
+
+    # F11: a value with INTERNAL whitespace must never be spliced into a pin,
+    # and a `#` with no preceding whitespace is part of the YAML value
+    r = run_helper(head + f"  WARRANT_PIN: {PIN[:11]} {PIN[11:]}\n")
+    check("F11 internally-spaced value is not accepted as a 40-hex pin",
+          r.returncode != 0 and "not a 40-hex" in r.stderr,
+          f"rc={r.returncode} out={r.stdout.strip()!r}")
+    r = run_helper(head + f"  WARRANT_PIN: {PIN}#notacomment\n")
+    check("F11 `#` without preceding whitespace stays in the value (no truncation)",
+          r.returncode != 0 and "not a 40-hex" in r.stderr,
+          f"rc={r.returncode} out={r.stdout.strip()!r}")
+
     # single well-formed pin, in the YAML forms real CI reads fine
     for name, line in [
             ("bare pin extracts", f"  WARRANT_PIN: {PIN}"),
@@ -69,6 +110,13 @@ def main():
         r = run_helper(head + line + "\njobs: {}\n")
         check(name, r.returncode == 0 and r.stdout.strip() == PIN,
               f"rc={r.returncode} out={r.stdout.strip()!r} err={r.stderr.strip()!r}")
+
+    # F10: one valid pin, no final newline — used to report "has 0
+    # WARRANT_PIN: lines" and hard-fail the matrix with a wrong message
+    r = run_helper(head + f"  WARRANT_PIN: {PIN}")
+    check("F10 single valid pin without a final newline extracts",
+          r.returncode == 0 and r.stdout.strip() == PIN,
+          f"rc={r.returncode} out={r.stdout.strip()!r} err={r.stderr.strip()!r}")
 
     # and the real ci.yml still yields a single valid pin
     r = subprocess.run(["bash", HELPER], capture_output=True, text=True, cwd=REPO)
