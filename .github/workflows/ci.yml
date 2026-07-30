@@ -77,6 +77,14 @@ jobs:
             | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
           python3 tests/governance_differential.py \
             | tee /dev/stderr | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
+      - name: Exit statuses tell the truth (a printed failure must not return 0)
+        # Book I's module entry point printed FAILURES PRESENT and exited 0, so a
+        # script branching on $? -- which is what CI does by default -- saw success.
+        # This guard covers every module entry point and verb dispatch.
+        run: |
+          python3 tests/exit_status_guard.py | tee /dev/stderr \
+            | grep -qx "EXIT-STATUS-GUARD: ALL PASS (15/15)"
+
       - name: "Book I fourth engine: warrant-go ski@v1 conformance + three-way differential fuzzer (Python/Rust/warrant-go, pinned)"
         shell: bash
         run: |
