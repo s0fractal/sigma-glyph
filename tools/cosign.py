@@ -36,7 +36,7 @@ def main():
         sys.exit(f"key {pub[:12]}… already signed this warrant")
     env.setdefault("sigs", []).append(
         {"actor": actor, "key": pub,
-         "sig": sk.sign(bytes.fromhex(wid)).hex()})
+         "sig": sk.sign(b"warrant-sig-v1:" + bytes.fromhex(wid)).hex()})
     with open(path, "w") as f:
         json.dump(env, f, indent=2, sort_keys=True, ensure_ascii=False)
     print(f"co-signed {wid[:12]}… as {actor} ({len(env['sigs'])} sigs)")

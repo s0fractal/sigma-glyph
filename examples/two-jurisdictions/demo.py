@@ -94,7 +94,8 @@ class Jurisdiction:
         env = {"body": body, "sigs": [{
             "actor": actor,
             "key": sk.public_key().public_bytes_raw().hex(),
-            "sig": sk.sign(bytes.fromhex(wid)).hex()}]}
+            "sig": sk.sign(b"warrant-sig-v1:"
+                             + bytes.fromhex(wid)).hex()}]}
         with open(os.path.join(self.dir, "records", wid + ".json"), "w") as f:
             json.dump(env, f, indent=2, sort_keys=True)
         return wid

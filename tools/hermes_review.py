@@ -130,7 +130,7 @@ def main():
     sk = load_key()
     env = {"body": body, "sigs": [{
         "actor": ACTOR, "key": sk.public_key().public_bytes_raw().hex(),
-        "sig": sk.sign(bytes.fromhex(wid)).hex()}]}
+        "sig": sk.sign(b"warrant-sig-v1:" + bytes.fromhex(wid)).hex()}]}
     rec = os.path.join(STORE, "records", wid + ".json")
     with open(rec, "w") as f:
         json.dump(env, f, indent=2, sort_keys=True, ensure_ascii=False)

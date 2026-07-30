@@ -6,7 +6,7 @@
     "because": [
       {
         "kind": "prose",
-        "text": "Successor of the v0.6.3 set 78b98630. This release promotes GOV-anchors.md from DRAFT STANDARD to STANDARD (v1.0.0) through a second 3-family gate on the promotion (Gemini/GPT-5/DeepSeek, unanimous PROMOTE-WITH-AMENDMENTS): Gemini's P0 key-state deadlock fixed with resolved_key_state in both impls (differential 24/24), STANDARD bar defined (§0), normative deps pinned (Warrant snapshot 73758bdb + Books by anchored version). Filed by the maintainer; the second signature is expected from a roster co-signer - the envelope authorizes nothing until the 2-of-3 threshold is met."
+        "text": "Successor of the v0.6.3 set 78b98630. This release promotes GOV-anchors.md from DRAFT STANDARD to STANDARD (v1.0.0) through a second 3-family gate on the promotion (Gemini/GPT-5/DeepSeek, unanimous PROMOTE-WITH-AMENDMENTS): Gemini's P0 key-state deadlock fixed with resolved_key_state in both impls (differential 24/24), STANDARD bar defined (\u00a70), normative deps pinned (Warrant snapshot 73758bdb + Books by anchored version). Filed by the maintainer; the second signature is expected from a roster co-signer - the envelope authorizes nothing until the 2-of-3 threshold is met."
       }
     ],
     "decision": "accept",
@@ -29,12 +29,12 @@
     {
       "actor": "claude-fable-5@sigma-glyph",
       "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
-      "sig": "2eb379c0196da796f14825ac441de968949f32019c9c32dac57e7f29694174f1b6eafff2e9acb2371d0f00eb61513795cf4eccde527c7f7cfeaf5fdb7a934504"
+      "sig": "460a7d6d4a37b0c0992eb235cbce798efd6ed2bdc8d58772516270d666832d9b4dc79944e47c52cb962abbdfca03a9faa4d879272c05d0448190d779267bfb0b"
     },
     {
       "actor": "codex@sigma-glyph",
       "key": "9411e8fe7feab215b4ac7fccd20001f64d1181ce8b5487880931e7f1a000c889",
-      "sig": "acb7d301618627bacbf9ad1423d74cc743e7f0e209c83701d4e72a72b208f8506d9527013cbd6aad4ca691d81cb5c53567913c6654dc48c62329533c2849ff02"
+      "sig": "ffaf29f4d841840e43f6af471797155c01a42e9cdc134313ac31037d2e68f7ea2cf64864318dda146b2f3da328beffe2319369a321ca21b2fa3a6d7bb8be8a01"
     }
   ]
 }

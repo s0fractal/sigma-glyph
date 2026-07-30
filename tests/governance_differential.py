@@ -62,7 +62,7 @@ def signed_env(body, signers):
         "body": body,
         "sigs": [
             {"actor": actor, "key": pub(actor),
-             "sig": sk(actor).sign(bytes.fromhex(rid)).hex()}
+             "sig": sk(actor).sign(b"warrant-sig-v1:" + bytes.fromhex(rid)).hex()}
             for actor in signers
         ],
     }

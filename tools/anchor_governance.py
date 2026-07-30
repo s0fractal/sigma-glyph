@@ -297,8 +297,12 @@ def counted_sigs(env, rid, threshold, trust_actors):
             key = bytes.fromhex(s["key"])
             if weak_ed25519_pubkey(key):
                 continue
+            # Warrant SPEC v0.4 s5: the signed message names the protocol.
+            # Verifying the bare WarrantID here would accept signatures the
+            # Warrant CLI refuses, and this file adjudicates governance.
             Ed25519PublicKey.from_public_bytes(key).verify(
-                bytes.fromhex(s["sig"]), bytes.fromhex(rid))
+                bytes.fromhex(s["sig"]),
+                b"warrant-sig-v1:" + bytes.fromhex(rid))
         except Exception:
             continue
         counted.add(actor)
@@ -564,7 +568,8 @@ def _file(root, decision, actor, subject, under, prior, signers, note="x"):
             "prior": prior, "ts": 1783400000}
     rid = sha256(canon(body))
     env = {"body": body, "sigs": [
-        {"actor": a, "key": _pub(a), "sig": _sk(a).sign(bytes.fromhex(rid)).hex()}
+        {"actor": a, "key": _pub(a),
+         "sig": _sk(a).sign(b"warrant-sig-v1:" + bytes.fromhex(rid)).hex()}
         for a in signers]}
     open(os.path.join(root, "records", rid + ".json"), "w").write(
         json.dumps(env, indent=2, sort_keys=True))

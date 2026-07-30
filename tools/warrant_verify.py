@@ -94,8 +94,14 @@ def main():
                 key = bytes.fromhex(s["key"])
                 if weak_ed25519_pubkey(key):
                     raise ValueError("small-order or non-canonical pubkey")
+                # Warrant SPEC v0.4 s5: the signed message names the protocol,
+                # so a key that signs some other protocol's SHA-256 digest does
+                # not thereby sign a Warrant. Verifying the bare digest here
+                # would make this vendored copy accept what the live CLI refuses
+                # -- and this file exists precisely to be a second opinion.
                 Ed25519PublicKey.from_public_bytes(key).verify(
-                    bytes.fromhex(s["sig"]), bytes.fromhex(rid))
+                    bytes.fromhex(s["sig"]),
+                    b"warrant-sig-v1:" + bytes.fromhex(rid))
             except Exception:
                 # SEVERITY DIVERGES FROM THE LIVE CLI, DELIBERATELY AND VISIBLY.
                 # Warrant SPEC v0.3 s6(3) makes an invalid signature a WARNING
