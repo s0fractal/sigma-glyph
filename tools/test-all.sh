@@ -100,8 +100,13 @@ python3 tests/book1_fuzz.py --terms 60 --seed 20260730 \
 
 say "Federation + governance second implementation (Go) + differentials"
 ( cd impl-go && go build -o sigma-federation-go . )
-./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json \
-  | tee /dev/stderr | grep -q "FEDERATION-GO: ALL PASS"
+_gofed="$(./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json | tee /dev/stderr)"
+grep -q "FEDERATION-GO: ALL PASS" <<<"$_gofed"
+# impl-go has no Book I evaluator; its FV-BOOK-I-UNREACHABLE "pass" was an echo
+# of a hand-transcribed constant. It must declare itself vacuous and stay out of
+# the tally — if this line ever disappears, a Go report can be read as Book I
+# coverage again.
+grep -q "VACUOUS FV-BOOK-I-UNREACHABLE" <<<"$_gofed"
 ./impl-go/sigma-federation-go gov-replay tests/spec_conformance/governance_vectors.json \
   | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
 python3 tests/federation_differential.py   | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"

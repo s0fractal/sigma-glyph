@@ -144,7 +144,16 @@ for v in doc["vectors"]:
               })["wave"]}
         chk(v["id"], go, py)
     elif k == "book1_unreachable":
-        chk(v["id"], go_cmd("book1-unreachable"), sf._book1_fixture())
+        # NOT a differential, whatever the surrounding file implies. impl-go has
+        # no Book I evaluator (see book1EchoedConstantNotEvaluated in
+        # impl-go/main.go): the Go side of this comparison is a constant
+        # transcribed by hand from vectors.json, and the Python side is a real
+        # eval. Agreement here means the constant has not been mistyped — it is
+        # not a second implementation confirming Book I, and no report may read
+        # it that way. Go's own replay now prints VACUOUS for this vector and
+        # leaves it out of its tally.
+        chk(v["id"] + " (echo check only — impl-go has no Book I evaluator)",
+            go_cmd("book1-unreachable"), sf._book1_fixture())
     else:
         raise SystemExit(f"unknown vector kind {k}")
 
