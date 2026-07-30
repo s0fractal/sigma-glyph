@@ -61,7 +61,14 @@ implementation must be your own logic, not a transliteration.
   quorum; anything else is ignored (unauthorized key-state = invalid record).
 - Adoption: `under` exactly {current profile, its threshold} (len 2);
   signatures counted once per distinct roster actor, key must be bound,
-  Ed25519 over the raw WarrantID bytes (hex-decoded).
+  Ed25519 over the **domain-separated message of Warrant SPEC v0.4 §5** —
+  `"warrant-sig-v1:" || WarrantID_raw`, 47 bytes. (Amended 2026-07-31: this
+  line said "over the raw WarrantID bytes (hex-decoded)", which was correct
+  when written and became wrong when Warrant adopted domain separation. It is
+  amended rather than annotated because re-running this brief as written would
+  produce a Go verifier that counts signatures the Python one refuses — the
+  precise divergence an independent second implementation exists to detect,
+  arriving instead from its own instructions.)
 - Rival authorized adoption of a DIFFERENT valid anchor-set with the same
   ancestor ⇒ chain frozen (refuse). No tie-breaks of any kind.
 - Note strings need not match Python word-for-word, but for each vector your
