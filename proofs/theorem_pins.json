@@ -1,0 +1,242 @@
+{
+  "_README": [
+    "Pin registry for the bridge soundness guard (proofs/proof_guard.py).",
+    "",
+    "`fronts` — one entry per bridge: which modules the environment query loads,",
+    "which sources the textual/denylist layer audits (strict = model files,",
+    "runner = the *Run.lean I/O plumbing, where `partial` is allowed), which",
+    "axioms that front's documented TCB permits (proofs/README.md), which of its",
+    "theorems may additionally rest on `native_decide` trust axioms, and the",
+    "guarded theorem list itself.",
+    "",
+    "`statements` — the canonical dump of each guarded theorem's ELABORATED type",
+    "(binder names and mdata dropped; structural, not pretty-printed, so no",
+    "notation or delaborator can change it). The guard compares the environment's",
+    "answer against this string: axiom-cone checking alone certified",
+    "`theorem memory_bound : True := trivial` as clean (2026-07 round-2 review,",
+    "F1). A drift is a hard failure with a diff.",
+    "",
+    "`unguarded` — theorems deliberately NOT pinned, with the reason. Every",
+    "theorem in proofs/*.lean must appear here or in a front's guarded list, so",
+    "adding one is a deliberate act (a new poisoned theorem in a guarded file",
+    "used to be invisible to the guard). Anonymous `example`s are rejected",
+    "outright: nothing can query them.",
+    "",
+    "To change a statement legitimately: edit the proof, run",
+    "`python3 proofs/proof_guard.py regen`, and review the diff as carefully as",
+    "you would review the theorem statement — this file is the claim."
+  ],
+  "fronts": {
+    "size": {
+      "build": [
+        "SizeBound"
+      ],
+      "modules": [
+        "SizeBound"
+      ],
+      "strict_sources": [
+        "SizeBound.lean"
+      ],
+      "runner_sources": [],
+      "allowed_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "native_decide_ok": [],
+      "guarded": [
+        "SigmaGlyph.memory_bound",
+        "SigmaGlyph.preflight_bound"
+      ]
+    },
+    "bytes": {
+      "build": [
+        "Sha256",
+        "MachineBytes"
+      ],
+      "modules": [
+        "MachineBytes"
+      ],
+      "strict_sources": [
+        "Sha256.lean",
+        "MachineBytes.lean"
+      ],
+      "runner_sources": [
+        "BytesRun.lean"
+      ],
+      "allowed_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "native_decide_ok": [
+        "MachineBytes.genesis_I",
+        "MachineBytes.genesis_K",
+        "MachineBytes.genesis_S",
+        "MachineBytes.false_is_a_theorem",
+        "MachineBytes.invalid_object_pins"
+      ],
+      "guarded": [
+        "MachineBytes.serialize_injective",
+        "MachineBytes.deser_serialize",
+        "MachineBytes.serialize_deser",
+        "MachineBytes.deser_wf",
+        "MachineBytes.valid_lengths",
+        "MachineBytes.reserved_opcode_invalid",
+        "MachineBytes.lit_bytes_disjoint",
+        "MachineBytes.genesis_I",
+        "MachineBytes.genesis_K",
+        "MachineBytes.genesis_S",
+        "MachineBytes.false_is_a_theorem",
+        "MachineBytes.invalid_object_pins"
+      ]
+    },
+    "eval": {
+      "build": [
+        "Sha256",
+        "MachineBytes",
+        "EvalMachine"
+      ],
+      "modules": [
+        "EvalMachine"
+      ],
+      "strict_sources": [
+        "Sha256.lean",
+        "MachineBytes.lean",
+        "EvalMachine.lean"
+      ],
+      "runner_sources": [
+        "EvalRun.lean"
+      ],
+      "allowed_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "native_decide_ok": [],
+      "guarded": [
+        "EvalMachine.step_bounds",
+        "EvalMachine.step_cost_le",
+        "EvalMachine.step_cost_pos",
+        "EvalMachine.eval_spent_le",
+        "EvalMachine.evalHash_spent_le",
+        "EvalMachine.size_step",
+        "EvalMachine.eval_size_bound",
+        "EvalMachine.evalHash_size_bound"
+      ]
+    },
+    "wave": {
+      "build": [
+        "LutData",
+        "WaveAlgebra"
+      ],
+      "modules": [
+        "WaveAlgebra"
+      ],
+      "strict_sources": [
+        "LutData.lean",
+        "WaveAlgebra.lean"
+      ],
+      "runner_sources": [
+        "WaveRun.lean"
+      ],
+      "allowed_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "native_decide_ok": [
+        "WaveAlgebra.interfere_valid",
+        "WaveAlgebra.zero_amp_cascade",
+        "WaveAlgebra.crystallization",
+        "WaveAlgebra.fold_not_associative",
+        "WaveAlgebra.not_commutative"
+      ],
+      "guarded": [
+        "WaveAlgebra.interfere_valid",
+        "WaveAlgebra.zero_amp_cascade",
+        "WaveAlgebra.left_dominance_ph",
+        "WaveAlgebra.crystallization",
+        "WaveAlgebra.fold_not_associative",
+        "WaveAlgebra.not_commutative"
+      ]
+    },
+    "c1": {
+      "build": [
+        "C1Compiler"
+      ],
+      "modules": [
+        "C1Compiler"
+      ],
+      "strict_sources": [
+        "C1Compiler.lean"
+      ],
+      "runner_sources": [],
+      "allowed_axioms": [
+        "propext"
+      ],
+      "native_decide_ok": [],
+      "guarded": [
+        "Book1.C1.mem_skiFv_abstr",
+        "Book1.C1.mem_skiFv_c1",
+        "Book1.C1.c1_closed",
+        "Book1.C1.tv10_id",
+        "Book1.C1.tv10_const"
+      ]
+    }
+  },
+  "statements": {
+    "SigmaGlyph.memory_bound": "(all (const SigmaGlyph.Acc []) (all (app (const SigmaGlyph.Reach []) #0) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (const SigmaGlyph.Acc.size []) #1)) (app (app (app (app (app (app (const HAdd.hAdd [0 0 0]) (const Nat [])) (const Nat [])) (const Nat [])) (app (app (const instHAdd [0]) (const Nat [])) (const instAddNat []))) (app (const SigmaGlyph.Acc.spent []) #1)) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1)))))))",
+    "SigmaGlyph.preflight_bound": "(all (const SigmaGlyph.Acc []) (all (app (const SigmaGlyph.Reach []) #0) (all (const Nat []) (all (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (const SigmaGlyph.Acc.spent []) #2)) #0) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (const SigmaGlyph.Acc.size []) #3)) (app (app (app (app (app (app (const HAdd.hAdd [0 0 0]) (const Nat [])) (const Nat [])) (const Nat [])) (app (app (const instHAdd [0]) (const Nat [])) (const instAddNat []))) #1) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1)))))))))",
+    "MachineBytes.serialize_injective": "(all (const MachineBytes.Node []) (all (const MachineBytes.Node []) (all (app (const MachineBytes.Wf []) #1) (all (app (const MachineBytes.Wf []) #1) (all (app (app (app (const Eq [(s 0)]) (const MachineBytes.Bytes [])) (app (const MachineBytes.serialize []) #3)) (app (const MachineBytes.serialize []) #2)) (app (app (app (const Eq [(s 0)]) (const MachineBytes.Node [])) #4) #3))))))",
+    "MachineBytes.deser_serialize": "(all (const MachineBytes.Node []) (all (app (const MachineBytes.Wf []) #0) (app (app (app (const Eq [(s 0)]) (app (const Option [0]) (const MachineBytes.Node []))) (app (const MachineBytes.deserialize []) (app (const MachineBytes.serialize []) #1))) (app (app (const Option.some [0]) (const MachineBytes.Node [])) #1))))",
+    "MachineBytes.serialize_deser": "(all (const MachineBytes.Bytes []) (all (const MachineBytes.Node []) (all (app (app (app (const Eq [(s 0)]) (app (const Option [0]) (const MachineBytes.Node []))) (app (const MachineBytes.deserialize []) #1)) (app (app (const Option.some [0]) (const MachineBytes.Node [])) #0)) (app (app (app (const Eq [(s 0)]) (const MachineBytes.Bytes [])) (app (const MachineBytes.serialize []) #1)) #2))))",
+    "MachineBytes.deser_wf": "(all (const MachineBytes.Bytes []) (all (const MachineBytes.Node []) (all (app (app (app (const Eq [(s 0)]) (app (const Option [0]) (const MachineBytes.Node []))) (app (const MachineBytes.deserialize []) #1)) (app (app (const Option.some [0]) (const MachineBytes.Node [])) #0)) (app (const MachineBytes.Wf []) #1))))",
+    "MachineBytes.valid_lengths": "(all (const MachineBytes.Bytes []) (all (const MachineBytes.Node []) (all (app (app (app (const Eq [(s 0)]) (app (const Option [0]) (const MachineBytes.Node []))) (app (const MachineBytes.deserialize []) #1)) (app (app (const Option.some [0]) (const MachineBytes.Node [])) #0)) (app (app (const Or []) (app (app (app (const Eq [(s 0)]) (const Nat [])) (app (app (const List.length [0]) (const UInt8 [])) #2)) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 34)) (app (const instOfNatNat []) (natLit 34))))) (app (app (app (const Eq [(s 0)]) (const Nat [])) (app (app (const List.length [0]) (const UInt8 [])) #2)) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 66)) (app (const instOfNatNat []) (natLit 66))))))))",
+    "MachineBytes.reserved_opcode_invalid": "(all (const MachineBytes.Bytes []) (app (app (app (const Eq [(s 0)]) (app (const Option [0]) (const MachineBytes.Node []))) (app (const MachineBytes.deserialize []) (app (app (app (const List.cons [0]) (const UInt8 [])) (app (app (app (const OfNat.ofNat [0]) (const UInt8 [])) (natLit 3)) (app (const UInt8.instOfNat []) (natLit 3)))) #0))) (app (const Option.none [0]) (const MachineBytes.Node []))))",
+    "MachineBytes.lit_bytes_disjoint": "(all (const MachineBytes.Bytes []) (all (const MachineBytes.Node []) (all (all (const MachineBytes.Bytes []) (app (app (app (const Ne [(s 0)]) (const MachineBytes.Node [])) #1) (app (const MachineBytes.Node.lit []) #0))) (app (app (app (const Ne [(s 0)]) (const MachineBytes.Bytes [])) (app (const MachineBytes.serialize []) (app (const MachineBytes.Node.lit []) #2))) (app (const MachineBytes.serialize []) #1)))))",
+    "MachineBytes.genesis_I": "(app (app (app (const Eq [(s 0)]) (const String [])) (app (const MachineBytes.hexOf []) (app (const MachineBytes.nodeHash []) (app (const MachineBytes.Node.lit []) (const MachineBytes.hIT []))))) (strLit 64))",
+    "MachineBytes.genesis_K": "(app (app (app (const Eq [(s 0)]) (const String [])) (app (const MachineBytes.hexOf []) (app (const MachineBytes.nodeHash []) (app (const MachineBytes.Node.lit []) (const MachineBytes.hKT []))))) (strLit 64))",
+    "MachineBytes.genesis_S": "(app (app (app (const Eq [(s 0)]) (const String [])) (app (const MachineBytes.hexOf []) (app (const MachineBytes.nodeHash []) (app (const MachineBytes.Node.lit []) (const MachineBytes.hST []))))) (strLit 64))",
+    "MachineBytes.false_is_a_theorem": "(app (app (app (const Eq [(s 0)]) (const String [])) (app (const MachineBytes.hexOf []) (app (const MachineBytes.nodeHash []) (app (app (const MachineBytes.Node.app []) (app (const MachineBytes.nodeHash []) (app (const MachineBytes.Node.lit []) (const MachineBytes.hKT [])))) (app (const MachineBytes.nodeHash []) (app (const MachineBytes.Node.lit []) (const MachineBytes.hIT []))))))) (strLit 64))",
+    "MachineBytes.invalid_object_pins": "(app (app (app (const Eq [(s 0)]) (const String [])) (app (const MachineBytes.hexOf []) (app (const MachineBytes.nodeHash []) (app (const MachineBytes.Node.dis []) (app (const Sha256.sha256 []) (app (const ByteArray.toList []) (app (const String.toUTF8 []) (strLit 14)))))))) (strLit 64))",
+    "EvalMachine.step_bounds": "(all (const EvalMachine.Term []) (all (const Nat []) (all (const EvalMachine.Store []) (app (app (app (app (const EvalMachine.step.match_3 [(s 0)]) (lam (const EvalMachine.StepResult []) (sort 0))) (app (app (app (const EvalMachine.step []) #2) #1) #0)) (lam (const EvalMachine.Term []) (lam (const Nat []) (app (app (const And []) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1)))) #0)) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) #0) #3))))) (lam (const EvalMachine.StepResult []) (const True []))))))",
+    "EvalMachine.step_cost_le": "(all (const EvalMachine.Term []) (all (const Nat []) (all (const EvalMachine.Store []) (all (const EvalMachine.Term []) (all (const Nat []) (all (app (app (app (const Eq [(s 0)]) (const EvalMachine.StepResult [])) (app (app (app (const EvalMachine.step []) #4) #3) #2)) (app (app (const EvalMachine.StepResult.step []) #1) #0)) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) #1) #4)))))))",
+    "EvalMachine.step_cost_pos": "(all (const EvalMachine.Term []) (all (const Nat []) (all (const EvalMachine.Store []) (all (const EvalMachine.Term []) (all (const Nat []) (all (app (app (app (const Eq [(s 0)]) (const EvalMachine.StepResult [])) (app (app (app (const EvalMachine.step []) #4) #3) #2)) (app (app (const EvalMachine.StepResult.step []) #1) #0)) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1)))) #1)))))))",
+    "EvalMachine.eval_spent_le": "(all (const Nat []) (all (const EvalMachine.Term []) (all (const Nat []) (all (const Nat []) (all (const EvalMachine.Store []) (all (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) #1) #2) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (app (app (const Prod.snd [0 0]) (const EvalMachine.Term [])) (const Nat [])) (app (app (app (app (app (const EvalMachine.eval []) #5) #4) #3) #2) #1))) #3)))))))",
+    "EvalMachine.evalHash_spent_le": "(all (const MachineBytes.Bytes []) (all (const Nat []) (all (const EvalMachine.Store []) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (app (app (const Prod.snd [0 0]) (const EvalMachine.Term [])) (const Nat [])) (app (app (app (const EvalMachine.evalHash []) #2) #1) #0))) #1))))",
+    "EvalMachine.size_step": "(all (const EvalMachine.Term []) (all (const Nat []) (all (const EvalMachine.Store []) (app (app (app (app (const EvalMachine.step.match_3 [(s 0)]) (lam (const EvalMachine.StepResult []) (sort 0))) (app (app (app (const EvalMachine.step []) #2) #1) #0)) (lam (const EvalMachine.Term []) (lam (const Nat []) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (app (app (app (app (app (const HAdd.hAdd [0 0 0]) (const Nat [])) (const Nat [])) (const Nat [])) (app (app (const instHAdd [0]) (const Nat [])) (const instAddNat []))) (app (const EvalMachine.size []) #1)) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1))))) (app (app (app (app (app (app (const HAdd.hAdd [0 0 0]) (const Nat [])) (const Nat [])) (const Nat [])) (app (app (const instHAdd [0]) (const Nat [])) (const instAddNat []))) (app (const EvalMachine.size []) #4)) #0))))) (lam (const EvalMachine.StepResult []) (const True []))))))",
+    "EvalMachine.eval_size_bound": "(all (const Nat []) (all (const EvalMachine.Term []) (all (const Nat []) (all (const Nat []) (all (const EvalMachine.Store []) (all (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (const EvalMachine.size []) #3)) (app (app (app (app (app (app (const HAdd.hAdd [0 0 0]) (const Nat [])) (const Nat [])) (const Nat [])) (app (app (const instHAdd [0]) (const Nat [])) (const instAddNat []))) #1) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1))))) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (const EvalMachine.size []) (app (app (app (const Prod.fst [0 0]) (const EvalMachine.Term [])) (const Nat [])) (app (app (app (app (app (const EvalMachine.eval []) #5) #4) #3) #2) #1)))) (app (app (app (app (app (app (const HAdd.hAdd [0 0 0]) (const Nat [])) (const Nat [])) (const Nat [])) (app (app (const instHAdd [0]) (const Nat [])) (const instAddNat []))) (app (app (app (const Prod.snd [0 0]) (const EvalMachine.Term [])) (const Nat [])) (app (app (app (app (app (const EvalMachine.eval []) #5) #4) #3) #2) #1))) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1)))))))))))",
+    "EvalMachine.evalHash_size_bound": "(all (const MachineBytes.Bytes []) (all (const Nat []) (all (const EvalMachine.Store []) (app (app (app (app (const LE.le [0]) (const Nat [])) (const instLENat [])) (app (const EvalMachine.size []) (app (app (app (const Prod.fst [0 0]) (const EvalMachine.Term [])) (const Nat [])) (app (app (app (const EvalMachine.evalHash []) #2) #1) #0)))) (app (app (app (app (app (app (const HAdd.hAdd [0 0 0]) (const Nat [])) (const Nat [])) (const Nat [])) (app (app (const instHAdd [0]) (const Nat [])) (const instAddNat []))) (app (app (app (const Prod.snd [0 0]) (const EvalMachine.Term [])) (const Nat [])) (app (app (app (const EvalMachine.evalHash []) #2) #1) #0))) (app (app (app (const OfNat.ofNat [0]) (const Nat [])) (natLit 1)) (app (const instOfNatNat []) (natLit 1))))))))",
+    "WaveAlgebra.interfere_valid": "(all (const WaveAlgebra.Wave []) (all (const WaveAlgebra.Wave []) (all (app (const WaveAlgebra.Valid []) #1) (all (app (const WaveAlgebra.Valid []) #1) (app (const WaveAlgebra.Valid []) (app (app (const WaveAlgebra.interfere []) #3) #2))))))",
+    "WaveAlgebra.zero_amp_cascade": "(all (const WaveAlgebra.Wave []) (all (const WaveAlgebra.Wave []) (all (app (app (const Or []) (app (app (app (const Eq [(s 0)]) (const Int [])) (app (const WaveAlgebra.Wave.am []) #1)) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0))))) (app (app (app (const Eq [(s 0)]) (const Int [])) (app (const WaveAlgebra.Wave.am []) #0)) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0))))) (app (app (app (const Eq [(s 0)]) (const Int [])) (app (const WaveAlgebra.Wave.am []) (app (app (const WaveAlgebra.interfere []) #2) #1))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0)))))))",
+    "WaveAlgebra.left_dominance_ph": "(all (const WaveAlgebra.Wave []) (all (const WaveAlgebra.Wave []) (all (app (const WaveAlgebra.Valid []) #1) (app (app (app (const Eq [(s 0)]) (const Int [])) (app (const WaveAlgebra.Wave.ph []) (app (app (const WaveAlgebra.interfere []) #2) #1))) (app (const WaveAlgebra.Wave.ph []) #2)))))",
+    "WaveAlgebra.crystallization": "(all (const WaveAlgebra.Wave []) (all (app (const WaveAlgebra.Valid []) #0) (all (app (app (app (const Ne [(s 0)]) (const Int [])) (app (const WaveAlgebra.Wave.am []) #1)) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0)))) (app (app (const Iff []) (app (app (app (const Eq [(s 0)]) (const WaveAlgebra.Wave [])) (app (app (const WaveAlgebra.interfere []) #2) #2)) #2)) (app (app (const And []) (app (app (app (const Eq [(s 0)]) (const Int [])) (app (const WaveAlgebra.Wave.am []) #2)) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 65535)) (app (const instOfNat []) (natLit 65535))))) (app (app (app (const Eq [(s 0)]) (const Int [])) (app (const WaveAlgebra.Wave.en []) #2)) (app (app (app (const Neg.neg [0]) (const Int [])) (const Int.instNegInt [])) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 32768)) (app (const instOfNat []) (natLit 32768))))))))))",
+    "WaveAlgebra.fold_not_associative": "(app (app (app (const Ne [(s 0)]) (const WaveAlgebra.Wave [])) (app (app (const WaveAlgebra.interfere []) (app (app (const WaveAlgebra.interfere []) (app (app (app (const WaveAlgebra.Wave.mk []) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 65535)) (app (const instOfNat []) (natLit 65535)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0))))) (app (app (app (const WaveAlgebra.Wave.mk []) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 16384)) (app (const instOfNat []) (natLit 16384)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 65535)) (app (const instOfNat []) (natLit 65535)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0)))))) (app (app (app (const WaveAlgebra.Wave.mk []) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 16384)) (app (const instOfNat []) (natLit 16384)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 65535)) (app (const instOfNat []) (natLit 65535)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0)))))) (app (app (const WaveAlgebra.interfere []) (app (app (app (const WaveAlgebra.Wave.mk []) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 65535)) (app (const instOfNat []) (natLit 65535)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0))))) (app (app (const WaveAlgebra.interfere []) (app (app (app (const WaveAlgebra.Wave.mk []) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 16384)) (app (const instOfNat []) (natLit 16384)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 65535)) (app (const instOfNat []) (natLit 65535)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0))))) (app (app (app (const WaveAlgebra.Wave.mk []) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 16384)) (app (const instOfNat []) (natLit 16384)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 65535)) (app (const instOfNat []) (natLit 65535)))) (app (app (app (const OfNat.ofNat [0]) (const Int [])) (natLit 0)) (app (const instOfNat []) (natLit 0)))))))",
+    "WaveAlgebra.not_commutative": "(app (app (const Exists [(s 0)]) (const WaveAlgebra.Wave [])) (lam (const WaveAlgebra.Wave []) (app (app (const Exists [(s 0)]) (const WaveAlgebra.Wave [])) (lam (const WaveAlgebra.Wave []) (app (app (app (const Ne [(s 0)]) (const WaveAlgebra.Wave [])) (app (app (const WaveAlgebra.interfere []) #1) #0)) (app (app (const WaveAlgebra.interfere []) #0) #1))))))",
+    "Book1.C1.mem_skiFv_abstr": "(all (const String []) (all (const String []) (all (const Book1.C1.Ski []) (app (app (const Iff []) (app (app (app (app (app (const Membership.mem [0 0]) (const String [])) (app (const List [0]) (const String []))) (app (const List.instMembership [0]) (const String []))) (app (const Book1.C1.skiFv []) (app (app (const Book1.C1.abstr []) #2) #0))) #1)) (app (app (const And []) (app (app (app (app (app (const Membership.mem [0 0]) (const String [])) (app (const List [0]) (const String []))) (app (const List.instMembership [0]) (const String []))) (app (const Book1.C1.skiFv []) #0)) #1)) (app (app (app (const Ne [(s 0)]) (const String [])) #1) #2))))))",
+    "Book1.C1.mem_skiFv_c1": "(all (const String []) (all (const Book1.C1.Lam []) (app (app (const Iff []) (app (app (app (app (app (const Membership.mem [0 0]) (const String [])) (app (const List [0]) (const String []))) (app (const List.instMembership [0]) (const String []))) (app (const Book1.C1.skiFv []) (app (const Book1.C1.c1 []) #0))) #1)) (app (app (app (app (app (const Membership.mem [0 0]) (const String [])) (app (const List [0]) (const String []))) (app (const List.instMembership [0]) (const String []))) (app (const Book1.C1.fv []) #0)) #1))))",
+    "Book1.C1.c1_closed": "(all (const Book1.C1.Lam []) (all (all (const String []) (app (const Not []) (app (app (app (app (app (const Membership.mem [0 0]) (const String [])) (app (const List [0]) (const String []))) (app (const List.instMembership [0]) (const String []))) (app (const Book1.C1.fv []) #1)) #0))) (all (const String []) (app (const Not []) (app (app (app (app (app (const Membership.mem [0 0]) (const String [])) (app (const List [0]) (const String []))) (app (const List.instMembership [0]) (const String []))) (app (const Book1.C1.skiFv []) (app (const Book1.C1.c1 []) #2))) #0)))))",
+    "Book1.C1.tv10_id": "(app (app (app (const Eq [(s 0)]) (const Book1.C1.Ski [])) (app (const Book1.C1.c1 []) (app (app (const Book1.C1.Lam.lam []) (strLit 1)) (app (const Book1.C1.Lam.var []) (strLit 1))))) (const Book1.C1.Ski.I []))",
+    "Book1.C1.tv10_const": "(app (app (app (const Eq [(s 0)]) (const Book1.C1.Ski [])) (app (const Book1.C1.c1 []) (app (app (const Book1.C1.Lam.lam []) (strLit 1)) (app (app (const Book1.C1.Lam.lam []) (strLit 1)) (app (const Book1.C1.Lam.var []) (strLit 1)))))) (app (app (const Book1.C1.Ski.app []) (app (app (const Book1.C1.Ski.app []) (const Book1.C1.Ski.S [])) (app (app (const Book1.C1.Ski.app []) (const Book1.C1.Ski.K [])) (const Book1.C1.Ski.K [])))) (const Book1.C1.Ski.I [])))"
+  },
+  "unguarded": {
+    "SigmaGlyph.step_preserves": "per-rule helper; it is in memory_bound's transitive cone, so poisoning it shows up in the guarded theorem's axioms",
+    "EvalMachine.size_pos": "arithmetic helper for step_bounds; inside the guarded cones",
+    "MachineBytes.append_inj'": "List helper for serialize_injective; inside the guarded cones",
+    "MachineBytes.take_length_append": "List helper for the round-trip theorems; inside the guarded cones",
+    "MachineBytes.drop_length_append": "List helper for the round-trip theorems; inside the guarded cones",
+    "WaveAlgebra.lut_size": "native_decide LUT fact, documented as compiler-trusted in proofs/README.md; inside the guarded wave cones",
+    "WaveAlgebra.lut_range": "native_decide LUT fact (see lut_size)",
+    "WaveAlgebra.lut_zero": "native_decide LUT fact (see lut_size)",
+    "WaveAlgebra.dr_nonneg": "pure divRoundHalfUp bound; inside the guarded cones",
+    "WaveAlgebra.dr_le_65535": "pure divRoundHalfUp bound; inside the guarded cones",
+    "WaveAlgebra.dr_le_65534": "pure divRoundHalfUp bound; inside the guarded cones",
+    "WaveAlgebra.dr_cancel_65535": "pure divRoundHalfUp bound; inside the guarded cones",
+    "WaveAlgebra.dr_double": "pure divRoundHalfUp bound; inside the guarded cones",
+    "WaveAlgebra.clamp_range": "pure clampI16 bound; inside the guarded cones",
+    "WaveAlgebra.prod01_bounds": "pure 0.16 product bound; inside the guarded cones",
+    "WaveAlgebra.af_bounds": "pure ampFactor bound; inside the guarded cones",
+    "WaveAlgebra.am_fixed_scan": "native_decide amplitude fixed-point scan (see lut_size)"
+  }
+}

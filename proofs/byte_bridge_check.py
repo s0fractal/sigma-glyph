@@ -4,11 +4,14 @@
 The Lean theorems are about the Lean model; this bridge is the honest seam
 to the live oracle and to SHA-256 itself:
 
-  1. Soundness guard over MachineBytes.lean and Sha256.lean (`lean` exits 0
-     on sorry — this bridge does not): comment-stripped textual layer plus
-     a `#print axioms` assertion that the load-bearing theorems stay within
-     the documented TCB (std axioms; native_decide only for the genesis
-     pins, per proofs/README.md's TCB-honesty note).
+  1. Soundness guard (proof_guard.py, front "bytes") over MachineBytes.lean,
+     Sha256.lean and the BytesRun.lean runner (`lean` exits 0 on sorry — this
+     bridge does not): the source layer (literal-aware comment stripping,
+     sorry/admit/axiom, import allowlist, metaprogramming denylist incl.
+     `@[implemented_by]`, coverage registry) plus a data-only environment
+     query asserting the load-bearing theorems stay within the documented TCB
+     (std axioms; native_decide only for the genesis pins, per
+     proofs/README.md) AND still state what they are pinned to state.
   2. FIPS 180-4 vectors: the Lean SHA-256 reproduces the standard digests.
   3. Conformance CAS: for EVERY object of tests/spec_conformance/
      vectors.json (36, incl. the deliberately malformed Era-1 0x03 one),
@@ -32,15 +35,11 @@ import proof_guard  # noqa: E402
 import sigma_glyph as g  # noqa: E402
 
 #: Load-bearing theorems (proofs/README.md, byte-level section); only the
-#: genesis/FALSE/invalid-object pins may rest on native_decide.
-STRUCTURAL = ["MachineBytes.serialize_injective", "MachineBytes.deser_serialize",
-              "MachineBytes.serialize_deser", "MachineBytes.deser_wf",
-              "MachineBytes.valid_lengths", "MachineBytes.reserved_opcode_invalid",
-              "MachineBytes.lit_bytes_disjoint"]
-PINS = ["MachineBytes.genesis_I", "MachineBytes.genesis_K",
-        "MachineBytes.genesis_S", "MachineBytes.false_is_a_theorem",
-        "MachineBytes.invalid_object_pins"]
-THEOREMS = STRUCTURAL + PINS
+#: genesis/FALSE/invalid-object pins may rest on native_decide. The lists, the
+#: allowed axioms and the pinned statements live in theorem_pins.json.
+FRONT = proof_guard.load_front("bytes")
+THEOREMS = FRONT["guarded"]
+PINS = FRONT["native_decide_ok"]
 
 FIPS = [
     (b"", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
@@ -76,12 +75,12 @@ def main():
         print("byte bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
         sys.exit(2)
 
-    for f in ("MachineBytes.lean", "Sha256.lean"):
-        problems = proof_guard.textual_guard(os.path.join(HERE, f))
-        if problems:
-            fail(f"{f}: " + "; ".join(problems))
-    print("OK    MachineBytes + Sha256 carry no sorry/admit/axiom "
-          "(comment-stripped)")
+    problems = proof_guard.guard_sources(FRONT)
+    if problems:
+        fail("source guard: " + "; ".join(problems))
+    print("OK    MachineBytes + Sha256 + BytesRun pass the source guard (no "
+          "sorry/admit/axiom, no metaprogramming, imports in-set, every "
+          "theorem accounted for)")
 
     objs = json.load(open(os.path.join(
         REPO, "tests", "spec_conformance", "vectors.json")))["objects"]
@@ -100,12 +99,12 @@ def main():
                      + (r.stderr or r.stdout).strip()[:500])
         print("OK    Sha256 + MachineBytes compile clean "
               "(genesis pins are theorems — compiling IS the check)")
-        err = proof_guard.axiom_guard(lean, ["MachineBytes"], THEOREMS, td,
-                                      native_decide_ok=frozenset(PINS))
+        err = proof_guard.guard_semantics(lean, FRONT, td)
         if err:
             fail(err)
-        print(f"OK    #print axioms clean for {len(THEOREMS)} byte-level "
-              "theorems (std axioms; native_decide only for the pins)")
+        print(f"OK    axiom cones clean AND statements match their pins for "
+              f"{len(THEOREMS)} byte-level theorems (std axioms; "
+              "native_decide only for the pins)")
         lines = "".join(b.hex() + "\n" for b in cases)
         r = subprocess.run([lean, "--run", os.path.join(HERE, "BytesRun.lean")],
                            input=lines, capture_output=True, text=True, env=env)

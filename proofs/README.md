@@ -52,9 +52,12 @@ base. The interference theorems are *reasoning*-symbolic but not
 TCB-independent: `interfere_valid` consumes `lut_range`, `zero_amp_cascade`
 and `crystallization` consume `lut_zero`/`native_decide` witnesses — so
 their soundness transitively rests on the compiler too. Only the pure
-integer lemmas (`divRoundHalfUp` bounds, `size_pos`) and `left_dominance_ph`
-(via `Int.emod_eq_of_lt`) are fully kernel-checked with no `native_decide`
-in their dependency cone. The differential bridge is the empirical check
+integer lemmas of this file (the `divRoundHalfUp` bounds, `clamp_range`,
+`prod01_bounds`, `af_bounds`) and `left_dominance_ph` (via
+`Int.emod_eq_of_lt`) are fully kernel-checked with no `native_decide` in
+their dependency cone. (`size_pos` is the evaluator's size lemma and lives in
+`EvalMachine.lean`, not here — this list named it by mistake until a 2026-07
+review checked the attribution.) The differential bridge is the empirical check
 that the Lean `interfere` is the oracle's, independent of the TCB question.
 
 ## Book I byte-level machine correspondence (`MachineBytes.lean` + `Sha256.lean`)
@@ -139,14 +142,20 @@ before A-3), and `c1`. Theorems:
 - `c1_closed` — **a closed λ-term compiles to a variable-free SKI term**: the
   reference's runtime "free variable escapes abstraction" guard can never fire
   on closed input — a theorem, not a check. Determinism is definitional (`c1`
-  is a total pure function). §6/TV-10 pinned by `rfl` (`C1[λx.x]=⟨I⟩`,
-  `C1[λx.λy.x]=S(KK)I`).
+  is a total pure function).
+- `tv10_id` / `tv10_const` — §6/TV-10 pinned by `rfl` (`C1[λx.x]=⟨I⟩`,
+  `C1[λx.λy.x]=S(KK)I`). These were anonymous `example`s until a 2026-07
+  round-2 review showed a falsified pin passed the bridge: an anonymous
+  declaration has no name, so no axiom/statement query can ever reach it. They
+  are named and guarded now.
 
-TCB: these are **fully kernel-checked** — `#print axioms` shows only `propext`,
-no `native_decide`, so the compiler in `Sha256`/wave `native_decide` facts is
-NOT in this front's trusted base.
+TCB: these are **fully kernel-checked** — every one of the five depends on
+`propext` alone, and the guard's allowed-axiom set for this front is exactly
+`{propext}` (not the broader standard set), so the documented claim and the
+enforced claim are the same sentence. The compiler behind the `Sha256`/wave
+`native_decide` facts is NOT in this front's trusted base.
 
-**Bridge** — `c1_bridge_check.py`: no-`sorry` guard + `lean` check, then a
+**Bridge** — `c1_bridge_check.py`: source + environment guard, then a
 faithful transcription of the Lean `abstr`/`c1` is diffed against the oracle's
 `sigma_glyph.c1` on **3000 random closed λ-terms**, NodeHash-exact. (This bridge
 already earned its keep: it caught an A-2/A-3 ordering bug in the first draft of
@@ -174,20 +183,88 @@ Not mechanized: `bridge_check.py` still samples the SizeBound premise on the
 proof is about the Lean model and the differential is what ties the two); a
 Rust production implementation remains the last non-Lean Qwen item.
 
-## Bridge soundness guard (`proof_guard.py`)
+## Bridge soundness guard (`proof_guard.py` + `theorem_pins.json`)
 
-`lean` exits 0 on `sorry` (warning only), so every bridge carries its own
-guard — and the old per-bridge regexes (`\b(sorry|admit)\b`, `^\s*axiom`)
-were bypassable by `sorryAx _ true` and by `private axiom …` (demonstrated
-by a 2026-07 adversarial review). All five bridges now share
-`proof_guard.py`: the primary check runs `#print axioms` on every
-load-bearing theorem listed above and asserts the set is within the standard
-axioms (`propext`, `Classical.choice`, `Quot.sound`), plus `native_decide`
-trust axioms ONLY for the theorems whose documented TCB already includes the
-compiler (the wave LUT facts and the byte-level genesis pins) — the kernel
-tracks the proof term's real dependencies, so this catches any unsoundness
-route regardless of spelling. A hardened textual layer (comment-stripped
-substring/keyword scan) stays as a cheap second net. Regression:
-`tests/proof_guard_test.py` asserts both bypass vectors are rejected.
+`lean` exits 0 on `sorry` (warning only), so "CI compiled the proofs" is not
+"CI checked the proofs" and every bridge carries its own guard. Two successive
+fresh-context adversarial reviews (2026-07) each broke the then-current guard;
+this is the third iteration. **What it enforces is listed below; it is not a
+proof that no unsoundness route exists** — an earlier version of this section
+claimed the axiom check "catches any unsoundness route regardless of
+spelling", and the second review refuted that claim with four vectors.
+
+Enforced, per front, for the theorem lists above (front configuration,
+allowed axioms and pinned statements: `theorem_pins.json`):
+
+1. **Axiom cone** — the transitive axiom dependencies of each guarded theorem
+   must lie inside that front's allowed set: the standard axioms (`propext`,
+   `Classical.choice`, `Quot.sound`) — `{propext}` alone for C1 — plus
+   `native_decide` trust axioms ONLY for the theorems whose documented TCB
+   already includes the compiler (the wave theorems, the byte-level genesis
+   pins).
+2. **Statement** — the canonical dump of each guarded theorem's *elaborated
+   type* must equal its pin. Axiom-cone checking alone certified
+   `theorem memory_bound : True := trivial` as "std axioms only" and the
+   bridge printed PREMISE HOLDS; a weakened hypothesis or an altered
+   conclusion was equally invisible. Drift is a hard failure with a diff.
+   The dump is structural (binder names and `mdata` dropped, constants by full
+   name), never pretty-printed, so notation cannot make the printed statement
+   differ from the elaborated one.
+3. **Where the answer comes from** — a driver that loads the audited module's
+   `.olean` as *data* (`Lean.Environment.importModules`) and walks the kernel
+   environment. The previous query wrote a `.lean` file that `import`ed the
+   audited module and ran `#print axioms`, so the audited module could
+   override that syntax and hand the guard a fabricated axiom list; the
+   end-to-end vector had `axiom oops : False`, `memory_bound := oops.elim`,
+   and a green bridge.
+4. **Imports** — an `import` naming anything outside the `proofs/` module set
+   is a hard failure. These are core-Lean-only proofs, and `import Lean` in an
+   audited file is what made (3) spellable.
+5. **Metaprogramming / compiler override** — attributes are allowlisted
+   (`inline`, `simp`, `reducible`) and `implemented_by`, `extern`, `csimp`,
+   `initialize`, `run_cmd`, `elab`, `macro`, `syntax`, `notation`, `unsafe`,
+   `opaque`, `attribute`, `#`-commands and any non-`linter.*` `set_option`
+   (which is where `debug.skipKernelTC` lives) are rejected. `@[implemented_by]`
+   plus `native_decide` proves arbitrary falsehoods — the review used it to
+   make `MachineBytes.genesis_I` claim a different hash with the bridge still
+   printing ALL AGREE — and `@[implemented_by]`/`@[extern]` also decouple
+   `lean --run` (the differential harnesses) from the kernel definitions.
+   `partial` is allowed only in the `*Run.lean` I/O plumbing, which proves
+   nothing.
+6. **Text** — literal-aware comment stripping, then `sorry`/`admit` as
+   substrings (catching `sorryAx`) and the `axiom` keyword in any position
+   (catching `private axiom`). The stripper is literal-aware because
+   `def blind : String := "/-"` opened a block comment *for the stripper* and
+   hid everything after it, including a bare `axiom oops : False`. A literal
+   or comment still open at EOF means our lexer and Lean's disagree about the
+   file: that is a failure, not a shrug.
+7. **Coverage** — every `theorem`/`lemma` in `proofs/*.lean` must be either in
+   a front's guarded list or registered in `unguarded` with a reason, so a new
+   theorem in an already-guarded file cannot slip in unqueried. Anonymous
+   `example`s are rejected outright: nothing can query them.
+8. **Fail closed** — a missing/renamed theorem, an unpinned theorem, an empty
+   guarded list, a driver failure or a missing `lean` binary is an error in
+   every bridge (exit 2 for the last), never a skip.
+
+Known residual gaps, stated rather than papered over:
+
+* The pins fix each theorem's *statement*, not the *definitions* it mentions.
+  Rewriting `serialize` (say) leaves every dump unchanged while changing what
+  the theorems mean. What catches that is the differential half of each bridge
+  — 334 byte buffers, 33 eval vectors, 582 wave cases, 3000 C1 terms against
+  the Python oracle — plus review of the diff.
+* The `*Run.lean` runners are I/O plumbing; nothing proves a runner reports
+  what the model computed rather than printing expected answers. The denylist
+  removes the mechanical decoupling routes, not the need to read the file.
+* Regeneration (`python3 proofs/proof_guard.py regen`) can make any drift pass
+  by construction. It is never run by a bridge or by CI; the pin file is the
+  claim, and its diff deserves the same reading as the theorem statements.
+
+Regression: `tests/proof_guard_test.py` asserts every vector above is
+rejected — both round-1 bypasses, the vacuous/weakened/altered statements, the
+string-literal blinding, the `#print axioms` override, `import Lean`,
+`@[implemented_by]`, `@[extern]`, `debug.skipKernelTC`, the fake
+`native_decide`-shaped axiom, coverage, and each fail-closed path — and that
+none of them fires on the real `proofs/*.lean`.
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).

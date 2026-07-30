@@ -1,19 +1,45 @@
 #!/usr/bin/env python3
-"""Regression: the bridge soundness guard rejects both reviewer bypass vectors.
+"""Regression: the bridge soundness guard rejects every proven bypass vector.
 
-A 2026-07 fresh-context adversarial review proved two vectors that compiled
-clean under `lean` (exit 0) AND passed every bridge's old textual guard
-(`\\b(sorry|admit)\\b` / `^\\s*axiom`):
+Round 1 (2026-07 fresh-context review) — both compiled clean under `lean`
+(exit 0) and passed the then-current textual regexes:
 
   1. `theorem ... := sorryAx _ true`   — word boundary defeated by the `A`;
   2. `private axiom oops : False` + `:= oops.elim` — line-start anchor
      defeated by the modifier (any of private/protected/noncomputable/@[...]).
 
-This test asserts BOTH layers of the replacement guard (proofs/proof_guard.py)
-reject both vectors, and that the guard stays quiet on the real proof files
-(e.g. MachineBytes.lean's comment containing the word "axiom" must NOT trip
-it). All Lean scratch files live in a temp dir — nothing touches proofs/.
+Round 2 (a second fresh-context review, which broke the round-1 fix):
 
+  F1  `theorem memory_bound : True := trivial` — the guard checked axiom cones
+      but never the STATEMENT, so a vacuous theorem was certified "std axioms
+      only" and the bridge printed PREMISE HOLDS. This test's CLEAN fixture
+      used to be `(1 : Nat) = 1 := rfl` asserted as ACCEPTED — the fixture
+      enshrined the hole. It is now a real statement, pinned, and the vacuous
+      / weakened-hypothesis / changed-conclusion variants must all be
+      rejected against that pin.
+  F2a `def blind : String := "/-"` opened a block comment for the STRIPPER,
+      hiding a bare `axiom oops : False` from the textual layer.
+  F2b the query file `import`ed the audited module, so the audited module
+      could override `#print axioms` syntax and dictate the guard's input.
+      The query now loads the module as DATA; this test proves the override
+      no longer changes the answer.
+  F2c `import Lean` in an audited proof file (what makes F2b spellable) is
+      itself a hard failure — these are core-Lean-only proofs.
+  F3  `@[implemented_by]` + `native_decide` proves arbitrary falsehoods, and
+      `@[implemented_by]`/`@[extern]` decouple `lean --run` (the differential
+      harnesses) from the kernel definition. The vector compiles clean, so the
+      attribute allowlist is the line of defense.
+  P3  a hand-written `axiom fake._native.native_decide.ax_1_1 : False` is
+      accepted by the axiom layer alone (it mimics the allowed shape) — the
+      two layers are not independent, so the source layer must catch it even
+      when the stripper is under attack (F2a).
+
+Also asserted: coverage (an unregistered theorem, and an anonymous `example`,
+are errors), an empty guarded list is an error, an unpinned theorem is an
+error, a lexer disagreement (unterminated literal) is an error, and no false
+positive on the real proofs/*.lean.
+
+All Lean scratch files live in a temp dir — nothing touches proofs/.
 Needs `lean` for the semantic layer; exit 2 if unavailable (like the bridges).
 Run: python3 tests/proof_guard_test.py
 """
@@ -25,6 +51,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "proofs"))
 import proof_guard  # noqa: E402
 
+# ---- round-1 vectors (must stay dead) ------------------------------------
 VECTOR_SORRYAX = (
     "theorem memory_bound : (1 : Nat) = 2 := sorryAx _ true\n")
 VECTOR_PRIV_AXIOM = (
@@ -33,70 +60,247 @@ VECTOR_PRIV_AXIOM = (
 VECTOR_ATTR_AXIOM = (
     "@[simp] axiom oops2 : (2 : Nat) = 3\n"
     "theorem memory_bound : (2 : Nat) = 3 := oops2\n")
+
+# ---- the honest article: a real statement, provable, std axioms ----------
 CLEAN = (
     "-- a comment mentioning sorry, admit and axiom must not trip the guard\n"
     "/- nor a block comment: private axiom -/\n"
+    "theorem memory_bound (size spent : Nat) (h : size ≤ spent) :\n"
+    "    size ≤ spent + 1 := Nat.le_succ_of_le h\n")
+
+# ---- F1: statement attacks that keep the axiom cone clean ---------------
+VECTOR_VACUOUS = "theorem memory_bound : True := trivial\n"
+VECTOR_WEAK_HYP = (
+    "theorem memory_bound (size spent : Nat) (h : size + 1 ≤ spent) :\n"
+    "    size ≤ spent + 1 := by omega\n")
+VECTOR_CHANGED_CONCL = (
+    "theorem memory_bound (size spent : Nat) (h : size ≤ spent) :\n"
+    "    size ≤ spent + 2 := by omega\n")
+
+# ---- F2a / P3: the stripper is blinded by a string literal --------------
+VECTOR_BLINDED_AXIOM = (
+    'def blind : String := "/-"\n'
+    "axiom oops : False\n"
+    "theorem memory_bound : (1 : Nat) = 2 := oops.elim\n")
+VECTOR_BLINDED_FAKE_NATIVE = (
+    'def blind : String := "/-"\n'
+    "axiom memory_bound._native.native_decide.ax_1_1 : False\n"
+    "theorem memory_bound : (1 : Nat) = 2 :=\n"
+    "  (memory_bound._native.native_decide.ax_1_1).elim\n")
+
+# ---- F2b / F2c: the audited file dictating the guard's input ------------
+VECTOR_SYNTAX_OVERRIDE = (
+    "import Lean\n"
+    "open Lean Elab Command\n"
+    'def blind : String := "/-"\n'
+    "axiom oops : False\n"
+    'syntax (name := fk) (priority := high) "#print" &"axioms" ident : command\n'
+    "@[command_elab fk] def elabFk : CommandElab := fun stx => do\n"
+    "  logInfo m!\"'{stx[2].getId}' depends on axioms: [propext, Quot.sound]\"\n"
+    "theorem memory_bound : (1 : Nat) = 2 := oops.elim\n")
+
+# ---- F3: implemented_by + native_decide --------------------------------
+VECTOR_IMPLEMENTED_BY = (
+    "def evilImpl : Bool := true\n"
+    "@[implemented_by evilImpl] def evilFlag : Bool := false\n"
+    "theorem memory_bound : (1 : Nat) = 2 := by\n"
+    "  have h1 : evilFlag = true := by native_decide\n"
+    "  have h2 : evilFlag = false := rfl\n"
+    "  simp [h1] at h2\n")
+VECTOR_EXTERN = (
+    '@[extern "lean_nat_add"] opaque wat : Nat → Nat\n'
     "theorem memory_bound : (1 : Nat) = 1 := rfl\n")
+VECTOR_SKIP_KERNEL = (
+    "set_option debug.skipKernelTC true in\n"
+    "theorem memory_bound : (1 : Nat) = 1 := rfl\n")
+
+# ---- lexer honesty ------------------------------------------------------
+VECTOR_UNTERMINATED = 'def s : String := "oops\n'
 
 failures = []
 
 
-def check(name, ok):
-    print(("ok    " if ok else "FAIL  ") + name)
+def check(name, ok, detail=""):
+    print(("ok    " if ok else "FAIL  ") + name
+          + (f"  [{detail}]" if detail and not ok else ""))
     if not ok:
         failures.append(name)
+
+
+def write(td, body, name="GuardCase.lean"):
+    p = os.path.join(td, name)
+    with open(p, "w") as f:
+        f.write(body)
+    return p
+
+
+def front(guarded, statements, **kw):
+    """A minimal front for the fixtures (the registry shape guard_semantics
+    and guard_sources consume)."""
+    f = {"name": "test", "modules": ["GuardCase"], "guarded": guarded,
+         "statements": statements, "allowed_axioms": list(proof_guard.STD_AXIOMS),
+         "native_decide_ok": [], "strict_sources": ["GuardCase.lean"],
+         "runner_sources": [], "_pins": {"fronts": {}, "unguarded": {}}}
+    f.update(kw)
+    return f
 
 
 def main():
     lean = proof_guard.find_lean()
     if lean is None:
-        print("proof_guard test needs `lean` for the #print axioms layer; exit 2")
+        print("proof_guard test needs `lean` for the environment-query layer; "
+              "exit 2")
         return 2
 
-    # --- textual layer -----------------------------------------------------
+    # --- source layer -----------------------------------------------------
     with tempfile.TemporaryDirectory() as td:
         for name, body, want_reject in [
-                ("textual rejects sorryAx vector", VECTOR_SORRYAX, True),
-                ("textual rejects private-axiom vector", VECTOR_PRIV_AXIOM, True),
-                ("textual rejects attribute-axiom vector", VECTOR_ATTR_AXIOM, True),
-                ("textual accepts clean file (comments mentioning the words)",
-                 CLEAN, False)]:
-            p = os.path.join(td, "V.lean")
-            with open(p, "w") as f:
-                f.write(body)
-            check(name, bool(proof_guard.textual_guard(p)) == want_reject)
+                ("source rejects sorryAx vector", VECTOR_SORRYAX, True),
+                ("source rejects private-axiom vector", VECTOR_PRIV_AXIOM, True),
+                ("source rejects attribute-axiom vector", VECTOR_ATTR_AXIOM, True),
+                ("F2a source rejects axiom hidden behind a \"/-\" string literal",
+                 VECTOR_BLINDED_AXIOM, True),
+                ("P3 source rejects a hand-written native_decide-shaped axiom "
+                 "behind the same blinding string", VECTOR_BLINDED_FAKE_NATIVE, True),
+                ("F2c source rejects `import Lean` (+ syntax override)",
+                 VECTOR_SYNTAX_OVERRIDE, True),
+                ("F3 source rejects @[implemented_by]", VECTOR_IMPLEMENTED_BY, True),
+                ("F3 source rejects @[extern]/opaque", VECTOR_EXTERN, True),
+                ("F3 source rejects non-linter set_option (debug.skipKernelTC)",
+                 VECTOR_SKIP_KERNEL, True),
+                ("lexer disagreement (unterminated string) is a problem",
+                 VECTOR_UNTERMINATED, True),
+                ("source accepts clean file (comments mentioning the words)",
+                 CLEAN, False),
+                ("source accepts the vacuous theorem (it is the STATEMENT "
+                 "layer's job, not this one)", VECTOR_VACUOUS, False)]:
+            probs = proof_guard.source_guard(write(td, body))
+            check(name, bool(probs) == want_reject,
+                  f"problems={probs}")
 
-    # the real proof files must stay clean (no false positive regression)
+    # the real proof files must stay clean (no false-positive regression)
     for f in sorted(os.listdir(os.path.join(REPO, "proofs"))):
         if f.endswith(".lean"):
-            probs = proof_guard.textual_guard(os.path.join(REPO, "proofs", f))
-            check(f"textual quiet on proofs/{f}", not probs)
+            profile = "runner" if f.endswith("Run.lean") else "strict"
+            probs = proof_guard.source_guard(os.path.join(REPO, "proofs", f),
+                                             profile)
+            check(f"source guard quiet on proofs/{f} ({profile})", not probs,
+                  str(probs))
 
-    # --- semantic layer (#print axioms), end-to-end through lean -----------
+    # --- coverage ---------------------------------------------------------
+    with tempfile.TemporaryDirectory() as td:
+        write(td, "theorem brand_new_one : True := trivial\n"
+                  "example : (1 : Nat) = 1 := rfl\n", "Cover.lean")
+        pins = {"fronts": {"x": {"guarded": ["other"]}}, "unguarded": {}}
+        probs = proof_guard.coverage_guard(pins, td)
+        check("coverage flags an unregistered theorem",
+              any("brand_new_one" in p for p in probs), str(probs))
+        check("coverage rejects an anonymous `example`",
+              any("example" in p for p in probs), str(probs))
+        pins2 = {"fronts": {"x": {"guarded": ["brand_new_one"]}}, "unguarded": {}}
+        write(td, "theorem brand_new_one : True := trivial\n", "Cover.lean")
+        check("coverage quiet once the theorem is guarded",
+              not proof_guard.coverage_guard(pins2, td))
+
+    # the real registry accounts for every theorem in proofs/*.lean
+    check("coverage quiet on the real proofs/ tree with the real registry",
+          not proof_guard.coverage_guard(),
+          str(proof_guard.coverage_guard()))
+
+    # --- semantic layer: pin the CLEAN statement, then attack it ----------
+    with tempfile.TemporaryDirectory() as td:
+        write(td, CLEAN)
+        err = proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
+        check("clean fixture compiles", not err, str(err))
+        got = proof_guard.env_query(lean, ["GuardCase"], ["memory_bound"], td)
+        PIN = got["memory_bound"]["type"]
+        check("clean fixture's axioms are within the std set",
+              set(got["memory_bound"]["axioms"]) <= set(proof_guard.STD_AXIOMS),
+              str(got["memory_bound"]["axioms"]))
+        check("a pinned statement is a non-trivial dump",
+              "SigmaGlyph" not in PIN and len(PIN) > 80, PIN)
+
     cases = [
-        ("axiom_guard rejects sorryAx vector", VECTOR_SORRYAX, True),
-        ("axiom_guard rejects private-axiom vector", VECTOR_PRIV_AXIOM, True),
-        ("axiom_guard accepts clean proof", CLEAN, False),
+        ("guard accepts the clean, pinned proof", CLEAN, False),
+        ("round-1 sorryAx vector rejected", VECTOR_SORRYAX, True),
+        ("round-1 private-axiom vector rejected", VECTOR_PRIV_AXIOM, True),
+        ("F1 vacuous `: True := trivial` rejected (statement pin)",
+         VECTOR_VACUOUS, True),
+        ("F1 weakened hypothesis rejected (statement pin)", VECTOR_WEAK_HYP, True),
+        ("F1 changed conclusion rejected (statement pin)",
+         VECTOR_CHANGED_CONCL, True),
+        ("F2b syntax-override vector rejected — the data-only query reports "
+         "the REAL axioms", VECTOR_SYNTAX_OVERRIDE, True),
     ]
     for name, body, want_reject in cases:
         with tempfile.TemporaryDirectory() as td:
-            with open(os.path.join(td, "GuardCase.lean"), "w") as f:
-                f.write(body)
-            err = (proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
-                   or proof_guard.axiom_guard(lean, ["GuardCase"],
-                                              ["memory_bound"], td))
-            check(name, bool(err) == want_reject)
+            write(td, body)
+            err = proof_guard.build_olean(lean, "GuardCase", td, src_dir=td) \
+                or proof_guard.guard_semantics(
+                    lean, front(["memory_bound"], {"memory_bound": PIN}), td)
+            check(name, bool(err) == want_reject, str(err))
             if err and want_reject:
-                print(f"      (guard said: {err[:100]})")
+                print(f"      (guard said: {err.splitlines()[0][:120]})")
 
-    # a deleted/renamed load-bearing theorem must fail, not skip
+    # F3, stated honestly. Two applications of the same trick:
+    #  (a) falsify a PIN (the reviewer rewrote MachineBytes.genesis_I to claim
+    #      a different hash) — the statement pin now catches that, because the
+    #      claim itself changed;
+    #  (b) keep the statement EXACTLY as pinned and prove it through the evil
+    #      route. The cone then holds only allowed axioms and the statement
+    #      matches, so the semantic layer accepts: the attribute denylist is
+    #      the only thing that stops (b). That is what "the layers are not
+    #      independent" means, and it is why the denylist is not optional.
+    evil = (
+        "def evilImpl : Bool := true\n"
+        "@[implemented_by evilImpl] def evilFlag : Bool := false\n"
+        "theorem memory_bound (size spent : Nat) (h : size ≤ spent) :\n"
+        "    size ≤ spent + 1 := by\n"
+        "  have h1 : evilFlag = true := by native_decide\n"
+        "  have h2 : evilFlag = false := rfl\n"
+        "  simp [h1] at h2\n")
     with tempfile.TemporaryDirectory() as td:
-        with open(os.path.join(td, "GuardCase.lean"), "w") as f:
-            f.write(CLEAN)
-        err = (proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
-               or proof_guard.axiom_guard(lean, ["GuardCase"],
-                                          ["memory_bound", "gone_theorem"], td))
-        check("axiom_guard fails on a missing theorem name", bool(err))
+        write(td, VECTOR_IMPLEMENTED_BY)
+        err = proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
+        check("F3 implemented_by+native_decide vector really does compile "
+              "(so `lean` exiting 0 proves nothing)", not err, str(err))
+        sem = proof_guard.guard_semantics(
+            lean, front(["memory_bound"], {"memory_bound": PIN},
+                        native_decide_ok=["memory_bound"]), td)
+        check("F3 (a) a FALSIFIED claim is caught by the statement pin",
+              bool(sem), str(sem))
+    with tempfile.TemporaryDirectory() as td:
+        p = write(td, evil)
+        err = proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
+        check("F3 (b) statement-preserving evil proof compiles", not err, str(err))
+        sem = proof_guard.guard_semantics(
+            lean, front(["memory_bound"], {"memory_bound": PIN},
+                        native_decide_ok=["memory_bound"]), td)
+        check("F3 (b) the semantic layer alone does NOT catch it (documented, "
+              "not fixed there)", sem is None, str(sem))
+        check("F3 (b) the source denylist DOES catch it",
+              any("implemented_by" in x for x in proof_guard.source_guard(p)),
+              str(proof_guard.source_guard(p)))
+
+    # --- fail-closed cases ------------------------------------------------
+    with tempfile.TemporaryDirectory() as td:
+        write(td, CLEAN)
+        proof_guard.build_olean(lean, "GuardCase", td, src_dir=td)
+        err = proof_guard.guard_semantics(
+            lean, front(["memory_bound", "gone_theorem"],
+                        {"memory_bound": PIN, "gone_theorem": PIN}), td)
+        check("a deleted/renamed guarded theorem fails, not skips", bool(err),
+              str(err))
+        err = proof_guard.guard_semantics(
+            lean, front(["memory_bound"], {}), td)
+        check("an UNPINNED guarded theorem fails closed", bool(err), str(err))
+        err = proof_guard.guard_semantics(lean, front([], {}), td)
+        check("an EMPTY guarded list is an error, not a vacuous pass",
+              bool(err), str(err))
+        err = proof_guard.guard_semantics(
+            lean, front(["memory_bound"], {"memory_bound": PIN},
+                        modules=["NoSuchModule"]), td)
+        check("an unloadable module fails closed", bool(err), str(err))
 
     if failures:
         print(f"\nPROOF-GUARD: {len(failures)} FAILED")

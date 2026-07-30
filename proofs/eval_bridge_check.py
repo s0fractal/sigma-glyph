@@ -8,10 +8,13 @@ result NodeHash and the exact atp_spent of impl/sigma_glyph.py on every eval
 conformance vector — including the divergent Omega (500 ATP → exhausted) and
 the store-isolation vectors.
 
-  1. Soundness guard over EvalMachine.lean: comment-stripped textual layer
-     plus a `#print axioms` assertion that the load-bearing theorems depend
-     only on the standard axioms (no native_decide, no sorryAx, no smuggled
-     axiom however prefixed).
+  1. Soundness guard (proof_guard.py, front "eval") over Sha256/MachineBytes/
+     EvalMachine and the EvalRun.lean runner: the source layer (literal-aware
+     comment stripping, sorry/admit/axiom, import allowlist, metaprogramming
+     denylist, coverage registry) plus a data-only environment query asserting
+     that every load-bearing theorem depends only on the standard axioms (no
+     native_decide, no sorryAx, no smuggled axiom however prefixed) AND still
+     states exactly what proofs/theorem_pins.json pins it to state.
   2. Compile EvalMachine (its theorems check on compile).
   3. Differential: for every kind="eval" vector in vectors.json, Lean's
      (result_hash, atp_spent) == the vector's expected pair (which the
@@ -27,11 +30,10 @@ sys.path.insert(0, HERE)
 import proof_guard  # noqa: E402
 
 #: Load-bearing theorems (proofs/README.md, evaluator section) — all
-#: symbolic: the standard axioms only, no native_decide in their cones.
-THEOREMS = ["EvalMachine.step_bounds", "EvalMachine.step_cost_le",
-            "EvalMachine.step_cost_pos", "EvalMachine.eval_spent_le",
-            "EvalMachine.evalHash_spent_le", "EvalMachine.size_step",
-            "EvalMachine.eval_size_bound", "EvalMachine.evalHash_size_bound"]
+#: symbolic: the standard axioms only, no native_decide in their cones. The
+#: list, the allowed axioms and the pinned statements: theorem_pins.json.
+FRONT = proof_guard.load_front("eval")
+THEOREMS = FRONT["guarded"]
 
 
 def fail(msg):
@@ -45,10 +47,12 @@ def main():
         print("eval bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
         sys.exit(2)
 
-    problems = proof_guard.textual_guard(os.path.join(HERE, "EvalMachine.lean"))
+    problems = proof_guard.guard_sources(FRONT)
     if problems:
-        fail("EvalMachine.lean: " + "; ".join(problems))
-    print("OK    EvalMachine.lean carries no sorry/admit/axiom (comment-stripped)")
+        fail("source guard: " + "; ".join(problems))
+    print("OK    Sha256 + MachineBytes + EvalMachine + EvalRun pass the source "
+          "guard (no sorry/admit/axiom, no metaprogramming, imports in-set, "
+          "every theorem accounted for)")
 
     doc = json.load(open(os.path.join(
         REPO, "tests", "spec_conformance", "vectors.json")))
@@ -78,11 +82,11 @@ def main():
                      + (r.stderr or r.stdout).strip()[:600])
         print("OK    Sha256 + MachineBytes + EvalMachine compile "
               "(step_cost_pos, eval_spent_le check on compile)")
-        err = proof_guard.axiom_guard(lean, ["EvalMachine"], THEOREMS, td)
+        err = proof_guard.guard_semantics(lean, FRONT, td)
         if err:
             fail(err)
-        print(f"OK    #print axioms clean for {len(THEOREMS)} evaluator "
-              "theorems (std axioms only)")
+        print(f"OK    axiom cones clean AND statements match their pins for "
+              f"{len(THEOREMS)} evaluator theorems (std axioms only)")
         r = subprocess.run([lean, "--run", os.path.join(HERE, "EvalRun.lean")],
                            input=stdin, capture_output=True, text=True, env=env)
     if r.returncode != 0:

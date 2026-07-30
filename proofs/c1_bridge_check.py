@@ -5,10 +5,12 @@ The Lean proof (`mem_skiFv_c1`, `c1_closed`) is a statement about the Lean
 *model* of C1. This bridge ties that model to the reference implementation:
 
   1. no `sorry`/`admit`/`axiom` sneaks past `lean` (the theorems actually
-     check): comment-stripped textual guard plus, when `lean` is available,
-     a `#print axioms` assertion that the three load-bearing theorems stay
-     fully kernel-checked (standard axioms only, no native_decide) — the
-     README's TCB claim for this front, now enforced; and
+     check): the source layer (literal-aware comment stripping, import
+     allowlist, metaprogramming denylist, coverage registry) plus an
+     environment query asserting the five load-bearing theorems stay fully
+     kernel-checked (`propext` alone — the README's TCB claim for this front,
+     now enforced at exactly that strength) and still state what
+     proofs/theorem_pins.json pins them to state; and
   2. a faithful Python transcription of the Lean `abstr`/`c1` produces the SAME
      Book I SKI NodeHash as the oracle's `sigma_glyph.c1` on a battery of random
      CLOSED λ-terms — so the algorithm the Lean theorem proves total-on-closed
@@ -28,9 +30,12 @@ import proof_guard  # noqa: E402
 import sigma_glyph as sg  # noqa: E402
 
 #: Load-bearing theorems (proofs/README.md, §6 C1 section) — README claims
-#: they are fully kernel-checked, so no native_decide is allowed here.
-THEOREMS = ["Book1.C1.mem_skiFv_abstr", "Book1.C1.mem_skiFv_c1",
-            "Book1.C1.c1_closed"]
+#: they are fully kernel-checked, so this front's allowed-axiom set is exactly
+#: `propext` and no native_decide is permitted. The list (now including the
+#: two TV-10 pins, which used to be unqueryable anonymous `example`s), the
+#: allowed axioms and the pinned statements: proofs/theorem_pins.json.
+FRONT = proof_guard.load_front("c1")
+THEOREMS = FRONT["guarded"]
 
 
 # ---- faithful transcription of C1Compiler.lean (abstr / c1) into oracle terms ----
@@ -83,23 +88,22 @@ def rand_closed_lam(rng, scope, depth):
 
 
 def main():
-    # 1. the Lean theorems actually check, with no sorry/admit/axiom — the
-    #    old substring check caught sorryAx but not `private axiom oops`
-    problems = proof_guard.textual_guard(ROOT / "proofs/C1Compiler.lean")
+    # 1. the Lean theorems actually check, with no sorry/admit/axiom
+    problems = proof_guard.guard_sources(FRONT)
     if problems:
-        print("C1-BRIDGE: FAIL — C1Compiler.lean: " + "; ".join(problems))
+        print("C1-BRIDGE: FAIL — source guard: " + "; ".join(problems))
         return 1
     lean = proof_guard.find_lean()
     if lean:
         with tempfile.TemporaryDirectory() as td:
             err = (proof_guard.build_olean(lean, "C1Compiler", td)
-                   or proof_guard.axiom_guard(lean, ["C1Compiler"],
-                                              THEOREMS, td))
+                   or proof_guard.guard_semantics(lean, FRONT, td))
         if err:
             print("C1-BRIDGE: FAIL — " + err)
             return 1
-        print("ok  lean proofs/C1Compiler.lean checks; #print axioms clean "
-              "(std axioms only) for " + ", ".join(THEOREMS))
+        print("ok  lean proofs/C1Compiler.lean checks; axiom cones are exactly "
+              "within [propext] AND statements match their pins for "
+              + ", ".join(THEOREMS))
     else:
         print("skip lean check (no `lean` binary found — set LEAN=...)")
 

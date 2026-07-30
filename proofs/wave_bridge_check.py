@@ -6,12 +6,14 @@ seam that ties them to the live oracle:
 
   1. Freshness: proofs/LutData.lean regenerates byte-identically from the
      oracle's arbiter-checked LUT (a stale or hand-edited table fails).
-  2. Soundness guard (proof_guard.py): `lean` exits 0 even when a proof uses
-     `sorry` (it is a warning) — this bridge fails on any sorry/admit/axiom
-     in the comment-stripped source AND asserts via `#print axioms` that the
-     load-bearing theorems stay within the documented TCB (std axioms;
-     native_decide trust axioms only for the theorems README already
-     attributes to the compiler).
+  2. Soundness guard (proof_guard.py, front "wave"): `lean` exits 0 even when
+     a proof uses `sorry` (it is a warning) — this bridge runs the source
+     layer over LutData/WaveAlgebra/WaveRun (literal-aware comment stripping,
+     sorry/admit/axiom, import allowlist, metaprogramming denylist, coverage
+     registry) AND a data-only environment query asserting the load-bearing
+     theorems stay within the documented TCB (std axioms; native_decide trust
+     axioms only where README attributes them to the compiler) and still
+     state what proofs/theorem_pins.json pins them to state.
   3. Differential: proofs/WaveRun.lean (the Lean `interfere`, executed) must
      agree with impl/sigma_wave.py `interfere` on a deterministic boundary
      grid plus the pinned special points (crystallization, the
@@ -29,11 +31,10 @@ import proof_guard  # noqa: E402
 from sigma_wave import interfere, W  # noqa: E402
 
 #: Load-bearing theorems (proofs/README.md, Book II section) and — per its
-#: TCB-honesty paragraph — which of them may rest on native_decide.
-THEOREMS = ["WaveAlgebra.interfere_valid", "WaveAlgebra.zero_amp_cascade",
-            "WaveAlgebra.left_dominance_ph", "WaveAlgebra.crystallization",
-            "WaveAlgebra.fold_not_associative", "WaveAlgebra.not_commutative"]
-NATIVE_OK = frozenset(THEOREMS) - {"WaveAlgebra.left_dominance_ph"}
+#: TCB-honesty paragraph — which of them may rest on native_decide: both
+#: lists, plus the pinned statements, live in theorem_pins.json.
+FRONT = proof_guard.load_front("wave")
+THEOREMS = FRONT["guarded"]
 
 
 def fail(msg):
@@ -60,12 +61,16 @@ def main():
             fail("LutData.lean is stale — regenerate with proofs/gen_lut_lean.py")
     print("OK    LutData.lean regenerates byte-identically (arbiter-checked)")
 
-    # 2. soundness guard, textual layer (comment-stripped substring/keyword —
-    #    the old \b-anchored regex missed sorryAx and `private axiom`)
-    problems = proof_guard.textual_guard(os.path.join(HERE, "WaveAlgebra.lean"))
+    # 2. soundness guard, source layer (literal-aware stripping, denylist,
+    #    import allowlist, coverage — the old \b-anchored regex missed
+    #    sorryAx/`private axiom`, and the old stripper was blindable by a
+    #    string literal containing "/-")
+    problems = proof_guard.guard_sources(FRONT)
     if problems:
-        fail("WaveAlgebra.lean: " + "; ".join(problems))
-    print("OK    WaveAlgebra.lean carries no sorry/admit/axiom (comment-stripped)")
+        fail("source guard: " + "; ".join(problems))
+    print("OK    LutData + WaveAlgebra + WaveRun pass the source guard (no "
+          "sorry/admit/axiom, no metaprogramming, imports in-set, every "
+          "theorem accounted for)")
 
     # 3. differential grid
     phs = [0, 1, 8192, 16384, 32767, 32768, 49152, 65535]
@@ -95,12 +100,12 @@ def main():
                 fail(f"{mod}.lean does not compile: "
                      + (r.stderr or r.stdout).strip()[:500])
         print("OK    LutData + WaveAlgebra compile clean (theorems check)")
-        err = proof_guard.axiom_guard(lean, ["WaveAlgebra"], THEOREMS, td,
-                                      native_decide_ok=NATIVE_OK)
+        err = proof_guard.guard_semantics(lean, FRONT, td)
         if err:
             fail(err)
-        print(f"OK    #print axioms clean for {len(THEOREMS)} wave theorems "
-              "(std axioms; native_decide only where the TCB says so)")
+        print(f"OK    axiom cones clean AND statements match their pins for "
+              f"{len(THEOREMS)} wave theorems (std axioms; native_decide only "
+              "where the TCB says so)")
         r = subprocess.run([lean, "--run", os.path.join(HERE, "WaveRun.lean")],
                            input=lines, capture_output=True, text=True, env=env)
     if r.returncode != 0:

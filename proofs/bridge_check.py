@@ -14,12 +14,13 @@ pinned end-results (vectors, property P7) = the assurance stack.
 
 Also carries the soundness guard over SizeBound.lean itself: `lean` exits 0
 on a file containing `sorry` (it is a warning), so CI's compile step alone
-would pass a sorry'd proof. The guard is two-layered (proof_guard.py): the
-primary check asserts via `#print axioms` that memory_bound/preflight_bound
-depend only on the standard axioms — which catches `sorryAx` and prefixed
-axioms (`private axiom ...`), the two bypasses of the old regex that a
-2026-07 adversarial review demonstrated — plus the hardened textual guard.
-Needs a `lean` binary (elan). Exit 2 if unavailable — never a silent pass.
+would pass a sorry'd proof. The guard (proof_guard.py, front "size") asserts
+from a data-only environment query that memory_bound/preflight_bound depend
+only on the standard axioms AND still SAY what they are pinned to say — a
+first-round review bypassed the old regex with `sorryAx`/`private axiom`, and
+a second round then passed `theorem memory_bound : True := trivial` through
+the axiom-only check. Needs a `lean` binary (elan). Exit 2 if unavailable —
+never a silent pass.
 
 Usage: python3 proofs/bridge_check.py   (from the repo root)
 """
@@ -32,8 +33,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "impl"))
 import proof_guard  # noqa: E402
 import sigma_glyph as sg  # noqa: E402
 
-#: The load-bearing theorems this bridge (and proofs/README.md) claims.
-THEOREMS = ["SigmaGlyph.memory_bound", "SigmaGlyph.preflight_bound"]
+#: The load-bearing theorems this bridge (and proofs/README.md) claims, with
+#: their pinned statements and allowed axioms: proofs/theorem_pins.json.
+FRONT = proof_guard.load_front("size")
+THEOREMS = FRONT["guarded"]
 
 A = lambda l, r: ("app", l, r)
 Ig, Kg, Sg = ("lit", sg.sha(b"I")), ("lit", sg.sha(b"K")), ("lit", sg.sha(b"S"))
@@ -79,19 +82,19 @@ def main():
         print("bridge_check needs a `lean` binary for the #print axioms "
               "guard (elan) — set LEAN=... ; exit 2")
         return 2
-    here = Path(__file__).resolve().parent
-    problems = proof_guard.textual_guard(here / "SizeBound.lean")
+    problems = proof_guard.guard_sources(FRONT)
     if problems:
-        print("BRIDGE: FAILED — SizeBound.lean: " + "; ".join(problems))
+        print("BRIDGE: FAILED — " + "; ".join(problems))
         return 1
     with tempfile.TemporaryDirectory() as td:
         err = (proof_guard.build_olean(lean, "SizeBound", td)
-               or proof_guard.axiom_guard(lean, ["SizeBound"], THEOREMS, td))
+               or proof_guard.guard_semantics(lean, FRONT, td))
     if err:
         print("BRIDGE: FAILED — " + err)
         return 1
-    print("OK    SizeBound.lean guard: no sorry/admit/axiom in source; "
-          "#print axioms clean (std axioms only) for "
+    print("OK    SizeBound.lean guard: source layer clean (no sorry/admit/"
+          "axiom, no metaprogramming, imports in-set); axiom cone within the "
+          "std axioms AND statement matches its pin for "
           + ", ".join(THEOREMS))
 
     st = build_store()
