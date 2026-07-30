@@ -16,6 +16,11 @@ The Lean proof (`mem_skiFv_c1`, `c1_closed`) is a statement about the Lean
      CLOSED λ-terms — so the algorithm the Lean theorem proves total-on-closed
      is byte-for-byte the algorithm the oracle ships.
 
+Needs a `lean` binary (elan). Exit 2 if unavailable — never a silent pass:
+this bridge used to print "skip lean check" and then "C1-BRIDGE: ALL AGREE",
+so proofs.yml (which gates on that string) went green with the Lean half of
+the bridge never run — while the docstring claimed enforcement.
+
 Deterministic (seeded). Run: python3 proofs/c1_bridge_check.py
 """
 import random
@@ -88,24 +93,28 @@ def rand_closed_lam(rng, scope, depth):
 
 
 def main():
-    # 1. the Lean theorems actually check, with no sorry/admit/axiom
+    # 1. the Lean theorems actually check, with no sorry/admit/axiom — and a
+    #    missing `lean` is exit 2, like the other four bridges: skipping the
+    #    Lean half while still printing "ALL AGREE" made proofs.yml green on a
+    #    surface it never checked (2026-07 round-2 review).
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("c1 bridge needs a `lean` binary for the environment query "
+              "(elan) — set LEAN=... ; exit 2")
+        return 2
     problems = proof_guard.guard_sources(FRONT)
     if problems:
         print("C1-BRIDGE: FAIL — source guard: " + "; ".join(problems))
         return 1
-    lean = proof_guard.find_lean()
-    if lean:
-        with tempfile.TemporaryDirectory() as td:
-            err = (proof_guard.build_olean(lean, "C1Compiler", td)
-                   or proof_guard.guard_semantics(lean, FRONT, td))
-        if err:
-            print("C1-BRIDGE: FAIL — " + err)
-            return 1
-        print("ok  lean proofs/C1Compiler.lean checks; axiom cones are exactly "
-              "within [propext] AND statements match their pins for "
-              + ", ".join(THEOREMS))
-    else:
-        print("skip lean check (no `lean` binary found — set LEAN=...)")
+    with tempfile.TemporaryDirectory() as td:
+        err = (proof_guard.build_olean(lean, "C1Compiler", td)
+               or proof_guard.guard_semantics(lean, FRONT, td))
+    if err:
+        print("C1-BRIDGE: FAIL — " + err)
+        return 1
+    print("ok  lean proofs/C1Compiler.lean checks; axiom cones are exactly "
+          "within [propext] AND statements match their pins for "
+          + ", ".join(THEOREMS))
 
     # 2. Lean model == oracle on random closed λ-terms (NodeHash-exact)
     rng = random.Random(20260717)

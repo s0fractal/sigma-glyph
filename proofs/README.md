@@ -155,7 +155,10 @@ TCB: these are **fully kernel-checked** — every one of the five depends on
 enforced claim are the same sentence. The compiler behind the `Sha256`/wave
 `native_decide` facts is NOT in this front's trusted base.
 
-**Bridge** — `c1_bridge_check.py`: source + environment guard, then a
+**Bridge** — `c1_bridge_check.py`: source + environment guard (hard exit 2 if
+`lean` is missing — it used to print "skip lean check" and then
+"C1-BRIDGE: ALL AGREE", so `proofs.yml`, which gates on that string, went
+green with the Lean half never run), then a
 faithful transcription of the Lean `abstr`/`c1` is diffed against the oracle's
 `sigma_glyph.c1` on **3000 random closed λ-terms**, NodeHash-exact. (This bridge
 already earned its keep: it caught an A-2/A-3 ordering bug in the first draft of
