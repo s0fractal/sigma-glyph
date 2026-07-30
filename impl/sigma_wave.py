@@ -178,7 +178,33 @@ COORD_CASES = [
      "alias pin coordinate: FALSE ph=49152 regardless of derived am=0"),
 ]
 
-VEC_PATH = Path(__file__).resolve().parents[1] / "tests/spec_conformance/wave_vectors.json"
+# WHERE THE RECORDED VECTORS LIVE — and why "absent" has two meanings.
+#
+# The vectors live in the REPO, at tests/spec_conformance/. The wheel installs
+# three modules and nothing else (pyproject: `py-modules`), so from
+# site-packages this path does not exist and never will. `pip install
+# sigma-glyph` + `python -m sigma_wave` therefore used to print
+# `FAIL wave_vectors.json present` and exit 1 — a false accusation: nothing was
+# wrong, the replay corpus simply is not part of the distribution.
+#
+# But a missing file in a CHECKOUT *is* a defect, and the two must not be
+# reported the same way. A skip that can hide a real deletion is the pattern
+# this project keeps finding. So the distinction is made structurally: a
+# checkout is `impl/` next to `pyproject.toml` AND a `tests/spec_conformance/`
+# directory to hold the corpora. Anything else — a site-packages install, or an
+# unpacked sdist, which ships impl/ and pyproject.toml but no tests/ — announces
+# the replay as SKIPPED, never as passed and never as failed.
+#
+# The one case this cannot tell apart is someone deleting the whole
+# `tests/spec_conformance/` directory in a real checkout. That is a far louder
+# act than deleting one file, and CI regenerates into that directory, so it
+# fails there instead.
+_HERE = Path(__file__).resolve().parent
+_REPO = _HERE.parent
+_CORPUS_DIR = _REPO / "tests" / "spec_conformance"
+FROM_CHECKOUT = (_HERE.name == "impl" and (_REPO / "pyproject.toml").is_file()
+                 and _CORPUS_DIR.is_dir())
+VEC_PATH = _CORPUS_DIR / "wave_vectors.json"
 
 
 def iterate_am(w0):
@@ -232,6 +258,7 @@ def gen_vectors():
 
 def selftest():
     ok = []
+    skipped = []
 
     def chk(name, cond, detail=""):
         ok.append(cond)
@@ -283,11 +310,19 @@ def selftest():
                 chk(f"vector {v['id']}", got == v["expected_ph"], f"got {got}")
             else:
                 chk(f"vector {v['id']}", False, f"unknown kind {kind}")
-    else:
+    elif FROM_CHECKOUT:
         chk("wave_vectors.json present", False, "run: python3 impl/sigma_wave.py gen")
+    else:
+        skipped.append("recorded-vector replay")
+        print(f"SKIP recorded-vector replay: {VEC_PATH.name} is not shipped in "
+              f"the installed package (it lives in the repo at "
+              f"tests/spec_conformance/). The property checks above ran in full; "
+              f"the replay did not run and is not claimed. To run it, use a "
+              f"checkout: python3 impl/sigma_wave.py")
 
     print(("\nWAVE: ALL PASS" if all(ok) else "\nWAVE: FAILURES PRESENT")
-          + f" ({sum(ok)}/{len(ok)})")
+          + f" ({sum(ok)}/{len(ok)})"
+          + (f" — SKIPPED: {', '.join(skipped)}" if skipped else ""))
     return all(ok)
 
 

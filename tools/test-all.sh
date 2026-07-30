@@ -24,6 +24,14 @@ python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
 python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
 python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION: ALL PASS"
 
+say "Release surface (what an installed copy promises)"
+# The checkout half only. It drives the gate's classifier against the two real
+# 0.6.6 install failures, then re-runs the three self-tests and the documented
+# QUICKSTART snippet. Measuring the built WHEEL needs a build and a venv, so
+# that half runs in .github/workflows/publish.yml, before the publish it guards.
+python3 tools/check_release_surface.py --selftest | tee /dev/stderr | grep -q "RELEASE-SURFACE-SELFTEST: ALL PASS"
+python3 tools/check_release_surface.py            | tee /dev/stderr | grep -q "RELEASE SURFACE: ALL PASS"
+
 say "Conformance + properties"
 python3 tests/spec_conformance/run_reference.py  | tee /dev/stderr | grep -q "ALL PASS"
 python3 tests/spec_conformance/test_properties.py
