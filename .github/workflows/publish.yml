@@ -1,0 +1,116 @@
+name: publish
+
+# Auto-publish `sigma-glyph` to PyPI via Trusted Publishing (OIDC) — no stored
+# tokens. A GitHub Release named `vX.Y.Z` builds, validates, and publishes.
+# `workflow_dispatch` publishes to TestPyPI for a dry run.
+# One-time PyPI setup is documented in PUBLISHING.md.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+      - name: Version matches release tag
+        if: github.event_name == 'release'
+        run: |
+          VER=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "pyproject=$VER tag=$TAG"
+          test "$VER" = "$TAG" || { echo "::error::tag v$TAG does not match pyproject version $VER"; exit 1; }
+
+      # From /tmp, never from the checkout. The whole class of defect this gate
+      # exists for — self-tests that resolve their replay corpus relative to
+      # `__file__` — is invisible from inside the repo, where the corpus is
+      # always there.
+      - name: Validate metadata + that the wheel runs from anywhere
+        run: |
+          twine check dist/*
+          python -m venv /tmp/sv
+          /tmp/sv/bin/pip install dist/*.whl
+          ( cd /tmp && /tmp/sv/bin/python -m sigma_glyph      | tail -1 )
+          ( cd /tmp && /tmp/sv/bin/python -m sigma_wave       | tail -1 )
+          ( cd /tmp && /tmp/sv/bin/python -m sigma_federation | tail -1 )
+
+      # The gate is checked before it is trusted: its classifier is driven
+      # against the two real 0.6.6 failures (a FAIL line and a traceback) and
+      # against a suite that skipped its way to ALL PASS.
+      - name: The release gate's own selftest
+        run: python3 tools/check_release_surface.py --selftest
+
+      # WHAT THIS CAUGHT, so nobody removes it for being noisy.
+      # Built from master at 0.6.6 and installed into a fresh venv, the three
+      # documented self-tests behaved like this:
+      #
+      #   python -m sigma_glyph        ALL PASS                       (exit 0)
+      #   python -m sigma_wave         FAIL wave_vectors.json present (exit 1, 13/14)
+      #   python -m sigma_federation   FileNotFoundError traceback    (exit 1)
+      #
+      # Not one of those was a real failure: the replay corpora live in
+      # `tests/spec_conformance/` and the wheel ships three modules and nothing
+      # else. The self-tests now announce that as an explicit SKIP with the
+      # reason, and still FAIL when the corpus is missing from a CHECKOUT — the
+      # two cases are different and are reported differently.
+      #
+      # The gate does not hard-code "expect a skip". It derives the expectation
+      # from the wheel's own file list, so if the corpora are ever shipped as
+      # package data the gate flips to demanding the replay actually RAN.
+      #
+      # HONEST SCOPE: the wheel is the Python reference implementation only.
+      # The Rust and Go implementations, the proof guard, the governance
+      # anchors and the cross-repo X1 checks are gated by ci.yml and
+      # tools/test-all.sh against the checkout; nothing here re-proves them.
+      # The OIDC publish path itself cannot be exercised anywhere but here.
+      - name: The wheel behaves as the docs say
+        run: python3 tools/check_release_surface.py --wheel "$(ls dist/*.whl)" --bin /tmp/sv/bin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    # Real, irreversible publish — only from a published GitHub Release.
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write            # OIDC token for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  testpypi:
+    # Dry run: manual trigger publishes to TestPyPI.
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

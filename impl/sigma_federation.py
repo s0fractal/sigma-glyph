@@ -207,7 +207,18 @@ def assertion_set_root(warrant_ids):
 
 
 # ---------------------------------------------------------------------------
-VEC_PATH = Path(__file__).resolve().parents[1] / "tests/spec_conformance/federation_vectors.json"
+# See the same block in sigma_wave.py. Both replay corpora live in the REPO, not
+# in the wheel; from site-packages this module used to TRACEBACK
+# (FileNotFoundError out of _book1_fixture) rather than say so. A checkout is
+# `impl/` next to `pyproject.toml` AND a corpus directory to hold them; in a
+# checkout a missing corpus is still a failure.
+_HERE = Path(__file__).resolve().parent
+_REPO = _HERE.parent
+_CORPUS_DIR = _REPO / "tests" / "spec_conformance"
+FROM_CHECKOUT = (_HERE.name == "impl" and (_REPO / "pyproject.toml").is_file()
+                 and _CORPUS_DIR.is_dir())
+VEC_PATH = _CORPUS_DIR / "federation_vectors.json"
+B1_SUITE = _CORPUS_DIR / "vectors.json"
 
 J = "aa" * 32
 J2 = "bb" * 32
@@ -253,11 +264,10 @@ def _book1_fixture():
     this vector makes the boundary executable)."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
-        "sigma_glyph", Path(__file__).resolve().parent / "sigma_glyph.py")
+        "sigma_glyph", _HERE / "sigma_glyph.py")
     sg = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(sg)
-    suite = json.loads((Path(__file__).resolve().parents[1] /
-                        "tests/spec_conformance/vectors.json").read_text())
+    suite = json.loads(B1_SUITE.read_text())
     vec = next(v for v in suite["vectors"] if v["id"] == "EV-TV4-IK")
     store = sg.Store()
     for h, bts in suite["objects"].items():
@@ -399,6 +409,7 @@ def gen_vectors():
 
 def selftest():
     ok = []
+    skipped = []
 
     def chk(name, cond, detail=""):
         ok.append(cond)
@@ -445,9 +456,20 @@ def selftest():
         assertion_set_root(["1" * 64, "2" * 64]) == assertion_set_root(["2" * 64, "1" * 64]))
     chk("view id closed and deterministic",
         view_id(J, NODE, "dd" * 32, 8) == view_id(J, NODE, "dd" * 32, 8))
-    fx = _book1_fixture()
-    chk("Book I unreachable (eval matches suite regardless of annotations)",
-        fx["matches_book1_suite"])
+    if B1_SUITE.exists():
+        fx = _book1_fixture()
+        chk("Book I unreachable (eval matches suite regardless of annotations)",
+            fx["matches_book1_suite"])
+    elif FROM_CHECKOUT:
+        chk("Book I unreachable (eval matches suite regardless of annotations)",
+            False, f"missing {B1_SUITE}")
+    else:
+        skipped.append("Book I unreachable fixture")
+        print(f"SKIP Book I unreachable fixture: {B1_SUITE.name} is not shipped "
+              f"in the installed package (it lives in the repo at "
+              f"tests/spec_conformance/). The Book I boundary is not "
+              f"re-derived here; run it from a checkout: "
+              f"python3 impl/sigma_federation.py")
 
     if VEC_PATH.exists():
         doc = json.loads(VEC_PATH.read_text())
@@ -479,12 +501,20 @@ def selftest():
             else:
                 got = f"unknown kind {k}"
             chk(f"vector {v['id']}", got == v["expected"], f"got {got}")
-    else:
+    elif FROM_CHECKOUT:
         chk("federation_vectors.json present", False,
             "run: python3 impl/sigma_federation.py gen")
+    else:
+        skipped.append("recorded-vector replay")
+        print(f"SKIP recorded-vector replay: {VEC_PATH.name} is not shipped in "
+              f"the installed package (it lives in the repo at "
+              f"tests/spec_conformance/). The property checks above ran in full; "
+              f"the replay did not run and is not claimed. To run it, use a "
+              f"checkout: python3 impl/sigma_federation.py")
 
     print(("\nFEDERATION: ALL PASS" if all(ok) else "\nFEDERATION: FAILURES PRESENT")
-          + f" ({sum(ok)}/{len(ok)})")
+          + f" ({sum(ok)}/{len(ok)})"
+          + (f" — SKIPPED: {', '.join(skipped)}" if skipped else ""))
     return all(ok)
 
 
