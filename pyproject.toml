@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sigma-glyph"
-version = "0.6.6"
+version = "0.6.6.post1"
 description = "A portable check engine: send a computation by hash, get the same answer on any machine, with work and memory bounded up front."
 readme = "README.md"
 requires-python = ">=3.9"
