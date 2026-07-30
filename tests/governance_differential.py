@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
 sys.path.insert(0, str(TOOLS))
 import anchor_governance as ag  # noqa: E402
+import warrant_sig  # noqa: E402  (the one signing-message construction)
 
 GO_DIR = ROOT / "impl-go"
 VEC_PATH = ROOT / "tests/spec_conformance/governance_vectors.json"
@@ -60,11 +61,8 @@ def signed_env(body, signers):
     rid = sha_hex(jcs(body))
     return rid, {
         "body": body,
-        "sigs": [
-            {"actor": actor, "key": pub(actor),
-             "sig": sk(actor).sign(b"warrant-sig-v1:" + bytes.fromhex(rid)).hex()}
-            for actor in signers
-        ],
+        "sigs": [warrant_sig.sig_entry(actor, sk(actor), rid)
+                 for actor in signers],
     }
 
 

@@ -28,6 +28,11 @@ const (
 	// the 32 raw bytes of the WarrantID, 47 bytes in all. A Go verifier that
 	// counts a signature the Python verifier refuses is the
 	// two-implementations-disagree outcome this repository exists to forbid.
+	//
+	// Go cannot import tools/warrant_sig.py, so this is the one copy of the
+	// construction that must exist. tests/one_signing_path.py pins it to that
+	// module's own constant, which is the only honest check available across a
+	// language boundary -- and the reason it is a named constant here.
 	warrantSigDomain = "warrant-sig-v1:"
 )
 
