@@ -72,7 +72,7 @@ comparing `result_hash` covers them uniformly.
 ## Claiming conformance
 
 1. Load `objects`, verifying CAS keys.
-2. Pass all `vectors` (39 in this release).
+2. Pass all `vectors` (49 in this release).
 3. State the `spec_version`, `suite_version` and `book1_anchor` you tested against.
 
 Passing this suite demonstrates conformance on the covered surface; it does
