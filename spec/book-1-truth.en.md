@@ -4,12 +4,26 @@
 **Type:** Bit-Exact Computational Core
 **Status:** DRAFT STANDARD
 
-> **Informative English translation.** This is an English rendering of the
-> normative Σ-GLYPH Book I v0.5.2. The canonical, anchored source of record is
-> [`book-1-truth.md`](book-1-truth.md) (Ukrainian). In any discrepancy the
-> anchored source governs, until the maintainer roster adjudicates and re-anchors
-> an English normative edition (§8). All hashes, byte strings, code, tables, ADR
-> references, and RFC 2119 keywords are reproduced verbatim.
+> **Status of this edition: PROPOSED NORMATIVE — NOT ADOPTED.** This is the
+> complete candidate text of [`proposals/PROP-book1-en-normative.md`]. Until a
+> threshold warrant per `spec/GOV-anchors.md` adopts that proposal, the
+> normative, anchored citation target remains
+> [`book-1-truth.md`](book-1-truth.md) (Ukrainian) and this document is an
+> informative translation: in any discrepancy the anchored Ukrainian source
+> governs. Clauses that would change on adoption are marked
+> **[PROPOSED — takes effect only on adoption]**. All hashes, byte strings,
+> code, tables, ADR references, and RFC 2119 keywords are reproduced verbatim
+> from the Ukrainian source, except where such a marker says otherwise.
+>
+> **Self-containment.** This edition is written so that an independent
+> implementer can build a conformant Book I evaluator from this document plus
+> the anchored vector file `tests/spec_conformance/vectors.json` alone, without
+> reading `impl/sigma_glyph.py`: every normative constant is printed in full
+> (§4.2, §5), including the genesis constants the Ukrainian edition defers to
+> the implementation. Values added by this edition beyond the Ukrainian text
+> are marked *(computed)*; each is derivable from the rules of §2 and was
+> recomputed independently and cross-checked against the reference
+> implementation.
 
 **Scope:** This document defines everything — and only what — two independent
 nodes need in order to reach consensus on the hash of a computation's result.
@@ -230,15 +244,29 @@ Hash:  af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507
 
 ### 5.1. Axioms (nominal)
 
-| Glyph | CanonicalBytes            | NodeHash |
-| ----- | ------------------------- | -------- |
-| I | `0001`+SHA-256("I") | `2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162` |
-| K | `0001`+SHA-256("K") | `bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c` |
-| S | `0001`+SHA-256("S") | `887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6` |
+The atoms are the SHA-256 digests of the one-byte ASCII strings `I`, `K`, `S`:
 
-The full 32-byte values of SHA-256("I"/"K"/"S") are in `impl/sigma_glyph.py`
-(TV-1); they are deliberately not duplicated here, to avoid creating a second
-source of truth.
+```text
+SHA-256("I") = a83dd0ccbffe39d071cc317ddf6e97f5c6b1c87af91919271f9fa140b0508c6c
+SHA-256("K") = 86be9a55762d316a3026c2836d044f5fc76e34da10e1b45feee5f18be7edb177
+SHA-256("S") = 8de0b3c47f112c59745f717a626932264c422a7563954872e237b223af4ad643
+```
+
+Each axiom is the LITERAL node `0001‖SHA-256(glyph)` per §2:
+
+| Glyph | CanonicalBytes | NodeHash |
+| ----- | -------------- | -------- |
+| I | `0001a83dd0ccbffe39d071cc317ddf6e97f5c6b1c87af91919271f9fa140b0508c6c` | `2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162` |
+| K | `000186be9a55762d316a3026c2836d044f5fc76e34da10e1b45feee5f18be7edb177` | `bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c` |
+| S | `00018de0b3c47f112c59745f717a626932264c422a7563954872e237b223af4ad643` | `887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6` |
+
+**[PROPOSED — takes effect only on adoption]** The full 32-byte values above are
+printed in this document as normative constants, so that an implementer needs no
+source beyond this Book. (The Ukrainian edition instead defers the full
+SHA-256("I"/"K"/"S") values to `impl/sigma_glyph.py` to avoid a second source of
+truth; under the precedence rule proposed in §7 this document becomes the single
+source, and the reference implementation cross-checks it.) Every value is
+recomputable from §2: `NodeHash = SHA-256(0001‖SHA-256(glyph))`.
 
 **Genesis intrinsic (MUST, since v0.5).** The three axioms I, K, S are intrinsic
 constants: a conforming implementation MUST serve `resolve/force` of their
@@ -252,7 +280,9 @@ confirmation without dissent: DeepSeek, 2026-07.)
 
 ### 5.2. The First Theorem
 
-`FALSE ≡ APPLY(K,I)`; Bytes `0206‖H(K)‖H(I)`; Hash
+`FALSE ≡ APPLY(K,I)`; Bytes `0206‖H(K)‖H(I)` =
+`0206bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162`
+*(computed)*; Hash
 `65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098`.
 
 ### 5.3. Reason Hashes (MUST)
@@ -307,15 +337,23 @@ A(x, (M N))  = APPLY(APPLY(⟨S⟩, A(x,M)), A(x,N))
 `0001a83dd0ccbffe39d071cc317ddf6e97f5c6b1c87af91919271f9fa140b0508c6c`; Hash
 `2f33694d…330f4162` (full in §5.1).
 
-**TV-2 (FALSE):** Bytes `0206‖H(K)‖H(I)`; Hash `65cd957f…38a32098`.
+**TV-2 (FALSE):** Bytes `0206‖H(K)‖H(I)`; Hash `65cd957f…38a32098` (full in
+§5.2).
 
 **TV-3 (DISSONANCE ATP):** Bytes
 `ff01dc435a08513893bacd07abd802b9c526e92ae57ca6db40c1c8f369fd7032e090`; Hash
 `8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176`.
 
 The prices below are v0.5 (size-priced, hash-leaf, §3.4). The exhaustive
-machine-checkable set is `tests/spec_conformance/vectors.json` (normative; on any
-discrepancy with the prose, the oracle `impl/sigma_glyph.py` wins).
+machine-checkable set is `tests/spec_conformance/vectors.json` (normative).
+
+> **[PROPOSED — takes effect only on adoption]** **Precedence:** this document
+> is authoritative; `impl/sigma_glyph.py` is the reference implementation; a
+> divergence between them is a defect in one of them, resolved by an erratum
+> adopted through the same governance process as any other spec change
+> (GOV-anchors §3). *This inverts the rule currently in force. Until adoption,
+> the Ukrainian edition's rule governs: on any discrepancy between the prose
+> and the vectors, the oracle `impl/sigma_glyph.py` wins.*
 
 **TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash
 `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`;
@@ -343,7 +381,9 @@ ghost, then ghost becomes the demanded root and is not forced.
 
 **TV-9 (REF chain):** store: `r1=REF(H(K))`, `r2=REF(r1)`; `eval(r2, 6)=⟨K⟩`,
 exactly **6 ATP** (2 forces of 2 + 2 R-R of 1); `eval(r2, 1)` = ATP Exhausted,
-spent 0 (force costs 2).
+spent 0 (force costs 2). *(computed:
+`r1 = e84bd1deaad7f7dc7f7b26065db7eba744249a0fc19b90e1250f68333421c5a1`,
+`r2 = 3e2d2c140be19790380ccc4b10c0e4fbd79fa83a48fc586d80b7ab5570ea9345`.)*
 
 **TV-10 (C1 compiler):** `C1[λx.x] = ⟨I⟩`. `C1[λx.λy.x] =
 APPLY(APPLY(⟨S⟩,APPLY(⟨K⟩,⟨K⟩)),⟨I⟩)`, hash
@@ -351,8 +391,10 @@ APPLY(APPLY(⟨S⟩,APPLY(⟨K⟩,⟨K⟩)),⟨I⟩)`, hash
 `eval(APPLY(APPLY(C1[λxy.x],⟨S⟩),⟨K⟩), 20) = ⟨S⟩`, 20 ATP.
 
 **TV-11 (Divergence class, v0.5):** ghost = SHA-256(ASCII `this node was never
-stored`), absent from storage. `APPLY(⟨FALSE⟩, ghost)` (= `(K I) ghost`) → ⟨I⟩, 7
-ATP; `APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP. In 0.4.x both gave Unresolved
+stored`) *(computed:
+`0755e9fe09abe5fcf62f95ffdd2ddfeeea9a9b9fdebc70b51da2f2b369f3c442`)*, absent
+from storage. `APPLY(⟨FALSE⟩, ghost)` (= `(K I) ghost`) → ⟨I⟩, 7 ATP;
+`APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP. In 0.4.x both gave Unresolved
 Reference — this is a deliberate breaking change (ADR-003).
 
 **TV-12 (Genesis intrinsic, v0.5):** `REF(H(K))` on an **empty** store → ⟨K⟩, 3
