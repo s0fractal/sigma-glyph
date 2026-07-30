@@ -113,6 +113,32 @@ The gate derives its expectation from the wheel's own file list, so if the
 corpora are ever shipped as package data it will start demanding that the replay
 actually ran, instead of being satisfied by a skip.
 
+### The `gen` verb is refused from an installed copy, on purpose
+
+`sigma_wave` and `sigma_federation` also accept `gen`, which rewrites
+`tests/spec_conformance/*.json`. Until 2026-07-31 it ended in a
+`FileNotFoundError` traceback from an installed copy (`_REPO` is site-packages'
+parent), and no gate had ever run it that way — the release gate ran
+`python -m <module>` and nothing else.
+
+It now refuses, with exit 2 and the reason:
+
+```
+$ /tmp/v/bin/python -m sigma_wave gen
+REFUSING: `gen` regenerates the conformance corpus at
+tests/spec_conformance/wave_vectors.json and requires a source checkout …
+```
+
+Shipping the corpus as package data would have made the verb "succeed" while
+writing a file with no spec text beside it to read the values off and no
+committed vectors to diff against — the appearance of a fix. `gen` is a
+maintainer verb; the honest installed-copy answer is that it does not apply here.
+
+`tools/check_release_surface.py` now carries a RUNNABLE / NOT_RUNNABLE table for
+every verb the modules declare, and **executes all of them** from outside a
+checkout. A verb the modules declare and the table does not classify fails the
+gate, so a new verb cannot ship unexercised the way `gen` did.
+
 Run it yourself before tagging:
 
 ```bash

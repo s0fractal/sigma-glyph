@@ -63,8 +63,13 @@ MUTATIONS = [
      '"FALSE": (["APPLY", "K", "I"], {"ph": 49153}),', "WV-COORD-FALSE"),
 ]
 
+# The staged tree must be a CHECKOUT, because `gen` now refuses to run anywhere
+# else (impl/sigma_wave.py require_checkout). A checkout is defined structurally
+# in impl/sigma_wave.py as `impl/` beside `pyproject.toml` and
+# `tests/spec_conformance/`; leave pyproject.toml out and this guard measures
+# the wrong refusal — the corpus one instead of the spec one it exists to prove.
 NEEDED = ["impl/sigma_glyph.py", "impl/sigma_wave.py",
-          "tests/spec_conformance/generate.py"]
+          "tests/spec_conformance/generate.py", "pyproject.toml"]
 
 ok = []
 

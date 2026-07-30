@@ -444,10 +444,22 @@ def run_tests():
     print("\nALL PASS" if all(ok) else "\nFAILURES PRESENT")
     return all(ok)
 
+# This module declares no verbs beyond the default self-test. The constant is
+# what tools/check_release_surface.py reads to build its RUNNABLE /
+# NOT_RUNNABLE table, so a verb added below without being classified there
+# fails the release gate instead of shipping unexercised.
+VERBS = ()
+
 if __name__ == "__main__":
-    # `run_tests()` used to be called for its printing only: the boolean it
-    # returns was discarded, so the process exited 0 while stdout said
-    # FAILURES PRESENT. The two sibling Books always propagated their verdict;
-    # this one never did, and every gate that consumes it catches failures by
-    # grepping stdout — which is a legitimate extra check and not a substitute.
+    # `run_tests()` used to be called for its printing only: the process exited
+    # 0 while stdout said FAILURES PRESENT, so `python -m sigma_glyph && echo ok`
+    # — what CI does by default — reported success on a failing Book I oracle.
+    # The two sibling modules always propagated their verdict; this one did not.
+    if sys.argv[1:]:
+        print(f"usage: {sys.argv[0]} (no arguments; runs the Book I self-test)\n"
+              f"  unknown verb {sys.argv[1]!r} — this module declares no verbs. "
+              f"Refusing rather than silently running the self-test and "
+              f"reporting success for a command that does not exist.",
+              file=sys.stderr)
+        sys.exit(2)
     sys.exit(0 if run_tests() else 1)

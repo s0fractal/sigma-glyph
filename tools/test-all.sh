@@ -37,6 +37,10 @@ say "Release surface (what an installed copy promises)"
 # 0.6.6 install failures, then re-runs the three self-tests and the documented
 # QUICKSTART snippet. Measuring the built WHEEL needs a build and a venv, so
 # that half runs in .github/workflows/publish.yml, before the publish it guards.
+#
+# It also now runs EVERY declared verb against a non-checkout copy of impl/ —
+# `gen` included. That verb was in the wheel for four releases and no gate had
+# ever executed it from outside a checkout, where it ended in FileNotFoundError.
 python3 tools/check_release_surface.py --selftest | tee /dev/stderr | grep -q "RELEASE-SURFACE-SELFTEST: ALL PASS"
 python3 tools/check_release_surface.py            | tee /dev/stderr | grep -q "RELEASE SURFACE: ALL PASS"
 

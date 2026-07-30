@@ -17,7 +17,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sigma_wave import W, interfere, FULL_PINS, ALIASES, complete  # noqa: E402
+from sigma_wave import (W, interfere, FULL_PINS, ALIASES, complete,  # noqa: E402
+                        require_checkout)
 
 ASSERTION_TAG = "sigma-glyph.wave-assertion@v1"
 POLICY_TAG = "sigma-glyph.selection@v1"
@@ -280,6 +281,7 @@ def _book1_fixture():
 
 
 def gen_vectors():
+    require_checkout("gen", __file__, VEC_PATH, FROM_CHECKOUT)
     vectors = []
     bad = dict(CANDS[0]["assertion"]); bad["extra"] = 1
     part = dict(CANDS[0]["assertion"]); part["wave"] = {"ph": 1, "am": 2}
@@ -518,8 +520,20 @@ def selftest():
     return all(ok)
 
 
+# See sigma_wave.VERBS: tools/check_release_surface.py reads this and fails
+# unless every verb here is classified and behaves as classified when executed
+# from outside a checkout.
+VERBS = ("gen",)
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "gen":
-        gen_vectors()
-    else:
-        sys.exit(0 if selftest() else 1)
+    argv = sys.argv[1:]
+    if argv[:1] == ["gen"]:
+        gen_vectors()               # refuses (exit 2) outside a checkout
+        sys.exit(0)
+    if argv:
+        print(f"usage: {sys.argv[0]} [{'|'.join(VERBS)}]\n"
+              f"  unknown verb {argv[0]!r}. No argument runs the self-test; "
+              f"refusing rather than running it under a name that does not "
+              f"exist and reporting success.", file=sys.stderr)
+        sys.exit(2)
+    sys.exit(0 if selftest() else 1)
