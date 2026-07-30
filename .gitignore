@@ -7,3 +7,9 @@ sigma-glyph-full.md
 __pycache__/
 *.pyc
 *.pyo
+
+# Python packaging build artifacts (pyproject.toml / pip install .)
+build/
+dist/
+*.egg-info/
+.venv*/
