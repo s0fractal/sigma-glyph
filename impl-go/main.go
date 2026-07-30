@@ -1568,7 +1568,13 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 		if err1 != nil || err2 != nil || len(pub) != ed25519.PublicKeySize || len(sig) != ed25519.SignatureSize {
 			continue
 		}
-		if ed25519.Verify(ed25519.PublicKey(pub), ridBytes, sig) {
+		// Warrant SPEC v0.4 §5: the signed message names the protocol, so a key
+		// that signs some other protocol's SHA-256 digest does not thereby sign
+		// a Warrant. This is the Go half of a differential -- verifying the bare
+		// WarrantID here would make the two halves disagree about what a valid
+		// signature is, which is the defect class this project ranks P0.
+		msg := append([]byte("warrant-sig-v1:"), ridBytes...)
+		if ed25519.Verify(ed25519.PublicKey(pub), msg, sig) {
 			counted[actor] = true
 		}
 	}
