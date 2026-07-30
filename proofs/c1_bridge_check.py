@@ -4,7 +4,11 @@
 The Lean proof (`mem_skiFv_c1`, `c1_closed`) is a statement about the Lean
 *model* of C1. This bridge ties that model to the reference implementation:
 
-  1. no `sorry`/`admit` sneaks past `lean` (the theorems actually check), and
+  1. no `sorry`/`admit`/`axiom` sneaks past `lean` (the theorems actually
+     check): comment-stripped textual guard plus, when `lean` is available,
+     a `#print axioms` assertion that the three load-bearing theorems stay
+     fully kernel-checked (standard axioms only, no native_decide) — the
+     README's TCB claim for this front, now enforced; and
   2. a faithful Python transcription of the Lean `abstr`/`c1` produces the SAME
      Book I SKI NodeHash as the oracle's `sigma_glyph.c1` on a battery of random
      CLOSED λ-terms — so the algorithm the Lean theorem proves total-on-closed
@@ -12,17 +16,21 @@ The Lean proof (`mem_skiFv_c1`, `c1_closed`) is a statement about the Lean
 
 Deterministic (seeded). Run: python3 proofs/c1_bridge_check.py
 """
-import os
 import random
-import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "proofs"))
 sys.path.insert(0, str(ROOT / "impl"))
+import proof_guard  # noqa: E402
 import sigma_glyph as sg  # noqa: E402
 
-LEAN = os.environ.get("LEAN", str(Path.home() / ".elan/bin/lean"))
+#: Load-bearing theorems (proofs/README.md, §6 C1 section) — README claims
+#: they are fully kernel-checked, so no native_decide is allowed here.
+THEOREMS = ["Book1.C1.mem_skiFv_abstr", "Book1.C1.mem_skiFv_c1",
+            "Book1.C1.c1_closed"]
 
 
 # ---- faithful transcription of C1Compiler.lean (abstr / c1) into oracle terms ----
@@ -75,20 +83,25 @@ def rand_closed_lam(rng, scope, depth):
 
 
 def main():
-    # 1. the Lean theorems actually check, with no sorry
-    if "sorry" in (ROOT / "proofs/C1Compiler.lean").read_text() \
-            or "admit" in (ROOT / "proofs/C1Compiler.lean").read_text():
-        print("C1-BRIDGE: FAIL — sorry/admit present in C1Compiler.lean")
+    # 1. the Lean theorems actually check, with no sorry/admit/axiom — the
+    #    old substring check caught sorryAx but not `private axiom oops`
+    problems = proof_guard.textual_guard(ROOT / "proofs/C1Compiler.lean")
+    if problems:
+        print("C1-BRIDGE: FAIL — C1Compiler.lean: " + "; ".join(problems))
         return 1
-    if os.path.exists(LEAN):
-        p = subprocess.run([LEAN, str(ROOT / "proofs/C1Compiler.lean")],
-                           capture_output=True, text=True)
-        if p.returncode != 0:
-            print("C1-BRIDGE: FAIL — lean did not check\n" + p.stdout + p.stderr)
+    lean = proof_guard.find_lean()
+    if lean:
+        with tempfile.TemporaryDirectory() as td:
+            err = (proof_guard.build_olean(lean, "C1Compiler", td)
+                   or proof_guard.axiom_guard(lean, ["C1Compiler"],
+                                              THEOREMS, td))
+        if err:
+            print("C1-BRIDGE: FAIL — " + err)
             return 1
-        print("ok  lean proofs/C1Compiler.lean checks (theorems, no sorry)")
+        print("ok  lean proofs/C1Compiler.lean checks; #print axioms clean "
+              "(std axioms only) for " + ", ".join(THEOREMS))
     else:
-        print(f"skip lean check (no lean at {LEAN})")
+        print("skip lean check (no `lean` binary found — set LEAN=...)")
 
     # 2. Lean model == oracle on random closed λ-terms (NodeHash-exact)
     rng = random.Random(20260717)

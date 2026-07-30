@@ -174,4 +174,20 @@ Not mechanized: `bridge_check.py` still samples the SizeBound premise on the
 proof is about the Lean model and the differential is what ties the two); a
 Rust production implementation remains the last non-Lean Qwen item.
 
+## Bridge soundness guard (`proof_guard.py`)
+
+`lean` exits 0 on `sorry` (warning only), so every bridge carries its own
+guard — and the old per-bridge regexes (`\b(sorry|admit)\b`, `^\s*axiom`)
+were bypassable by `sorryAx _ true` and by `private axiom …` (demonstrated
+by a 2026-07 adversarial review). All five bridges now share
+`proof_guard.py`: the primary check runs `#print axioms` on every
+load-bearing theorem listed above and asserts the set is within the standard
+axioms (`propext`, `Classical.choice`, `Quot.sound`), plus `native_decide`
+trust axioms ONLY for the theorems whose documented TCB already includes the
+compiler (the wave LUT facts and the byte-level genesis pins) — the kernel
+tracks the proof term's real dependencies, so this catches any unsoundness
+route regardless of spelling. A hardened textual layer (comment-stripped
+substring/keyword scan) stays as a cheap second net. Regression:
+`tests/proof_guard_test.py` asserts both bypass vectors are rejected.
+
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).

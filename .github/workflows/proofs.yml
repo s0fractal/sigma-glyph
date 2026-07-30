@@ -37,3 +37,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 proofs/c1_bridge_check.py | tee /dev/stderr | grep -q "C1-BRIDGE: ALL AGREE"
+      - name: Guard regression - soundness guard rejects sorryAx / prefixed-axiom bypasses
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/proof_guard_test.py | tee /dev/stderr | grep -q "PROOF-GUARD: ALL PASS"

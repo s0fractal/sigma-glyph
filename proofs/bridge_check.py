@@ -12,18 +12,28 @@ fixtures) and asserts every single observed step satisfies it.
 Checked algebra (Lean) + checked premise on live traces (this file) +
 pinned end-results (vectors, property P7) = the assurance stack.
 
-Also carries the no-sorry guard over SizeBound.lean itself: `lean` exits 0
+Also carries the soundness guard over SizeBound.lean itself: `lean` exits 0
 on a file containing `sorry` (it is a warning), so CI's compile step alone
-would pass a sorry'd proof. Same guard as the other bridges.
+would pass a sorry'd proof. The guard is two-layered (proof_guard.py): the
+primary check asserts via `#print axioms` that memory_bound/preflight_bound
+depend only on the standard axioms — which catches `sorryAx` and prefixed
+axioms (`private axiom ...`), the two bypasses of the old regex that a
+2026-07 adversarial review demonstrated — plus the hardened textual guard.
+Needs a `lean` binary (elan). Exit 2 if unavailable — never a silent pass.
 
 Usage: python3 proofs/bridge_check.py   (from the repo root)
 """
-import re
 import sys
+import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "impl"))
+import proof_guard  # noqa: E402
 import sigma_glyph as sg  # noqa: E402
+
+#: The load-bearing theorems this bridge (and proofs/README.md) claims.
+THEOREMS = ["SigmaGlyph.memory_bound", "SigmaGlyph.preflight_bound"]
 
 A = lambda l, r: ("app", l, r)
 Ig, Kg, Sg = ("lit", sg.sha(b"I")), ("lit", sg.sha(b"K")), ("lit", sg.sha(b"S"))
@@ -61,13 +71,28 @@ def trace_steps(st, h, budget):
 
 
 def main():
-    # No-sorry guard (same pattern as eval/byte/wave/c1 bridges): SizeBound.lean
-    # is the one proof CI compiles directly, and `lean` exits 0 on sorry.
-    body = (Path(__file__).resolve().parent / "SizeBound.lean").read_text()
-    if re.search(r"\b(sorry|admit)\b", body) or re.search(r"^\s*axiom\b", body, re.M):
-        print("BRIDGE: FAILED — SizeBound.lean contains sorry/admit/axiom")
+    # Soundness guard (same two layers as the eval/byte/wave/c1 bridges):
+    # SizeBound.lean is the one proof CI compiles directly, `lean` exits 0 on
+    # sorry, and the old regex missed sorryAx / `private axiom`.
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("bridge_check needs a `lean` binary for the #print axioms "
+              "guard (elan) — set LEAN=... ; exit 2")
+        return 2
+    here = Path(__file__).resolve().parent
+    problems = proof_guard.textual_guard(here / "SizeBound.lean")
+    if problems:
+        print("BRIDGE: FAILED — SizeBound.lean: " + "; ".join(problems))
         return 1
-    print("OK    SizeBound.lean carries no sorry/admit/axiom")
+    with tempfile.TemporaryDirectory() as td:
+        err = (proof_guard.build_olean(lean, "SizeBound", td)
+               or proof_guard.axiom_guard(lean, ["SizeBound"], THEOREMS, td))
+    if err:
+        print("BRIDGE: FAILED — " + err)
+        return 1
+    print("OK    SizeBound.lean guard: no sorry/admit/axiom in source; "
+          "#print axioms clean (std axioms only) for "
+          + ", ".join(THEOREMS))
 
     st = build_store()
     payload = A(Ig, Kg)

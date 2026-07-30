@@ -4,8 +4,11 @@
 The Lean theorems are about the Lean model; this bridge is the honest seam
 to the live oracle and to SHA-256 itself:
 
-  1. No-sorry guard over MachineBytes.lean and Sha256.lean (`lean` exits 0
-     on sorry — this bridge does not).
+  1. Soundness guard over MachineBytes.lean and Sha256.lean (`lean` exits 0
+     on sorry — this bridge does not): comment-stripped textual layer plus
+     a `#print axioms` assertion that the load-bearing theorems stay within
+     the documented TCB (std axioms; native_decide only for the genesis
+     pins, per proofs/README.md's TCB-honesty note).
   2. FIPS 180-4 vectors: the Lean SHA-256 reproduces the standard digests.
   3. Conformance CAS: for EVERY object of tests/spec_conformance/
      vectors.json (36, incl. the deliberately malformed Era-1 0x03 one),
@@ -19,12 +22,25 @@ to the live oracle and to SHA-256 itself:
 
 Needs a `lean` binary (elan). Exit 2 if unavailable — never a silent pass.
 """
-import hashlib, json, os, re, shutil, subprocess, sys, tempfile
+import hashlib, json, os, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(REPO, "impl"))
+import proof_guard  # noqa: E402
 import sigma_glyph as g  # noqa: E402
+
+#: Load-bearing theorems (proofs/README.md, byte-level section); only the
+#: genesis/FALSE/invalid-object pins may rest on native_decide.
+STRUCTURAL = ["MachineBytes.serialize_injective", "MachineBytes.deser_serialize",
+              "MachineBytes.serialize_deser", "MachineBytes.deser_wf",
+              "MachineBytes.valid_lengths", "MachineBytes.reserved_opcode_invalid",
+              "MachineBytes.lit_bytes_disjoint"]
+PINS = ["MachineBytes.genesis_I", "MachineBytes.genesis_K",
+        "MachineBytes.genesis_S", "MachineBytes.false_is_a_theorem",
+        "MachineBytes.invalid_object_pins"]
+THEOREMS = STRUCTURAL + PINS
 
 FIPS = [
     (b"", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
@@ -55,16 +71,17 @@ def mutations(b):
 
 
 def main():
-    lean = os.environ.get("LEAN", "lean")
-    if shutil.which(lean) is None:
+    lean = proof_guard.find_lean()
+    if lean is None:
         print("byte bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
         sys.exit(2)
 
     for f in ("MachineBytes.lean", "Sha256.lean"):
-        body = open(os.path.join(HERE, f)).read()
-        if re.search(r"\b(sorry|admit)\b", body) or re.search(r"^\s*axiom\b", body, re.M):
-            fail(f"{f} contains sorry/admit/axiom")
-    print("OK    MachineBytes + Sha256 carry no sorry/admit/axiom")
+        problems = proof_guard.textual_guard(os.path.join(HERE, f))
+        if problems:
+            fail(f"{f}: " + "; ".join(problems))
+    print("OK    MachineBytes + Sha256 carry no sorry/admit/axiom "
+          "(comment-stripped)")
 
     objs = json.load(open(os.path.join(
         REPO, "tests", "spec_conformance", "vectors.json")))["objects"]
@@ -83,6 +100,12 @@ def main():
                      + (r.stderr or r.stdout).strip()[:500])
         print("OK    Sha256 + MachineBytes compile clean "
               "(genesis pins are theorems — compiling IS the check)")
+        err = proof_guard.axiom_guard(lean, ["MachineBytes"], THEOREMS, td,
+                                      native_decide_ok=frozenset(PINS))
+        if err:
+            fail(err)
+        print(f"OK    #print axioms clean for {len(THEOREMS)} byte-level "
+              "theorems (std axioms; native_decide only for the pins)")
         lines = "".join(b.hex() + "\n" for b in cases)
         r = subprocess.run([lean, "--run", os.path.join(HERE, "BytesRun.lean")],
                            input=lines, capture_output=True, text=True, env=env)

@@ -106,11 +106,17 @@ else
 fi
 
 # Lean proofs + bridges run only where `lean` is installed (heavy toolchain).
+# c1_bridge_check is in this loop because CI's proofs.yml runs it: omitting it
+# locally meant the "complete validation matrix" checked one fewer proof
+# surface than CI (2026-07 review).
 if command -v lean >/dev/null 2>&1; then
   say "Lean proofs + differential bridges"
-  for b in bridge_check byte_bridge_check eval_bridge_check wave_bridge_check; do
+  for b in bridge_check byte_bridge_check eval_bridge_check wave_bridge_check \
+           c1_bridge_check; do
     python3 "proofs/$b.py" | tee /dev/stderr | grep -qE "HOLD|ALL AGREE"
   done
+  say "Guard regression: bridge soundness guard rejects the review's bypass vectors"
+  python3 tests/proof_guard_test.py | tee /dev/stderr | grep -q "PROOF-GUARD: ALL PASS"
 else
   skip "Lean bridges: \`lean\` not on PATH — install elan to include them"
 fi
