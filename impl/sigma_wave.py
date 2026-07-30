@@ -206,6 +206,124 @@ FROM_CHECKOUT = (_HERE.name == "impl" and (_REPO / "pyproject.toml").is_file()
                  and _CORPUS_DIR.is_dir())
 VEC_PATH = _CORPUS_DIR / "wave_vectors.json"
 
+# ============================================================================
+# Spec-declared expectations — hand-written from spec/book-2-navigation.md
+# ============================================================================
+# Same discipline as tests/spec_conformance/generate.py and the governance
+# suite: these values are read off the SPEC, not computed by this oracle, and
+# `gen` REFUSES to write wave_vectors.json if interfere()/wave()/coordinate()
+# disagrees with one. Vectors absent from this table stay oracle-generated and
+# are regression-only — replaying them here proves nothing about correctness.
+#
+#   "quoted"  — the value is printed verbatim in the spec.
+#   "derived" — hand-computed from the §3/§4/§5 formulas and the §4 LUT anchors;
+#               the arithmetic is spelled out in the cite.
+SPEC_EXPECT = {
+    "WV-CONSTRUCTIVE": ("derived",
+        "§5.1: delta=0 -> r=LUT[0]=32767 (§4 anchor) -> amp_factor=65535, "
+        "am=65535^2/65535=65535; delta_en=round(-32767/128)=-256; "
+        "en=avg(0,0)-256; ph=w1.ph (§5.2)",
+        W(0, 65535, -256)),
+    "WV-ORTHOGONAL": ("derived",
+        "§4 anchor LUT[16384]=0 -> delta_en=0, amp_factor=round(32767*65535/65534)"
+        "=32768 (exact half rounds away from zero, §3) -> am=32768",
+        W(0, 32768, 0)),
+    "WV-DESTRUCTIVE": ("derived",
+        "§4 anchor LUT[32768]=-32767 -> amp_factor=0 -> am=0; "
+        "delta_en=round(32767/128)=+256",
+        W(0, 0, 256)),
+    "WV-CLAMP-LOW": ("quoted",
+        "§5.1: {am=65535, en=-32768} is the unique nonzero fixed point",
+        W(0, 65535, -32768)),
+    "WV-CLAMP-HIGH": ("derived",
+        "§3 clamp_i16: avg(32767,32767)+256 = 33023 clamps to 32767; "
+        "destructive -> am=0",
+        W(0, 0, 32767)),
+    "WV-SELF-MAX": ("derived",
+        "§5.1 Resonance Identity: phase kept (§5.2), am stable at 65535, en drifts -256",
+        W(12345, 65535, -256)),
+    "WV-SELF-PARTIAL": ("derived",
+        "§5.1 am -> am^2/65535: 49151^2 = 2415820801; 2415820801/65535 = 36863 "
+        "remainder 4096, and 2*4096 < 65535 so it rounds down (§3)",
+        W(0, 36863, -256)),
+    "WV-NEG-TIE": ("quoted",
+        "§5: 'avg(-1,-2) = -2, together -258, not -257' — the exact sentence that "
+        "makes floor-division implementations nonconforming",
+        W(0, 65535, -258)),
+    "WV-LEFT-DOMINANCE": ("quoted",
+        "§5.2 Law of Left Dominance: interfere(A,B).ph = A.ph. The spec states "
+        "nothing about am/en for this pair; they stay oracle-generated",
+        {"ph": 8192}),
+    "WV-FALSE-DERIVED": ("quoted",
+        "§6.2: FALSE pins Ph=49152 only; am=0 (K/I orthogonality, "
+        "LUT[32768]=-32767 -> amp_factor=0) and en=-32512 "
+        "(avg(-32768,-32768)+256) are the derived row printed in the spec",
+        W(49152, 0, -32512)),
+    "WV-FALSE-ANCESTOR-SILENT": ("derived",
+        "§6.2 normative consequence: any APPLY whose derived subtree contains "
+        "FALSE has am=0. ph=49152 by §5.2; delta=|49152-0| -> min(49152,16384)"
+        "=16384 -> r=0 -> en=avg(-32512,-32768)=-32640",
+        W(49152, 0, -32640)),
+    "WV-PH-ONLY-ABSENT": ("quoted",
+        "§2.1: a Ph-only pin on a non-APPLY leaf leaves the wave ABSENT", None),
+    "WV-UNPINNED-LITERAL-ABSENT": ("quoted",
+        "§2.1: unpinned LITERALs have no wave; absence is a legitimate state", None),
+    "WV-COORD-SATOSHI": ("quoted", "§6.3 Time Anchor table: SATOSHI Ph=8192", 8192),
+    "WV-COORD-V": ("quoted", "§6.2 Grand Cross table: V Ph=16384", 16384),
+    "WV-COORD-FALSE": ("quoted", "§6.2 Grand Cross table: FALSE Ph=49152", 49152),
+}
+# Left oracle-generated on purpose (regression-only): the spec states the decay
+# is quadratic but prints no term of the sequence.
+ORACLE_ONLY = {"WV-ITER-DECAY"}
+
+# Book II §4 states the LUT anchors, control points and the arbiter hash
+# outright — the one place the spec is fully self-contained. Gate `gen` on them
+# too, so a regenerated vector file can never carry a drifted table.
+SPEC_LUT_CHECKS = [
+    ("§4 arbiter SHA-256(LUT_BLOB)",
+     lambda: hashlib.sha256(b"".join(struct.pack(">h", v) for v in LUT_COS)).hexdigest(),
+     LUT_ARBITER),
+    ("§4 anchors [0], [16384], [32768]",
+     lambda: (LUT_COS[0], LUT_COS[16384], LUT_COS[32768]), (32767, 0, -32767)),
+    ("§4 controls [1],[8192],[16383],[16385],[24576],[32767]",
+     lambda: (LUT_COS[1], LUT_COS[8192], LUT_COS[16383], LUT_COS[16385],
+              LUT_COS[24576], LUT_COS[32767]),
+     (32767, 23170, 3, -3, -23170, -32767)),
+    ("§4 format: 32769 entries", lambda: len(LUT_COS), 32769),
+    ("§6.1 Trinity pins (I, S, K)",
+     lambda: (FULL_PINS["I"], FULL_PINS["S"], FULL_PINS["K"]),
+     (W(0, 65535, -32768), W(16384, 65535, -32768), W(32768, 65535, -32768))),
+]
+
+
+def check_spec_expectations(vectors):
+    """Return the list of ways the oracle contradicts the declared spec values."""
+    failures = []
+    for label, probe, want in SPEC_LUT_CHECKS:
+        got = probe()
+        if got != want:
+            failures.append(f"LUT/pins {label}: got {got}, spec declares {want}")
+    seen = set()
+    for v in vectors:
+        vid = v["id"]
+        decl = SPEC_EXPECT.get(vid)
+        if decl is None:
+            if vid not in ORACLE_ONLY:
+                failures.append(f"{vid}: neither declared in SPEC_EXPECT nor listed "
+                                f"in ORACLE_ONLY — classify it before it ships")
+            continue
+        seen.add(vid)
+        _, cite, want = decl
+        got = v.get("expected", v.get("expected_ph"))
+        if isinstance(want, dict) and isinstance(got, dict):
+            got = {k: got.get(k) for k in want}       # partial declaration
+        if got != want:
+            failures.append(f"{vid}: got {got}, spec ({cite}) declares {want}")
+    for vid in sorted(set(SPEC_EXPECT) - seen):
+        failures.append(f"declared expectation {vid} was never exercised "
+                        f"(vector renamed or deleted?)")
+    return failures
+
 
 def iterate_am(w0):
     w, seq = dict(w0), [w0["am"]]
@@ -236,6 +354,16 @@ def gen_vectors():
          "expected_ph": coordinate(name)}
         for vid, name, note in COORD_CASES
     ]
+    failures = check_spec_expectations(vectors)
+    if failures:
+        print("REFUSING TO GENERATE — the oracle disagrees with "
+              "spec/book-2-navigation.md:")
+        for f in failures:
+            print("  " + f)
+        print("\nEither impl/sigma_wave.py is wrong, or the spec is wrong and needs "
+              "an erratum. Do not 'fix' this by editing SPEC_EXPECT to match the "
+              "oracle: that is the circularity this block exists to prevent.")
+        raise SystemExit(1)
     doc = {
         "format": "sigma-glyph-wave-conformance",
         "format_version": 2,
@@ -253,7 +381,10 @@ def gen_vectors():
         "vectors": vectors,
     }
     VEC_PATH.write_text(json.dumps(doc, indent=2) + "\n")
-    print(f"wrote {VEC_PATH.name}: {len(vectors)} vectors")
+    n_spec = len(SPEC_EXPECT)
+    print(f"wrote {VEC_PATH.name}: {len(vectors)} vectors "
+          f"({n_spec} spec-derived/constraining, {len(vectors) - n_spec} "
+          f"oracle-generated/regression-only)")
 
 
 def selftest():

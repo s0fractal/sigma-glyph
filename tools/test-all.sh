@@ -36,6 +36,13 @@ say "Conformance + properties"
 python3 tests/spec_conformance/run_reference.py  | tee /dev/stderr | grep -q "ALL PASS"
 python3 tests/spec_conformance/test_properties.py
 
+say "Guard regression: the Book I/II generators refuse a spec-contradicting oracle"
+# Replaying oracle-written vectors against that oracle can only detect CHANGE.
+# generate.py / sigma_wave.py gen now hold hand-declared, spec-cited values and
+# fail closed on disagreement; this proves the refusal fires (7 mutations, all
+# of which sailed through the pre-0.6.7 generators).
+python3 tests/spec_expectation_guard.py    | tee /dev/stderr | grep -q "SPEC-EXPECTATION-GUARD: ALL PASS"
+
 say "Conformance vectors are fresh (regeneration is a no-op)"
 # CI diffs regenerated vectors against the committed tree; locally we assert the
 # stronger, commit-state-independent property: regenerating changes nothing in
@@ -56,15 +63,58 @@ for f in "${_vecs[@]}"; do
 done
 
 say "Book I third implementation (Rust)"
+# MSRV: Cargo.toml declares one and, until v0.6.7, nothing ever checked it —
+# "MSRV 1.87" was a comment. Compare it against the toolchain actually in use.
+python3 - <<'PY'
+import re, subprocess, sys
+declared = re.search(r'^rust-version\s*=\s*"([\d.]+)"',
+                     open("impl-rs/Cargo.toml").read(), re.M)
+if not declared:
+    sys.exit("ERR: impl-rs/Cargo.toml declares no rust-version (MSRV)")
+have = re.search(r"rustc (\d+)\.(\d+)\.(\d+)",
+                 subprocess.run(["rustc", "--version"], capture_output=True,
+                                text=True).stdout)
+if not have:
+    sys.exit("ERR: cannot read `rustc --version`")
+want = tuple(int(p) for p in declared.group(1).split("."))
+got = tuple(int(p) for p in have.groups())
+if got < want + (0,) * (3 - len(want)):
+    sys.exit(f"ERR: rustc {'.'.join(map(str, got))} is below the declared MSRV "
+             f"{declared.group(1)} — either the toolchain or Cargo.toml is wrong")
+print(f"MSRV OK: declared {declared.group(1)}, toolchain {'.'.join(map(str, got))}")
+PY
 ( cd impl-rs && cargo build --release )
+# `cargo test` ran ZERO tests until v0.6.7 and CI never invoked it at all, so
+# the resource fences, the JSON parser and the suite-size accounting had no
+# unit coverage whatsoever.
+( cd impl-rs && cargo test ) | tee /dev/stderr | grep -qE "test result: ok\. [1-9][0-9]* passed"
 ./impl-rs/target/release/book1 selftest    | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
+# The count is pinned HERE, by whoever names the canonical file — it used to be
+# hardwired inside the binary, which made every other vectors file report FAIL.
 ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
-  | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"
+  | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS (49/49)"
+
+say "Book I §3.6 resource fences (deep spine + hostile vectors file, Python vs Rust)"
+# impl-rs had no fences: a deep left spine or a nested-array vectors file
+# aborted the process with a stack overflow where the Python oracle raises
+# ResourceFault. Every gate was blind to it — book1_fuzz.py capped depth at 5.
+python3 tests/book1_resource_fence.py      | tee /dev/stderr | grep -q "BOOK1-FENCE: ALL PASS"
+
+say "Three-way Book I differential fuzz (now including deep left spines)"
+# Requires the Rust engine by name: "ALL AGREE" with only the Python oracle in
+# the list would be the oracle agreeing with itself.
+python3 tests/book1_fuzz.py --terms 60 --seed 20260730 \
+  | tee /dev/stderr | grep -qE "BOOK1-FUZZ: ALL AGREE .*python-oracle\+rust"
 
 say "Federation + governance second implementation (Go) + differentials"
 ( cd impl-go && go build -o sigma-federation-go . )
-./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json \
-  | tee /dev/stderr | grep -q "FEDERATION-GO: ALL PASS"
+_gofed="$(./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json | tee /dev/stderr)"
+grep -q "FEDERATION-GO: ALL PASS" <<<"$_gofed"
+# impl-go has no Book I evaluator; its FV-BOOK-I-UNREACHABLE "pass" was an echo
+# of a hand-transcribed constant. It must declare itself vacuous and stay out of
+# the tally — if this line ever disappears, a Go report can be read as Book I
+# coverage again.
+grep -q "VACUOUS FV-BOOK-I-UNREACHABLE" <<<"$_gofed"
 ./impl-go/sigma-federation-go gov-replay tests/spec_conformance/governance_vectors.json \
   | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
 python3 tests/federation_differential.py   | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
