@@ -12,8 +12,13 @@ fixtures) and asserts every single observed step satisfies it.
 Checked algebra (Lean) + checked premise on live traces (this file) +
 pinned end-results (vectors, property P7) = the assurance stack.
 
+Also carries the no-sorry guard over SizeBound.lean itself: `lean` exits 0
+on a file containing `sorry` (it is a warning), so CI's compile step alone
+would pass a sorry'd proof. Same guard as the other bridges.
+
 Usage: python3 proofs/bridge_check.py   (from the repo root)
 """
+import re
 import sys
 from pathlib import Path
 
@@ -56,6 +61,14 @@ def trace_steps(st, h, budget):
 
 
 def main():
+    # No-sorry guard (same pattern as eval/byte/wave/c1 bridges): SizeBound.lean
+    # is the one proof CI compiles directly, and `lean` exits 0 on sorry.
+    body = (Path(__file__).resolve().parent / "SizeBound.lean").read_text()
+    if re.search(r"\b(sorry|admit)\b", body) or re.search(r"^\s*axiom\b", body, re.M):
+        print("BRIDGE: FAILED — SizeBound.lean contains sorry/admit/axiom")
+        return 1
+    print("OK    SizeBound.lean carries no sorry/admit/axiom")
+
     st = build_store()
     payload = A(Ig, Kg)
     towers = []

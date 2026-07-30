@@ -11,8 +11,11 @@ jobs:
             | sh -s -- -y --default-toolchain "$(cat proofs/lean-toolchain)"
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Check the memory-bound proof
+        # `lean` exits 0 on a file containing `sorry` (warning only); the
+        # no-sorry guard over SizeBound.lean lives in bridge_check.py below,
+        # matching how every other proof file is guarded by its bridge.
         run: lean proofs/SizeBound.lean && echo "PROOF CHECKS"
-      - name: Bridge - step premise holds on live oracle traces
+      - name: Bridge - step premise holds on live oracle traces (+ SizeBound no-sorry guard)
         run: python3 proofs/bridge_check.py
       - name: Wave-algebra proofs + differential bridge (Book II)
         shell: bash
