@@ -106,6 +106,31 @@ self-authorized. Every vector below was green end-to-end on the real files):
     generating declarations are a claimed per-front list and each is queried
     and statement-pinned.
 
+Round 5 (a cross-family review by z-ai/glm-4.7, reproduced locally before any
+fix — the finding is theirs, the reproduction and this fix are ours):
+  * **F21 — the file walk was not recursive, so the coverage claim was false
+    for every subdirectory.** `guard_sources`, `coverage_guard` and
+    `registry_guard` all enumerated `os.listdir(proofs_dir)` and dropped
+    anything that was not a `.lean` file in that ONE directory, while
+    README/this file claim "every `theorem`/`lemma` in proofs/*.lean is either
+    guarded or explicitly registered as intentionally-unguarded" and "every
+    .lean under proofs/ must be audited by some front". `proofs/Sub/Evil.lean`
+    holding `axiom backdoor : False` produced ZERO problems from
+    `guard_sources` and `BRIDGE: PREMISE HOLDS`, rc 0, from
+    `bridge_check.py` — an unsound axiom sitting in the tree that no textual
+    layer ever opened. Two consequences beyond the missed scan: the import
+    allowlist was derived from the AUDITED FILE'S OWN DIRECTORY, so a
+    `proofs/Sub/Lean.lean` decoy made `import Lean` legal inside
+    `proofs/Sub/` (F2c, reopened by path); and `_shadows_core` was applied
+    only to module names a front already registers, never to the module name a
+    file's PATH implies. Enumeration is now recursive and in ONE place
+    (`lean_sources`), a source's module name is derived from its path
+    (`Sub/Evil.lean` → `Sub.Evil`), the import allowlist is the whole tree
+    minus core-shadowing names, and an unregistered `.lean` ANYWHERE under
+    proofs/ is a hard failure — auditable-but-unbuilt is not a state this
+    guard has: a scan that finds nothing is indistinguishable from a scan that
+    never ran.
+
 Layers, strongest first:
 
 * `guard_semantics()` — environment query: for every guarded theorem, the
@@ -146,6 +171,55 @@ _CORE_MODULES = ("Lean", "Init", "Std", "Main", "Plausible")
 def _shadows_core(mod):
     """True if `mod` is (or is under) a core module name."""
     return any(mod == c or mod.startswith(c + ".") for c in _CORE_MODULES)
+
+
+def module_of(rel):
+    """Lean module name of a proofs-relative source path: `Sub/Evil.lean` →
+    `Sub.Evil`. Lean derives a module name from the path under its root, so the
+    file's LOCATION is part of its identity — which is exactly what the
+    directory-only walk threw away (F21)."""
+    return os.path.splitext(rel)[0].replace(os.sep, "/").replace("/", ".")
+
+
+def rel_of_module(mod):
+    """Inverse of `module_of`: `Sub.Evil` → `Sub/Evil.lean`.
+
+    `/` is the canonical separator for a registry entry (and is accepted by the
+    filesystem APIs on every platform), so a registered source path compares
+    equal to the walk's output regardless of `os.sep`.
+    """
+    return "/".join(mod.split(".")) + ".lean"
+
+
+def lean_sources(proofs_dir=HERE):
+    """`[(relative path, module name)]` for EVERY `.lean` under `proofs_dir`,
+    recursively, sorted — the one enumeration every source-layer check uses.
+
+    It was `os.listdir(proofs_dir)`, three times over, and a `.lean` in a
+    subdirectory was silently skipped by all of them: the guard's stated
+    coverage ("every theorem in proofs/*.lean", "every .lean under proofs/ is
+    audited by some front") was false for any path with a `/` in it, so
+    `proofs/Sub/Evil.lean` could carry `axiom backdoor : False` with every
+    bridge green (2026-07 cross-family review by z-ai/glm-4.7, F21). This is
+    the fourth instance in this stack of a *claimed coverage that does not
+    cover*, so the enumeration is centralised here rather than repeated: a
+    future check gets the recursive walk by construction, and a future refactor
+    that moves a proof into a subdirectory keeps every textual layer.
+
+    Nothing is filtered out — not dotfiles, not build directories. A `.lean`
+    the walk cannot account for must be REFUSED loudly (registry_guard) and
+    excluded, if ever, in a diff a human reads; a silent exclusion here is the
+    defect this function exists to remove.
+    """
+    out = []
+    for root, dirs, files in os.walk(proofs_dir):
+        dirs.sort()
+        for f in sorted(files):
+            if f.endswith(".lean"):
+                rel = os.path.relpath(os.path.join(root, f),
+                                      proofs_dir).replace(os.sep, "/")
+                out.append((rel, module_of(rel)))
+    return sorted(out)
 
 #: Axioms of the Lean 4 standard library that a clean classical proof may use.
 #: Per-front allowances live in the pin registry (C1 is tightened to `propext`
@@ -357,10 +431,14 @@ def _decl_names(body):
     return out
 
 
-def source_guard(path, profile="strict"):
+def source_guard(path, profile="strict", proofs_dir=None):
     """Problems found in one audited Lean source file (empty list = clean).
 
     `profile="runner"` relaxes only `partial` (the `*Run.lean` I/O loops).
+    `proofs_dir` is the module ROOT the import allowlist is computed from; it
+    defaults to the file's own directory, which is right for a standalone
+    fixture and wrong for a file in a subdirectory — callers that scan the tree
+    pass the root (F21).
     Substring/allowlist matching on purpose: a false positive on an
     exotic-but-legit spelling is the safe direction (fail closed) — the fix is
     to widen an allowlist deliberately, in a reviewed diff.
@@ -392,9 +470,17 @@ def source_guard(path, profile="strict"):
                             "options are allowed (soundness flags such as "
                             "`debug.skipKernelTC` live in this namespace)")
 
-    allowed_imports = {os.path.splitext(f)[0]
-                       for f in os.listdir(os.path.dirname(os.path.abspath(path)))
-                       if f.endswith(".lean")}
+    # The allowlist is the WHOLE proofs tree, by module name, minus anything
+    # whose name shadows core Lean. It used to be the audited file's own
+    # directory listing, which handed a subdirectory its own allowlist: drop a
+    # decoy `proofs/Sub/Lean.lean` in beside the file and `import Lean` — the
+    # import that makes the guard's query spoofable — became legal inside
+    # `proofs/Sub/` (F21, reopening F2c by path). A source named after a core
+    # module is refused outright by registry_guard, so it can never authorise
+    # an import here either.
+    root = proofs_dir or os.path.dirname(os.path.abspath(path))
+    allowed_imports = {mod for _rel, mod in lean_sources(root)
+                       if not _shadows_core(mod)}
     for m in re.finditer(r"^[ \t]*import[ \t]+(.+)$", body, re.M):
         for mod in m.group(1).split():
             if mod not in allowed_imports:
@@ -420,15 +506,17 @@ def coverage_guard(pins=None, proofs_dir=HERE):
     `example`s outright — they have no name, so `#print axioms` / the
     environment query can never reach them (the C1 §6/TV-10 pins used to be
     `example`s and a falsified pin passed).
+
+    "Every theorem in proofs/*.lean" means every `.lean` at ANY depth: the walk
+    was `os.listdir`, so a subdirectory's declarations were outside a claim
+    that said it covered them (F21).
     """
     pins = load_pins() if pins is None else pins
     known = set(pins.get("unguarded", {}))
     for front in pins.get("fronts", {}).values():
         known.update(front.get("guarded", []))
     problems = []
-    for f in sorted(os.listdir(proofs_dir)):
-        if not f.endswith(".lean"):
-            continue
+    for f, _mod in lean_sources(proofs_dir):
         body, lex = strip_lean_source(open(os.path.join(proofs_dir, f)).read())
         if lex:
             problems.append(f"{f}: {lex[0]}")
@@ -601,21 +689,22 @@ def registry_guard(pins=None, proofs_dir=HERE, pins_path=PINS_PATH,
             if _shadows_core(mod):
                 problems.append(f"front {name!r} names module {mod!r}, which "
                                 "shadows a core Lean module")
-            if not os.path.exists(os.path.join(proofs_dir, mod + ".lean")):
+            src_rel = rel_of_module(mod)
+            if not os.path.exists(os.path.join(proofs_dir, src_rel)):
                 problems.append(f"front {name!r} builds module {mod!r} with no "
-                                f"{mod}.lean in proofs/")
-            elif mod + ".lean" not in (strict | runner):
-                problems.append(f"front {name!r} compiles {mod}.lean but does "
+                                f"{src_rel} in proofs/")
+            elif src_rel not in (strict | runner):
+                problems.append(f"front {name!r} compiles {src_rel} but does "
                                 "not audit it (strict_sources/runner_sources)")
         for src in sorted(strict):
-            if os.path.splitext(src)[0] not in build:
+            if module_of(src) not in build:
                 problems.append(
                     f"front {name!r} audits {src} as a strict source but does "
                     "not compile it (`build`) — the guard queries the "
                     "environment built from `build`, so an uncompiled source "
                     "is a file nothing checks the theorems of")
         for mod in build:
-            if mod + ".lean" in runner:
+            if rel_of_module(mod) in runner:
                 problems.append(f"front {name!r} builds {mod}.lean and also "
                                 "registers it as a runner (which relaxes the "
                                 "`partial` rule) — pick one")
@@ -630,9 +719,23 @@ def registry_guard(pins=None, proofs_dir=HERE, pins_path=PINS_PATH,
                 problems.append(
                     f"front {name!r} trusts native_decide axioms from {t}, "
                     "which is neither guarded nor registered as unguarded")
-    for f in sorted(os.listdir(proofs_dir)):
-        if f.endswith(".lean") and f not in listed:
-            problems.append(f"proofs/{f} is not audited by any front — add it "
+    # F21: this is the check the whole "every .lean under proofs/ is audited"
+    # claim rests on, and it was a flat `os.listdir`, so the claim was false for
+    # every subdirectory. A `.lean` at ANY depth must be registered by its
+    # proofs-relative PATH (`Sub/Evil.lean`, module `Sub.Evil`) — there is
+    # deliberately no auditable-but-unbuilt tier: an unregistered file that is
+    # merely scanned would be indistinguishable from one nothing scanned. A
+    # file whose PATH implies a core module name is refused outright: it would
+    # poison LEAN_PATH if built, and it can otherwise authorise its own
+    # `import Lean` through the allowlist in `source_guard`.
+    for rel, mod in lean_sources(proofs_dir):
+        if _shadows_core(mod):
+            problems.append(
+                f"proofs/{rel} is Lean module {mod!r}, which shadows a core "
+                "Lean module — building it would poison the guard driver's own "
+                "LEAN_PATH, and its mere presence widens the import allowlist")
+        if rel not in listed:
+            problems.append(f"proofs/{rel} is not audited by any front — add it "
                             "to a front's strict_sources/runner_sources")
     return problems
 
@@ -842,9 +945,17 @@ def build_olean(lean, module, olean_dir, src_dir=HERE):
     Returns an error string, or None on success. `lean` requires the input
     file under its root dir, so we run with cwd=src_dir and a relative path;
     LEAN_PATH points at olean_dir so already-built modules resolve.
+
+    A dotted module name is a PATH (`Sub.Evil` → `Sub/Evil.lean`,
+    `Sub/Evil.olean`), which is how Lean itself resolves it — so registering a
+    subdirectory source is something a front can actually do, rather than a
+    rule with no implementation behind it (F21).
     """
+    src = rel_of_module(module)
+    out = os.path.join(olean_dir, os.path.splitext(src)[0] + ".olean")
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     r = subprocess.run(
-        [lean, module + ".lean", "-o", os.path.join(olean_dir, module + ".olean")],
+        [lean, src, "-o", out],
         capture_output=True, text=True, cwd=src_dir,
         env=dict(os.environ, LEAN_PATH=olean_dir))
     if r.returncode != 0:
@@ -873,7 +984,7 @@ def build_front(lean, front, olean_dir, src_dir=HERE, runners=False):
     """
     mods = list(front["build"])
     if runners:
-        mods += [os.path.splitext(s)[0] for s in front.get("runner_sources", [])]
+        mods += [module_of(s) for s in front.get("runner_sources", [])]
     for mod in mods:
         err = build_olean(lean, mod, olean_dir, src_dir)
         if err:
@@ -1109,19 +1220,21 @@ def guard_sources(front, proofs_dir=HERE):
     Auditing only the front's own files meant a new `proofs/Helper.lean` was
     never scanned by any bridge (it was unreachable only because the bridges
     hardcode their module tuples — a refactor reading `front["build"]` would
-    have opened it). Every `.lean` in the directory is scanned here, under the
-    runner profile only where a front explicitly registers it as a runner.
+    have opened it). Every `.lean` in the TREE is scanned here — the walk was
+    `os.listdir`, so a subdirectory file was scanned by nothing at all and
+    `proofs/Sub/Evil.lean` could hold `axiom backdoor : False` with this
+    function returning `[]` (F21) — under the runner profile only where a front
+    explicitly registers it as a runner, by its proofs-relative path.
     """
     problems = []
     runners = set(front.get("runner_sources", []))
     for f in (front.get("_pins") or {}).get("fronts", {}).values():
         runners |= set(f.get("runner_sources", []))
-    for f in sorted(os.listdir(proofs_dir)):
-        if not f.endswith(".lean"):
-            continue
+    for f, _mod in lean_sources(proofs_dir):
         profile = "runner" if f in runners else "strict"
         problems += [f"{f}: {p}" for p in
-                     source_guard(os.path.join(proofs_dir, f), profile)]
+                     source_guard(os.path.join(proofs_dir, f), profile,
+                                  proofs_dir)]
     problems += coverage_guard(front.get("_pins"), proofs_dir)
     problems += registry_guard(front.get("_pins"), proofs_dir)
     return problems

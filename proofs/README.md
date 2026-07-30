@@ -270,7 +270,10 @@ about that file: [`GUARD_CLAIMS.txt`](GUARD_CLAIMS.txt)):
    and a green bridge.
 6. **Imports** — an `import` naming anything outside the `proofs/` module set
    is a hard failure. These are core-Lean-only proofs, and `import Lean` in an
-   audited file is what made (5) spellable.
+   audited file is what made (5) spellable. The module set is the whole tree by
+   module name (`Sub/Ok.lean` → `Sub.Ok`), minus any name that shadows core
+   Lean. It used to be the audited file's OWN directory listing, so a decoy
+   `proofs/Sub/Lean.lean` made `import Lean` legal for everything beside it.
 7. **Metaprogramming / compiler override** — attributes are allowlisted
    (`inline`, `simp`, `reducible`) and `implemented_by`, `extern`, `csimp`,
    `initialize`, `run_cmd`, `elab`, `macro`, `syntax`, `notation`, `unsafe`,
@@ -303,7 +306,12 @@ about that file: [`GUARD_CLAIMS.txt`](GUARD_CLAIMS.txt)):
    `namespace Book1.C1 theorem sneaky : … := by native_decide end Book1.C1`
    appended to `C1Compiler.lean` while the bridge printed "axiom cones are
    exactly within [propext]". Every `.lean` file in `proofs/` is scanned by
-   every bridge, not only the files its own front lists.
+   every bridge, not only the files its own front lists — and "every" means
+   **at any depth**: the walk was `os.listdir`, one directory, so
+   `proofs/Sub/Evil.lean` carrying `axiom backdoor : False` was opened by no
+   textual layer at all and `bridge_check.py` printed `PREMISE HOLDS`, rc 0
+   (2026-07 cross-family review by z-ai/glm-4.7). One recursive enumeration
+   (`proof_guard.lean_sources`) now feeds every source-layer check.
 10. **The registry itself** — nothing used to hash, anchor or cross-check
    `theorem_pins.json`, so it authorized itself: moving a theorem from
    `guarded` to `unguarded` with a plausible reason and replacing it with
@@ -320,10 +328,16 @@ about that file: [`GUARD_CLAIMS.txt`](GUARD_CLAIMS.txt)):
    `pins-sha256` line `regen` rewrites on every run. A demotion now produces
    diff lines that NAME the theorem. Also enforced there: every front audits
    every module it compiles *and* compiles every strict source it audits,
-   every `.lean` in `proofs/` is audited by some front, no front names a
-   module that shadows core Lean (which would poison the driver's own
-   `LEAN_PATH` under `regen`), no built module is registered as a runner, and
-   an `unguarded` entry carries a real reason.
+   every `.lean` in `proofs/` — at any depth, registered by its
+   proofs-relative path (`Sub/Ok.lean`, module `Sub.Ok`) — is audited by some
+   front, no front names a module that shadows core Lean (which would poison
+   the driver's own `LEAN_PATH` under `regen`) and neither does any module
+   name a source's own PATH implies (`proofs/Lean/Foo.lean` → `Lean.Foo`), no
+   built module is registered as a runner, and an `unguarded` entry carries a
+   real reason. There is deliberately no auditable-but-unbuilt tier for a
+   subdirectory file: an unregistered `.lean` anywhere under `proofs/` is a
+   hard failure, because a file that is merely scanned is indistinguishable
+   from one nothing scanned.
 11. **Fail closed** — a missing/renamed theorem, an unpinned theorem, an
    unpinned definition in a queried statement's dependency set, a non-core
    module in the environment the front does not build, an empty guarded list,
@@ -397,7 +411,9 @@ prefixed-declaration coverage escapes, the one-line
 `native_decide` escalation into a guarded front's own namespace), the
 build-shrink scope escapes, a dependency gutted in a second module, the
 binder-annotation swap, a borrowed `native_decide` trust axiom, the registry
-demotion (named, and with counts preserved), and each fail-closed path — and
-that none of them fires on the real `proofs/*.lean`.
+demotion (named, and with counts preserved), the subdirectory file that no
+textual layer opened (with its two by-products: the directory-local import
+allowlist and the core-shadowing path), and each fail-closed path — and that
+none of them fires on the real `proofs/` tree.
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).

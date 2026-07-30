@@ -97,6 +97,22 @@ SCOPE, which was self-authorized. Every vector below was GREEN end-to-end):
       declaration, guarded or not. The generating declarations are an explicit
       claimed list, and each is statement-pinned.
 
+Round 5 (a cross-family review by z-ai/glm-4.7 — this one found the defect,
+we reproduced it before fixing it):
+
+  F21 the file walk was not recursive. `guard_sources`, `coverage_guard` and
+      `registry_guard` each did `os.listdir(proofs_dir)`, so a `.lean` in a
+      SUBDIRECTORY was invisible to every textual check while the guard
+      claimed to cover "every theorem in proofs/*.lean" and "every .lean under
+      proofs/". Reproduced on the real tree: `proofs/Sub/Evil.lean` holding
+      `axiom backdoor : False` gave `guard_sources(...) == []` and
+      `proofs/bridge_check.py` → `BRIDGE: PREMISE HOLDS ON ALL OBSERVED
+      STEPS`, rc 0. Two by-products, both closed here: the import allowlist
+      came from the audited file's OWN directory, so a decoy
+      `proofs/Sub/Lean.lean` made `import Lean` legal inside `proofs/Sub/`
+      (F2c by path); and `_shadows_core` was never applied to the module name
+      a file's PATH implies (`proofs/Lean/Foo.lean` → `Lean.Foo`).
+
 Also asserted: coverage (an unregistered theorem, and an anonymous `example`,
 are errors), an empty guarded list is an error, an unpinned theorem or
 definition is an error, a lexer disagreement (unterminated literal) is an
@@ -107,6 +123,7 @@ All Lean scratch files live in a temp dir — nothing touches proofs/.
 Needs `lean` for the semantic layer; exit 2 if unavailable (like the bridges).
 Run: python3 tests/proof_guard_test.py
 """
+import hashlib
 import json
 import os
 import sys
@@ -373,14 +390,16 @@ def main():
             check(name, bool(probs) == want_reject,
                   f"problems={probs}")
 
-    # the real proof files must stay clean (no false-positive regression)
-    for f in sorted(os.listdir(os.path.join(REPO, "proofs"))):
-        if f.endswith(".lean"):
-            profile = "runner" if f.endswith("Run.lean") else "strict"
-            probs = proof_guard.source_guard(os.path.join(REPO, "proofs", f),
-                                             profile)
-            check(f"source guard quiet on proofs/{f} ({profile})", not probs,
-                  str(probs))
+    # the real proof files must stay clean (no false-positive regression).
+    # Enumerated with the guard's OWN recursive walk, so this loop covers a
+    # subdirectory source the day one appears (F21).
+    proofs_dir = os.path.join(REPO, "proofs")
+    for rel, _mod in proof_guard.lean_sources(proofs_dir):
+        profile = "runner" if rel.endswith("Run.lean") else "strict"
+        probs = proof_guard.source_guard(os.path.join(proofs_dir, rel),
+                                         profile, proofs_dir)
+        check(f"source guard quiet on proofs/{rel} ({profile})", not probs,
+              str(probs))
 
     # --- coverage ---------------------------------------------------------
     with tempfile.TemporaryDirectory() as td:
@@ -568,6 +587,137 @@ def main():
               any("Helper.lean" in x for x in probs), str(probs))
     finally:
         os.remove(helper)
+
+    # --- F21: the walk was not recursive -----------------------------------
+    # The reviewer's vector, on the REAL tree (same pattern as Helper.lean
+    # above, one directory deeper). Before the fix all three of these were
+    # empty and `python3 proofs/bridge_check.py` printed `BRIDGE: PREMISE
+    # HOLDS ON ALL OBSERVED STEPS` and exited 0 with this file in place.
+    sub = os.path.join(REPO, "proofs", "Sub")
+    evil = os.path.join(sub, "Evil.lean")
+    try:
+        os.makedirs(sub, exist_ok=True)
+        with open(evil, "w") as f:
+            f.write("axiom backdoor : False\n"
+                    "theorem secret_sauce : (1:Nat) = 1 := rfl\n")
+        pins = proof_guard.load_pins()
+        fr = dict(pins["fronts"]["size"])
+        fr["_pins"] = pins
+        probs = proof_guard.guard_sources(fr, os.path.join(REPO, "proofs"))
+        check("F21 guard_sources reads a .lean in a SUBDIRECTORY at all "
+              "(the axiom is seen)",
+              any("Sub/Evil.lean" in x and "axiom" in x for x in probs),
+              str(probs))
+        cov = proof_guard.coverage_guard(pins, os.path.join(REPO, "proofs"))
+        check("F21 coverage accounts for a subdirectory theorem",
+              any("secret_sauce" in x for x in cov), str(cov))
+        reg = proof_guard.registry_guard(pins, os.path.join(REPO, "proofs"))
+        check("F21 an unregistered subdirectory .lean is a HARD failure, not "
+              "merely a scanned file",
+              any("Sub/Evil.lean" in x and "not audited" in x for x in reg),
+              str(reg))
+    finally:
+        if os.path.exists(evil):
+            os.remove(evil)
+        if os.path.isdir(sub):
+            os.rmdir(sub)
+    check("F21 the fixture cleaned up after itself (no debris under proofs/)",
+          not os.path.exists(sub) and not proof_guard.registry_guard()
+          and not proof_guard.coverage_guard(), "")
+
+    # F21 by-product 1: the import allowlist used to be the audited file's own
+    # DIRECTORY listing, so a decoy module beside it authorised `import Lean` —
+    # the import that makes the guard's query spoofable (F2c), reopened by path.
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "Sub"))
+        write(td, "namespace Lean\nend Lean\n", os.path.join("Sub", "Lean.lean"))
+        p = write(td, "import Lean\ntheorem t : True := trivial\n",
+                  os.path.join("Sub", "X.lean"))
+        probs = proof_guard.source_guard(p, "strict", td)
+        check("F21 a decoy `Sub/Lean.lean` no longer authorises `import Lean` "
+              "for its neighbours",
+              any("import Lean" in x for x in probs), str(probs))
+        check("F21 the allowlist is the whole tree by MODULE name "
+              "(`Sub.Lean`, not `Lean`)",
+              any("'Sub.Lean'" in x for x in probs), str(probs))
+
+    # F21 by-product 2: `_shadows_core` was applied to registered module names
+    # only, never to the module a file's PATH implies.
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "Lean"))
+        write(td, "theorem t : True := trivial\n",
+              os.path.join("Lean", "Foo.lean"))
+        claims = os.path.join(td, "CLAIMS.txt")
+        with open(claims, "w") as f:
+            f.write("pins-sha256 " + "0" * 64 + "\n")
+        probs = proof_guard.registry_guard(
+            {"core_modules": ["Init"], "fronts": {}, "unguarded": {}},
+            td, pins_path=os.path.join(REPO, "proofs", "theorem_pins.json"),
+            claims_path=claims)
+        check("F21 a source whose PATH implies a core module name "
+              "(`proofs/Lean/Foo.lean` → `Lean.Foo`) is refused",
+              any("shadows a core Lean module" in x and "Lean/Foo.lean" in x
+                  for x in probs), str(probs))
+
+    # F21, the other direction: a subdirectory source that IS registered by its
+    # path is accepted — the rule is "registered or refused", and registration
+    # has to be a real, expressible state, not a rule with nothing behind it.
+    def _subdir_registry(td, strict_src):
+        pins = {"core_modules": ["Init", "Lean", "Std"], "unguarded": {},
+                "statements": {}, "definitions": {},
+                "fronts": {"sub": {
+                    "build": ["Sub.Ok"], "modules": ["Sub.Ok"],
+                    "strict_sources": [strict_src], "runner_sources": [],
+                    "allowed_axioms": ["propext"], "guarded": ["sub_ok"],
+                    "native_decide_ok": [], "native_decide_sources": []}}}
+        pins_path = os.path.join(td, "pins.json")
+        with open(pins_path, "w") as f:
+            json.dump(pins, f)
+        digest = hashlib.sha256(open(pins_path, "rb").read()).hexdigest()
+        claims = os.path.join(td, "CLAIMS.txt")
+        with open(claims, "w") as f:
+            f.write(f"pins-sha256 {digest}\ncore-modules Init Lean Std\n"
+                    "front sub build Sub.Ok\nfront sub modules Sub.Ok\n"
+                    f"front sub strict-sources {strict_src}\n"
+                    "front sub runner-sources\nfront sub axioms propext\n"
+                    "front sub guarded sub_ok\nfront sub native-decide-ok\n"
+                    "front sub native-decide-sources\n")
+        return pins, pins_path, claims
+
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "Sub"))
+        write(td, "theorem sub_ok : True := trivial\n",
+              os.path.join("Sub", "Ok.lean"))
+        pins, pins_path, claims = _subdir_registry(td, "Sub/Ok.lean")
+        probs = proof_guard.registry_guard(pins, td, pins_path, claims)
+        check("F21 a subdirectory source registered by its PATH is accepted",
+              not probs, str(probs))
+        check("F21 coverage is quiet once the subdirectory theorem is guarded",
+              not proof_guard.coverage_guard(pins, td),
+              str(proof_guard.coverage_guard(pins, td)))
+        # registering it by BASENAME must not work: `Ok.lean` is a different
+        # file from `Sub/Ok.lean`, and accepting it would let a registry entry
+        # cover a file that does not exist while the real one goes unaudited.
+        pins2, pins_path2, claims2 = _subdir_registry(td, "Ok.lean")
+        probs = proof_guard.registry_guard(pins2, td, pins_path2, claims2)
+        check("F21 registering a subdirectory source by BASENAME does not "
+              "cover it", any("Sub/Ok.lean" in x and "not audited" in x
+                              for x in probs), str(probs))
+
+    # F21: "registered" has to mean something the toolchain can carry out — a
+    # dotted module name is a PATH to Lean, so a subdirectory module must
+    # compile and answer the environment query like any other.
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "Sub"))
+        write(td, CLEAN, os.path.join("Sub", "Deep.lean"))
+        e = proof_guard.build_olean(lean, "Sub.Deep", td, src_dir=td)
+        check("F21 build_olean compiles module `Sub.Deep` from Sub/Deep.lean",
+              not e, str(e))
+        got, _d, loaded = proof_guard.env_query(
+            lean, ["Sub.Deep"], ["memory_bound"], td)
+        check("F21 the environment query answers for a subdirectory module",
+              bool(got["memory_bound"]["type"]) and loaded == ["Sub.Deep"],
+              str(loaded))
 
     # --- semantic layer: pin the CLEAN statement, then attack it ----------
     with tempfile.TemporaryDirectory() as td:
