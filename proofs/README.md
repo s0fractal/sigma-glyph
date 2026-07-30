@@ -264,10 +264,27 @@ allowed axioms and pinned statements: `theorem_pins.json`):
 8. **Coverage** — every `theorem`/`lemma` in `proofs/*.lean` must be either in
    a front's guarded list or registered in `unguarded` with a reason, so a new
    theorem in an already-guarded file cannot slip in unqueried. Anonymous
-   `example`s are rejected outright: nothing can query them.
-9. **Fail closed** — a missing/renamed theorem, an unpinned theorem, an
+   `example`s are rejected outright: nothing can query them. Declaration
+   keywords are matched as *tokens wherever a command can start*, not at the
+   start of a line: `open Nat in theorem …` and
+   `set_option linter.x false in theorem …` on one line used to be invisible
+   to both of the claims in this paragraph. Every `.lean` file in `proofs/` is
+   scanned by every bridge, not only the files its own front lists.
+9. **The registry itself** — nothing used to hash, anchor or cross-check
+   `theorem_pins.json`, so it authorized itself: moving a theorem from
+   `guarded` to `unguarded` with a plausible reason and replacing it with
+   `: True := trivial` passed every bridge, the pin and the axiom cone never
+   consulted. Its shape is now a gated claim held in
+   [`GUARD_CLAIMS.txt`](GUARD_CLAIMS.txt) — the per-front count of guarded
+   theorems, the exact allowlist of deliberately-unguarded ones, and the
+   content hash of the pin file — plus: every front must audit every module it
+   compiles, every `.lean` in `proofs/` must be audited by some front, no
+   front may name a module that shadows core Lean (which would poison the
+   driver's own `LEAN_PATH` under `regen`), and an `unguarded` entry must
+   carry a real reason.
+10. **Fail closed** — a missing/renamed theorem, an unpinned theorem, an
    unpinned definition in a guarded statement's dependency set, an empty
-   guarded list, a driver failure or a missing `lean`
+   guarded list, a missing claims file, a driver failure or a missing `lean`
    binary is an error in every bridge (exit 2 for the last), never a skip.
 
 Known residual gaps, stated rather than papered over:
@@ -298,13 +315,21 @@ Known residual gaps, stated rather than papered over:
 * Regeneration (`python3 proofs/proof_guard.py regen`) can make any drift pass
   by construction. It is never run by a bridge or by CI; the pin file is the
   claim, and its diff deserves the same reading as the theorem statements.
+  `regen` refreshes only the `pins-sha256` line of `GUARD_CLAIMS.txt`; the
+  counts and the unguarded allowlist there are never machine-written.
+* `GUARD_CLAIMS.txt` is a **review-visibility** control, not an authority:
+  whoever can edit the registry can edit it too. What it buys is that the edit
+  is loud and lands in a short diff instead of inside a 3 000-line pin file.
+  It is not part of `spec/ANCHORS.txt` — adding a file to a governed release
+  bundle is a roster action, not an agent's.
 
 Regression: `tests/proof_guard_test.py` asserts every vector above is
 rejected — both round-1 bypasses, the vacuous/weakened/altered statements, the
 string-literal blinding, the `#print axioms` override, `import Lean`,
 `@[implemented_by]`, `@[extern]`, `debug.skipKernelTC`, the fake
 `native_decide`-shaped axiom, the gutted and emptied inductive, the
-`Prop := False` definition, the same-length string-literal swap, and each
+`Prop := False` definition, the same-length string-literal swap, the
+prefixed-declaration coverage escapes, the registry demotion, and each
 fail-closed path — and that none of them fires on the real `proofs/*.lean`.
 
 Toolchain: `curl …elan-init.sh | sh` (Lean pinned by `lean-toolchain`).

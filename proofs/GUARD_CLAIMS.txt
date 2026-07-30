@@ -1,0 +1,50 @@
+# Reviewed claims about proofs/theorem_pins.json (enforced by
+# proof_guard.registry_guard, which every bridge runs).
+#
+# Why this file exists: nothing hashed, anchored or cross-checked the pin
+# registry, so `theorem_pins.json` authorized itself. Moving a theorem from a
+# front's `guarded` list to `unguarded` — with an entirely plausible reason —
+# and replacing it with `: True := trivial` passed every bridge green: the pin
+# and the axiom cone were simply never consulted for it, and the only tell was
+# a count inside a log line no gate greps (2026-07 round-3 review, F14).
+#
+# So the SHAPE of the registry is a gated claim, kept here, deliberately short
+# enough that its diff gets read:
+#
+#   * `front <name> guarded <n>` — how many theorems that front guards. Any
+#     change, in either direction, fails until this number is changed by hand.
+#   * `unguarded <name>` — the exact set of theorems deliberately outside the
+#     guard. A theorem cannot leave the guard's reach without appearing here.
+#   * `pins-sha256 <hex>` — the content hash of theorem_pins.json.
+#     `proof_guard.py regen` refreshes THIS LINE ONLY; the counts and the
+#     allowlist above are never machine-written.
+#
+# This is a review-visibility control, not an authority: anyone who can edit
+# the registry can edit this file too. What it buys is that the edit is loud
+# and lands in a two-line diff instead of inside a 30 000-line pin file.
+
+pins-sha256 2fc9d01bc827a64a0d26c3a05d98ed6c012314005011561e3cf34562c5ed471c
+
+front size  guarded 2
+front bytes guarded 12
+front eval  guarded 8
+front wave  guarded 6
+front c1    guarded 5
+
+unguarded SigmaGlyph.step_preserves
+unguarded EvalMachine.size_pos
+unguarded MachineBytes.append_inj'
+unguarded MachineBytes.take_length_append
+unguarded MachineBytes.drop_length_append
+unguarded WaveAlgebra.lut_size
+unguarded WaveAlgebra.lut_range
+unguarded WaveAlgebra.lut_zero
+unguarded WaveAlgebra.dr_nonneg
+unguarded WaveAlgebra.dr_le_65535
+unguarded WaveAlgebra.dr_le_65534
+unguarded WaveAlgebra.dr_cancel_65535
+unguarded WaveAlgebra.dr_double
+unguarded WaveAlgebra.clamp_range
+unguarded WaveAlgebra.prod01_bounds
+unguarded WaveAlgebra.af_bounds
+unguarded WaveAlgebra.am_fixed_scan

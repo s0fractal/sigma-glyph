@@ -54,16 +54,25 @@ end-to-end, against the real proof files):
       `BYTE-BRIDGE: ALL AGREE (334/334)` — with TV-1 `genesis_I` asserting K's
       hash. Literals now dump by content, and `byte_bridge_check.py`
       cross-checks the genesis claims against the oracle.
+  F14 `theorem_pins.json` was self-authorizing: moving a theorem to
+      `unguarded` with a plausible reason and replacing it with
+      `: True := trivial` passed everything. Its shape is now asserted against
+      the reviewed `proofs/GUARD_CLAIMS.txt`.
+  F15 `open X in theorem …` / `set_option … in theorem …` on ONE line hid a
+      declaration from the coverage registry entirely (the matcher was
+      line-anchored), defeating both README §7 claims.
 
 Also asserted: coverage (an unregistered theorem, and an anonymous `example`,
 are errors), an empty guarded list is an error, an unpinned theorem or
 definition is an error, a lexer disagreement (unterminated literal) is an
-error, and no false positive on the real proofs/*.lean.
+error, an unaudited `proofs/*.lean` is an error, and no false positive on the
+real proofs/*.lean.
 
 All Lean scratch files live in a temp dir — nothing touches proofs/.
 Needs `lean` for the semantic layer; exit 2 if unavailable (like the bridges).
 Run: python3 tests/proof_guard_test.py
 """
+import json
 import os
 import sys
 import tempfile
@@ -180,6 +189,13 @@ STR_I = ('def tag : String := "I"\n'
 STR_K = ('def tag : String := "K"\n'
          'theorem memory_bound : tag = "K" := rfl\n')
 
+# ---- F15: a same-line prefix hid a declaration from coverage ------------
+VECTOR_PREFIXED_DECLS = (
+    "open Nat in theorem hidden_by_open : (1 : Nat) = 1 := rfl\n"
+    "set_option linter.unusedVariables false in "
+    "theorem hidden_by_setoption : (1 : Nat) = 1 := rfl\n"
+    "open Nat in private theorem hidden_by_private : (1 : Nat) = 1 := rfl\n"
+    "open Nat in example : (1 : Nat) = 1 := rfl\n")
 
 failures = []
 
@@ -289,10 +305,73 @@ def main():
         check("coverage quiet once the theorem is guarded",
               not proof_guard.coverage_guard(pins2, td))
 
+    # F15: a declaration hidden behind a same-line prefix
+    with tempfile.TemporaryDirectory() as td:
+        write(td, VECTOR_PREFIXED_DECLS, "Cover.lean")
+        probs = proof_guard.coverage_guard(
+            {"fronts": {}, "unguarded": {}}, td)
+        for what in ("hidden_by_open", "hidden_by_setoption",
+                     "hidden_by_private"):
+            check(f"F15 coverage sees `{what}` behind a same-line prefix",
+                  any(what in p for p in probs), str(probs))
+        check("F15 coverage still rejects `open … in example`",
+              any("example" in p for p in probs), str(probs))
+
     # the real registry accounts for every theorem in proofs/*.lean
     check("coverage quiet on the real proofs/ tree with the real registry",
           not proof_guard.coverage_guard(),
           str(proof_guard.coverage_guard()))
+
+    # --- F14: the pin registry is not self-authorizing ---------------------
+    real = proof_guard.load_pins()
+    check("registry guard quiet on the real registry + claims file",
+          not proof_guard.registry_guard(), str(proof_guard.registry_guard()))
+
+    def demoted():
+        p = json.loads(json.dumps(real))
+        t = p["fronts"]["wave"]["guarded"].pop()
+        p["unguarded"][t] = "covered by the differential (a plausible reason)"
+        return p, t
+
+    p, t = demoted()
+    probs = proof_guard.registry_guard(p)
+    check("F14 demoting a guarded theorem trips the per-front count",
+          any("guards 5 theorems" in x for x in probs), str(probs))
+    check("F14 the demoted theorem is not on the reviewed unguarded allowlist",
+          any(t in x and "allowlist" in x for x in probs), str(probs))
+
+    with tempfile.TemporaryDirectory() as td:
+        claims = os.path.join(td, "CLAIMS.txt")
+        with open(claims, "w") as f:
+            f.write("pins-sha256 " + "0" * 64 + "\n")
+        probs = proof_guard.registry_guard(real, claims_path=claims)
+        check("F14 a wrong pins-sha256 is a failure",
+              any("content hash" in x for x in probs), str(probs))
+        probs = proof_guard.registry_guard(
+            real, claims_path=os.path.join(td, "absent.txt"))
+        check("F14 a MISSING claims file fails closed",
+              any("self-authorizing" in x for x in probs), str(probs))
+        p = json.loads(json.dumps(real))
+        p["unguarded"]["SigmaGlyph.step_preserves"] = ""
+        check("F14 an unguarded entry with no reason is a failure",
+              any("no real reason" in x
+                  for x in proof_guard.registry_guard(p)), "")
+        p = json.loads(json.dumps(real))
+        p["fronts"]["size"]["build"] = ["Init", "SizeBound"]
+        probs = proof_guard.registry_guard(p)
+        check("F14/latent a core-shadowing module name is rejected",
+              any("shadows a core Lean module" in x for x in probs), str(probs))
+
+    # latent: an unlisted proofs/*.lean is audited by nobody
+    helper = os.path.join(REPO, "proofs", "Helper.lean")
+    try:
+        with open(helper, "w") as f:
+            f.write("namespace Helper\nend Helper\n")
+        probs = proof_guard.registry_guard()
+        check("latent: a new proofs/*.lean that no front audits is a failure",
+              any("Helper.lean" in x for x in probs), str(probs))
+    finally:
+        os.remove(helper)
 
     # --- semantic layer: pin the CLEAN statement, then attack it ----------
     with tempfile.TemporaryDirectory() as td:

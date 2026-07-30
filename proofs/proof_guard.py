@@ -60,6 +60,13 @@ left uncovered — every vector below was green end-to-end on the real files):
     with every pin matching. Literals now dump as hex of their UTF-8 bytes,
     and `byte_bridge_check.py` cross-checks the genesis claims against the
     oracle so the swap also fails a differential.
+  * **F14 — the registry authorized itself.** `theorem_pins.json` was hashed,
+    anchored and cross-checked by nothing, so demoting a theorem to
+    `unguarded` and replacing it with `: True := trivial` passed everything.
+    `GUARD_CLAIMS.txt` now holds the counts, the unguarded allowlist and the
+    registry's content hash as a gated claim.
+  * **F15 — `open X in theorem …` on one line was invisible to coverage.**
+    Declaration keywords are matched as tokens wherever a command can start.
 
 Layers, strongest first:
 
@@ -70,7 +77,8 @@ Layers, strongest first:
   unobtainable (missing theorem, driver failure) is an error, never a skip.
 * `guard_sources()` — the cheap layer over the source text: literal-aware
   comment stripping, then sorry/admit/axiom, the import allowlist, the
-  metaprogramming denylist, and the coverage registry.
+  metaprogramming denylist, the coverage registry over EVERY proofs/*.lean,
+  and the registry-shape guard.
 
 What this does NOT claim: the runner files (`*Run.lean`) are I/O plumbing that
 *calls* the proven model; nothing here proves a runner reports what the model
@@ -88,6 +96,18 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PINS_PATH = os.path.join(HERE, "theorem_pins.json")
+CLAIMS_PATH = os.path.join(HERE, "GUARD_CLAIMS.txt")
+
+#: Module names that would shadow a core module. `regen` builds a front's
+#: modules into the directory it then hands the driver as LEAN_PATH, so a pins
+#: file naming a module `Lean`/`Init` would poison the guard driver's OWN
+#: environment on the one path a human runs.
+_CORE_MODULES = ("Lean", "Init", "Std", "Main", "Plausible")
+
+
+def _shadows_core(mod):
+    """True if `mod` is (or is under) a core module name."""
+    return any(mod == c or mod.startswith(c + ".") for c in _CORE_MODULES)
 
 #: Axioms of the Lean 4 standard library that a clean classical proof may use.
 #: Per-front allowances live in the pin registry (C1 is tightened to `propext`
@@ -238,6 +258,17 @@ _RUNNER_ONLY = [(r"\bpartial\b", "`partial` leaves the kernel without a "
                  "definition while compiled code has one")]
 
 
+#: A declaration keyword as a TOKEN, wherever a command may start — not
+#: anchored to the line. `open Nat in theorem hidden : …` and
+#: `set_option linter.unusedVariables false in theorem hidden : …` were
+#: invisible to the line-anchored matcher, so both defeated the coverage
+#: registry outright (2026-07 round-3 review, F15). Lean identifier characters
+#: (including `.`, `'`, `!`, `?`) are excluded on both sides, so
+#: `false_is_a_theorem` and `Foo.example` do not match.
+_DECL_KW = re.compile(r"(?<![A-Za-z0-9_'!?.])(theorem|lemma|example)"
+                      r"(?![A-Za-z0-9_'!?])")
+
+
 def _decl_names(body):
     """[(kind, fully-qualified name or None, line)] for the declarations that
     the guard has to account for (theorem/lemma/example)."""
@@ -257,16 +288,14 @@ def _decl_names(body):
             if stack and (want is None or stack[-1][1] == want):
                 stack.pop()
             continue
-        m = re.match(r"(?:@\[[^\]]*\]\s*)*"
-                     r"(?:(?:private|protected|noncomputable|nonrec|scoped)\s+)*"
-                     r"(theorem|lemma|example)\b[ \t]*([^\s:({\[⦃⟨]*)", s)
-        if not m:
-            continue
-        kind, name = m.group(1), m.group(2) or None
-        if name:
-            prefix = ".".join(n for k, n in stack if k == "ns")
-            name = f"{prefix}.{name}" if prefix else name
-        out.append((kind, name, lineno))
+        for m in _DECL_KW.finditer(s):
+            kind = m.group(1)
+            name = re.match(r"[ \t]*([^\s:({\[⦃⟨]*)",
+                            s[m.end():]).group(1) or None
+            if name:
+                prefix = ".".join(n for k, n in stack if k == "ns")
+                name = f"{prefix}.{name}" if prefix else name
+            out.append((kind, name, lineno))
     return out
 
 
@@ -356,6 +385,112 @@ def coverage_guard(pins=None, proofs_dir=HERE):
                     f"{f}:{lineno}: `{name}` is in neither a front's guarded "
                     "list nor `unguarded` in theorem_pins.json (a new theorem "
                     "must be classified deliberately)")
+    return problems
+
+
+def load_claims(path=CLAIMS_PATH):
+    """Parse `GUARD_CLAIMS.txt` → (pins_sha256, {front: count}, {unguarded}).
+
+    Raises OSError if it is missing — an absent claims file is a failure, not a
+    reason to trust the registry.
+    """
+    digest, counts, unguarded = None, {}, set()
+    with open(path) as f:
+        for raw in f:
+            s = raw.split("#", 1)[0].split()
+            if not s:
+                continue
+            if s[0] == "pins-sha256" and len(s) == 2:
+                digest = s[1]
+            elif s[0] == "front" and len(s) == 4 and s[2] == "guarded":
+                counts[s[1]] = int(s[3])
+            elif s[0] == "unguarded" and len(s) == 2:
+                unguarded.add(s[1])
+    return digest, counts, unguarded
+
+
+def registry_guard(pins=None, proofs_dir=HERE, pins_path=PINS_PATH,
+                   claims_path=CLAIMS_PATH):
+    """`theorem_pins.json` is a claim; this is what makes it a GATED claim.
+
+    Nothing used to hash, anchor or cross-check the registry, so moving a
+    theorem from `guarded` to `unguarded` (with a plausible reason) and
+    replacing it with `: True := trivial` passed every bridge — the pin and the
+    axiom cone were simply never consulted for it, and the only tell was a
+    count in an ungated log line (2026-07 round-3 review, F14). The shape of the
+    registry is now itself asserted against a short, hand-maintained
+    `GUARD_CLAIMS.txt`: the per-front count of guarded theorems, the exact set
+    of deliberately-unguarded theorems, and the content hash of the pins file.
+    That file is deliberately tiny so that its diff is read.
+    """
+    pins = load_pins(pins_path) if pins is None else pins
+    problems = []
+    try:
+        digest, counts, claimed_unguarded = load_claims(claims_path)
+    except OSError as e:
+        return [f"the guard claims file is unreadable ({e}) — the pin registry "
+                "would be self-authorizing without it"]
+
+    have = hashlib.sha256(open(pins_path, "rb").read()).hexdigest()
+    if digest != have:
+        problems.append(
+            f"{os.path.basename(pins_path)} content hash {have} does not match "
+            f"the {os.path.basename(claims_path)} claim {digest} — the registry "
+            "changed without the reviewed claims file changing with it")
+
+    fronts = pins.get("fronts", {})
+    for name in sorted(set(fronts) | set(counts)):
+        if name not in fronts:
+            problems.append(f"front {name!r} is claimed in "
+                            f"{os.path.basename(claims_path)} but is gone from "
+                            "the registry")
+        elif name not in counts:
+            problems.append(f"front {name!r} has no guarded-count claim in "
+                            f"{os.path.basename(claims_path)}")
+        else:
+            n = len(fronts[name].get("guarded", []))
+            if n != counts[name]:
+                problems.append(
+                    f"front {name!r} guards {n} theorems, the reviewed claim "
+                    f"says {counts[name]} — a theorem was added to or "
+                    "(worse) dropped from the guarded list")
+            if len(set(fronts[name].get("guarded", []))) != n:
+                problems.append(f"front {name!r} lists a guarded theorem twice")
+
+    unguarded = pins.get("unguarded", {})
+    for t in sorted(set(unguarded) | claimed_unguarded):
+        if t not in unguarded:
+            problems.append(f"{t} is on the reviewed unguarded allowlist but is "
+                            "no longer registered as unguarded")
+        elif t not in claimed_unguarded:
+            problems.append(
+                f"{t} was moved to `unguarded` without being added to the "
+                f"reviewed allowlist in {os.path.basename(claims_path)} — a "
+                "theorem cannot leave the guard's reach silently")
+        elif len((unguarded[t] or "").strip()) < 12:
+            problems.append(f"{t} is unguarded with no real reason recorded")
+
+    # Every .lean under proofs/ must be audited by some front, and no front may
+    # name a module that shadows core Lean (which would poison LEAN_PATH).
+    listed = set()
+    for name, front in fronts.items():
+        listed |= set(front.get("strict_sources", []))
+        listed |= set(front.get("runner_sources", []))
+        for mod in list(front.get("build", [])) + list(front.get("modules", [])):
+            if _shadows_core(mod):
+                problems.append(f"front {name!r} names module {mod!r}, which "
+                                "shadows a core Lean module")
+            if not os.path.exists(os.path.join(proofs_dir, mod + ".lean")):
+                problems.append(f"front {name!r} builds module {mod!r} with no "
+                                f"{mod}.lean in proofs/")
+            elif mod + ".lean" not in (set(front.get("strict_sources", []))
+                                       | set(front.get("runner_sources", []))):
+                problems.append(f"front {name!r} compiles {mod}.lean but does "
+                                "not audit it (strict_sources/runner_sources)")
+    for f in sorted(os.listdir(proofs_dir)):
+        if f.endswith(".lean") and f not in listed:
+            problems.append(f"proofs/{f} is not audited by any front — add it "
+                            "to a front's strict_sources/runner_sources")
     return problems
 
 
@@ -721,15 +856,26 @@ def _first_diff(a, b):
 
 
 def guard_sources(front, proofs_dir=HERE):
-    """The source layer for a front: its own files, plus repo-wide coverage."""
+    """The source layer for a front: EVERY proofs/*.lean, plus the registry.
+
+    Auditing only the front's own files meant a new `proofs/Helper.lean` was
+    never scanned by any bridge (it was unreachable only because the bridges
+    hardcode their module tuples — a refactor reading `front["build"]` would
+    have opened it). Every `.lean` in the directory is scanned here, under the
+    runner profile only where a front explicitly registers it as a runner.
+    """
     problems = []
-    for f in front.get("strict_sources", []):
+    runners = set(front.get("runner_sources", []))
+    for f in (front.get("_pins") or {}).get("fronts", {}).values():
+        runners |= set(f.get("runner_sources", []))
+    for f in sorted(os.listdir(proofs_dir)):
+        if not f.endswith(".lean"):
+            continue
+        profile = "runner" if f in runners else "strict"
         problems += [f"{f}: {p}" for p in
-                     source_guard(os.path.join(proofs_dir, f), "strict")]
-    for f in front.get("runner_sources", []):
-        problems += [f"{f}: {p}" for p in
-                     source_guard(os.path.join(proofs_dir, f), "runner")]
+                     source_guard(os.path.join(proofs_dir, f), profile)]
     problems += coverage_guard(front.get("_pins"), proofs_dir)
+    problems += registry_guard(front.get("_pins"), proofs_dir)
     return problems
 
 
@@ -754,6 +900,13 @@ def regen(argv):
     fronts = argv or list(pins["fronts"])
     for name in fronts:
         front = pins["fronts"][name]
+        bad = [m for m in front["build"] + front["modules"] if _shadows_core(m)]
+        if bad:
+            print(f"FAIL front {name!r} names core-shadowing module(s) {bad} — "
+                  "regen builds them into the directory it then hands the "
+                  "driver as LEAN_PATH, which would poison the guard's own "
+                  "environment")
+            return 1
         with tempfile.TemporaryDirectory() as td:
             for mod in front["build"]:
                 err = build_olean(lean, mod, td)
@@ -778,7 +931,19 @@ def regen(argv):
     with open(PINS_PATH, "w") as f:
         json.dump(pins, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    digest = hashlib.sha256(open(PINS_PATH, "rb").read()).hexdigest()
+    try:
+        claims = open(CLAIMS_PATH).read()
+        claims = re.sub(r"(?m)^pins-sha256 .*$", "pins-sha256 " + digest, claims)
+        with open(CLAIMS_PATH, "w") as f:
+            f.write(claims)
+    except OSError as e:
+        print(f"WARNING: could not refresh {CLAIMS_PATH}: {e}")
     print(f"wrote {PINS_PATH} — review the diff")
+    print(f"refreshed the pins-sha256 line of {CLAIMS_PATH}. The guarded COUNTS "
+          "and the unguarded allowlist there are NOT regenerated: changing "
+          "either is a claim change and must be made by hand, in a diff a "
+          "human reads.")
     return 0
 
 
