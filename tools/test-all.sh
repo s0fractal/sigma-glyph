@@ -77,12 +77,19 @@ python3 tools/warrant_verify.py            | tee /dev/stderr | grep -q "errors 0
 # anchor trust anchor and the Warrant CLI both live in the warrant repo, never
 # in this tree). Run them when reachable; skip cleanly offline so the local
 # matrix stays runnable without network.
-WARRANT_REV=c038ce36b61445a5d82371975afd21d541e07752
-TRUST_REV=a4270f863f6bcee837f7ef0363536b7e6cdf5ee6
+#
+# ONE pin, read from ci.yml — the single visible pin its header mandates.
+# This script used to carry two sibling revs of its own (they had drifted to
+# commits different from CI's, so "the same surfaces" ran against a different
+# warrant than CI tested). ci.yml's header is the authority on what the pin
+# means and when it may refresh.
+WARRANT_PIN="$(sed -n 's/^[[:space:]]*WARRANT_PIN:[[:space:]]*//p' .github/workflows/ci.yml)"
+echo "$WARRANT_PIN" | grep -qE '^[0-9a-f]{40}$' \
+  || { echo "ERR: could not read WARRANT_PIN from .github/workflows/ci.yml"; exit 1; }
 RAW=https://raw.githubusercontent.com/s0fractal/warrant
 
 say "Governance status --enforce (out-of-band trust anchor)"
-if curl -sfL "$RAW/$TRUST_REV/trust/sigma-glyph-anchor-trust.json" \
+if curl -sfL "$RAW/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" \
         -o "$_freshdir/anchor-trust.json" 2>/dev/null; then
   python3 tools/anchor_governance.py status --enforce \
     --trust-config "$_freshdir/anchor-trust.json" | tee /dev/stderr | grep -q "AUTHORIZED"
@@ -91,7 +98,7 @@ else
 fi
 
 say "Settlement-grade adjudication warrants (Warrant CLI, incl. ski@v1 re-runs)"
-if curl -sfL "$RAW/$WARRANT_REV/impl/warrant.py" -o "$_freshdir/warrant.py" 2>/dev/null; then
+if curl -sfL "$RAW/$WARRANT_PIN/impl/warrant.py" -o "$_freshdir/warrant.py" 2>/dev/null; then
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify --settlement --trust-config trust-config.json
 else
