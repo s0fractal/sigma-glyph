@@ -23,11 +23,11 @@
 # the registry can edit this file too. What it buys is that the edit is loud
 # and lands in a two-line diff instead of inside a 30 000-line pin file.
 
-pins-sha256 2fc9d01bc827a64a0d26c3a05d98ed6c012314005011561e3cf34562c5ed471c
+pins-sha256 75fe7db93492b82e3d3144c5106fe9c0f8c4dbee811f46a10b8dfa7e294ce779
 
 front size  guarded 2
 front bytes guarded 12
-front eval  guarded 8
+front eval  guarded 11
 front wave  guarded 6
 front c1    guarded 5
 

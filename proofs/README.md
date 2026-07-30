@@ -114,6 +114,19 @@ serialization/hash layer, not a re-axiomatized one.
 - `eval_spent_le` / `evalHash_spent_le` — **`spent ≤ atp`**: the evaluator
   never overspends its budget, for ALL terms and budgets, now a theorem and
   not just a per-vector observation.
+- `eval_settles` / `evalHash_settles` — **fuel sufficiency**: whenever
+  `atp - spent < fuel`, `step` returns `.nf` on the configuration `eval`
+  RETURNS. Totality made `evalHash` answer; this says the answer is a *settled*
+  configuration and not a trace cut short by the fuel counter — so the run
+  ended at one of `step`'s three non-firing results and therefore at one of
+  §3.4/§4.2's three outcomes: a normal form, `DISSONANCE(ATP Exhausted)` (the
+  `.exhausted` exit returns `.dis rATP`) or `DISSONANCE(Unresolved Reference)`
+  (`.dis rUnres`). `evalHash_settles` is the instance at the fuel `evalHash`
+  actually passes, `atp + 1` — which `eval`'s fuel-out branch used to assert in
+  a source comment and nothing checked. Scope: it is about the returned
+  *configuration*; it does not claim the three outcome *terms* are pairwise
+  distinct (a stored term can reduce to the ATP-Exhausted leaf itself), so
+  "exactly one of three" holds of the machine's exit, not of the term.
 - `size_step` / `eval_size_bound` / `evalHash_size_bound` — the **ADR-001
   memory bound `size ≤ spent + 1`, proven directly on this concrete
   evaluator**. `size_step` is the exact §3.4 per-step accounting
@@ -122,6 +135,16 @@ serialization/hash layer, not a re-axiomatized one.
   is pure slack). This is the row-by-row step↔cost correspondence that
   `SizeBound.lean` assumed abstractly and `bridge_check.py` samples on live
   traces — here it is a theorem about the evaluator itself, no classifier.
+- `evalHash_peak_size` — **peak** memory, `size ≤ atp + 1` at *every*
+  configuration of the run, not only the returned one. The bound above is
+  about the answer, and the answer is routinely the smallest thing in the
+  trace (store-backed `S K K I`: peaks at 7 nodes, answers with 1). Quantifying
+  over the fuel `k` is what turns it into a peak bound — `eval k` runs at most
+  `k` actions and its fuel-out branch returns the configuration reached, so
+  `k = 0, 1, 2, …` enumerates the configurations of the `atp + 1` run — with
+  `eval_size_bound` at each `k` and `eval_spent_le` to replace `spent k` by
+  `atp`. `SizeBound.memory_bound` also quantifies over all reachable states,
+  but of the abstract seven-row model; this one is about the evaluator.
 
 **Bridge** — `eval_bridge_check.py`: no-`sorry` guard, compile (theorems check
 on compile), and the executed Lean evaluator (`EvalRun.lean`) matched against
@@ -130,6 +153,15 @@ the live oracle on **all 33 eval conformance vectors** — result NodeHash AND
 Exhausted), R-S size-pricing, genesis-intrinsic, store-isolation and stuck
 forms. This is the empirical determinism/totality check: the total,
 budget-respecting Lean function IS the oracle on the whole pinned surface.
+
+TCB honesty: all eleven guarded evaluator theorems are **fully kernel-checked**
+— `propext`/`Classical.choice`/`Quot.sound` only, and the guard's allowed-axiom
+set for this front is exactly that standard set: no `native_decide`, so the
+Lean *compiler* is not in this front's trusted base (unlike the wave and
+byte-level genesis facts). What is NOT proved here: that the Lean model is the
+oracle — that is the differential's job, on 33 vectors, not a theorem; and that
+the `.dis rATP` / `.dis rUnres` leaves carry the spec's reason strings, which is
+`MachineBytes`' front and the vectors' `result_hash`.
 
 ## Book I §6 C1 compiler (`C1Compiler.lean`)
 
@@ -177,7 +209,12 @@ recognition (built on the proven byte layer), rather than deferring it to
 vectors, and `EvalMachine.evalHash_size_bound` re-proves the ADR-001 memory
 bound directly on the concrete evaluator — so the step-tag / row-by-row
 correspondence that `SizeBound` assumed abstractly is now a theorem, not a
-future classifier. The four fronts are *layered*, not independent:
+future classifier. Two claims that used to sit *beside* the theorems rather
+than among them are now inside: that a run ends because the machine settled
+and not because the fuel ran out (`eval_settles`, the "unreached at atp+1"
+source comment), and that the memory price bounds the *peak* of the run and
+not just its answer (`evalHash_peak_size`). The four fronts are *layered*,
+not independent:
 `EvalMachine` is built on `MachineBytes`, which is built on `Sha256` — each
 front stands on the proven one below it.
 
