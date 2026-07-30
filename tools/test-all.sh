@@ -24,6 +24,14 @@ python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
 python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
 python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION: ALL PASS"
 
+say "Guard regression: the three self-tests put their verdict in the EXIT STATUS"
+# impl/sigma_glyph.py called run_tests() and discarded the boolean, so it printed
+# FAILURES PRESENT and exited 0 — every gate above catches that only by grepping
+# stdout, and `python -m sigma_glyph && ./anything` reported success on a failing
+# Book I oracle. This substitutes a failing entry function into each module and
+# demands a non-zero exit (and a passing one, exit 0).
+python3 tests/exit_status_guard.py         | tee /dev/stderr | grep -q "EXIT-STATUS-GUARD: ALL PASS"
+
 say "Release surface (what an installed copy promises)"
 # The checkout half only. It drives the gate's classifier against the two real
 # 0.6.6 install failures, then re-runs the three self-tests and the documented

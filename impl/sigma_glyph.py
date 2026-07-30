@@ -445,4 +445,9 @@ def run_tests():
     return all(ok)
 
 if __name__ == "__main__":
-    run_tests()
+    # `run_tests()` used to be called for its printing only: the boolean it
+    # returns was discarded, so the process exited 0 while stdout said
+    # FAILURES PRESENT. The two sibling Books always propagated their verdict;
+    # this one never did, and every gate that consumes it catches failures by
+    # grepping stdout — which is a legitimate extra check and not a substitute.
+    sys.exit(0 if run_tests() else 1)
