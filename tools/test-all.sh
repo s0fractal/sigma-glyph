@@ -28,6 +28,13 @@ say "Conformance + properties"
 python3 tests/spec_conformance/run_reference.py  | tee /dev/stderr | grep -q "ALL PASS"
 python3 tests/spec_conformance/test_properties.py
 
+say "Guard regression: the Book I/II generators refuse a spec-contradicting oracle"
+# Replaying oracle-written vectors against that oracle can only detect CHANGE.
+# generate.py / sigma_wave.py gen now hold hand-declared, spec-cited values and
+# fail closed on disagreement; this proves the refusal fires (7 mutations, all
+# of which sailed through the pre-0.6.7 generators).
+python3 tests/spec_expectation_guard.py    | tee /dev/stderr | grep -q "SPEC-EXPECTATION-GUARD: ALL PASS"
+
 say "Conformance vectors are fresh (regeneration is a no-op)"
 # CI diffs regenerated vectors against the committed tree; locally we assert the
 # stronger, commit-state-independent property: regenerating changes nothing in
