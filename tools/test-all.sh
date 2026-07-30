@@ -73,6 +73,9 @@ python3 tools/anchor_governance.py replay  | tee /dev/stderr | grep -q "GOVERNAN
 say "Adjudication warrants"
 python3 tools/warrant_verify.py            | tee /dev/stderr | grep -q "errors 0"
 
+say "Guard regression: WARRANT_PIN extraction fails hard on duplicate/malformed pins"
+python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUARD: ALL PASS"
+
 # Network-gated surfaces that CI runs against pinned out-of-band sources (the
 # anchor trust anchor and the Warrant CLI both live in the warrant repo, never
 # in this tree). Run them when reachable; skip cleanly offline so the local
@@ -83,9 +86,13 @@ python3 tools/warrant_verify.py            | tee /dev/stderr | grep -q "errors 0
 # commits different from CI's, so "the same surfaces" ran against a different
 # warrant than CI tested). ci.yml's header is the authority on what the pin
 # means and when it may refresh.
-WARRANT_PIN="$(sed -n 's/^[[:space:]]*WARRANT_PIN:[[:space:]]*//p' .github/workflows/ci.yml)"
-echo "$WARRANT_PIN" | grep -qE '^[0-9a-f]{40}$' \
-  || { echo "ERR: could not read WARRANT_PIN from .github/workflows/ci.yml"; exit 1; }
+#
+# Extraction lives in tools/read_warrant_pin.sh and fails HARD on a duplicate
+# WARRANT_PIN: line (the old inline sed+grep passed a two-line value, curl
+# then choked, and both parity checks skipped as "not reachable" — a
+# forbidden ci.yml state misdiagnosed as a network problem).
+WARRANT_PIN="$(tools/read_warrant_pin.sh)" \
+  || { echo "ERR: WARRANT_PIN extraction failed — see message above"; exit 1; }
 RAW=https://raw.githubusercontent.com/s0fractal/warrant
 
 say "Governance status --enforce (out-of-band trust anchor)"
