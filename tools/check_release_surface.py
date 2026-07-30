@@ -30,6 +30,28 @@ WHAT IT CHECKS
    a stranger types — is executed against the installed package and against the
    checkout, and the two outputs must be byte-identical. That is the documented
    claim ("Two strangers running this get byte-identical hashes"), executed.
+5. EVERY VERB, not just the default one. See below.
+
+EVERY VERB IS CLASSIFIED, AND EVERY VERB IS RUN
+-----------------------------------------------
+This gate used to run `python -m <module>` and nothing else. `sigma_wave gen` and
+`sigma_federation gen` therefore shipped for four releases having never once been
+executed from outside a checkout — where they end in a FileNotFoundError
+traceback, because `_REPO` resolves to site-packages' parent. The same shape (a
+verb the gate does not run) produced a live PyPI defect in the sibling `oaip`
+project the same week.
+
+So the modules DECLARE their verbs (`sigma_wave.VERBS`), this file CLASSIFIES
+each one RUNNABLE or NOT_RUNNABLE for an installed copy, and the gate EXECUTES
+all of them from outside a checkout. A verb the module declares and this table
+does not classify fails the gate; so does a verb that behaves unlike its class.
+Adding a verb without deciding what it does to a stranger is no longer possible
+quietly.
+
+NOT_RUNNABLE is a positive claim, not an exemption: the verb must REFUSE —
+non-zero exit, a message that says what it needs — and must not traceback.
+"It crashes, which is non-zero, so it passes" is exactly the confusion this
+project keeps finding.
 
 THE SKIP EXPECTATION IS GROUNDED, NOT ASSUMED
 ---------------------------------------------
@@ -54,6 +76,7 @@ honest about itself, nothing more.
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -89,6 +112,38 @@ CORPORA = {
 }
 
 TRACEBACK = "Traceback (most recent call last)"
+
+# --------------------------------------------------------------------------
+# The verb matrix. "" is the default, no-argument invocation.
+#
+# RUNNABLE     — a stranger with `pip install sigma-glyph` may type it and it
+#                must work: exit 0, no traceback.
+# NOT_RUNNABLE — it cannot work off a checkout, and must SAY SO: non-zero exit,
+#                no traceback, and an explanation containing the given phrase.
+#                The phrase is part of the contract; a bare non-zero exit tells
+#                the user nothing and is what the FileNotFoundError already did.
+#
+# `gen` is NOT_RUNNABLE by decision, not by accident: it regenerates the
+# conformance corpus, which is only meaningful beside the spec text its values
+# are read off and the committed vectors the output must be diffed against.
+# Shipping the corpus as package data would make the verb "run" while producing
+# a file nobody can compare to anything — the appearance of the fix, not the fix.
+# --------------------------------------------------------------------------
+RUNNABLE = "RUNNABLE"
+NOT_RUNNABLE = "NOT_RUNNABLE"
+
+VERB_TABLE = {
+    ("sigma_glyph", ""): (RUNNABLE, None),
+    ("sigma_wave", ""): (RUNNABLE, None),
+    ("sigma_federation", ""): (RUNNABLE, None),
+    ("sigma_wave", "gen"): (NOT_RUNNABLE, "requires a source checkout"),
+    ("sigma_federation", "gen"): (NOT_RUNNABLE, "requires a source checkout"),
+}
+
+# A verb name no module declares. Typing it must be refused, not silently
+# treated as "run the self-test and report success for a command that does not
+# exist" — which is what all three modules did before v0.6.7.
+UNDECLARED_VERB = "no-such-verb"
 
 
 # --------------------------------------------------------------------------
@@ -129,6 +184,83 @@ def classify(module, tag, floor, rc, out, err, expected_skips):
                         f"present. A skip that is not caused by a missing file "
                         f"is a check quietly not running")
     return problems
+
+
+def classify_verb(module, verb, kind, needle, rc, out, err):
+    """Return a list of problems with one VERB run outside a checkout."""
+    what = f"{module} {verb}".strip() or module
+    problems = []
+    blob = out + err
+    if TRACEBACK in blob:
+        last = [l for l in blob.splitlines() if l.strip()][-1:]
+        problems.append(f"{what}: traceback — {last[0].strip() if last else '?'}. "
+                        f"A verb that cannot work off a checkout must say so, "
+                        f"not crash")
+        return problems                       # a traceback subsumes the rest
+    if kind == RUNNABLE:
+        if rc != 0:
+            problems.append(f"{what}: exit {rc} — classified {RUNNABLE}, so an "
+                            f"installed copy must be able to run it")
+    elif kind == NOT_RUNNABLE:
+        if rc == 0:
+            problems.append(f"{what}: exit 0 — classified {NOT_RUNNABLE}, so it "
+                            f"must refuse, and a refusal that reports success "
+                            f"is the defect this table exists to catch")
+        if needle and needle not in blob:
+            problems.append(f"{what}: refused without saying why — the message "
+                            f"must mention {needle!r}. A bare non-zero exit "
+                            f"leaves the user no better off than the traceback")
+    else:
+        problems.append(f"{what}: unknown classification {kind!r}")
+    return problems
+
+
+def declared_verbs(python, cwd, module):
+    """The verbs the MODULE declares, read from the artifact under test."""
+    rc, out, err = run(python, ["-c", f"import {module} as m;"
+                                      f"print(' '.join(getattr(m,'VERBS',())))"], cwd)
+    if rc != 0:
+        return None, [f"{module}: cannot read its VERBS declaration "
+                      f"({(err.strip().splitlines() or [''])[-1]}) — without it "
+                      f"this gate cannot know which verbs exist, and an "
+                      f"unexercised verb is how `gen` shipped broken"]
+    return tuple(out.split()), []
+
+
+def check_verbs(python, verbdir, problems):
+    """Every declared verb classified, and every classified verb executed."""
+    for module in MODULES:
+        declared, errs = declared_verbs(python, verbdir, module)
+        problems += errs
+        if declared is None:
+            continue
+        classified = {v for (m, v) in VERB_TABLE if m == module}
+        for v in set(declared) | {""}:
+            if v not in classified:
+                problems.append(
+                    f"{module}: verb {v!r} is declared by the module but not "
+                    f"classified in VERB_TABLE. Classify it RUNNABLE or "
+                    f"{NOT_RUNNABLE} — a verb nobody decided about is a verb "
+                    f"nobody runs from outside a checkout")
+        for v in classified - (set(declared) | {""}):
+            problems.append(
+                f"{module}: VERB_TABLE classifies {v!r}, which the module no "
+                f"longer declares. The table is checking a verb that does not "
+                f"exist; delete the row or restore the verb")
+
+        # Every classified verb is EXECUTED, including one the module has
+        # stopped declaring: the mismatch above is a bookkeeping complaint, and
+        # a verb that still exists and still tracebacks must be caught by
+        # running it, not by reading a table.
+        for (m, v), (kind, needle) in sorted(VERB_TABLE.items()):
+            if m != module:
+                continue
+            rc, out, err = run(python, ["-m", m] + ([v] if v else []), verbdir)
+            problems += classify_verb(m, v, kind, needle, rc, out, err)
+
+        rc, out, err = run(python, ["-m", module, UNDECLARED_VERB], verbdir)
+        problems += classify_verb(module, UNDECLARED_VERB, NOT_RUNNABLE,
+                                  UNDECLARED_VERB, rc, out, err)
 
 
 def expected_skips(module, shipped):
@@ -289,6 +421,53 @@ def selftest():
                   classify("sigma_wave", "WAVE: ALL PASS", 2, 0, checkout_ok,
                            "", []), False))
 
+    # ---- the verb matrix, driven on the REAL pre-fix behaviour ----------
+    real_gen_crash = (TRACEBACK + '\n  File "sigma_wave.py", line 383\n'
+                      "FileNotFoundError: [Errno 2] No such file or directory: "
+                      "'.../lib/python3.14/tests/spec_conformance/"
+                      "wave_vectors.json'\n")
+    cases.append(("0.6.6 wheel, `sigma_wave gen` before the fix (traceback)",
+                  classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
+                                "requires a source checkout", 1, "",
+                                real_gen_crash), True))
+
+    refusal = ("REFUSING: `gen` regenerates the conformance corpus at "
+               "tests/spec_conformance/wave_vectors.json and requires a source "
+               "checkout of sigma-glyph.\n")
+    cases.append(("fixed wheel, `gen` refuses and says what it needs",
+                  classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
+                                "requires a source checkout", 2, "", refusal),
+                  False))
+
+    cases.append(("a NOT_RUNNABLE verb that exits 0",
+                  classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
+                                "requires a source checkout", 0, "", ""), True))
+
+    cases.append(("a refusal that never says why",
+                  classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
+                                "requires a source checkout", 2, "", "nope\n"),
+                  True))
+
+    cases.append(("a RUNNABLE verb that exits 0",
+                  classify_verb("sigma_glyph", "", RUNNABLE, None, 0,
+                                "ALL PASS\n", ""), False))
+
+    # Division of labour, stated as a case: classify_verb judges the EXIT
+    # STATUS and the traceback; whether the tally is honest is `classify`'s job
+    # (the next case), and both run on every suite.
+    cases.append(("classify_verb alone does not judge a tally",
+                  classify_verb("sigma_glyph", "", RUNNABLE, None, 0,
+                                "FAILURES PRESENT\n", ""), False))
+
+    cases.append(("Book I before the fix: FAILURES PRESENT at exit 0",
+                  classify("sigma_glyph", "ALL PASS", 2, 0,
+                           "OK   a\nFAIL b\n\nFAILURES PRESENT\n", "", []),
+                  True))
+
+    cases.append(("a RUNNABLE verb that exits non-zero",
+                  classify_verb("sigma_glyph", "", RUNNABLE, None, 1,
+                                "FAILURES PRESENT\n", ""), True))
+
     ok = True
     for name, problems, want_problems in cases:
         good_case = bool(problems) == want_problems
@@ -371,6 +550,20 @@ def main():
     else:
         python, workdir = sys.executable, str(ROOT)
 
+    # The verb matrix always runs from a directory that is NOT a checkout. With
+    # --bin that is the installed package in `workdir`; without it, a temp copy
+    # of impl/ — same modules, no `impl/` parent, no pyproject.toml, so the
+    # modules' own FROM_CHECKOUT is False exactly as in site-packages. That is
+    # what lets `tools/test-all.sh` exercise the installed-copy behaviour of
+    # every verb without building a wheel.
+    if args.bin:
+        check_verbs(python, workdir, problems)
+    else:
+        with tempfile.TemporaryDirectory(prefix="sigma-verbs-") as verbdir:
+            for m in MODULES:
+                shutil.copy(ROOT / "impl" / f"{m}.py", Path(verbdir) / f"{m}.py")
+            check_verbs(python, verbdir, problems)
+
     for module, tag, floor in SUITES:
         if args.bin:
             rc, out, err = run(python, ["-m", module], workdir)
@@ -393,11 +586,14 @@ def main():
     # never imports from site-packages and has no second copy to compare the
     # snippet against; claiming otherwise here would be the same species of
     # untruth this file exists to catch.
-    did = ("three modules import from site-packages, three self-tests clean "
-           "from outside the checkout, documented snippet reproduces "
-           "byte-identically" if args.bin else
-           "three self-tests clean, documented snippet runs — NOT an artifact "
-           "check; pass --wheel/--bin for that")
+    nverbs = len(VERB_TABLE) + len(MODULES)          # + the undeclared-verb probe
+    did = (f"three modules import from site-packages, three self-tests clean "
+           f"from outside the checkout, {nverbs} verb invocations behave as "
+           f"classified, documented snippet reproduces byte-identically"
+           if args.bin else
+           f"three self-tests clean, {nverbs} verb invocations behave as "
+           f"classified against a non-checkout copy of impl/, documented "
+           f"snippet runs — NOT an artifact check; pass --wheel/--bin for that")
     print(f"RELEASE SURFACE: ALL PASS ({target}: {did})")
     return 0
 

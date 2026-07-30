@@ -140,7 +140,13 @@ def main():
     print(f"warrant {wid[:12]}… written to .warrants/records/{wid}.json")
     print(f"verify: python3 tools/warrant_verify.py")
     print(f"ratify: python3 tools/cosign.py {wid} you@host <yourkey>")
+    # The warrant is written either way — a `reject` warrant is a successful
+    # minting of an honest rejection, and it stays on disk. But this printed
+    # "decision: reject" and exited 0, so `tools/hermes_review.py && git push`
+    # pushed on a red gate. Same class as impl/sigma_glyph.py's discarded
+    # verdict: the exit status must carry the finding, not just stdout.
+    return 0 if verdict == "pass" else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

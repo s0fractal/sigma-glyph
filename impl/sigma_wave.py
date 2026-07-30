@@ -333,7 +333,41 @@ def iterate_am(w0):
     return seq
 
 
+#: The refusal every corpus-writing verb owes an installed copy. Book III
+#: imports it: one wording, one exit status, one place to correct.
+REFUSAL_TAG = "REFUSING"
+
+
+def require_checkout(verb, module_file, vec_path, from_checkout):
+    """`gen` writes into the repo. Outside a checkout there is nowhere to write.
+
+    From an installed copy `_REPO` is site-packages' parent, so this used to end
+    in a FileNotFoundError traceback: a maintainer verb crashing instead of
+    saying it does not apply. The corpus is deliberately NOT shipped as package
+    data — regenerating it is only meaningful next to the spec text the values
+    are read off and the committed vectors the result must be diffed against —
+    so the honest answer is a refusal, not a traceback and not a silent success.
+    """
+    if from_checkout:
+        return
+    name = Path(module_file).stem
+    print(f"{REFUSAL_TAG}: `{verb}` regenerates the conformance corpus at "
+          f"tests/spec_conformance/{vec_path.name} and requires a source "
+          f"checkout of sigma-glyph.\n"
+          f"  This copy is installed at {Path(module_file).resolve().parent}. "
+          f"The repository's tests/ tree is not part of the distribution, and "
+          f"regenerated vectors would have neither the spec text they are read "
+          f"off nor the committed corpus they must be diffed against.\n"
+          f"  From a checkout: git clone "
+          f"https://github.com/s0fractal/sigma-glyph && "
+          f"python3 impl/{name}.py {verb}\n"
+          f"  Nothing was written. This copy CAN run the self-test: "
+          f"python -m {name}", file=sys.stderr)
+    raise SystemExit(2)
+
+
 def gen_vectors():
+    require_checkout("gen", __file__, VEC_PATH, FROM_CHECKOUT)
     vectors = [
         {"id": vid, "note": note, "w1": w1, "w2": w2,
          "expected": interfere(w1, w2)}
@@ -457,8 +491,22 @@ def selftest():
     return all(ok)
 
 
+# Every verb this module accepts beyond the default (no-argument) self-test.
+# tools/check_release_surface.py reads this constant and REFUSES to pass unless
+# every verb in it is classified RUNNABLE or NOT_RUNNABLE for an installed copy
+# and behaves that way when actually executed from outside a checkout. `gen`
+# shipped for four releases with nobody running it that way.
+VERBS = ("gen",)
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "gen":
-        gen_vectors()
-    else:
-        sys.exit(0 if selftest() else 1)
+    argv = sys.argv[1:]
+    if argv[:1] == ["gen"]:
+        gen_vectors()               # refuses (exit 2) outside a checkout; exits
+        sys.exit(0)                 # 1 if the oracle contradicts the spec
+    if argv:
+        print(f"usage: {sys.argv[0]} [{'|'.join(VERBS)}]\n"
+              f"  unknown verb {argv[0]!r}. No argument runs the self-test; "
+              f"refusing rather than running it under a name that does not "
+              f"exist and reporting success.", file=sys.stderr)
+        sys.exit(2)
+    sys.exit(0 if selftest() else 1)
