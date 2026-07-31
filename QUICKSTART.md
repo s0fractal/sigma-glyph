@@ -9,6 +9,13 @@ python3 impl/sigma_wave.py          # Book II (wave views)     -> WAVE: ALL PASS
 python3 impl/sigma_federation.py    # Book III (federation)    -> FEDERATION: ALL PASS
 ```
 
+`pip install sigma-glyph` (0.6.7 on PyPI) gets the same three modules as
+`python -m sigma_glyph` / `sigma_wave` / `sigma_federation`. **Clone anyway if
+you want the sentence below to be true:** the wheel does not ship
+`tests/spec_conformance/`, so an installed copy runs its property checks in full
+and announces the recorded-vector replays as an explicit `SKIP`. Re-deriving
+every vector is the checkout's job.
+
 ## What just happened
 
 Every claim the spec makes is a machine vector, and you re-derived all

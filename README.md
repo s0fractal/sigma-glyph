@@ -40,9 +40,34 @@ python3 impl/sigma_glyph.py                        # Book I -> ALL PASS
 python3 tests/spec_conformance/run_reference.py    # 49/49 vectors
 ```
 
+Or from PyPI, where **0.6.7** is the current release:
+
+```bash
+pip install sigma-glyph
+python -m sigma_glyph        # Book I   -> ALL PASS
+python -m sigma_wave         # Book II  -> WAVE: ALL PASS … SKIPPED: recorded-vector replay
+python -m sigma_federation   # Book III -> FEDERATION: ALL PASS … SKIPPED: …
+```
+
+The wheel ships the three modules and not the corpora, so an installed copy
+announces the recorded-vector replays as an explicit `SKIP` with the reason.
+The property checks run either way; **full re-derivation still needs the
+checkout** and `tools/test-all.sh`. See [PUBLISHING.md](PUBLISHING.md) for what
+the release gate does and does not prove.
+
 ---
 
-### Current: v0.6.6
+### Current: v0.6.7
+
+**v0.6.7** (2026-07-31) is the adopted bundle and the version on PyPI. Against
+v0.6.6 exactly one anchored file changed —
+`tests/spec_conformance/governance_vectors.json`, re-signed under Warrant SPEC
+v0.4's domain-separated message (`"warrant-sig-v1:" || WarrantID_raw`), which
+this repository's governance verifier now requires. Books I–III, `LORE.md`,
+`appendix-a-complexity.md` and `GOV-anchors.md` are byte-identical to their
+v0.6.6 anchors. Everything else in the release is tooling: one signing path
+instead of eight, resource fences in the Rust binary, and self-tests that no
+longer exit 0 after printing failures.
 
 Three Books (DRAFT STANDARD) + a constitution now at **STANDARD**. Hash-thunk
 evaluation with size-priced ATP (Book I), field-level wave pins with absent-wave

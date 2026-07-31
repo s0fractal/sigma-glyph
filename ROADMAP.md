@@ -17,7 +17,7 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 
 ## Milestone: v0.5.0 (Breaking release, shipped 2026-07-05)
 
-> Current repo bundle is **v0.6.6** (see README and `spec/ANCHORS.txt`); the
+> Current repo bundle is **v0.6.7** (see README and `spec/ANCHORS.txt`); the
 > v0.5.0 entry below is retained as milestone history. Its "Known limitations"
 > were closed by the v0.6 Federation + Governance releases (see below).
 

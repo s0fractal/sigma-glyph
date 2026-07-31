@@ -146,13 +146,37 @@ rounds came from one reviewer family. Present is not adopted (`MAP.md` says whic
 ref holds what); and depth from a single family is measured in this project to
 find that family's blind spots slowly, if at all.
 
-### SA-8. Nothing has been published, and the publish path has never run
+### SA-8. The publish path has now run, twice, for two releases on one runner
 
-`.github/workflows/publish.yml` exists and its build half runs locally, but
-Trusted Publishing (OIDC) only exists inside GitHub Actions: the token exchange,
-the environment gates, and PyPI's acceptance of the pending publisher have never
-executed. **The first release is also the first test of them.** Do the TestPyPI
-dry run described in `PUBLISHING.md` first.
+This item used to say that nothing had ever been published and that the first
+release would also be the first test of the OIDC path. That stopped being true
+on 2026-07-30, and an assumption that overstates a limitation misleads exactly
+as much as one that understates it — so it is rewritten rather than deleted.
+
+`.github/workflows/publish.yml` has executed end to end **twice**: `sigma-glyph`
+**0.6.6.post1** (2026-07-30) and **0.6.7** (2026-07-31) are on PyPI, uploaded
+through Trusted Publishing with no stored token. The token exchange, the `pypi`
+environment gate, and PyPI's acceptance of this repository's workflow identity
+are no longer unexercised — they worked, for those two tags, on GitHub's hosted
+runner, with the action SHAs pinned in that file.
+
+What that does **not** establish, which is the part still worth reading as an
+assumption:
+
+- **Two runs are not a track record.** Nothing has exercised the path after a
+  rotated publisher, a renamed workflow, a changed environment name, or from a
+  runner other than the hosted one. A Trusted Publishing configuration that
+  quietly stops matching fails at upload — after the gate has already passed.
+- **The TestPyPI dry run has still never been performed.** `PUBLISHING.md`
+  describes it and the `testpypi` job has never run; both real publishes went
+  straight to PyPI.
+- **Only the maintainer has installed the result.** `pip install sigma-glyph`
+  into a clean venv, followed by the three self-tests, was done by the
+  maintainer on one host. No one else is known to have installed it, and no
+  second party has reproduced the upload.
+- **A green publish is not a gate.** `tools/check_release_surface.py` measures
+  the artifact against this repository's own documentation and says nothing
+  about whether either is correct. SA-9 is unaffected.
 
 ### SA-9. No independent gate is currently affordable
 
