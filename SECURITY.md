@@ -12,8 +12,11 @@ security report and asking for a channel. Do not put the details in it.
 
 ## What you can expect, honestly
 
-This project is maintained by one person and one model actor. There is no
-security team, no on-call rotation, and no paid triage.
+This project is maintained by one person, with a model actor holding a bounded,
+revocable delegation for day-to-day work. Accountability sits with the person;
+the model is a delegate, not a maintainer of record (see
+`SECURITY-ASSUMPTIONS.md` SA-6). There is no security team, no on-call rotation,
+and no paid triage.
 
 - **Acknowledgement:** best effort, usually within a few days. If a week passes
   with no reply, assume the message was missed and say so publicly without
@@ -54,21 +57,31 @@ The things this project asks you to trust:
 
 ## What is out of scope
 
-Not because it does not matter, but because it is documented as a limit rather
-than a defect:
+Not because it does not matter, but because it is a **stated boundary of the
+threat model** rather than a defect. The boundary is defined in one place —
+[SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md) — as ten scoped assumptions
+(`SA-1` … `SA-10`) and seven explicit non-goals (`NG-1` … `NG-7`), each with its
+reasoning. That document is where they live; this list points at the ones a
+reporter hits most often:
 
 - **`native_decide` is in the trusted base** for part of the Lean chain, which
-  puts the compiler there too. `C1Compiler.lean` does not use it. Stated in
-  `llms.txt`; a report that this is *worse than documented* is in scope.
+  puts the compiler there too. `C1Compiler.lean` does not use it. (SA-1)
 - **`tools/warrant_verify.py` diverges from live Warrant SPEC v0.3 on signature
   severity**, deliberately: it is pinned to a governed v0.1/v0.2 snapshot and
-  prints the divergence where it fires. A re-pin belongs to a §7 gate.
+  prints the divergence where it fires. A re-pin belongs to a §7 gate. (SA-3)
 - **Book III accepts a JCS-equivalent non-canonical assertion blob**; the v0.6.6
-  fix covered the governance verifier only. Deferred and stated.
+  fix narrowed this to the governance verifier only. Deferred and stated. (SA-4)
 - **LORE.md is non-normative.** Disagreeing with the naming or the cosmology is
-  welcome and is not a specification defect.
+  welcome and is not a specification defect. (NG-7)
 - Local resource faults are not canonical failures — that distinction is
-  specified, not a bug (see Book I on `DISSONANCE` versus `ResourceFault`).
+  specified, not a bug (see Book I on `DISSONANCE` versus `ResourceFault`). (NG-6)
+- **Governance declines to decide some things on purpose**: it will not pick a
+  winner between rival adoptions (the chain freezes), will not prevent a fork,
+  and will not recover a jurisdiction that has deadlocked below quorum.
+  (NG-1, NG-3, NG-4)
+
+A report showing that any of these is *worse than stated* is in scope and is the
+most valuable thing this project receives; one restating it is not.
 
 ## Severity, as this project ranks it
 
@@ -100,6 +113,6 @@ tools/test-all.sh          # the full matrix; a skipped surface exits 2, not ALL
 If a document and a command disagree, the command is right. Several reports
 against this project have been artefacts of reading a feature branch, an archived
 evidence blob, or truncated output rather than the thing itself; `MAP.md` says
-which ref holds what, `reviews/README.md` lists settled points, and `llms.txt`
-lists the known gaps so you do not spend a
-pass rediscovering them.
+which ref holds what, `reviews/README.md` lists settled points, and
+`SECURITY-ASSUMPTIONS.md` states the known boundaries so you do not spend a pass
+rediscovering them.

@@ -19,6 +19,60 @@ const S_EXPECTED: &str = "887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e
 const FALSE_EXPECTED: &str = "65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098";
 const INVALID_EXPECTED: &str = "af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507";
 
+// ---------------------------------------------------------------------------
+// Resource fences (Book I §3.6)
+// ---------------------------------------------------------------------------
+// §3.6: breaching a local resource limit is an IMPLEMENTATION FAULT — a refusal
+// to execute — and MUST NOT be serialized as a DISSONANCE. The three canonical
+// outcomes are the only canonical outcomes. Until v0.6.7 this binary had no
+// fences at all: `step`, `term_hash`, `term_size` and the JSON parser were all
+// unbounded recursions, so a deep left spine or a nested-array vectors file
+// aborted the process ("thread 'main' has overflowed its stack / fatal runtime
+// error: stack overflow", SIGABRT), where impl/sigma_glyph.py raises
+// ResourceFault. An abort is spec-legal in the narrow sense that it is not a
+// canonical failure, but it is not a refusal either — the caller learns
+// nothing, and README.md calls this binary safe by construction.
+//
+// MAX_TERM_DEPTH mirrors impl/sigma_glyph.py DEFAULT_LIMITS["max_node_depth"]
+// so the two implementations fault on the same shapes; the ATP budget already
+// bounds memory semantically (§3.4), so this is the second fence, not the first.
+const MAX_TERM_DEPTH: usize = 4096;
+// The conformance format nests four levels deep (root / vectors / vector /
+// expected). 64 leaves room for growth and still cannot reach the stack.
+const MAX_JSON_DEPTH: usize = 64;
+// A depth fence is only a fence if the stack can hold that many frames. It
+// cannot on a default 2 MiB spawned-thread stack — the first `cargo test` run
+// against MAX_TERM_DEPTH proved it, aborting with SIGABRT *inside the refusal
+// path*. So the work runs on a thread whose stack is sized for the fence
+// instead of relying on whatever the platform hands us. Virtual reservation:
+// untouched pages cost nothing.
+const WORK_STACK_BYTES: usize = 64 * 1024 * 1024;
+
+/// Run `work` on a stack big enough for MAX_TERM_DEPTH frames.
+fn on_fenced_stack<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -> Option<T> {
+    std::thread::Builder::new()
+        .stack_size(WORK_STACK_BYTES)
+        .spawn(work)
+        .ok()?
+        .join()
+        .ok()
+}
+
+/// A local, NON-canonical implementation fault (Book I §3.6). Never a DISSONANCE.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ResourceFault(pub &'static str);
+
+impl std::fmt::Display for ResourceFault {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "local resource fault: {} (Book I §3.6 — an implementation fault, \
+             NOT a canonical Book I failure)",
+            self.0
+        )
+    }
+}
+
 fn sha256(input: &[u8]) -> Hash {
     const K: [u32; 64] = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
@@ -197,8 +251,40 @@ enum Term {
     Apply(Box<Term>, Box<Term>),
 }
 
-fn term_hash(term: &Term) -> Hash {
-    match term {
+impl Drop for Term {
+    /// The derived drop glue for `Apply(Box<Term>, Box<Term>)` is recursion the
+    /// input controls, and it runs on the fault path — so fencing `step` alone
+    /// only moved the stack overflow from evaluation to cleanup. Found by the
+    /// `cargo test` added alongside this fence, which aborted with SIGABRT on a
+    /// 4104-deep term the fences had correctly refused to evaluate.
+    /// Dismantle iteratively instead.
+    fn drop(&mut self) {
+        const STUB: Term = Term::Thunk([0u8; 32]);
+        let mut pending: Vec<Term> = Vec::new();
+        let detach = |term: &mut Term, into: &mut Vec<Term>| {
+            if let Term::Apply(left, right) = term {
+                into.push(std::mem::replace(&mut **left, STUB));
+                into.push(std::mem::replace(&mut **right, STUB));
+            }
+        };
+        detach(self, &mut pending);
+        while let Some(mut child) = pending.pop() {
+            detach(&mut child, &mut pending);
+            // `child` drops here with both of its children already replaced by
+            // leaves, so this recursion is one frame deep, always.
+        }
+    }
+}
+
+fn term_hash(term: &Term) -> Result<Hash, ResourceFault> {
+    term_hash_at(term, 0)
+}
+
+fn term_hash_at(term: &Term, depth: usize) -> Result<Hash, ResourceFault> {
+    if depth > MAX_TERM_DEPTH {
+        return Err(ResourceFault("term depth (hashing)"));
+    }
+    Ok(match term {
         Term::Thunk(hash) => *hash,
         Term::Literal(atom) => sha256(&serialize(LITERAL, Some(atom), None, None)),
         Term::Ref(target) => sha256(&serialize(REF, Some(target), None, None)),
@@ -206,20 +292,27 @@ fn term_hash(term: &Term) -> Hash {
         Term::Apply(left, right) => sha256(&serialize(
             APPLY,
             None,
-            Some(&term_hash(left)),
-            Some(&term_hash(right)),
+            Some(&term_hash_at(left, depth + 1)?),
+            Some(&term_hash_at(right, depth + 1)?),
         )),
-    }
+    })
 }
 
-fn term_size(term: &Term) -> u64 {
-    match term {
+fn term_size(term: &Term) -> Result<u64, ResourceFault> {
+    term_size_at(term, 0)
+}
+
+fn term_size_at(term: &Term, depth: usize) -> Result<u64, ResourceFault> {
+    if depth > MAX_TERM_DEPTH {
+        return Err(ResourceFault("term depth (sizing)"));
+    }
+    Ok(match term {
         Term::Apply(left, right) => 1u64
-            .saturating_add(term_size(left))
-            .saturating_add(term_size(right)),
+            .saturating_add(term_size_at(left, depth + 1)?)
+            .saturating_add(term_size_at(right, depth + 1)?),
         Term::Ref(_) => 2,
         _ => 1,
-    }
+    })
 }
 
 fn glyph_eq(term: &Term, glyph: &Hash) -> bool {
@@ -234,6 +327,16 @@ fn glyph_eq(term: &Term, glyph: &Hash) -> bool {
 enum StepError {
     Exhausted,
     Unresolved,
+    /// Book I §3.6: local limit breached. Deliberately NOT one of the two
+    /// canonical failures above — `evaluate` propagates it to the caller
+    /// instead of minting a DISSONANCE for it.
+    Fault(ResourceFault),
+}
+
+impl From<ResourceFault> for StepError {
+    fn from(fault: ResourceFault) -> Self {
+        StepError::Fault(fault)
+    }
 }
 
 fn force(
@@ -266,7 +369,13 @@ fn step(
     remaining: u64,
     store: &HashMap<Hash, Vec<u8>>,
     glyphs: &(Hash, Hash, Hash),
+    depth: usize,
 ) -> Result<Option<(Term, u64)>, StepError> {
+    // The left-spine descent below is the recursion that a hostile term drives.
+    // Fence it before the stack does (§3.6): a fault, never an abort.
+    if depth > MAX_TERM_DEPTH {
+        return Err(StepError::Fault(ResourceFault("term depth (stepping)")));
+    }
     match term {
         Term::Thunk(hash) => {
             if hash == &glyphs.0 || hash == &glyphs.1 || hash == &glyphs.2 {
@@ -276,7 +385,7 @@ fn step(
                 return Err(StepError::Exhausted);
             }
             let materialized = force(hash, store, glyphs)?;
-            let cost = term_size(&materialized);
+            let cost = term_size(&materialized)?;
             if cost > remaining {
                 return Err(StepError::Exhausted);
             }
@@ -306,7 +415,7 @@ fn step(
                 }
                 if let Term::Apply(f11, f12) = f1.as_ref() {
                     if glyph_eq(f11, &glyphs.2) {
-                        let cost = 1u64.saturating_add(term_size(argument));
+                        let cost = 1u64.saturating_add(term_size(argument)?);
                         if cost > remaining {
                             return Err(StepError::Exhausted);
                         }
@@ -319,13 +428,15 @@ fn step(
                     }
                 }
             }
-            if let Some((new_function, cost)) = step(function, remaining, store, glyphs)? {
+            if let Some((new_function, cost)) = step(function, remaining, store, glyphs, depth + 1)?
+            {
                 return Ok(Some((
                     Term::Apply(Box::new(new_function), Box::new((**argument).clone())),
                     cost,
                 )));
             }
-            if let Some((new_argument, cost)) = step(argument, remaining, store, glyphs)? {
+            if let Some((new_argument, cost)) = step(argument, remaining, store, glyphs, depth + 1)?
+            {
                 return Ok(Some((
                     Term::Apply(Box::new((**function).clone()), Box::new(new_argument)),
                     cost,
@@ -336,27 +447,36 @@ fn step(
     }
 }
 
-fn evaluate(term_hash_value: Hash, atp: u64, store: &HashMap<Hash, Vec<u8>>) -> (Hash, u64) {
+/// `Ok((result_hash, spent))` is one of the three canonical outcomes of §3.4.
+/// `Err(ResourceFault)` is §3.6: this implementation refused to run the term.
+/// The two are different types on purpose — a fault cannot be mistaken for, or
+/// silently widened into, a canonical DISSONANCE.
+fn evaluate(
+    term_hash_value: Hash,
+    atp: u64,
+    store: &HashMap<Hash, Vec<u8>>,
+) -> Result<(Hash, u64), ResourceFault> {
     let (i, k, s, _) = genesis();
     let glyphs = (i, k, s);
     let mut term = Term::Thunk(term_hash_value);
     let mut spent = 0u64;
     loop {
         let remaining = atp - spent;
-        match step(&term, remaining, store, &glyphs) {
+        match step(&term, remaining, store, &glyphs, 0) {
             Ok(Some((next, cost))) => {
                 term = next;
                 spent += cost;
             }
-            Ok(None) => return (term_hash(&term), spent),
+            Ok(None) => return Ok((term_hash(&term)?, spent)),
             Err(StepError::Exhausted) => {
                 let dis = Term::Dissonance(reason_hash("ATP Exhausted"));
-                return (term_hash(&dis), spent);
+                return Ok((term_hash(&dis)?, spent));
             }
             Err(StepError::Unresolved) => {
                 let dis = Term::Dissonance(reason_hash("Unresolved Reference"));
-                return (term_hash(&dis), spent);
+                return Ok((term_hash(&dis)?, spent));
             }
+            Err(StepError::Fault(fault)) => return Err(fault),
         }
     }
 }
@@ -407,11 +527,20 @@ impl Json {
 struct JsonParser<'a> {
     bytes: &'a [u8],
     offset: usize,
+    /// Nesting fence. `value -> object_value/array_value -> value` is mutual
+    /// recursion driven entirely by the input file: `[[[[…` aborted the process
+    /// with a stack overflow before this existed. A vectors file is untrusted
+    /// input — it is exactly what a second implementation is handed.
+    depth: usize,
 }
 
 impl<'a> JsonParser<'a> {
     fn parse(bytes: &'a [u8]) -> Result<Json, String> {
-        let mut parser = Self { bytes, offset: 0 };
+        let mut parser = Self {
+            bytes,
+            offset: 0,
+            depth: 0,
+        };
         let value = parser.value()?;
         parser.whitespace();
         if parser.offset != bytes.len() {
@@ -455,8 +584,8 @@ impl<'a> JsonParser<'a> {
     fn value(&mut self) -> Result<Json, String> {
         self.whitespace();
         match self.bytes.get(self.offset).copied() {
-            Some(b'{') => self.object_value(),
-            Some(b'[') => self.array_value(),
+            Some(b'{') => self.nested(Self::object_value),
+            Some(b'[') => self.nested(Self::array_value),
             Some(b'"') => self.string_value().map(Json::String),
             Some(b't') => self.literal(b"true", Json::Bool(true)),
             Some(b'f') => self.literal(b"false", Json::Bool(false)),
@@ -464,6 +593,21 @@ impl<'a> JsonParser<'a> {
             Some(b'0'..=b'9') => self.number_value(),
             _ => Err(self.error("expected a JSON value")),
         }
+    }
+
+    /// Run one container parser one level deeper, refusing past MAX_JSON_DEPTH.
+    fn nested(
+        &mut self,
+        parse_container: fn(&mut Self) -> Result<Json, String>,
+    ) -> Result<Json, String> {
+        if self.depth >= MAX_JSON_DEPTH {
+            return Err(self.error("JSON nesting deeper than MAX_JSON_DEPTH — refused \
+                                   (local resource fault, not a Book I outcome)"));
+        }
+        self.depth += 1;
+        let value = parse_container(self);
+        self.depth -= 1;
+        value
     }
 
     fn object_value(&mut self) -> Result<Json, String> {
@@ -688,7 +832,10 @@ fn check_vector(
             } else {
                 all_objects.clone()
             };
-            let (actual_hash, actual_spent) = evaluate(term, atp, &store);
+            // A fault is reported as a fault. It is NOT a conformance pass, and
+            // it is NOT dressed up as a canonical DISSONANCE (§3.6).
+            let (actual_hash, actual_spent) =
+                evaluate(term, atp, &store).map_err(|fault| fault.to_string())?;
             let expected = field(vector, "expected")?.object()?;
             let expected_hash = field(expected, "result_hash")?.string()?;
             let expected_spent = field(expected, "atp_spent")?.number()?;
@@ -741,12 +888,193 @@ fn run_conformance(path: &str) -> Result<bool, String> {
         }
     }
     println!();
-    if passed == 49 && vectors.len() == 49 {
-        println!("RUST-CONFORMANCE: ALL PASS (49/49)");
+    // The suite size used to be hardwired to 49 here, which made this binary
+    // wrong for every other vectors file (tests/book1_fuzz.py had to parse the
+    // per-vector lines to work around it) and made a real 49-vector regression
+    // indistinguishable from a renamed file. The count assertion belongs to
+    // whoever names the canonical file: tools/test-all.sh greps for the exact
+    // "(49/49)" on tests/spec_conformance/vectors.json.
+    let total = vectors.len();
+    if total > 0 && passed == total {
+        println!("RUST-CONFORMANCE: ALL PASS ({passed}/{total})");
         Ok(true)
     } else {
-        println!("RUST-CONFORMANCE: FAIL ({passed}/{})", vectors.len());
+        println!("RUST-CONFORMANCE: FAIL ({passed}/{total})");
         Ok(false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! `cargo test` used to run zero tests here, so every property below was
+    //! unguarded — including the resource fences, which did not exist, and the
+    //! vector count, which was hardwired to 49.
+    use super::*;
+
+    /// Store a left spine `((… (I I) I) …) I` of `levels` APPLY nodes.
+    fn spine(levels: usize) -> (Hash, HashMap<Hash, Vec<u8>>) {
+        let (i, _, _, _) = genesis();
+        let mut store = HashMap::new();
+        let mut head = i;
+        for _ in 0..levels {
+            let bytes = serialize(APPLY, None, Some(&head), Some(&i));
+            head = sha256(&bytes);
+            store.insert(head, bytes);
+        }
+        (head, store)
+    }
+
+    #[test]
+    fn genesis_constants_match_the_spec() {
+        let (i, k, s, false_hash) = genesis();
+        assert_eq!(encode_hex(&i), I_EXPECTED);
+        assert_eq!(encode_hex(&k), K_EXPECTED);
+        assert_eq!(encode_hex(&s), S_EXPECTED);
+        assert_eq!(encode_hex(&false_hash), FALSE_EXPECTED);
+        let invalid = sha256(&serialize(
+            DISSONANCE,
+            Some(&reason_hash("Invalid Object")),
+            None,
+            None,
+        ));
+        assert_eq!(encode_hex(&invalid), INVALID_EXPECTED);
+    }
+
+    /// Every test that walks near MAX_TERM_DEPTH must run on the same stack the
+    /// binary gives itself; the default 2 MiB test-thread stack is smaller than
+    /// the fence allows, and that mismatch is what SIGABRTed the first run.
+    fn fenced<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -> T {
+        on_fenced_stack(work).expect("worker thread")
+    }
+
+    #[test]
+    fn shallow_spine_reduces_canonically() {
+        // Well inside the fence: the fence must not fire on ordinary work.
+        let (i, _, _, _) = genesis();
+        let (root, store) = spine(64);
+        let (hash, spent) = evaluate(root, 1_000_000, &store).expect("no fault expected");
+        assert_eq!(hash, i, "((…(I I) I)…) I reduces to I");
+        assert!(spent > 0);
+    }
+
+    #[test]
+    fn deep_spine_faults_instead_of_overflowing_the_stack() {
+        // Before the fence this aborted the process:
+        //   "thread 'main' has overflowed its stack / fatal runtime error:
+        //    stack overflow", SIGABRT.
+        let outcome = fenced(|| {
+            let (root, store) = spine(MAX_TERM_DEPTH * 4);
+            evaluate(root, u32::MAX as u64, &store)
+        });
+        assert!(outcome.is_err(), "a hostile depth must be refused, not run");
+    }
+
+    #[test]
+    fn a_fault_is_never_reported_as_a_canonical_outcome() {
+        // Book I §3.6: a local limit breach MUST NOT be serialized as a
+        // DISSONANCE. The type system carries that here — assert it anyway,
+        // because the tempting "fix" is to return ATP Exhausted and move on.
+        let outcome = fenced(|| {
+            let (root, store) = spine(MAX_TERM_DEPTH * 4);
+            evaluate(root, u32::MAX as u64, &store)
+        });
+        let atp_exhausted = sha256(&serialize(
+            DISSONANCE,
+            Some(&reason_hash("ATP Exhausted")),
+            None,
+            None,
+        ));
+        let unresolved = sha256(&serialize(
+            DISSONANCE,
+            Some(&reason_hash("Unresolved Reference")),
+            None,
+            None,
+        ));
+        match outcome {
+            Err(fault) => {
+                let text = fault.to_string();
+                assert!(text.contains("§3.6"), "the fault must cite the rule: {text}");
+                assert!(!text.contains(&encode_hex(&atp_exhausted)));
+                assert!(!text.contains(&encode_hex(&unresolved)));
+            }
+            Ok((hash, spent)) => panic!(
+                "expected a §3.6 fault, got the canonical result {} / {spent} ATP",
+                encode_hex(&hash)
+            ),
+        }
+    }
+
+    #[test]
+    fn term_hash_and_term_size_are_fenced_too() {
+        // `step` is not the only recursion a hostile term drives: R-S prices
+        // itself with term_size(argument), and evaluate finishes with
+        // term_hash(term). Both must refuse rather than recurse.
+        let (sized, hashed) = fenced(|| {
+            let mut term = Term::Thunk([0u8; 32]);
+            for _ in 0..(MAX_TERM_DEPTH + 8) {
+                term = Term::Apply(Box::new(term), Box::new(Term::Thunk([1u8; 32])));
+            }
+            (term_size(&term).is_err(), term_hash(&term).is_err())
+        });
+        assert!(sized, "term_size must refuse a term deeper than the fence");
+        assert!(hashed, "term_hash must refuse a term deeper than the fence");
+    }
+
+    #[test]
+    fn json_nesting_is_fenced() {
+        // A vectors file is untrusted input. `[[[[…` aborted the process.
+        let error = fenced(|| {
+            let bomb: Vec<u8> = std::iter::repeat_n(b'[', 100_000)
+                .chain(std::iter::repeat_n(b']', 100_000))
+                .collect();
+            JsonParser::parse(&bomb).map(|_| ())
+        })
+        .expect_err("must refuse");
+        assert!(error.contains("nesting"), "{error}");
+    }
+
+    #[test]
+    fn json_nesting_limit_is_exactly_max_json_depth() {
+        let nest = |n: usize| -> Vec<u8> {
+            std::iter::repeat_n(b'[', n)
+                .chain(std::iter::repeat_n(b']', n))
+                .collect()
+        };
+        assert!(JsonParser::parse(&nest(MAX_JSON_DEPTH)).is_ok());
+        assert!(JsonParser::parse(&nest(MAX_JSON_DEPTH + 1)).is_err());
+    }
+
+    #[test]
+    fn conformance_summary_follows_the_file_not_a_hardcoded_49() {
+        // `if passed == 49 && vectors.len() == 49` meant this binary reported
+        // FAIL on any other suite size — so tests/book1_fuzz.py had to count
+        // per-vector "OK " lines to work around it, and a suite that lost a
+        // vector was indistinguishable from one that never had 49.
+        let doc = r#"{"format":"sigma-glyph-conformance","format_version":2,
+            "objects":{},
+            "vectors":[{"id":"T1","kind":"object","bytes":"0001",
+                        "expected":{"hash":"b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2"}}]}"#;
+        let path = std::env::temp_dir().join(format!(
+            "sigma-glyph-one-vector-{}.json",
+            std::process::id()
+        ));
+        fs::write(&path, doc).unwrap();
+        let ok = run_conformance(path.to_str().unwrap()).unwrap();
+        let _ = fs::remove_file(&path);
+        assert!(ok, "a one-vector suite that passes must report ALL PASS");
+    }
+
+    #[test]
+    fn an_empty_suite_is_not_a_pass() {
+        let doc = r#"{"format_version":2,"objects":{},"vectors":[]}"#;
+        let path = std::env::temp_dir().join(format!(
+            "sigma-glyph-empty-{}.json",
+            std::process::id()
+        ));
+        fs::write(&path, doc).unwrap();
+        let ok = run_conformance(path.to_str().unwrap()).unwrap();
+        let _ = fs::remove_file(&path);
+        assert!(!ok, "zero vectors is a vacuous green, not a pass");
     }
 }
 
@@ -756,7 +1084,18 @@ fn usage(program: &str) {
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
-    let ok = match args.as_slice() {
+    match on_fenced_stack(move || dispatch(args)) {
+        Some(true) => ExitCode::SUCCESS,
+        Some(false) => ExitCode::FAILURE,
+        None => {
+            eprintln!("could not start the worker thread");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn dispatch(args: Vec<String>) -> bool {
+    match args.as_slice() {
         [_, command] if command == "selftest" => run_selftest(),
         [_, command, path] if command == "conformance" => match run_conformance(path) {
             Ok(ok) => ok,
@@ -769,10 +1108,5 @@ fn main() -> ExitCode {
             usage(args.first().map_or("book1", String::as_str));
             false
         }
-    };
-    if ok {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
     }
 }

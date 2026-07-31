@@ -3,15 +3,20 @@
 
 Shipped so that auditors can verify the adjudication evidence with the same
 locality standard as the spec vectors — no external checkout needed.
-Checks: record id = SHA-256(canonical JSON body); every Ed25519 signature
-over the raw record id; every subject/evidence/check/transcript/under blob
-hash; every prior link. Reports DAG roots (the store is a DAG, not a single
-chain). Full CLI (why/propose/accept/...): https://github.com/s0fractal/warrant
+Checks: record id = SHA-256(canonical JSON body); every Ed25519 signature over
+the domain-separated message of Warrant SPEC v0.4 §5 (47 bytes, built by
+tools/warrant_sig.py and nowhere else in this repository); every
+subject/evidence/check/transcript/under blob hash; every prior link. Reports
+DAG roots (the store is a DAG, not a single chain).
+Full CLI (why/propose/accept/...): https://github.com/s0fractal/warrant
 """
 import glob, hashlib, json, os, sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import warrant_sig  # noqa: E402  (the one signing-message construction)
+
 try:
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    import cryptography.hazmat.primitives.asymmetric.ed25519  # noqa: F401
     HAVE_ED25519 = True
 except ImportError:
     HAVE_ED25519 = False
@@ -94,8 +99,15 @@ def main():
                 key = bytes.fromhex(s["key"])
                 if weak_ed25519_pubkey(key):
                     raise ValueError("small-order or non-canonical pubkey")
-                Ed25519PublicKey.from_public_bytes(key).verify(
-                    bytes.fromhex(s["sig"]), bytes.fromhex(rid))
+                # Warrant SPEC v0.4 s5: the signed message names the protocol,
+                # so a key that signs some other protocol's SHA-256 digest does
+                # not thereby sign a Warrant. Verifying the bare digest here
+                # would make this vendored copy accept what the live CLI refuses
+                # -- and this file exists precisely to be a second opinion.
+                # The construction itself is in tools/warrant_sig.py and is not
+                # rebuilt here: a second opinion that reimplements the rule is
+                # only a second opinion about its own reimplementation.
+                warrant_sig.verify(key, s["sig"], rid)
             except Exception:
                 # SEVERITY DIVERGES FROM THE LIVE CLI, DELIBERATELY AND VISIBLY.
                 # Warrant SPEC v0.3 s6(3) makes an invalid signature a WARNING

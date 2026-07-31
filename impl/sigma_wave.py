@@ -178,7 +178,151 @@ COORD_CASES = [
      "alias pin coordinate: FALSE ph=49152 regardless of derived am=0"),
 ]
 
-VEC_PATH = Path(__file__).resolve().parents[1] / "tests/spec_conformance/wave_vectors.json"
+# WHERE THE RECORDED VECTORS LIVE — and why "absent" has two meanings.
+#
+# The vectors live in the REPO, at tests/spec_conformance/. The wheel installs
+# three modules and nothing else (pyproject: `py-modules`), so from
+# site-packages this path does not exist and never will. `pip install
+# sigma-glyph` + `python -m sigma_wave` therefore used to print
+# `FAIL wave_vectors.json present` and exit 1 — a false accusation: nothing was
+# wrong, the replay corpus simply is not part of the distribution.
+#
+# But a missing file in a CHECKOUT *is* a defect, and the two must not be
+# reported the same way. A skip that can hide a real deletion is the pattern
+# this project keeps finding. So the distinction is made structurally: a
+# checkout is `impl/` next to `pyproject.toml` AND a `tests/spec_conformance/`
+# directory to hold the corpora. Anything else — a site-packages install, or an
+# unpacked sdist, which ships impl/ and pyproject.toml but no tests/ — announces
+# the replay as SKIPPED, never as passed and never as failed.
+#
+# The one case this cannot tell apart is someone deleting the whole
+# `tests/spec_conformance/` directory in a real checkout. That is a far louder
+# act than deleting one file, and CI regenerates into that directory, so it
+# fails there instead.
+_HERE = Path(__file__).resolve().parent
+_REPO = _HERE.parent
+_CORPUS_DIR = _REPO / "tests" / "spec_conformance"
+FROM_CHECKOUT = (_HERE.name == "impl" and (_REPO / "pyproject.toml").is_file()
+                 and _CORPUS_DIR.is_dir())
+VEC_PATH = _CORPUS_DIR / "wave_vectors.json"
+
+# ============================================================================
+# Spec-declared expectations — hand-written from spec/book-2-navigation.md
+# ============================================================================
+# Same discipline as tests/spec_conformance/generate.py and the governance
+# suite: these values are read off the SPEC, not computed by this oracle, and
+# `gen` REFUSES to write wave_vectors.json if interfere()/wave()/coordinate()
+# disagrees with one. Vectors absent from this table stay oracle-generated and
+# are regression-only — replaying them here proves nothing about correctness.
+#
+#   "quoted"  — the value is printed verbatim in the spec.
+#   "derived" — hand-computed from the §3/§4/§5 formulas and the §4 LUT anchors;
+#               the arithmetic is spelled out in the cite.
+SPEC_EXPECT = {
+    "WV-CONSTRUCTIVE": ("derived",
+        "§5.1: delta=0 -> r=LUT[0]=32767 (§4 anchor) -> amp_factor=65535, "
+        "am=65535^2/65535=65535; delta_en=round(-32767/128)=-256; "
+        "en=avg(0,0)-256; ph=w1.ph (§5.2)",
+        W(0, 65535, -256)),
+    "WV-ORTHOGONAL": ("derived",
+        "§4 anchor LUT[16384]=0 -> delta_en=0, amp_factor=round(32767*65535/65534)"
+        "=32768 (exact half rounds away from zero, §3) -> am=32768",
+        W(0, 32768, 0)),
+    "WV-DESTRUCTIVE": ("derived",
+        "§4 anchor LUT[32768]=-32767 -> amp_factor=0 -> am=0; "
+        "delta_en=round(32767/128)=+256",
+        W(0, 0, 256)),
+    "WV-CLAMP-LOW": ("quoted",
+        "§5.1: {am=65535, en=-32768} is the unique nonzero fixed point",
+        W(0, 65535, -32768)),
+    "WV-CLAMP-HIGH": ("derived",
+        "§3 clamp_i16: avg(32767,32767)+256 = 33023 clamps to 32767; "
+        "destructive -> am=0",
+        W(0, 0, 32767)),
+    "WV-SELF-MAX": ("derived",
+        "§5.1 Resonance Identity: phase kept (§5.2), am stable at 65535, en drifts -256",
+        W(12345, 65535, -256)),
+    "WV-SELF-PARTIAL": ("derived",
+        "§5.1 am -> am^2/65535: 49151^2 = 2415820801; 2415820801/65535 = 36863 "
+        "remainder 4096, and 2*4096 < 65535 so it rounds down (§3)",
+        W(0, 36863, -256)),
+    "WV-NEG-TIE": ("quoted",
+        "§5: 'avg(-1,-2) = -2, together -258, not -257' — the exact sentence that "
+        "makes floor-division implementations nonconforming",
+        W(0, 65535, -258)),
+    "WV-LEFT-DOMINANCE": ("quoted",
+        "§5.2 Law of Left Dominance: interfere(A,B).ph = A.ph. The spec states "
+        "nothing about am/en for this pair; they stay oracle-generated",
+        {"ph": 8192}),
+    "WV-FALSE-DERIVED": ("quoted",
+        "§6.2: FALSE pins Ph=49152 only; am=0 (K/I orthogonality, "
+        "LUT[32768]=-32767 -> amp_factor=0) and en=-32512 "
+        "(avg(-32768,-32768)+256) are the derived row printed in the spec",
+        W(49152, 0, -32512)),
+    "WV-FALSE-ANCESTOR-SILENT": ("derived",
+        "§6.2 normative consequence: any APPLY whose derived subtree contains "
+        "FALSE has am=0. ph=49152 by §5.2; delta=|49152-0| -> min(49152,16384)"
+        "=16384 -> r=0 -> en=avg(-32512,-32768)=-32640",
+        W(49152, 0, -32640)),
+    "WV-PH-ONLY-ABSENT": ("quoted",
+        "§2.1: a Ph-only pin on a non-APPLY leaf leaves the wave ABSENT", None),
+    "WV-UNPINNED-LITERAL-ABSENT": ("quoted",
+        "§2.1: unpinned LITERALs have no wave; absence is a legitimate state", None),
+    "WV-COORD-SATOSHI": ("quoted", "§6.3 Time Anchor table: SATOSHI Ph=8192", 8192),
+    "WV-COORD-V": ("quoted", "§6.2 Grand Cross table: V Ph=16384", 16384),
+    "WV-COORD-FALSE": ("quoted", "§6.2 Grand Cross table: FALSE Ph=49152", 49152),
+}
+# Left oracle-generated on purpose (regression-only): the spec states the decay
+# is quadratic but prints no term of the sequence.
+ORACLE_ONLY = {"WV-ITER-DECAY"}
+
+# Book II §4 states the LUT anchors, control points and the arbiter hash
+# outright — the one place the spec is fully self-contained. Gate `gen` on them
+# too, so a regenerated vector file can never carry a drifted table.
+SPEC_LUT_CHECKS = [
+    ("§4 arbiter SHA-256(LUT_BLOB)",
+     lambda: hashlib.sha256(b"".join(struct.pack(">h", v) for v in LUT_COS)).hexdigest(),
+     LUT_ARBITER),
+    ("§4 anchors [0], [16384], [32768]",
+     lambda: (LUT_COS[0], LUT_COS[16384], LUT_COS[32768]), (32767, 0, -32767)),
+    ("§4 controls [1],[8192],[16383],[16385],[24576],[32767]",
+     lambda: (LUT_COS[1], LUT_COS[8192], LUT_COS[16383], LUT_COS[16385],
+              LUT_COS[24576], LUT_COS[32767]),
+     (32767, 23170, 3, -3, -23170, -32767)),
+    ("§4 format: 32769 entries", lambda: len(LUT_COS), 32769),
+    ("§6.1 Trinity pins (I, S, K)",
+     lambda: (FULL_PINS["I"], FULL_PINS["S"], FULL_PINS["K"]),
+     (W(0, 65535, -32768), W(16384, 65535, -32768), W(32768, 65535, -32768))),
+]
+
+
+def check_spec_expectations(vectors):
+    """Return the list of ways the oracle contradicts the declared spec values."""
+    failures = []
+    for label, probe, want in SPEC_LUT_CHECKS:
+        got = probe()
+        if got != want:
+            failures.append(f"LUT/pins {label}: got {got}, spec declares {want}")
+    seen = set()
+    for v in vectors:
+        vid = v["id"]
+        decl = SPEC_EXPECT.get(vid)
+        if decl is None:
+            if vid not in ORACLE_ONLY:
+                failures.append(f"{vid}: neither declared in SPEC_EXPECT nor listed "
+                                f"in ORACLE_ONLY — classify it before it ships")
+            continue
+        seen.add(vid)
+        _, cite, want = decl
+        got = v.get("expected", v.get("expected_ph"))
+        if isinstance(want, dict) and isinstance(got, dict):
+            got = {k: got.get(k) for k in want}       # partial declaration
+        if got != want:
+            failures.append(f"{vid}: got {got}, spec ({cite}) declares {want}")
+    for vid in sorted(set(SPEC_EXPECT) - seen):
+        failures.append(f"declared expectation {vid} was never exercised "
+                        f"(vector renamed or deleted?)")
+    return failures
 
 
 def iterate_am(w0):
@@ -189,7 +333,41 @@ def iterate_am(w0):
     return seq
 
 
+#: The refusal every corpus-writing verb owes an installed copy. Book III
+#: imports it: one wording, one exit status, one place to correct.
+REFUSAL_TAG = "REFUSING"
+
+
+def require_checkout(verb, module_file, vec_path, from_checkout):
+    """`gen` writes into the repo. Outside a checkout there is nowhere to write.
+
+    From an installed copy `_REPO` is site-packages' parent, so this used to end
+    in a FileNotFoundError traceback: a maintainer verb crashing instead of
+    saying it does not apply. The corpus is deliberately NOT shipped as package
+    data — regenerating it is only meaningful next to the spec text the values
+    are read off and the committed vectors the result must be diffed against —
+    so the honest answer is a refusal, not a traceback and not a silent success.
+    """
+    if from_checkout:
+        return
+    name = Path(module_file).stem
+    print(f"{REFUSAL_TAG}: `{verb}` regenerates the conformance corpus at "
+          f"tests/spec_conformance/{vec_path.name} and requires a source "
+          f"checkout of sigma-glyph.\n"
+          f"  This copy is installed at {Path(module_file).resolve().parent}. "
+          f"The repository's tests/ tree is not part of the distribution, and "
+          f"regenerated vectors would have neither the spec text they are read "
+          f"off nor the committed corpus they must be diffed against.\n"
+          f"  From a checkout: git clone "
+          f"https://github.com/s0fractal/sigma-glyph && "
+          f"python3 impl/{name}.py {verb}\n"
+          f"  Nothing was written. This copy CAN run the self-test: "
+          f"python -m {name}", file=sys.stderr)
+    raise SystemExit(2)
+
+
 def gen_vectors():
+    require_checkout("gen", __file__, VEC_PATH, FROM_CHECKOUT)
     vectors = [
         {"id": vid, "note": note, "w1": w1, "w2": w2,
          "expected": interfere(w1, w2)}
@@ -210,6 +388,16 @@ def gen_vectors():
          "expected_ph": coordinate(name)}
         for vid, name, note in COORD_CASES
     ]
+    failures = check_spec_expectations(vectors)
+    if failures:
+        print("REFUSING TO GENERATE — the oracle disagrees with "
+              "spec/book-2-navigation.md:")
+        for f in failures:
+            print("  " + f)
+        print("\nEither impl/sigma_wave.py is wrong, or the spec is wrong and needs "
+              "an erratum. Do not 'fix' this by editing SPEC_EXPECT to match the "
+              "oracle: that is the circularity this block exists to prevent.")
+        raise SystemExit(1)
     doc = {
         "format": "sigma-glyph-wave-conformance",
         "format_version": 2,
@@ -227,11 +415,15 @@ def gen_vectors():
         "vectors": vectors,
     }
     VEC_PATH.write_text(json.dumps(doc, indent=2) + "\n")
-    print(f"wrote {VEC_PATH.name}: {len(vectors)} vectors")
+    n_spec = len(SPEC_EXPECT)
+    print(f"wrote {VEC_PATH.name}: {len(vectors)} vectors "
+          f"({n_spec} spec-derived/constraining, {len(vectors) - n_spec} "
+          f"oracle-generated/regression-only)")
 
 
 def selftest():
     ok = []
+    skipped = []
 
     def chk(name, cond, detail=""):
         ok.append(cond)
@@ -283,16 +475,38 @@ def selftest():
                 chk(f"vector {v['id']}", got == v["expected_ph"], f"got {got}")
             else:
                 chk(f"vector {v['id']}", False, f"unknown kind {kind}")
-    else:
+    elif FROM_CHECKOUT:
         chk("wave_vectors.json present", False, "run: python3 impl/sigma_wave.py gen")
+    else:
+        skipped.append("recorded-vector replay")
+        print(f"SKIP recorded-vector replay: {VEC_PATH.name} is not shipped in "
+              f"the installed package (it lives in the repo at "
+              f"tests/spec_conformance/). The property checks above ran in full; "
+              f"the replay did not run and is not claimed. To run it, use a "
+              f"checkout: python3 impl/sigma_wave.py")
 
     print(("\nWAVE: ALL PASS" if all(ok) else "\nWAVE: FAILURES PRESENT")
-          + f" ({sum(ok)}/{len(ok)})")
+          + f" ({sum(ok)}/{len(ok)})"
+          + (f" — SKIPPED: {', '.join(skipped)}" if skipped else ""))
     return all(ok)
 
 
+# Every verb this module accepts beyond the default (no-argument) self-test.
+# tools/check_release_surface.py reads this constant and REFUSES to pass unless
+# every verb in it is classified RUNNABLE or NOT_RUNNABLE for an installed copy
+# and behaves that way when actually executed from outside a checkout. `gen`
+# shipped for four releases with nobody running it that way.
+VERBS = ("gen",)
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "gen":
-        gen_vectors()
-    else:
-        sys.exit(0 if selftest() else 1)
+    argv = sys.argv[1:]
+    if argv[:1] == ["gen"]:
+        gen_vectors()               # refuses (exit 2) outside a checkout; exits
+        sys.exit(0)                 # 1 if the oracle contradicts the spec
+    if argv:
+        print(f"usage: {sys.argv[0]} [{'|'.join(VERBS)}]\n"
+              f"  unknown verb {argv[0]!r}. No argument runs the self-test; "
+              f"refusing rather than running it under a name that does not "
+              f"exist and reporting success.", file=sys.stderr)
+        sys.exit(2)
+    sys.exit(0 if selftest() else 1)

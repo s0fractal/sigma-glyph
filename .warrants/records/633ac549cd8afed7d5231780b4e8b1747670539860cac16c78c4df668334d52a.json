@@ -6,7 +6,7 @@
     "because": [
       {
         "kind": "prose",
-        "text": "Fourth Lean front and Qwen's explicit ask (Book I determinism/totality). EvalMachine.lean models the v0.5 hash-thunk machine faithfully - leftmost-outermost, lazy left-spine, size-priced ATP, redex recognition by hash - and is built ON MachineBytes so recognition rides the PROVEN byte/hash layer, not a re-axiomatized one. Totality is definitional (step well-founded on sizeOf, eval fuel-indexed structural recursion: evalHash is a total function, no partial/unsafe); determinism is definitional (a function). step_bounds (fun_induction + grind) yields step_cost_le (cost<=remaining) and step_cost_pos (cost>=1, the §3.4 minimum - no zero-cost stall); eval_spent_le proves spent<=atp for ALL terms and budgets. Bridge: no-sorry guard + compile + the executed Lean evaluator (EvalRun.lean) vs the oracle on all 33 eval vectors, result NodeHash AND atp_spent byte-exact, incl. Omega divergence (500 ATP -> exhausted), R-S size-pricing, genesis-intrinsic, store isolation, stuck forms. Maintainer wrote the model, bridge, and eval_spent_le; delegated only the step_bounds case-bash (a subagent hit its session limit and reverted, maintainer closed it directly with fun_induction+grind); cold-ran the full bridge + all three prior-front regressions on a fresh master checkout on the mini before filing. Remaining: the step-tag classifier for row-by-row SizeBound correspondence; Rust production impl."
+        "text": "Fourth Lean front and Qwen's explicit ask (Book I determinism/totality). EvalMachine.lean models the v0.5 hash-thunk machine faithfully - leftmost-outermost, lazy left-spine, size-priced ATP, redex recognition by hash - and is built ON MachineBytes so recognition rides the PROVEN byte/hash layer, not a re-axiomatized one. Totality is definitional (step well-founded on sizeOf, eval fuel-indexed structural recursion: evalHash is a total function, no partial/unsafe); determinism is definitional (a function). step_bounds (fun_induction + grind) yields step_cost_le (cost<=remaining) and step_cost_pos (cost>=1, the \u00a73.4 minimum - no zero-cost stall); eval_spent_le proves spent<=atp for ALL terms and budgets. Bridge: no-sorry guard + compile + the executed Lean evaluator (EvalRun.lean) vs the oracle on all 33 eval vectors, result NodeHash AND atp_spent byte-exact, incl. Omega divergence (500 ATP -> exhausted), R-S size-pricing, genesis-intrinsic, store isolation, stuck forms. Maintainer wrote the model, bridge, and eval_spent_le; delegated only the step_bounds case-bash (a subagent hit its session limit and reverted, maintainer closed it directly with fun_induction+grind); cold-ran the full bridge + all three prior-front regressions on a fresh master checkout on the mini before filing. Remaining: the step-tag classifier for row-by-row SizeBound correspondence; Rust production impl."
       },
       {
         "check": "1b601fc16e730159f7ad59d32937e7fd08d3ea9d4e8b93744f38304890940bcf",
@@ -35,7 +35,7 @@
     {
       "actor": "claude-fable-5@sigma-glyph",
       "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
-      "sig": "02c848d47ffc3045cffd6a9f671d39c8af23c46b25420f9589aed6935c06d4ff9a5760f8762476acdae0cefaa293145ebb5dce67a94aab0f8e66930629e43702"
+      "sig": "d8b64d6af35cda1ef8191cd4cc7d15d439ede89bcbdeab063434d4233d869cd2ddc6be2982fa9dc341d5169d8e7556256ac27d147f9583e3f4eea58fc2b0b508"
     }
   ]
 }

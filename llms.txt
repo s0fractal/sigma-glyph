@@ -47,6 +47,25 @@ python3 tools/repo_map.py --check-map           # every cited document is locate
 
 When a document and a command disagree, the command is right.
 
+From an **installed** copy (`pip install sigma-glyph`, once published — see
+[PUBLISHING.md](PUBLISHING.md)) the same three self-tests run as
+`python -m sigma_glyph` / `sigma_wave` / `sigma_federation`, and they report one
+thing differently, on purpose: the recorded-vector replays and Book III's
+Book-I-unreachable fixture read `tests/spec_conformance/*.json`, which the wheel
+does not ship. Those are announced as an explicit `SKIP …` with the reason, and
+the verdict line names them (`WAVE: ALL PASS (13/13) — SKIPPED: recorded-vector
+replay`). The property checks run in full either way. A *missing* corpus in a
+CHECKOUT is still a failure — the two cases are distinguished structurally, not
+by guessing.
+
+Before 2026-07-30 an installed copy did something worse than skip: `sigma_wave`
+printed `FAIL wave_vectors.json present` (13/14, exit 1) and `sigma_federation`
+exited 1 with a `FileNotFoundError` traceback. Nothing was wrong with either
+Book; the self-tests were reading "the distribution does not ship this" as "the
+check failed". `tools/check_release_surface.py` now measures the built wheel and
+refuses to let that state be published, and it derives the expected skips from
+the wheel's own file list rather than hard-coding them.
+
 ## The three Books, and the constitution
 
 - [spec/book-1-truth.md](spec/book-1-truth.md) — normative. Canonical bytes,
@@ -66,8 +85,9 @@ When a document and a command disagree, the command is right.
 
 Three independent implementations agree on all 49 vectors (Python, Rust, and
 warrant-go), and the evaluator's determinism, totality and memory bound are
-machine-checked in Lean 4 (`proofs/`). Honest limit: part of that chain rests
-transitively on `native_decide`, which puts the compiler in the trusted base.
+machine-checked in Lean 4 (`proofs/`). Bounded by SA-1: part of that chain rests
+transitively on `native_decide`, which puts the compiler in the trusted base as
+well as the kernel.
 
 ## If you are reviewing
 
@@ -91,30 +111,54 @@ defect — have been submitted here by three separate reviewers.
 
 ## Reporting a defect
 
-[SECURITY.md](SECURITY.md) — scope, documented limits that are not defects, and
-the severity ladder (P0 = two nodes disagree on a result hash, or the wave layer
-touches identity). Response capacity is stated rather than implied.
+[SECURITY.md](SECURITY.md) — scope, the reporting channel, and the severity
+ladder (P0 = two nodes disagree on a result hash, or the wave layer touches
+identity). Response capacity is stated rather than implied. What is out of scope
+is a stated boundary of the threat model, defined once in
+[SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md).
 
-## Where the honest gaps are
+## Security assumptions and non-goals
 
-- **`native_decide` is in the trusted base.** Part of the Lean chain rests on it
-  transitively, so those theorems trust the compiler as well as the kernel.
-  `C1Compiler.lean` does not.
-- **CI checks `SizeBound.lean` directly**; the rest of the proofs reach CI
-  through the differential bridges rather than as kernel checks of their own.
-- **The pinned auditor disagrees with the live CLI on signature severity.**
-  `tools/warrant_verify.py` is pinned to a governed Warrant v0.1/v0.2 snapshot
-  where any bad signature is fatal; SPEC v0.3 §6(3) makes it a warning and
-  excludes the signature. Demonstrated: one store, one forged co-signature, this
-  tool says errors=1 and the live CLI says 0 errors, 56 warnings. The tool prints
-  the divergence on the line where it fires. A re-pin belongs to a §7 gate.
-- **Book III accepts a JCS-equivalent but non-canonical assertion blob.**
-  `sigma_federation.py` does not compare raw bytes against `canon(parsed)`; the
-  v0.6.6 governance fix covered the governance verifier only. Deferred to the
-  settlement-integration layer, which is the layer now being built.
-- **ADR-008 is not on `master`** and not in `spec/ANCHORS.txt`. It lives on
-  `adr-008-rev15-candidate`, is cited from `warrant`, and all fifteen of its
-  gate rounds came from one reviewer family.
-- **No independent gate is currently affordable**, so work lands with the
-  attestation described in warrant's `policies/gate-settlement.json` rather than
-  with a passed gate.
+This section used to be "Where the honest gaps are" and carried its own copy of
+the list. The items have not changed and none has been softened; they now live in
+one place, in the form a standards reader expects:
+**[SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md)** — ten scoped assumptions
+(`SA-1` … `SA-10`) and seven explicit non-goals (`NG-1` … `NG-7`), each with its
+reasoning.
+
+Not duplicated here on purpose. "A document claims closure where the fix only
+narrowed" is a recurring defect class in this stack and this file has been caught
+at it four times; a residual list maintained in two places is how the fifth
+happens.
+
+The sharpest five, at full strength so a summary cannot read softer than the
+thing it summarises:
+
+- **SA-1** — `native_decide` is in the trusted base for part of the Lean chain,
+  so those theorems trust the **compiler** as well as the kernel. Nothing
+  discharges that, and nothing can. `C1Compiler.lean` does not use it.
+- **SA-3** — the pinned auditor and the live CLI disagree on signature severity.
+  One store, one forged co-signature: `tools/warrant_verify.py` says `errors=1`,
+  the live CLI says `0 errors, 56 warnings`.
+- **SA-4** — Book III still admits a JCS-equivalent but non-canonical assertion
+  blob. The v0.6.6 fix narrowed this to the **governance** verifier only;
+  `sigma_federation.py` still does not compare raw bytes against `canon(parsed)`.
+- **SA-5** — the 2-of-3 threshold has been exercised **five times**, and three of
+  those five were signed from one host, which is one custody, not a quorum.
+- **SA-8/SA-9** — nothing has ever been published and the OIDC publish path has
+  never executed; no independent gate is currently affordable, so work lands
+  under a recorded attestation rather than a passed gate.
+
+These are stated boundaries of the threat model, not defects. A report showing
+one is *worse than stated* is in scope and welcome; one restating it is not.
+
+## Who holds authority here
+
+Model actors in this project are **delegated, bounded actors under a root of
+authority held by a human** — never the maintainer of record, never where
+non-repudiation rests. A model's signature attests that a delegated process ran
+under a policy a human signed. See SA-6, and
+[`warrant/MODEL-ACTORS.md`](https://github.com/s0fractal/warrant/blob/master/MODEL-ACTORS.md)
+for the full positioning including four places the mechanism does not yet match
+it — one of which is `spec/GOV-anchors.md` §4/§5, which names a model
+"maintainer" and is an anchored STANDARD that an agent may not re-word.

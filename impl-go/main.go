@@ -23,6 +23,17 @@ const (
 	policyTag    = "sigma-glyph.selection@v1"
 	viewTag      = "sigma-glyph.annotation-view@v1"
 	lutArbiter   = "c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2"
+
+	// Warrant SPEC v0.4 §5: a signature covers "warrant-sig-v1:" followed by
+	// the 32 raw bytes of the WarrantID, 47 bytes in all. A Go verifier that
+	// counts a signature the Python verifier refuses is the
+	// two-implementations-disagree outcome this repository exists to forbid.
+	//
+	// Go cannot import tools/warrant_sig.py, so this is the one copy of the
+	// construction that must exist. tests/one_signing_path.py pins it to that
+	// module's own constant, which is the only honest check available across a
+	// language boundary -- and the reason it is a named constant here.
+	warrantSigDomain = "warrant-sig-v1:"
 )
 
 var orderFields = map[string]bool{"epoch": true, "ts": true, "warrant_id": true, "actor": true}
@@ -81,7 +92,11 @@ func main() {
 	case "interfere":
 		err = cmdInterfere()
 	case "book1-unreachable":
-		err = writeJSON(book1Fixture())
+		// See book1EchoedConstantNotEvaluated: this prints a transcribed
+		// constant. It is not evidence that Go can evaluate Book I.
+		fmt.Fprintln(os.Stderr, "note: impl-go has NO Book I evaluator; "+
+			"this output is a hand-transcribed constant, not an evaluation")
+		err = writeJSON(book1EchoedConstantNotEvaluated())
 	default:
 		err = fmt.Errorf("unknown subcommand %q", os.Args[1])
 	}
@@ -896,6 +911,7 @@ func replay(path string) error {
 		return errors.New("vectors must be a list")
 	}
 	okays := 0
+	var vacuous []string
 	for _, raw := range rawVectors {
 		v, _ := asMap(raw)
 		id, _ := asString(v["id"])
@@ -952,7 +968,13 @@ func replay(path string) error {
 				"right": interfere(w1, interfere(w2, w3)),
 			}
 		case "book1_unreachable":
-			got = book1Fixture()
+			// Not counted as a pass, and excluded from the denominator: this
+			// implementation cannot verify it. Reporting it green inflated
+			// FEDERATION-GO's tally with a vector it never checked.
+			vacuous = append(vacuous, id)
+			fmt.Println("VACUOUS", id,
+				"- impl-go has no Book I evaluator; echoed, not verified")
+			continue
 		default:
 			got = fmt.Sprintf("unknown kind %s", kind)
 		}
@@ -963,12 +985,17 @@ func replay(path string) error {
 			fmt.Println("FAIL", id, "got", mustJSON(got), "want", mustJSON(v["expected"]))
 		}
 	}
-	n := len(rawVectors)
+	n := len(rawVectors) - len(vacuous)
+	note := ""
+	if len(vacuous) > 0 {
+		note = fmt.Sprintf("; %d vector(s) NOT verified by this implementation: %s",
+			len(vacuous), strings.Join(vacuous, ", "))
+	}
 	if okays == n {
-		fmt.Printf("\nFEDERATION-GO: ALL PASS (%d/%d)\n", okays, n)
+		fmt.Printf("\nFEDERATION-GO: ALL PASS (%d/%d%s)\n", okays, n, note)
 		return nil
 	}
-	fmt.Printf("\nFEDERATION-GO: FAILURES PRESENT (%d/%d)\n", okays, n)
+	fmt.Printf("\nFEDERATION-GO: FAILURES PRESENT (%d/%d%s)\n", okays, n, note)
 	return errors.New("replay failures")
 }
 
@@ -1536,6 +1563,7 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 	if err != nil {
 		return counted
 	}
+	sigMsg := append([]byte(warrantSigDomain), ridBytes...)
 	for _, rawSig := range stringListAny(env["sigs"]) {
 		sigMap, ok := asMap(rawSig)
 		if !ok {
@@ -1552,7 +1580,14 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 		if err1 != nil || err2 != nil || len(pub) != ed25519.PublicKeySize || len(sig) != ed25519.SignatureSize {
 			continue
 		}
-		if ed25519.Verify(ed25519.PublicKey(pub), ridBytes, sig) {
+		// Warrant SPEC v0.4 §5: the signed message names the protocol, so a key
+		// that signs some other protocol's SHA-256 digest does not thereby sign
+		// a Warrant. This is the Go half of a differential -- verifying the bare
+		// WarrantID here would make the two halves disagree about what a valid
+		// signature is, which is the defect class this project ranks P0. The
+		// separator itself is the warrantSigDomain constant above, so the one
+		// place Go states it is the one place tests/one_signing_path.py checks.
+		if ed25519.Verify(ed25519.PublicKey(pub), sigMsg, sig) {
 			counted[actor] = true
 		}
 	}
@@ -1667,7 +1702,20 @@ func shortHash(h string) string {
 	return h[:12]
 }
 
-func book1Fixture() map[string]any {
+// book1EchoedConstantNotEvaluated returns the Book I EV-TV4-IK result as a
+// LITERAL, hand-copied from tests/spec_conformance/vectors.json.
+//
+// impl-go contains no Book I evaluator — no deserializer, no stepper, no ATP
+// accounting. Book III's criterion 1 vector FV-BOOK-I-UNREACHABLE is therefore
+// VACUOUS on this side: comparing this constant against the Python oracle's
+// eval proves only that the constant has not been mistyped. The name is this
+// long on purpose; the old name (book1Fixture) let replay reports read as if a
+// second implementation had independently verified Book I, which is exactly
+// what a "three independent implementations" claim must not be built on.
+//
+// If Book I is ever implemented here, delete this function rather than reusing
+// its name.
+func book1EchoedConstantNotEvaluated() map[string]any {
 	return map[string]any{
 		"book1_vector":        "EV-TV4-IK",
 		"result_hash":         "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",

@@ -77,9 +77,17 @@ case "$CLI" in
     ;;
 esac
 
+TAINTED=0
 if [ "$(git -C "$REPO" status --porcelain)" != "$LIVE_STATE" ]; then
     echo "WARNING: live checkout changed during review — inspect git status before trusting it" >&2
+    TAINTED=1
 fi
 test -s "reviews/$OUT" || { echo "reviewer did not write reviews/$OUT" >&2; exit 1; }
 cp "reviews/$OUT" "$REPO/reviews/$OUT"
 echo "review delivered: reviews/$OUT"
+# The review IS delivered above — the isolation breach does not invalidate the
+# text, it invalidates the claim that the reviewer stayed in its clone. Printing
+# that to stderr and then exiting 0 is the "silent exit 0" class: a caller that
+# checks $? (the normal thing, and what any wrapper does) was told the run was
+# clean. It was not.
+[ "$TAINTED" = 0 ] || exit 1

@@ -87,7 +87,10 @@ def main():
         print("BRIDGE: FAILED — " + "; ".join(problems))
         return 1
     with tempfile.TemporaryDirectory() as td:
-        err = (proof_guard.build_olean(lean, "SizeBound", td)
+        # `FRONT["build"]` is the single place this front's module set is
+        # spelled: the bridge used to hardcode "SizeBound" while the guard
+        # derived its audit scope from `build`, so the two could disagree.
+        err = (proof_guard.build_front(lean, FRONT, td)
                or proof_guard.guard_semantics(lean, FRONT, td))
     if err:
         print("BRIDGE: FAILED — " + err)
