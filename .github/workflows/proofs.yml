@@ -5,10 +5,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Install elan (pinned toolchain)
+      - name: Install elan (pinned installer, pinned toolchain)
+        # This workflow decides whether the proofs check out, so the code that
+        # sets it up is part of what the proofs rest on. It used to pipe
+        # elan-init.sh from `master` straight into sh: a mutable ref, in a
+        # repository that pins every action to a commit. Anyone able to move
+        # that branch could run arbitrary code inside the job that validates
+        # the mechanization. Now pinned by commit AND verified by digest --
+        # the pin alone would still trust raw.githubusercontent to serve that
+        # commit honestly, and the digest is what makes the fetch checkable.
+        env:
+          ELAN_INIT_COMMIT: 55dc2814ca42ace25f05ba4dd7a43a8c701a0549
+          ELAN_INIT_SHA256: a620ff1641616222c8d37c54845492004bb84d6877cdbc944dd65c1aa685bf53
         run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
-            | sh -s -- -y --default-toolchain "$(cat proofs/lean-toolchain)"
+          curl -sSf "https://raw.githubusercontent.com/leanprover/elan/${ELAN_INIT_COMMIT}/elan-init.sh" \
+            -o elan-init.sh
+          echo "${ELAN_INIT_SHA256}  elan-init.sh" | sha256sum -c -
+          sh elan-init.sh -y --default-toolchain "$(cat proofs/lean-toolchain)"
+          rm -f elan-init.sh
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Check the memory-bound proof
         # `lean` exits 0 on a file containing `sorry` (warning only), and it
