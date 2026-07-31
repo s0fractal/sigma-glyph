@@ -91,10 +91,13 @@ def find(repo, ident):
         matches = [p for p in git(repo, "ls-tree", "-r", "--name-only", ref).splitlines()
                    if ident.lower() in p.lower()]
         # Prefer the normative text over a translation of it. `Book I` matched
-        # book-1-truth.en.md, the informative English rendering, and pointing a
-        # reviewer at a translation while calling it the citation target is the
-        # same ambiguity this file exists to remove.
-        matches.sort(key=lambda p: (".en." in p, "/archive/" in p, len(p)))
+        # both editions, and pointing a reviewer at a translation while calling
+        # it the citation target is the same ambiguity this file exists to
+        # remove. Since the v0.6.8 bundle the normative Book I edition is the
+        # ENGLISH one (`book-1-truth.en.md`) and the Ukrainian file is the
+        # informative translation — so the preference is `.en.` first, the
+        # opposite of what it was before that adoption.
+        matches.sort(key=lambda p: (".en." not in p, "/archive/" in p, len(p)))
         for path in matches:
             if path not in seen_paths:
                 hits.append((ref, path))

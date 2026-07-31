@@ -68,10 +68,13 @@ the wheel's own file list rather than hard-coding them.
 
 ## The three Books, and the constitution
 
-- [spec/book-1-truth.md](spec/book-1-truth.md) — normative. Canonical bytes,
-  SHA-256 identity, SKI normal-order reduction, size-priced ATP. The contract two
-  independent nodes need to agree on a result hash. `book-1-truth.en.md` is an
-  informative translation, not the citation target.
+- [spec/book-1-truth.en.md](spec/book-1-truth.en.md) — normative, and the
+  citation target. Canonical bytes, SHA-256 identity, SKI normal-order
+  reduction, size-priced ATP. The contract two independent nodes need to agree
+  on a result hash; self-contained, so an implementer needs no other file but
+  the anchored vectors. `book-1-truth.md` is the informative Ukrainian
+  translation. The document is authoritative over `impl/sigma_glyph.py`: a
+  divergence is a defect resolved by an erratum, not by the code winning.
 - [spec/book-2-navigation.md](spec/book-2-navigation.md) — the wave layer. A
   **view over identity, never part of it**: ignore it entirely and Book I still
   holds. This invariant is load-bearing; anything that lets a wave decide a hash

@@ -3,9 +3,11 @@
 Build an independent Rust implementation of Σ-GLYPH **Book I** (TRUTH) that
 replays the machine-readable conformance suite byte-exact. The Python
 reference is `impl/sigma_glyph.py` and the normative text is
-`spec/book-1-truth.md`; you MAY read both to resolve ambiguity, but your
+`spec/book-1-truth.en.md`; you MAY read both to resolve ambiguity, but your
 implementation must be your own logic, not a transliteration. Passing the
 oracle-generated vectors IS the differential test against the oracle.
+Since v0.6.8 the document is authoritative over the oracle: if they
+disagree, say so — that is a defect report, not a bug in your crate.
 
 ## Deliverable
 

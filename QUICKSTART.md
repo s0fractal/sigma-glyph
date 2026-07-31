@@ -80,6 +80,8 @@ signed, re-runnable record:
 python3 tools/warrant_verify.py     # every record id, signature, blob, link
 ```
 
-Deeper: `spec/book-1-truth.md` is ~200 lines and self-contained.
+Deeper: `spec/book-1-truth.en.md` is the normative Book I — ~200 lines,
+self-contained, and the citation target. (`spec/book-1-truth.md` is the
+informative Ukrainian translation of the same text.)
 `reviews/README.md` explains how to attack this project properly —
 adversarial reviews are the development model, and yours is welcome.

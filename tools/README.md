@@ -43,9 +43,11 @@ python3 tools/verify_anchors.py
 ```
 
 **What it checks:**
-- `book-1-truth.md` anchor matches file hash
-- `book-2-navigation.md` anchor matches file hash
-- `LORE.md` anchor matches file hash
+- every anchor in the topmost `spec/ANCHORS.txt` release section matches its
+  file's hash — since v0.6.8 that is 11 files, both Book I editions included
+  (`book-1-truth.en.md`, the normative one, and `book-1-truth.md`, the
+  informative translation). The list is read from the file, not hard-coded
+  here: this README named three files while the tool checked ten.
 
 **Contract:** Specification anchors are `NodeHash(LITERAL, atom = SHA-256(document_bytes))` — ensuring published specs are immutable and verifiable.
 
