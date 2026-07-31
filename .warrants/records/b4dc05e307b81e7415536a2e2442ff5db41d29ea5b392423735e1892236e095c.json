@@ -1,0 +1,39 @@
+{
+  "body": {
+    "actor": {
+      "id": "s0fractal@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "ADOPT v0.6.7 anchor-set: Warrant SPEC v0.4 domain-separated signatures move governance_vectors.json"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "7c2250451436ca9d64550512b27d0b414be0c30efa10183c88ef1267ca853b72"
+    ],
+    "subject": {
+      "hash": "d985e8b811e29c4e11142acde79a7f330211310205b7b49d8fff5c8a9e1b61b5"
+    },
+    "ts": 1785456537,
+    "under": [
+      "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c",
+      "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "s0fractal@sigma-glyph",
+      "key": "a44c7a84b7ab91a2d5654ebd0647cbb3224551dce294c87255d3538e0fc39ca3",
+      "sig": "196349e5f4d285e5fb9bf20955062cdc1fdb9af40f14b80f7fdff5795da51b0ed84338f3b43d137c4073744d4d867e68268590f7cf09ccd9737ea239908c3b0b"
+    },
+    {
+      "actor": "claude-fable-5@sigma-glyph",
+      "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
+      "sig": "455cd18fef0befdce43dd8610dfe3618b2296e519dcd121180b58b16c2e6e7d9f98303fa3d7bda5870d828eef6cac2f627021d8222c36c41cca2da91d97bec04"
+    }
+  ]
+}
