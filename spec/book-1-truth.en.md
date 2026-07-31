@@ -4,25 +4,20 @@
 **Type:** Bit-Exact Computational Core
 **Status:** DRAFT STANDARD
 
-> **Status of this edition: PROPOSED NORMATIVE — NOT ADOPTED.** This is the
-> complete candidate text of [`proposals/PROP-book1-en-normative.md`]. Until a
-> threshold warrant per `spec/GOV-anchors.md` adopts that proposal, the
-> normative, anchored citation target remains
-> [`book-1-truth.md`](book-1-truth.md) (Ukrainian) and this document is an
-> informative translation: in any discrepancy the anchored Ukrainian source
-> governs. Clauses that would change on adoption are marked
-> **[PROPOSED — takes effect only on adoption]**. All hashes, byte strings,
-> code, tables, ADR references, and RFC 2119 keywords are reproduced verbatim
-> from the Ukrainian source, except where such a marker says otherwise.
+> **Status of this edition: NORMATIVE.** This document is the citation target
+> of Book I. [`book-1-truth.md`](book-1-truth.md) (Ukrainian) is the
+> informative translation of this text: in any discrepancy between the two
+> editions, this one governs. Both editions are anchored (§8) and ship in the
+> same release bundle.
 >
 > **Self-containment.** This edition is written so that an independent
 > implementer can build a conformant Book I evaluator from this document plus
 > the anchored vector file `tests/spec_conformance/vectors.json` alone, without
 > reading `impl/sigma_glyph.py`: every normative constant is printed in full
 > (§4.2, §5), including the genesis constants the Ukrainian edition defers to
-> the implementation. Values added by this edition beyond the Ukrainian text
-> are marked *(computed)*; each is derivable from the rules of §2 and was
-> recomputed independently and cross-checked against the reference
+> the implementation. Values printed here that the Ukrainian edition leaves
+> implicit are marked *(computed)*; each is derivable from the rules of §2 and
+> was recomputed independently and cross-checked against the reference
 > implementation.
 
 **Scope:** This document defines everything — and only what — two independent
@@ -260,13 +255,13 @@ Each axiom is the LITERAL node `0001‖SHA-256(glyph)` per §2:
 | K | `000186be9a55762d316a3026c2836d044f5fc76e34da10e1b45feee5f18be7edb177` | `bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c` |
 | S | `00018de0b3c47f112c59745f717a626932264c422a7563954872e237b223af4ad643` | `887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6` |
 
-**[PROPOSED — takes effect only on adoption]** The full 32-byte values above are
-printed in this document as normative constants, so that an implementer needs no
-source beyond this Book. (The Ukrainian edition instead defers the full
-SHA-256("I"/"K"/"S") values to `impl/sigma_glyph.py` to avoid a second source of
-truth; under the precedence rule proposed in §7 this document becomes the single
-source, and the reference implementation cross-checks it.) Every value is
-recomputable from §2: `NodeHash = SHA-256(0001‖SHA-256(glyph))`.
+The full 32-byte values above are printed in this document as normative
+constants, so that an implementer needs no source beyond this Book. (The
+informative Ukrainian edition instead defers the full SHA-256("I"/"K"/"S")
+values to `impl/sigma_glyph.py`; under the precedence rule of §7 this document
+is the single source of truth and the reference implementation cross-checks
+it.) Every value is recomputable from §2:
+`NodeHash = SHA-256(0001‖SHA-256(glyph))`.
 
 **Genesis intrinsic (MUST, since v0.5).** The three axioms I, K, S are intrinsic
 constants: a conforming implementation MUST serve `resolve/force` of their
@@ -347,13 +342,13 @@ A(x, (M N))  = APPLY(APPLY(⟨S⟩, A(x,M)), A(x,N))
 The prices below are v0.5 (size-priced, hash-leaf, §3.4). The exhaustive
 machine-checkable set is `tests/spec_conformance/vectors.json` (normative).
 
-> **[PROPOSED — takes effect only on adoption]** **Precedence:** this document
-> is authoritative; `impl/sigma_glyph.py` is the reference implementation; a
-> divergence between them is a defect in one of them, resolved by an erratum
-> adopted through the same governance process as any other spec change
-> (GOV-anchors §3). *This inverts the rule currently in force. Until adoption,
-> the Ukrainian edition's rule governs: on any discrepancy between the prose
-> and the vectors, the oracle `impl/sigma_glyph.py` wins.*
+> **Precedence:** this document is authoritative. `impl/sigma_glyph.py` is a
+> reference implementation, not the definition; a divergence between this
+> document and any implementation — the reference one included — is a defect in
+> one of them, resolved by an erratum adopted through the same governance
+> process as any other spec change (GOV-anchors §3), never by fiat of the code.
+> The anchored vector file is normative as data; if a vector disagrees with
+> this text, that too is a defect to be adjudicated, not a silent override.
 
 **TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash
 `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`;
