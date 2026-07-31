@@ -179,8 +179,19 @@ RAW=https://raw.githubusercontent.com/s0fractal/warrant
 say "Governance status --enforce (out-of-band trust anchor)"
 if curl -sfL "$RAW/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" \
         -o "$_freshdir/anchor-trust.json" 2>/dev/null; then
+  # `grep -q AUTHORIZED` matched NOT AUTHORIZED too -- the gate passed on an
+  # unauthorized set and failed only because pipefail happened to catch the
+  # exit status. Remove pipefail and the substring silently greens a store with
+  # no adoption warrant in it. Verified: deleting the v0.6.7 adoption warrant
+  # makes the old form pass and this one fail. Anchored to the column so a
+  # release line must START with AUTHORIZED, and a second pass refuses if the
+  # word NOT appears anywhere -- one release unauthorized fails the whole gate.
   python3 tools/anchor_governance.py status --enforce \
-    --trust-config "$_freshdir/anchor-trust.json" | tee /dev/stderr | grep -q "AUTHORIZED"
+    --trust-config "$_freshdir/anchor-trust.json" | tee /dev/stderr \
+    | grep -qE '^[^ ]+ +AUTHORIZED' \
+    && ! python3 tools/anchor_governance.py status --enforce \
+         --trust-config "$_freshdir/anchor-trust.json" 2>/dev/null \
+       | grep -q "NOT AUTHORIZED"
 else
   skip "out-of-band anchor trust not reachable — run online for full parity"
 fi
