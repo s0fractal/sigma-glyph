@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+On `master` after the `v0.6.7` tag; **not** in the adopted bundle and not on PyPI. No anchored file changes.
+
+- **The enforce gate accepted `NOT AUTHORIZED`.** `tools/test-all.sh`'s network-gated `status --enforce` step matched loosely enough that the refusal string passed the gate that exists to detect it.
+- `proposal/eval-trichotomy`: the evaluator's settling and its peak-memory price stated as three theorems and re-pinned against a proof guard that had moved twice underneath them.
+- Two documented counts that had drifted from what the code actually runs, corrected.
+
+## v0.6.7 — GOV 1.0.2 (2026-07-31)
+
+The bundle Warrant SPEC v0.4 forces. Warrant replaced its §5 signed message with `"warrant-sig-v1:" || WarrantID_raw` (47 bytes), so every governance signature this repository produces or verifies had to move with it — **and only then**, because a repository that changes its own signature construction ahead of a governance act is deciding by commit. Governed adoption warrant, 2-of-3 signatures. Published to PyPI as `sigma-glyph` **0.6.7** on 2026-07-31, through the OIDC path.
+
+- **Anchor set: exactly one file changes** — `tests/spec_conformance/governance_vectors.json`, re-signed under the new construction. Books I–III, `spec/LORE.md`, `spec/appendix-a-complexity.md` and `spec/GOV-anchors.md` carry over **byte-identical** from v0.6.6 (`spec/ANCHORS.txt`). Book I/II/III semantics are untouched.
+- **The Warrant signing message was implemented in eight places** — including Go — each one a place the spec could be silently departed from, and they were only ever found when one of them went red. Now built in one place, with a test that fails if a second copy appears. The Go governance verifier was still counting pre-v0.4 signatures; `briefs/` still told a second implementer to verify the bare WarrantID.
+- **A check that prints `FAILURES PRESENT` and returns 0 is not a check.** `python -m sigma_glyph` did exactly that. Exit statuses now match what was printed, and the guard that enforces it runs in CI rather than only locally.
+- **The release gate ran one verb of three**, and `gen` ended in a `FileNotFoundError` traceback from every installed copy. `tools/check_release_surface.py` now classifies every verb the modules declare as RUNNABLE or NOT_RUNNABLE and executes all the runnable ones from outside a checkout; an unclassified verb fails the gate.
+- **The conformance vectors mirrored the oracle instead of constraining it.** Book I/II vectors were checked against the implementation that generated them; `impl-go` counted a Book I vector it cannot evaluate; the Rust binary answered hostile input with `SIGABRT` and no gate could see it. Rust now fences and refuses (`tests/book1_resource_fence.py`), and `cargo test` — which had run zero tests and was never invoked by CI — runs.
+- **The proof guard's coverage claim was false for every subdirectory**: it walked one directory and vouched for all of them, and the guard module printed its own docstring while telling the shell it had passed.
+- Non-anchored: `SECURITY-ASSUMPTIONS.md` replaces the old "honest gaps" section (same content, standards-reader form); ADR-007's status line said PROPOSED after it had become a STANDARD; mutable action refs in the OIDC-privileged publish job pinned by commit SHA; the Warrant sibling pin moved to a commit carrying the WPL headroom gate.
+
+## v0.6.6.post1 — packaging only (2026-07-30)
+
+**A packaging release, not a spec release.** PEP 440 `.post1`: no Book, no anchor, no vector and no governance artifact changes, and `spec/ANCHORS.txt` gains no section — the adopted bundle is still v0.6.6. This is the first version of this project ever published to PyPI.
+
+- **`pip install sigma-glyph`** — Books I–III as three importable, `python -m`-runnable modules (`sigma_glyph`, `sigma_wave`, `sigma_federation`). No console scripts. The spec, `tests/`, the proofs and the Rust and Go implementations do not ship.
+- **The self-tests accused the wheel of failing when it had merely been installed.** The replay corpora live in `tests/spec_conformance/` and are not distribution data, so `python -m sigma_wave` printed `FAIL wave_vectors.json present` (13/14, exit 1) and `python -m sigma_federation` exited 1 with a `FileNotFoundError` traceback. Neither was a real failure. Both now announce the missing corpus as an explicit `SKIP` with the reason and the command that runs it for real, and `tools/check_release_surface.py` derives the expected skips from the wheel's own file list rather than hard-coding them.
+- Honest crate metadata and a canonical Go module path.
+- **The proof guard vouched for itself** (`fix/review-2026-07`): it certified vacuous theorems, trusted the file it audited, chose its own scope from a field nothing compiled from, and compiled clean past two proven `sorry` bypasses; a one-line `namespace X theorem … end X` hid a theorem from the registry entirely.
+- `tools/test-all.sh`: a duplicate `WARRANT_PIN` line failed open and was misdiagnosed as a network problem; the pin reader miscounted its own lines and spliced values; two sibling pins had drifted from the one `ci.yml` mandates.
+- The conformance README said 39 vectors; the suite has **49**.
+
 ## v0.6.6 — GOV 1.0.2 (2026-07)
 
 Conformance-hardening **PATCH** from an external Codex adversarial audit of the anchor-governance verifier — three cross-implementation defects where a §2/Warrant-§3-conforming verifier should already have refused, but the reference implementations under-enforced. `spec/GOV-anchors.md` → v1.0.2 (§3 steps 2–3 spell out the invariants). **Not** a new schema `@v2` tag — all 17 prior governance vectors are byte-identical; only inputs the spec already forbade change verdict. Independently gated: **DeepSeek v4 Pro + Gemini 3.1 Pro, both APPROVE-PATCH** (§0 conformance-not-mechanism-change reasoning; codex CLI was unavailable — blocked by its vendor's cybersecurity content filter on the repo's own security-testing vocabulary).

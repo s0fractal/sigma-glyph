@@ -47,7 +47,7 @@ python3 tools/repo_map.py --check-map           # every cited document is locate
 
 When a document and a command disagree, the command is right.
 
-From an **installed** copy (`pip install sigma-glyph`, once published — see
+From an **installed** copy (`pip install sigma-glyph` — 0.6.7 is on PyPI; see
 [PUBLISHING.md](PUBLISHING.md)) the same three self-tests run as
 `python -m sigma_glyph` / `sigma_wave` / `sigma_federation`, and they report one
 thing differently, on purpose: the recorded-vector replays and Book III's
@@ -145,9 +145,11 @@ thing it summarises:
   `sigma_federation.py` still does not compare raw bytes against `canon(parsed)`.
 - **SA-5** — the 2-of-3 threshold has been exercised **five times**, and three of
   those five were signed from one host, which is one custody, not a quorum.
-- **SA-8/SA-9** — nothing has ever been published and the OIDC publish path has
-  never executed; no independent gate is currently affordable, so work lands
-  under a recorded attestation rather than a passed gate.
+- **SA-8/SA-9** — the OIDC publish path has now run twice (0.6.6.post1 and
+  0.6.7 are on PyPI), on one hosted runner, with the TestPyPI dry run still
+  never performed and only the maintainer having installed the result; and no
+  independent gate is currently affordable, so work lands under a recorded
+  attestation rather than a passed gate.
 
 These are stated boundaries of the threat model, not defects. A report showing
 one is *worse than stated* is in scope and welcome; one restating it is not.

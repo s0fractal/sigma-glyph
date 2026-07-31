@@ -3,9 +3,10 @@
 
 WHY THIS EXISTS
 ---------------
-Nothing in this repository has ever been published. Every suite here runs from a
-CHECKOUT, where `impl/` sits next to `tests/spec_conformance/`. A wheel is a
-different artifact with a different filesystem, and the first time anyone ran the
+Every suite in this repository runs from a CHECKOUT, where `impl/` sits next to
+`tests/spec_conformance/`. A wheel is a different artifact with a different
+filesystem, and this gate exists because that difference shipped: when this file
+was written nothing had been published yet, and the first time anyone ran the
 0.6.6 wheel from a fresh venv:
 
     python -m sigma_wave        -> FAIL wave_vectors.json present   (13/14, exit 1)

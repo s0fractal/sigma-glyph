@@ -5,16 +5,22 @@ stored anywhere. Cutting a GitHub Release builds, validates, and publishes the
 package (`.github/workflows/publish.yml`). You do a **one-time** setup on PyPI,
 then every release publishes itself.
 
-- **Distribution name:** `sigma-glyph` (checked 2026-07-30:
-  <https://pypi.org/simple/sigma-glyph/> returns **404**, i.e. the name is free —
-  but PyPI is first-come, and that is only true until someone else takes it).
+- **Distribution name:** `sigma-glyph` — claimed, and held by this repository's
+  Trusted Publisher: <https://pypi.org/project/sigma-glyph/>.
 - **Import modules:** `sigma_glyph` (Book I), `sigma_wave` (Book II),
   `sigma_federation` (Book III). No console scripts; each module is runnable with
   `python -m`.
 - **What ships:** those three modules. Not the spec, not `tests/`, not the Rust
   or Go implementations, not the proofs.
-- **Nothing has ever been published from this repository.** This is the first
-  release, and `master` carries no release tags.
+- **Released so far:** **0.6.6.post1** (2026-07-30, packaging only) and
+  **0.6.7** (2026-07-31, the current release). Both went out through the
+  workflow below; no release has ever been uploaded by hand. `master` carries
+  release tags from `v0.5.0` through `v0.6.7`.
+- **What has been checked about the published artifact:** the maintainer
+  installed 0.6.7 from PyPI into a clean venv and ran the three self-tests to
+  `ALL PASS`. Nobody else is known to have installed it, and that is the whole
+  of the evidence — see `SECURITY-ASSUMPTIONS.md` SA-8. If this file and PyPI
+  ever disagree, PyPI is right.
 
 ## Governance note
 
@@ -25,10 +31,16 @@ cutting a Release.
 
 ## One-time setup (you, on the web — I can't do this part)
 
+> **Already done.** The publisher exists and has minted tokens for two real
+> releases. This section is kept for the next project, and for re-establishing
+> the publisher if it is ever lost; skip it unless one of those applies. Note
+> that the project now exists on PyPI, so re-establishing it is an ordinary
+> publisher, not a *pending* one.
+
 ### 1. Add a "pending publisher" on PyPI
 
-The project does not exist on PyPI yet, so this is a *pending* publisher: it
-creates the project on the first publish. Go to
+Before the first publish the project did not exist on PyPI, so this was a
+*pending* publisher: it creates the project on the first publish. Go to
 <https://pypi.org/manage/account/publishing/> → "Add a pending publisher" and
 enter **exactly**:
 
@@ -47,18 +59,20 @@ Repeat on <https://test.pypi.org/manage/account/publishing/> with Environment
 
 In the repo → Settings → Environments, create `pypi` (and optionally `testpypi`).
 Add protection to `pypi` if you want a manual approval gate before each publish
-(recommended: "Required reviewers" = you). The first publish claims the name
-permanently; a gate there is cheap.
+(recommended: "Required reviewers" = you). The name is already claimed; the gate
+is now about not shipping a bad artifact, and a version number on PyPI cannot be
+reused even after a delete.
 
 ## Releasing (every version, automated)
 
 1. Bump `version` in `pyproject.toml` and merge to `master` through the normal
    branch + review path (`AGENTS.md` rule 1 — never commit to `master` directly).
-2. Cut a GitHub Release with tag **`v0.6.6`** — the `v` plus the exact pyproject
-   version. The workflow fails the build if they disagree:
+2. Cut a GitHub Release with tag **`v0.6.8`** — the `v` plus the exact pyproject
+   version (which is `0.6.7` right now, so it must be bumped first). The
+   workflow fails the build if they disagree:
 
    ```bash
-   gh release create v0.6.6 --generate-notes
+   gh release create v0.6.8 --generate-notes
    ```
 3. The `publish` workflow builds, runs `twine check`, installs the wheel into a
    fresh venv, runs all three self-tests **from /tmp** (not from the checkout),
@@ -78,9 +92,11 @@ permanently; a gate there is cheap.
    /tmp/v/bin/python -m sigma_federation   # -> FEDERATION: ALL PASS … SKIPPED: …
    ```
 
-## Dry run before the first real release (recommended)
+## Dry run on TestPyPI (never actually performed)
 
-After the TestPyPI pending publisher + `testpypi` environment exist:
+Both real releases went straight to PyPI; the `testpypi` job has never executed,
+so this is a documented plan and not a tested procedure. After the TestPyPI
+pending publisher + `testpypi` environment exist:
 
 ```bash
 gh workflow run publish.yml
@@ -148,12 +164,12 @@ python3 -m build && python3 -m venv /tmp/sv && /tmp/sv/bin/pip install dist/*.wh
 python3 tools/check_release_surface.py --wheel dist/*.whl --bin /tmp/sv/bin
 ```
 
-## After the first publish
+## After the first publish — done
 
-- Add the install one-liner to `README.md` / `QUICKSTART.md`, which currently
-  only document the `git clone` path.
-- Record the published version here; if this file and PyPI ever disagree, PyPI is
-  right.
+- `README.md` and `QUICKSTART.md` carry the install one-liner alongside the
+  `git clone` path, with the checkout named as what full re-derivation still
+  requires.
+- The published versions are recorded at the top of this file.
 
 ## Manual fallback (if you ever bypass CI)
 
