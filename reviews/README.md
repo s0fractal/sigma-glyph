@@ -8,6 +8,55 @@
 2. **Attack the contour, not the vibe.** Book I is a contract between nodes: valid attacks are nondeterminism, underdetermined bytes, unreachable states, consensus divergence. LORE.md is explicitly non-normative — aesthetic disagreement with it is welcome but is not a spec defect.
 3. **Severity ladder:** P0 = two conforming nodes can disagree on a hash; P1 = spec silent where implementers must guess; P2 = clarity/structure; P3 = roadmap.
 4. **File format:** add `reviews/YYYY-MM-<model>.md` with: verdict, verified-vectors statement (did you re-run them?), findings by severity, and concrete text proposals. PR or issue.
+5. **A finding is a reproduction, not an opinion.** Every claim filed here is checked against the code — or executed — before anything changes. A refuted claim is recorded with the command that refuted it, in the same table as the confirmed ones. See the round below for why that rule earns its keep.
+
+## Cross-family round, 2026-07-30/31
+
+Six reviews were run across five reviewer models from four families other than the one that
+wrote the artifacts under review. This section is the citable index: what was claimed, what
+reproduced, what was refuted and by what, and where each fix landed. Full dispositions are in
+the `-response.md` files.
+
+**What this round was NOT — read before citing it.** These were **cross-family reviews run by
+the same operator on the same task framing**. They are not independent gates in this project's
+sense (`AGENTS.md` §3: an independent gate is adversarial counter-vector hunting by a fresh
+reviewer, and it is a governance act, not a test run). No roster threshold was met by any of
+them, no warrant records any of them, and **nothing in this round was adopted**. Every commit
+in this round says so; the statement does not get quietly dropped now that the reviews are
+citable. Related: reviewers here were also not blind to each other in the way
+`tools/or_review.py`'s two-pass protocol enforces, and two of them received truncated inputs
+through an operator packaging error (recorded in their dispositions, not scored against them).
+
+| Reviewer (family) | Executed? | Subject | Artifact | Disposition | Outcome |
+|---|---|---|---|---|---|
+| Antigravity (agentic) | **yes** | oaip Ed25519 + gate; `proofs/proof_guard.py`; the plan | [raw](2026-07-antigravity-cross-family-audit.md) | [resp](2026-07-antigravity-cross-family-audit-response.md) | 0 code defects; 1 residual restated independently; **4 of 6 plan questions changed a decision** |
+| z-ai/glm-4.7 | no | `proofs/proof_guard.py` | [raw](2026-07-glm47-guard-coverage.md) | [resp](2026-07-glm47-guard-coverage-response.md) | **1 confirmed defect** (non-recursive file walk; reviewer-labelled P1) — reproduced, fixed `a4e7de1`, merged `6e0bb04` |
+| z-ai/glm-4.7 | no | oaip Ed25519 verifier | [raw](2026-07-glm47-ed25519.md) (**truncated at the completion cap**) | [resp](2026-07-glm47-ed25519-response.md) | 1 P0 **refuted empirically**; 0 changes |
+| deepseek/deepseek-v3.2 | no | `proofs/proof_guard.py` | [raw](2026-07-deepseekv32-guard.md) | [resp](2026-07-deepseekv32-guard-response.md) | 3 P0 **refuted by one line each**; 1 P1 not a defect; 2 P1 real but inside the documented threat model; 0 changes |
+| google/gemini-3.1-flash-lite | no | oaip Ed25519 verifier | [raw](2026-07-gemini31flashlite-ed25519.md) | [resp](2026-07-gemini31flashlite-ed25519-response.md) | 1 P1 **refuted** by RFC 8032 + 200/200 round-trip; 1 P2 caused by **our** prompt packaging; 0 changes |
+| Codex (agentic) | **yes** | oaip runtime attribution; warrant WPL; CI workflows; ADR status drift | **none — [transcription](2026-07-codex-cross-repo-runtime.md)** | same file | 1 BLOCKER confirmed as a known state; **2 P1 reproduced and fixed** (oaip `d5ee3ba`/`d62f9b9`; warrant `cf087ad`/`432f32e`); 2 P2 fixed (`fd70898`, `9f2a4ec`) |
+
+Five reviewer models, six reviews, **five artifacts**: the Codex review exists only as a
+transcription reconstructed from the commit bodies of its fixes, because it was delivered as
+session messages and no file was captured. That file is labelled as a transcription in its own
+header and must not be cited as the reviewer's text.
+
+**Two things this round establishes, and one it does not.**
+
+- **Cross-family review reached a blind spot repeated same-family review could not.** glm-4.7,
+  which could not run anything, saw that the guard's file walk was not recursive. Six internal
+  adversarial rounds had missed it — not because it was deep but because every internal attack
+  assumed the proof files sit where they currently sit. Chasing it reopened F2c *by path*, which
+  is the more serious of the two by-products and was in nobody's review.
+- **The reproduction rule paid for itself in a single day.** Three of the four non-executing
+  reviews produced confident P0s that a `grep` or one `python3 -c` refutes. Without the rule the
+  day would have gone to "fixing" a non-existent hole in a cryptographic blocklist — a change to
+  working security code, which is the expensive kind of false positive.
+- **It does not establish a rate.** N is six, the reviews were not independently sampled, the
+  prompts differed, two reviewers got truncated inputs through our error, and the artifacts
+  changed between reviews. Same-family rounds found seventeen vectors in this stack and
+  cross-family found one; on count the internal rounds win decisively. The defensible statement
+  is narrower: **the two methods find different things.**
 
 ## Settled points (do not re-litigate without new arguments)
 
