@@ -28,14 +28,14 @@ on: [push, pull_request]
 # A refresh commit MUST cite the old and new sibling commits, name the consumed
 # surface that changed, and include the outputs run at the new pin.
 env:
-  WARRANT_PIN: 3972427688730e114507dc6fa14808eff8458fb5
+  WARRANT_PIN: 0d147aa12158d18e686270fe4eca2972bd4707f1
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: { python-version: '3.12' }
       # Mirrored from warrant (X1 enforces byte-identity of shared tooling).
       # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
@@ -49,13 +49,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd impl-rs && cargo build --release && cd ..
+          cd impl-rs && cargo build --release && cargo test && cd ..
           ./impl-rs/target/release/book1 selftest | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
           ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
             | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"
       - name: Wave reference (Book II, LUT arbiter + interfere coupling)
         run: python3 impl/sigma_wave.py | tee /dev/stderr | grep -q "WAVE. ALL PASS"
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with: { go-version: '1.22' }
       - name: Federation reference (Book III, selection-only oracle)
         run: python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION. ALL PASS"
@@ -77,6 +77,14 @@ jobs:
             | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
           python3 tests/governance_differential.py \
             | tee /dev/stderr | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
+      - name: Exit statuses tell the truth (a printed failure must not return 0)
+        # Book I's module entry point printed FAILURES PRESENT and exited 0, so a
+        # script branching on $? -- which is what CI does by default -- saw success.
+        # This guard covers every module entry point and verb dispatch.
+        run: |
+          python3 tests/exit_status_guard.py | tee /dev/stderr \
+            | grep -qx "EXIT-STATUS-GUARD: ALL PASS (15/15)"
+
       - name: "Book I fourth engine: warrant-go ski@v1 conformance + three-way differential fuzzer (Python/Rust/warrant-go, pinned)"
         shell: bash
         run: |

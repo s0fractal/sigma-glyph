@@ -6,7 +6,7 @@
     "because": [
       {
         "kind": "prose",
-        "text": "Successor of the v0.6.4 set 8fbb1500. First PATCH through the governed process: GOV-anchors.md 1.0.0 -> 1.0.1, three §3 prose clarifications (zero-hop lineage base, scoped-verifier key-state subject, freeze total-by-construction) from the Kimi focused formal review. Zero behavioral change - reference verifier unchanged, all 17 governance vectors byte-identical (a SemVer patch, no @v2 tag). Only GOV-anchors.md's anchor changes. Filed by the maintainer; second roster signature pending - authorizes nothing until 2-of-3."
+        "text": "Successor of the v0.6.4 set 8fbb1500. First PATCH through the governed process: GOV-anchors.md 1.0.0 -> 1.0.1, three \u00a73 prose clarifications (zero-hop lineage base, scoped-verifier key-state subject, freeze total-by-construction) from the Kimi focused formal review. Zero behavioral change - reference verifier unchanged, all 17 governance vectors byte-identical (a SemVer patch, no @v2 tag). Only GOV-anchors.md's anchor changes. Filed by the maintainer; second roster signature pending - authorizes nothing until 2-of-3."
       }
     ],
     "decision": "accept",
@@ -16,7 +16,7 @@
     ],
     "subject": {
       "hash": "8cfc2c635dea15c68055fbf1302024b2910ad8408a666bf87f795b3c2a312784",
-      "note": "ADOPT v0.6.5 anchor-set (GOV 1.0.1: three non-behavioral §3 clarifications from the Kimi focused review — first governed PATCH)"
+      "note": "ADOPT v0.6.5 anchor-set (GOV 1.0.1: three non-behavioral \u00a73 clarifications from the Kimi focused review \u2014 first governed PATCH)"
     },
     "ts": 1783592585,
     "under": [
@@ -29,12 +29,12 @@
     {
       "actor": "claude-fable-5@sigma-glyph",
       "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
-      "sig": "c0890421acad93187be480208feccaf93b10dc56ee31a18817f4b34f4c717a3050bfb2299f983156faa4baef3ee0c8d7edd6cec298f7d5be9e47775dc7577909"
+      "sig": "a6388923f87a29234e122550858058cd3c3f73887245a60ae1aa0fcb70d85114fcc2cf0d43fd7ec774253fcbe797e5a9ebd72c6489f9ef2a437ebdde0b6fc00a"
     },
     {
       "actor": "codex@sigma-glyph",
       "key": "9411e8fe7feab215b4ac7fccd20001f64d1181ce8b5487880931e7f1a000c889",
-      "sig": "b801abfb3aaa5bf486d9ca641bacde92a8f695419a51726a615e6f5b5e1b3520a04cf5a035721526371d8d36717545a48a26e3bd3229085bd92bb4438ab4b10f"
+      "sig": "c78a42295f535a4f2842cd10aaff4fa619ebc86559e64905857810495b1b270f731985c3895bd66a4bc3064b9db01c0829d87ce3f855bed71f7256e615f95a07"
     }
   ]
 }

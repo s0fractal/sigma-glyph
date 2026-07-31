@@ -4,8 +4,16 @@
 The Lean theorems are about the Lean model; this bridge is the honest seam
 to the live oracle and to SHA-256 itself:
 
-  1. No-sorry guard over MachineBytes.lean and Sha256.lean (`lean` exits 0
-     on sorry — this bridge does not).
+  1. Soundness guard (proof_guard.py, front "bytes") over MachineBytes.lean,
+     Sha256.lean and the BytesRun.lean runner (`lean` exits 0 on sorry — this
+     bridge does not): the source layer (literal-aware comment stripping,
+     sorry/admit/axiom, import allowlist, metaprogramming denylist incl.
+     `@[implemented_by]`, coverage registry) plus a data-only environment
+     query asserting the load-bearing theorems stay within the documented TCB
+     (std axioms; native_decide only for the genesis pins, per
+     proofs/README.md), still state what they are pinned to state, AND are
+     still stated in terms of the definitions they are pinned to be about
+     (`serialize`, `deserialize`, `Wf`, `Node`, `Sha256.sha256`, the atoms).
   2. FIPS 180-4 vectors: the Lean SHA-256 reproduces the standard digests.
   3. Conformance CAS: for EVERY object of tests/spec_conformance/
      vectors.json (36, incl. the deliberately malformed Era-1 0x03 one),
@@ -15,16 +23,32 @@ to the live oracle and to SHA-256 itself:
   4. Adversarial mutations of every object (truncation, padding, flag
      out-of-mask, wrong-but-in-mask flags, reserved opcode 0x03, op/flag
      swap): Lean and oracle verdicts must agree on all.
-  5. Genesis bytes: I/K/S, FALSE, and the Canonical Invalid Object.
+  5. Genesis bytes: I/K/S, FALSE, and the Canonical Invalid Object — the
+     buffers through the executed pipeline, AND (new) what the five genesis
+     theorems literally CLAIM, cross-checked against the oracle's constants.
+     "Compiling IS the check" only ever said the hex in the file is the digest
+     of whatever `hIT`/`hKT`/`hST` happen to be: swapping those two bodies and
+     the two hex strings left every theorem true, every pin matched and this
+     bridge printing ALL AGREE, with TV-1 `genesis_I` asserting K's hash
+     (2026-07 round-3 review, F13).
 
 Needs a `lean` binary (elan). Exit 2 if unavailable — never a silent pass.
 """
-import hashlib, json, os, re, shutil, subprocess, sys, tempfile
+import hashlib, json, os, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(REPO, "impl"))
+import proof_guard  # noqa: E402
 import sigma_glyph as g  # noqa: E402
+
+#: Load-bearing theorems (proofs/README.md, byte-level section); only the
+#: genesis/FALSE/invalid-object pins may rest on native_decide. The lists, the
+#: allowed axioms and the pinned statements live in theorem_pins.json.
+FRONT = proof_guard.load_front("bytes")
+THEOREMS = FRONT["guarded"]
+PINS = FRONT["native_decide_ok"]
 
 FIPS = [
     (b"", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
@@ -43,6 +67,55 @@ def fail(msg):
     sys.exit(1)
 
 
+#: (theorem, oracle buffer, expected preimage strings). What each genesis
+#: theorem literally CLAIMS, checked against the oracle — the differential this
+#: front did not have. "Compiling IS the check" only says the hex in the file
+#: is the digest of whatever `hIT`/`hKT`/`hST` happen to be: swap the bodies of
+#: `hIT` and `hKT` and swap the two hex strings, and every theorem stays true,
+#: every pin still matched (the dump said only "a 64-character string"), and
+#: the bridge printed ALL AGREE — with TV-1 `genesis_I` asserting K's hash
+#: (2026-07 round-3 review, F13).
+#: (theorem, oracle constant, inline literals the statement must carry,
+#:  {atom definition: the string it must hash}).
+GENESIS_CLAIMS = [
+    ("MachineBytes.genesis_I", "I_BYTES", [], {"MachineBytes.hIT": "I"}),
+    ("MachineBytes.genesis_K", "K_BYTES", [], {"MachineBytes.hKT": "K"}),
+    ("MachineBytes.genesis_S", "S_BYTES", [], {"MachineBytes.hST": "S"}),
+    ("MachineBytes.false_is_a_theorem", "FALSE_BYTES", [],
+     {"MachineBytes.hKT": "K", "MachineBytes.hIT": "I"}),
+    ("MachineBytes.invalid_object_pins", "INVALID_OBJECT", ["Invalid Object"],
+     {}),
+]
+
+
+def check_genesis(envq):
+    """Every genesis theorem's hex, and its atoms, against the oracle."""
+    for thm, const, inline, atoms in GENESIS_CLAIMS:
+        lits = proof_guard.strlits(envq["decls"][thm]["type"])
+        if not lits:
+            fail(f"{thm}: no string literal in the elaborated statement — the "
+                 "dump cannot be cross-checked against the oracle")
+        want = hashlib.sha256(getattr(g, const)).hexdigest()
+        if lits[-1] != want:
+            fail(f"{thm} asserts the hash {lits[-1]}, but the oracle's "
+                 f"sha256(sigma_glyph.{const}) is {want} — the Lean claim and "
+                 "the reference implementation disagree about which object "
+                 "this is")
+        if lits[:-1] != inline:
+            fail(f"{thm} is stated over inline literals {lits[:-1]}, not "
+                 f"{inline} — the preimage the pin is about changed")
+        for atom, text in atoms.items():
+            got = proof_guard.strlits(envq["deps"].get(atom, ""))
+            if got != [text]:
+                fail(f"{thm} is stated over {atom}, which hashes {got} and not "
+                     f"['{text}'] — swapping two atoms' bodies keeps every "
+                     "theorem true and every statement pinned")
+    print(f"OK    the {len(GENESIS_CLAIMS)} genesis/FALSE/invalid-object "
+          "theorems assert exactly the oracle's digests, over the atoms the "
+          "oracle names (checked on the elaborated statements and definitions, "
+          "independently of the pins)")
+
+
 def mutations(b):
     yield b[:-1]                                  # truncated
     yield b + b"\x00"                             # padded
@@ -55,16 +128,17 @@ def mutations(b):
 
 
 def main():
-    lean = os.environ.get("LEAN", "lean")
-    if shutil.which(lean) is None:
+    lean = proof_guard.find_lean()
+    if lean is None:
         print("byte bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
         sys.exit(2)
 
-    for f in ("MachineBytes.lean", "Sha256.lean"):
-        body = open(os.path.join(HERE, f)).read()
-        if re.search(r"\b(sorry|admit)\b", body) or re.search(r"^\s*axiom\b", body, re.M):
-            fail(f"{f} contains sorry/admit/axiom")
-    print("OK    MachineBytes + Sha256 carry no sorry/admit/axiom")
+    problems = proof_guard.guard_sources(FRONT)
+    if problems:
+        fail("source guard: " + "; ".join(problems))
+    print("OK    MachineBytes + Sha256 + BytesRun pass the source guard (no "
+          "sorry/admit/axiom, no metaprogramming, imports in-set, every "
+          "theorem accounted for)")
 
     objs = json.load(open(os.path.join(
         REPO, "tests", "spec_conformance", "vectors.json")))["objects"]
@@ -74,15 +148,24 @@ def main():
 
     with tempfile.TemporaryDirectory() as td:
         env = dict(os.environ, LEAN_PATH=td)
-        for mod in ("Sha256", "MachineBytes", "BytesRun"):
-            r = subprocess.run([lean, os.path.join(HERE, mod + ".lean"),
-                                "-o", os.path.join(td, mod + ".olean")],
-                               capture_output=True, text=True, env=env)
-            if r.returncode != 0:
-                fail(f"{mod}.lean does not compile: "
-                     + (r.stderr or r.stdout).strip()[:500])
+        # FRONT["build"] + FRONT["runner_sources"] is the single place this
+        # front's compiled module set is spelled — the guard reads the same
+        # field, so the two cannot drift apart (round-4 F17).
+        err = proof_guard.build_front(lean, FRONT, td, runners=True)
+        if err:
+            fail(err)
         print("OK    Sha256 + MachineBytes compile clean "
-              "(genesis pins are theorems — compiling IS the check)")
+              "(the genesis pins are theorems, so they are kernel-checked "
+              "claims — but see the oracle cross-check below)")
+        envq = {}
+        err = proof_guard.guard_semantics(lean, FRONT, td, out=envq)
+        if err:
+            fail(err)
+        print(f"OK    axiom cones clean, statements match their pins AND every "
+              f"definition they are stated in terms of matches its pin, for "
+              f"{len(THEOREMS)} byte-level theorems (std axioms; "
+              "native_decide only for the pins)")
+        check_genesis(envq)
         lines = "".join(b.hex() + "\n" for b in cases)
         r = subprocess.run([lean, "--run", os.path.join(HERE, "BytesRun.lean")],
                            input=lines, capture_output=True, text=True, env=env)

@@ -4,25 +4,43 @@
 The Lean proof (`mem_skiFv_c1`, `c1_closed`) is a statement about the Lean
 *model* of C1. This bridge ties that model to the reference implementation:
 
-  1. no `sorry`/`admit` sneaks past `lean` (the theorems actually check), and
+  1. no `sorry`/`admit`/`axiom` sneaks past `lean` (the theorems actually
+     check): the source layer (literal-aware comment stripping, import
+     allowlist, metaprogramming denylist, coverage registry) plus an
+     environment query asserting the five load-bearing theorems stay fully
+     kernel-checked (`propext` alone — the README's TCB claim for this front,
+     now enforced at exactly that strength) and still state what
+     proofs/theorem_pins.json pins them to state; and
   2. a faithful Python transcription of the Lean `abstr`/`c1` produces the SAME
      Book I SKI NodeHash as the oracle's `sigma_glyph.c1` on a battery of random
      CLOSED λ-terms — so the algorithm the Lean theorem proves total-on-closed
      is byte-for-byte the algorithm the oracle ships.
 
+Needs a `lean` binary (elan). Exit 2 if unavailable — never a silent pass:
+this bridge used to print "skip lean check" and then "C1-BRIDGE: ALL AGREE",
+so proofs.yml (which gates on that string) went green with the Lean half of
+the bridge never run — while the docstring claimed enforcement.
+
 Deterministic (seeded). Run: python3 proofs/c1_bridge_check.py
 """
-import os
 import random
-import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "proofs"))
 sys.path.insert(0, str(ROOT / "impl"))
+import proof_guard  # noqa: E402
 import sigma_glyph as sg  # noqa: E402
 
-LEAN = os.environ.get("LEAN", str(Path.home() / ".elan/bin/lean"))
+#: Load-bearing theorems (proofs/README.md, §6 C1 section) — README claims
+#: they are fully kernel-checked, so this front's allowed-axiom set is exactly
+#: `propext` and no native_decide is permitted. The list (now including the
+#: two TV-10 pins, which used to be unqueryable anonymous `example`s), the
+#: allowed axioms and the pinned statements: proofs/theorem_pins.json.
+FRONT = proof_guard.load_front("c1")
+THEOREMS = FRONT["guarded"]
 
 
 # ---- faithful transcription of C1Compiler.lean (abstr / c1) into oracle terms ----
@@ -75,20 +93,29 @@ def rand_closed_lam(rng, scope, depth):
 
 
 def main():
-    # 1. the Lean theorems actually check, with no sorry
-    if "sorry" in (ROOT / "proofs/C1Compiler.lean").read_text() \
-            or "admit" in (ROOT / "proofs/C1Compiler.lean").read_text():
-        print("C1-BRIDGE: FAIL — sorry/admit present in C1Compiler.lean")
+    # 1. the Lean theorems actually check, with no sorry/admit/axiom — and a
+    #    missing `lean` is exit 2, like the other four bridges: skipping the
+    #    Lean half while still printing "ALL AGREE" made proofs.yml green on a
+    #    surface it never checked (2026-07 round-2 review).
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("c1 bridge needs a `lean` binary for the environment query "
+              "(elan) — set LEAN=... ; exit 2")
+        return 2
+    problems = proof_guard.guard_sources(FRONT)
+    if problems:
+        print("C1-BRIDGE: FAIL — source guard: " + "; ".join(problems))
         return 1
-    if os.path.exists(LEAN):
-        p = subprocess.run([LEAN, str(ROOT / "proofs/C1Compiler.lean")],
-                           capture_output=True, text=True)
-        if p.returncode != 0:
-            print("C1-BRIDGE: FAIL — lean did not check\n" + p.stdout + p.stderr)
-            return 1
-        print("ok  lean proofs/C1Compiler.lean checks (theorems, no sorry)")
-    else:
-        print(f"skip lean check (no lean at {LEAN})")
+    with tempfile.TemporaryDirectory() as td:
+        err = (proof_guard.build_front(lean, FRONT, td)
+               or proof_guard.guard_semantics(lean, FRONT, td))
+    if err:
+        print("C1-BRIDGE: FAIL — " + err)
+        return 1
+    print("ok  lean proofs/C1Compiler.lean checks; axiom cones are exactly "
+          "within [propext], statements match their pins, and `c1`/`abstr`/"
+          "`skiFv`/`Lam`/`Ski` match their definition pins, for "
+          + ", ".join(THEOREMS))
 
     # 2. Lean model == oracle on random closed λ-terms (NodeHash-exact)
     rng = random.Random(20260717)

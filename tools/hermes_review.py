@@ -24,6 +24,9 @@ import hashlib, json, os, subprocess, sys, time, urllib.request
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import warrant_sig  # noqa: E402  (the one signing-message construction)
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE = os.path.join(REPO, ".warrants")
 ACTOR = os.environ.get("HERMES_ACTOR", "hermes-qwen3-coder@local")
@@ -128,9 +131,7 @@ def main():
     }
     wid = hashlib.sha256(canon(body)).hexdigest()
     sk = load_key()
-    env = {"body": body, "sigs": [{
-        "actor": ACTOR, "key": sk.public_key().public_bytes_raw().hex(),
-        "sig": sk.sign(bytes.fromhex(wid)).hex()}]}
+    env = {"body": body, "sigs": [warrant_sig.sig_entry(ACTOR, sk, wid)]}
     rec = os.path.join(STORE, "records", wid + ".json")
     with open(rec, "w") as f:
         json.dump(env, f, indent=2, sort_keys=True, ensure_ascii=False)
@@ -140,7 +141,13 @@ def main():
     print(f"warrant {wid[:12]}… written to .warrants/records/{wid}.json")
     print(f"verify: python3 tools/warrant_verify.py")
     print(f"ratify: python3 tools/cosign.py {wid} you@host <yourkey>")
+    # The warrant is written either way — a `reject` warrant is a successful
+    # minting of an honest rejection, and it stays on disk. But this printed
+    # "decision: reject" and exited 0, so `tools/hermes_review.py && git push`
+    # pushed on a red gate. Same class as impl/sigma_glyph.py's discarded
+    # verdict: the exit status must carry the finding, not just stdout.
+    return 0 if verdict == "pass" else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -19,6 +19,14 @@ re-executes it on their own laptop and gets the same verdict — instead of
 trusting the log of whoever wrote it. Bounding work *and* memory up front is what
 makes running a stranger's computation safe by construction.
 
+That claim is about the *semantics*: a term's canonical result and its ATP cost
+are bounded and deterministic. It is not a promise that any given binary is
+immune to its own resource limits — Book I §3.6 keeps local faults deliberately
+outside the canonical outcomes, and each implementation still has to refuse
+cleanly rather than fall over. Until v0.6.7 the Rust binary did not: hostile
+input aborted it with a stack overflow. It now fences and refuses; see
+`tests/book1_resource_fence.py`.
+
 Three independent implementations agree on **all 49** conformance vectors —
 Python, Rust and [`warrant-go`](https://github.com/s0fractal/warrant), across
 serialization, byte-rejection and evaluation alike — and the evaluator's
@@ -76,7 +84,7 @@ python3 impl/sigma_federation.py    # expected: FEDERATION: ALL PASS (Book III)
   ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json  # RUST-CONFORMANCE: ALL PASS (49/49)
 ```
 
-Book I now has three independent implementations that agree on every vector — the Python oracle, warrant-go's native evaluator (via `ski@v1`), and Rust — plus a Lean 4 mechanization of the evaluator's determinism/totality and memory bound (`proofs/EvalMachine.lean`).
+Book I now has three independent implementations that agree on every vector — the Python oracle, warrant-go's native evaluator (via `ski@v1`), and Rust — plus a Lean 4 mechanization of the evaluator's determinism/totality and memory bound (`proofs/EvalMachine.lean`). `impl-go` in *this* repo implements Books II and III only; its Book I "vector" is an echoed constant and says so out loud (`VACUOUS FV-BOOK-I-UNREACHABLE`).
 
 ## For AI reviewers
 

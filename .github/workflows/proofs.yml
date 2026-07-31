@@ -4,15 +4,20 @@ jobs:
   lean:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install elan (pinned toolchain)
         run: |
           curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
             | sh -s -- -y --default-toolchain "$(cat proofs/lean-toolchain)"
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Check the memory-bound proof
+        # `lean` exits 0 on a file containing `sorry` (warning only), and it
+        # exits 0 on a VACUOUS theorem too; the real guard over SizeBound.lean
+        # (axiom cone + pinned statement + source denylist) lives in
+        # bridge_check.py below, matching how every other proof file is
+        # guarded by its bridge.
         run: lean proofs/SizeBound.lean && echo "PROOF CHECKS"
-      - name: Bridge - step premise holds on live oracle traces
+      - name: Bridge - step premise holds on live oracle traces (+ SizeBound no-sorry guard)
         run: python3 proofs/bridge_check.py
       - name: Wave-algebra proofs + differential bridge (Book II)
         shell: bash
@@ -34,3 +39,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 proofs/c1_bridge_check.py | tee /dev/stderr | grep -q "C1-BRIDGE: ALL AGREE"
+      - name: Guard regression - soundness guard rejects every proven bypass vector
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/proof_guard_test.py | tee /dev/stderr | grep -q "PROOF-GUARD: ALL PASS"

@@ -6,7 +6,7 @@
     "because": [
       {
         "kind": "prose",
-        "text": "Re-ran Kimi on a tight pack (four Lean fronts + GOV only, single pass, hard emit-finished-doc instruction) after the first run exhausted its budget on a full firehose. Clean 351-word review, zero briefing artifacts. All five findings accepted. P1-1 fixed: proofs/README overstated WaveAlgebra TCB isolation - interfere_valid/cascade/crystallization transitively consume native_decide LUT lemmas, so the compiler is in their dependency cone; only the pure integer lemmas + left_dominance_ph are fully kernel-checked. TCB note rewritten. P2-1: tactic-transparency comment maps each fun_induction branch of step_bounds to grind's manual skeleton; both proofs still compile, eval bridge 33/33. P1-2/P1-3/P2-2 accepted and adjudicated P2 (clarity) not P1 (divergence): three GOV §3 prose gaps (freeze operational response, non-deriving-verifier key-state routing, zero-hop lineage base case) where the reference verifier already behaves as each clarification would specify - no conforming divergence today. Exact text prepared; held for a GOV 1.0.1 patch governed release since §3 is frozen at STANDARD and these are non-behavioral. Harness lesson: for a deep-but-narrow audit a small focused pack beats the full pack."
+        "text": "Re-ran Kimi on a tight pack (four Lean fronts + GOV only, single pass, hard emit-finished-doc instruction) after the first run exhausted its budget on a full firehose. Clean 351-word review, zero briefing artifacts. All five findings accepted. P1-1 fixed: proofs/README overstated WaveAlgebra TCB isolation - interfere_valid/cascade/crystallization transitively consume native_decide LUT lemmas, so the compiler is in their dependency cone; only the pure integer lemmas + left_dominance_ph are fully kernel-checked. TCB note rewritten. P2-1: tactic-transparency comment maps each fun_induction branch of step_bounds to grind's manual skeleton; both proofs still compile, eval bridge 33/33. P1-2/P1-3/P2-2 accepted and adjudicated P2 (clarity) not P1 (divergence): three GOV \u00a73 prose gaps (freeze operational response, non-deriving-verifier key-state routing, zero-hop lineage base case) where the reference verifier already behaves as each clarification would specify - no conforming divergence today. Exact text prepared; held for a GOV 1.0.1 patch governed release since \u00a73 is frozen at STANDARD and these are non-behavioral. Harness lesson: for a deep-but-narrow audit a small focused pack beats the full pack."
       }
     ],
     "decision": "accept",
@@ -18,7 +18,7 @@
     ],
     "subject": {
       "hash": "6a68c49499f2d93d5b0f595d7cd4b962af9761ec905bbe5ffa31ee284d245dd3",
-      "note": "Kimi k2.6 focused formal review (tight pack, single pass): clean, artifact-free; no P0; TCB precision + tactic note fixed, 3 GOV §3 clarity gaps held for a 1.0.1 patch"
+      "note": "Kimi k2.6 focused formal review (tight pack, single pass): clean, artifact-free; no P0; TCB precision + tactic note fixed, 3 GOV \u00a73 clarity gaps held for a 1.0.1 patch"
     },
     "ts": 1783586072,
     "under": [
@@ -30,7 +30,7 @@
     {
       "actor": "claude-fable-5@sigma-glyph",
       "key": "3449536017e5b4a4c7e134999cbd9fe94c5354bd9132d6c1e32f024bfd90eb27",
-      "sig": "395f7bbe740994bd649d8a422ea142401013bf51c4909f7975cdd9835094c93923a1757edd38651a869b1e572d5d8eb8182df91e879fbc4531e07e08f7517c00"
+      "sig": "e0a804c58e2ed3df34fcb14dca9c58c40780947062fa7ceb55f3c1017ba8ca56bb9cda8a5b4c44264bbedefc5bb512bc7e6e9173850c9a90d2aa48a48afc6b0a"
     }
   ]
 }
