@@ -15,6 +15,11 @@
      * eval_spent_le — `eval` never spends more than its budget: spent ≤ atp
                        (Book I §3.4 "spent never exceeds atp", now a theorem
                        for ALL terms and budgets, not just the pinned vectors)
+     * eval_settles  — with fuel above the remaining budget, the configuration
+                       `eval` RETURNS is a normal form of `step`: the machine
+                       has actually settled on one of the three outcomes, it
+                       was not cut off by the fuel counter (the claim `eval`'s
+                       fuel-out branch used to make in a source comment only)
    Totality is definitional (fuel-indexed structural recursion, a total
    function); determinism is definitional (it is a function). The bridge is
    the empirical check that this total, budget-respecting function IS the
@@ -226,6 +231,48 @@ theorem evalHash_spent_le (hsh : Bytes) (atp : Nat) (st : Store) :
     (evalHash hsh atp st).2 ≤ atp :=
   eval_spent_le _ _ _ _ _ (Nat.zero_le _)
 
+/-- fuel sufficiency / outcome classification: once the fuel exceeds the
+    remaining budget, the configuration `eval` RETURNS is a normal form of
+    `step` — no further action fires on it.
+
+    This is the theorem behind `eval`'s "unreached at atp+1" comment. Each
+    accepted action costs ≥ 1 (`step_cost_pos`) and no more than what is left
+    (`step_cost_le`), so `atp - spent` strictly decreases and the fuel counter
+    cannot be what stopped the machine: the returned pair is a genuine
+    outcome, not a truncated trace. Because `step` on the returned
+    configuration is `.nf`, and `eval` reaches its three exits only via
+    `step`'s `.nf` / `.exhausted` / `.unresolved` results, every run lands on
+    exactly one of normal form, `DISSONANCE(ATP Exhausted)` (the `.exhausted`
+    exit returns `.dis rATP`) or `DISSONANCE(Unresolved Reference)` (the
+    `.unresolved` exit returns `.dis rUnres`) — Book I §3.4/§4.2.
+
+    Scope, precisely: this is about the returned CONFIGURATION, and it does
+    not claim the three outcome TERMS are pairwise distinct — a term whose
+    normal form is materialized from the store can be the `.dis rATP` leaf
+    itself. What is proved is that the machine is settled when it answers. -/
+theorem eval_settles (fuel : Nat) (t : Term) (atp spent : Nat) (st : Store)
+    (hf : atp - spent < fuel) :
+    step (eval fuel t atp spent st).1 (atp - (eval fuel t atp spent st).2) st
+      = .nf := by
+  induction fuel generalizing t spent with
+  | zero => omega                                  -- `atp - spent < 0` is false
+  | succ fuel ih =>
+      rw [eval]
+      cases hs : step t (atp - spent) st with
+      | nf => simp only [hs]                       -- returns (t, spent) itself
+      | exhausted => rw [step]                     -- returns the ATP leaf: NF
+      | unresolved => rw [step]                    -- returns the UNRES leaf: NF
+      | step t' c =>
+          have h1 : 1 ≤ c := step_cost_pos _ _ _ _ _ hs
+          have h2 : c ≤ atp - spent := step_cost_le _ _ _ _ _ hs
+          exact ih t' (spent + c) (by omega)       -- the budget strictly shrank
+
+/-- top-level corollary at the fuel `evalHash` actually passes (`atp + 1`):
+    the machine settles on every input, under every budget, in every store. -/
+theorem evalHash_settles (hsh : Bytes) (atp : Nat) (st : Store) :
+    step (evalHash hsh atp st).1 (atp - (evalHash hsh atp st).2) st = .nf :=
+  eval_settles _ _ _ _ _ (by omega)
+
 /- ---------- the ADR-001 memory bound, ON the concrete evaluator ----------
    `SizeBound.lean` proves `size ≤ spent + 1` for an abstract seven-row
    accounting model, and `bridge_check.py` checks the per-step premise on
@@ -267,5 +314,27 @@ theorem eval_size_bound (fuel : Nat) (t : Term) (atp spent : Nat) (st : Store)
 theorem evalHash_size_bound (hsh : Bytes) (atp : Nat) (st : Store) :
     size (evalHash hsh atp st).1 ≤ (evalHash hsh atp st).2 + 1 :=
   eval_size_bound _ _ _ _ _ (by simp [size])
+
+/-- PEAK memory, not just the answer: every configuration `evalHash`'s trace
+    passes through is ≤ `atp + 1` nodes.
+
+    `evalHash_size_bound` bounds the RETURNED configuration only, and the
+    returned one is routinely the smallest: the trace of a store-backed
+    `S K K I` peaks at 7 nodes and answers with 1. The quantifier over `k` is
+    what makes this a peak bound — `eval k` runs at most `k` actions and its
+    fuel-out branch returns the configuration reached, so `eval k t atp 0 st`
+    for `k = 0, 1, 2, …` enumerates exactly the configurations of the
+    `evalHash hsh atp st` run (which is `eval (atp+1)`), each of them bounded
+    here. Two steps: `eval_size_bound` gives `size ≤ spent k + 1` at the k-th
+    configuration, `eval_spent_le` gives `spent k ≤ atp` at every k.
+
+    So the ADR-001 accounting prices peak memory, not merely the result — on
+    the evaluator itself, with no reachability side-condition. (`SizeBound`'s
+    `memory_bound` does quantify over all reachable states, but of the
+    abstract seven-row model, not of this evaluator.) -/
+theorem evalHash_peak_size (hsh : Bytes) (atp : Nat) (st : Store) (k : Nat) :
+    size (eval k (.thunk hsh) atp 0 st).1 ≤ atp + 1 :=
+  Nat.le_trans (eval_size_bound _ _ _ _ _ (by simp [size]))
+    (Nat.succ_le_succ (eval_spent_le _ _ _ _ _ (Nat.zero_le _)))
 
 end EvalMachine
