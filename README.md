@@ -1,7 +1,16 @@
 # Σ-GLYPH
 
-**A portable check engine: send a computation by hash, get the same answer on any
-machine, with work and memory bounded up front.**
+**A claim that arrives with a check attached is worth exactly as much as your
+ability to run the check yourself. Usually you can't.**
+
+Re-executing someone else's check means running their code, on your machine, for
+an unknown length of time — so in practice people read the verdict instead of
+reproducing it. And a check whose author can quietly change what it covers is
+indistinguishable, from the outside, from one whose scope is fixed. Σ-GLYPH makes
+a check an *object* rather than a program you have to trust: a computation is
+addressed by the hash of itself, so what was checked is pinned by its own identity
+and cannot be re-scoped afterwards, and evaluating it is deterministic,
+integer-only and total, with work **and** peak memory priced up front.
 
 ```
 result_hash = eval(term_hash, atp)     // deterministic, integer-only, total
@@ -12,7 +21,7 @@ the same `result_hash` — bit for bit, with no shared runtime, no float, no clo
 no network. If the budget runs out, that outcome is deterministic too. No input
 hangs it, and no input makes one implementation disagree with another.
 
-**Why anyone needs that.** It is what lets you re-run a *stranger's* reason.
+**What that is for.** Re-running a *stranger's* reason.
 [Warrant](https://github.com/s0fractal/warrant) records why an AI agent was
 allowed to do something; a reason there can be a Σ-GLYPH term, so a reviewer
 re-executes it on their own laptop and gets the same verdict — instead of
@@ -34,6 +43,17 @@ determinism, totality and memory bound are machine-checked theorems in Lean 4
 ([`proofs/`](proofs/)), not prose. A randomized differential fuzzer runs all
 three against each other on every push, and `tools/x1_cross_repo.sh` runs this
 repo against warrant's HEAD rather than a pinned snapshot.
+
+**Where the failures have actually been.** Not in the mathematics. Every vector
+`tests/proof_guard_test.py` now rejects is an attack on the *guard* rather than on
+the kernel — a theorem hidden from the registry by a one-line `namespace`, a scope
+read from a field the guard itself edits, a subdirectory file that no textual layer
+ever opened, a statement weakened while its name stayed the same. The Lean kernel
+was never the thing under attack, because it never had to be: the cheaper target
+was always the apparatus deciding what the proofs were taken to cover. Whether that
+generalises past this repository is not something one codebase can settle;
+[`proofs/README.md`](proofs/README.md) states, front by front, what is
+kernel-checked and what is merely trusted.
 
 ```bash
 python3 impl/sigma_glyph.py                        # Book I -> ALL PASS
@@ -59,7 +79,11 @@ the release gate does and does not prove.
 
 ### Current: v0.6.7
 
-**v0.6.7** (2026-07-31) is the adopted bundle and the version on PyPI. Against
+**v0.6.7** (2026-07-31) is the adopted bundle and the version on PyPI. *Adopted*
+means this project's own governance ran — a 2-of-3 threshold warrant signed by its
+own roster — and nothing about anyone outside it; `SECURITY-ASSUMPTIONS.md` SA-5
+records that of the five thresholds exercised so far, three were signed from a
+single host, which is one custody rather than a quorum. Against
 v0.6.6 exactly one anchored file changed —
 `tests/spec_conformance/governance_vectors.json`, re-signed under Warrant SPEC
 v0.4's domain-separated message (`"warrant-sig-v1:" || WarrantID_raw`), which
