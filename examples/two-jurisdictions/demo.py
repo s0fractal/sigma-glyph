@@ -33,6 +33,14 @@ sys.path.insert(0, os.path.join(REPO, "impl"))
 from sigma_federation import (  # noqa: E402
     ASSERTION_TAG, POLICY_TAG, assertion_set_root, select, view_id, wave_fed)
 
+# The signed message comes from tools/, not from a copy in the demo. This is an
+# example, and an example that open-codes the construction teaches it -- which
+# is how six of the seven pre-consolidation copies came to exist. The import
+# direction is examples/ -> tools/ and never impl/ -> tools/: the oracles in
+# impl/ are a dependency-free reference implementation and sign nothing.
+sys.path.insert(0, os.path.join(REPO, "tools"))
+import warrant_sig  # noqa: E402
+
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 except ImportError:
@@ -91,10 +99,7 @@ class Jurisdiction:
                 "prior": prior, "ts": ts}
         wid = sha(jcs(body))
         sk = self.key(actor)
-        env = {"body": body, "sigs": [{
-            "actor": actor,
-            "key": sk.public_key().public_bytes_raw().hex(),
-            "sig": sk.sign(bytes.fromhex(wid)).hex()}]}
+        env = {"body": body, "sigs": [warrant_sig.sig_entry(actor, sk, wid)]}
         with open(os.path.join(self.dir, "records", wid + ".json"), "w") as f:
             json.dump(env, f, indent=2, sort_keys=True)
         return wid

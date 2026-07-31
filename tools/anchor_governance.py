@@ -33,6 +33,9 @@ Commands:
 """
 import argparse, hashlib, json, os, re, sys, tempfile
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import warrant_sig  # noqa: E402  (the one signing-message construction)
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ANCHORS = os.path.join(REPO, "spec", "ANCHORS.txt")
 STORE = os.path.join(REPO, ".warrants")
@@ -297,8 +300,12 @@ def counted_sigs(env, rid, threshold, trust_actors):
             key = bytes.fromhex(s["key"])
             if weak_ed25519_pubkey(key):
                 continue
-            Ed25519PublicKey.from_public_bytes(key).verify(
-                bytes.fromhex(s["sig"]), bytes.fromhex(rid))
+            # Warrant SPEC v0.4 s5: the signed message names the protocol.
+            # Verifying the bare WarrantID here would accept signatures the
+            # Warrant CLI refuses, and this file adjudicates governance -- so
+            # the construction comes from tools/warrant_sig.py, not from a copy
+            # maintained beside the thing it is supposed to agree with.
+            warrant_sig.verify(key, s["sig"], rid)
         except Exception:
             continue
         counted.add(actor)
@@ -564,8 +571,7 @@ def _file(root, decision, actor, subject, under, prior, signers, note="x"):
             "prior": prior, "ts": 1783400000}
     rid = sha256(canon(body))
     env = {"body": body, "sigs": [
-        {"actor": a, "key": _pub(a), "sig": _sk(a).sign(bytes.fromhex(rid)).hex()}
-        for a in signers]}
+        warrant_sig.sig_entry(a, _sk(a), rid) for a in signers]}
     open(os.path.join(root, "records", rid + ".json"), "w").write(
         json.dumps(env, indent=2, sort_keys=True))
     return rid
@@ -980,8 +986,8 @@ def selftest():
     live = [s for s in sections if not s[1]]
     check("ANCHORS.txt parses (governed line of descent)",
           len(live) >= 1 and live[-1][0] == "v0.6.2")
-    check("current section is v0.6.6 with 10 anchors",
-          (live[0][0], len(live[0][2])), ("v0.6.6", 10))
+    check("current section is v0.6.7 with 10 anchors",
+          (live[0][0], len(live[0][2])), ("v0.6.7", 10))
     check("current anchor-set blob schema-valid",
           valid_anchor_set(anchor_set_blob(live[0][0], live[0][2], "a" * 64)))
 

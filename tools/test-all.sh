@@ -32,6 +32,17 @@ say "Guard regression: the three self-tests put their verdict in the EXIT STATUS
 # demands a non-zero exit (and a passing one, exit 0).
 python3 tests/exit_status_guard.py         | tee /dev/stderr | grep -q "EXIT-STATUS-GUARD: ALL PASS"
 
+say "Guard regression: exactly one construction of the Warrant signing message"
+# Warrant SPEC v0.4 §5 domain-separates the signed message, and this repository
+# had SEVEN hand-rolled copies of it in six Python files plus an eighth in
+# impl-go -- found while migrating, and only because something unrelated went
+# red. A signer and a verifier that disagree about those 47 bytes make this
+# repository's own tools split on the same store, one reporting a valid
+# signature and the other a forgery. The construction now lives in
+# tools/warrant_sig.py; this fails if any other file open-codes it, in either
+# the visible form (the literal) or the silent one (signing a bare digest).
+python3 tests/one_signing_path.py          | tee /dev/stderr | grep -q "ONE-SIGNING-PATH: ALL PASS"
+
 say "Release surface (what an installed copy promises)"
 # The checkout half only. It drives the gate's classifier against the two real
 # 0.6.6 install failures, then re-runs the three self-tests and the documented

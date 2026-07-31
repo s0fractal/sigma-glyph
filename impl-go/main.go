@@ -23,6 +23,17 @@ const (
 	policyTag    = "sigma-glyph.selection@v1"
 	viewTag      = "sigma-glyph.annotation-view@v1"
 	lutArbiter   = "c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2"
+
+	// Warrant SPEC v0.4 §5: a signature covers "warrant-sig-v1:" followed by
+	// the 32 raw bytes of the WarrantID, 47 bytes in all. A Go verifier that
+	// counts a signature the Python verifier refuses is the
+	// two-implementations-disagree outcome this repository exists to forbid.
+	//
+	// Go cannot import tools/warrant_sig.py, so this is the one copy of the
+	// construction that must exist. tests/one_signing_path.py pins it to that
+	// module's own constant, which is the only honest check available across a
+	// language boundary -- and the reason it is a named constant here.
+	warrantSigDomain = "warrant-sig-v1:"
 )
 
 var orderFields = map[string]bool{"epoch": true, "ts": true, "warrant_id": true, "actor": true}
@@ -1552,6 +1563,7 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 	if err != nil {
 		return counted
 	}
+	sigMsg := append([]byte(warrantSigDomain), ridBytes...)
 	for _, rawSig := range stringListAny(env["sigs"]) {
 		sigMap, ok := asMap(rawSig)
 		if !ok {
@@ -1568,7 +1580,14 @@ func govCountedSigs(env map[string]any, rid string, threshold GovThreshold, trus
 		if err1 != nil || err2 != nil || len(pub) != ed25519.PublicKeySize || len(sig) != ed25519.SignatureSize {
 			continue
 		}
-		if ed25519.Verify(ed25519.PublicKey(pub), ridBytes, sig) {
+		// Warrant SPEC v0.4 §5: the signed message names the protocol, so a key
+		// that signs some other protocol's SHA-256 digest does not thereby sign
+		// a Warrant. This is the Go half of a differential -- verifying the bare
+		// WarrantID here would make the two halves disagree about what a valid
+		// signature is, which is the defect class this project ranks P0. The
+		// separator itself is the warrantSigDomain constant above, so the one
+		// place Go states it is the one place tests/one_signing_path.py checks.
+		if ed25519.Verify(ed25519.PublicKey(pub), sigMsg, sig) {
 			counted[actor] = true
 		}
 	}
