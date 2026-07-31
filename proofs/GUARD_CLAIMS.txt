@@ -43,7 +43,7 @@
 # the registry can edit this file too. What it buys is that the edit is loud
 # and names the theorem, instead of hiding inside a 30 000-line pin file.
 
-pins-sha256 fb37ff1ec7350bd9b14e4ac0632173845cc83e58ba71cb587466d9bfbc7a18a0
+pins-sha256 5a4055719f6dfabaa0b1e6ae2134f06b1ab6748c8a6d394def0d7cac390d4a69
 
 core-modules Init Lean Std
 
@@ -95,9 +95,12 @@ front eval guarded EvalMachine.step_cost_le
 front eval guarded EvalMachine.step_cost_pos
 front eval guarded EvalMachine.eval_spent_le
 front eval guarded EvalMachine.evalHash_spent_le
+front eval guarded EvalMachine.eval_settles
+front eval guarded EvalMachine.evalHash_settles
 front eval guarded EvalMachine.size_step
 front eval guarded EvalMachine.eval_size_bound
 front eval guarded EvalMachine.evalHash_size_bound
+front eval guarded EvalMachine.evalHash_peak_size
 front eval native-decide-ok
 front eval native-decide-sources
 
