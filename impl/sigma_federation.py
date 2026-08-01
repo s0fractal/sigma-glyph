@@ -35,12 +35,71 @@ def sha_hex(b):
     return hashlib.sha256(b).hexdigest()
 
 
+def _has_surrogate(s):
+    """True if any code point is an unpaired-surrogate value (U+D800..U+DFFF).
+
+    I-JSON (RFC 7493 §2.1) requires strings to be sequences of Unicode SCALAR
+    values, and surrogate code points are not scalar values. Python's `json`
+    accepts them anyway and preserves them; Go's `encoding/json` silently
+    substitutes U+FFFD. That difference is not cosmetic: `_cmp_order` compares
+    actor strings by code point, so for the same raw request bytes
+    `actor:"\\ud800"` this implementation once selected one warrant and impl-go
+    selected another -- 0xD800 sorts below U+E000, 0xFFFD sorts above it.
+
+    Neither behaviour is defensible, so neither is adopted: the input is not
+    I-JSON and both implementations must refuse it. Detecting it here works
+    because Python preserves the evidence; impl-go has to inspect raw bytes
+    before decoding, because by the time it has a string the evidence is gone.
+    """
+    return any(0xD800 <= ord(ch) <= 0xDFFF for ch in s)
+
+
+def non_ijson(obj):
+    """Book III §2: reject input that is not I-JSON. Returns None or a reason."""
+    if isinstance(obj, str):
+        return "string is not I-JSON: unpaired surrogate" if _has_surrogate(obj) else None
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            for r in (non_ijson(k), non_ijson(v)):
+                if r:
+                    return r
+        return None
+    if isinstance(obj, list):
+        for v in obj:
+            r = non_ijson(v)
+            if r:
+                return r
+    return None
+
+
 def _is_hex64(s):
     return isinstance(s, str) and len(s) == 64 and all(c in "0123456789abcdef" for c in s)
 
 
+# Book III §2: the largest integer any canonicalized JSON here may carry.
+#
+# An AnnotationViewID is SHA-256 over the JCS serialization of a view, and
+# RFC 8785 §3.2.2.3 serializes numbers the way ECMAScript's
+# Number.prototype.toString does -- through an IEEE-754 double. Above 2^53-1
+# that is lossy, so canonical bytes stop being a function of the value:
+#
+#     epoch = 18446744073709551615   (uint64 max, formerly accepted here)
+#       this implementation  ->  18446744073709551615
+#       any conforming JCS   ->  18446744073709552000
+#
+# Two conforming implementations, one view, two ViewIDs.
+#
+# Warrant SPEC §2 took this bound first. Sigma kept accepting uint64 for one
+# commit afterwards, which was worse than an omission: `ts` here is an IMPORTED
+# Warrant field, so for that commit the two specifications disagreed about the
+# domain of the same field. A sibling that validates a borrowed field more
+# loosely than its owner is a split with extra steps.
+JCS_SAFE_INT_MAX = 9007199254740991          # 2**53 - 1
+
+
 def _is_uint(v, bits):
-    return isinstance(v, int) and not isinstance(v, bool) and 0 <= v < (1 << bits)
+    return (isinstance(v, int) and not isinstance(v, bool)
+            and 0 <= v < (1 << bits) and v <= JCS_SAFE_INT_MAX)
 
 
 def validate_assertion(doc):
@@ -120,10 +179,21 @@ def _is_blank(s):
 
 def _valid_metadata(c):
     """Book III §4: fields a policy can sort on must be well-typed, or the
-    candidate is not live (imported Warrant field domains)."""
-    return (_is_hex64(c.get("warrant_id"))
+    candidate is not live (imported Warrant field domains).
+
+    The `isinstance(c, dict)` and `assertion` guards are not defensive padding.
+    This function used to call `c.get(...)` on whatever it was handed, so a
+    candidate list holding `7` raised AttributeError while impl-go answered
+    `absent`, and a candidate with no `assertion` key raised KeyError in the
+    caller while impl-go again answered `absent`. A crash and an answer are two
+    different outcomes for one input, which is the split this book exists to
+    forbid -- and `select` documents itself as total, so the crash also made the
+    docstring false."""
+    return (isinstance(c, dict)
+            and _is_hex64(c.get("warrant_id"))
             and isinstance(c.get("actor"), str) and not _is_blank(c["actor"])
-            and _is_uint(c.get("ts"), 64))
+            and _is_uint(c.get("ts"), 64)
+            and isinstance(c.get("assertion"), dict))
 
 
 def _field(c, name):
@@ -152,6 +222,28 @@ def select(candidates, policy, jurisdiction, node, epoch):
              "conflict_set": [warrant_id...]} — deterministic, total.
     """
     import functools
+    # Book III §4: an invalid policy makes assertions under it settlement-
+    # inactive, so there is nothing to select. Checked here rather than assumed
+    # of the caller, because `_field` indexes `c[k["field"]]` directly: an order
+    # key of "vibes" raised KeyError while impl-go happily returned a winner.
+    # validate_policy already knew the policy was bad; select simply never asked.
+    if not isinstance(policy, dict) or validate_policy(policy) is not None:
+        return {"status": "absent", "selected": None, "conflict_set": []}
+    if not isinstance(candidates, list):
+        return {"status": "absent", "selected": None, "conflict_set": []}
+    # The REQUEST epoch is subject to the same domain as an assertion epoch.
+    # impl-go refuses an out-of-domain request outright at its CLI boundary; this
+    # is a library function with no boundary of its own, so it answers "absent"
+    # rather than crashing. Both refuse to name a winner, which is the
+    # requirement; the shape of the refusal is not.
+    if not _is_uint(epoch, 64):
+        return {"status": "absent", "selected": None, "conflict_set": []}
+    # Not I-JSON is not a candidate problem, it is a request problem: nothing in
+    # here can be ordered against anything else if the two implementations do not
+    # even agree on what the strings are (see _has_surrogate).
+    if non_ijson(candidates) or non_ijson(policy) or non_ijson(jurisdiction) \
+            or non_ijson(node):
+        return {"status": "absent", "selected": None, "conflict_set": []}
     live = []
     for c in candidates:
         if not _valid_metadata(c):                     # malformed order fields: not live

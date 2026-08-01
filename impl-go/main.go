@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -110,8 +111,69 @@ func die(msg string) {
 	os.Exit(1)
 }
 
+// rejectNonIJSON refuses input that is not I-JSON (RFC 7493 §2.1): strings must
+// be sequences of Unicode SCALAR values, and surrogate code points are not scalar
+// values.
+//
+// This has to run on the RAW BYTES, before decoding, and that is the whole point.
+// encoding/json does not reject an unpaired surrogate -- it silently substitutes
+// U+FFFD -- so by the time there is a Go string the evidence is gone. Python's
+// json preserves the surrogate instead. Neither is wrong about JSON and both are
+// wrong about I-JSON, and the consequence was measured: for one identical request
+// containing actor "\ud800", this implementation selected 1111... and the Python
+// implementation selected 2222..., because selectCandidates orders actors by code
+// point and 0xFFFD sorts above U+E000 while 0xD800 sorts below it.
+//
+// Refusing is the only answer available to both. Substituting means agreeing on a
+// value neither side was given; preserving means carrying a value that cannot be
+// encoded back out.
+func rejectNonIJSON(raw []byte) error {
+	if !utf8.Valid(raw) {
+		return errors.New("input is not I-JSON: invalid UTF-8")
+	}
+	for i := 0; i+5 < len(raw); i++ {
+		if raw[i] != '\\' || raw[i+1] != 'u' && raw[i+1] != 'U' {
+			continue
+		}
+		// count preceding backslashes: an escaped backslash is not an escape lead
+		bs := 0
+		for j := i - 1; j >= 0 && raw[j] == '\\'; j-- {
+			bs++
+		}
+		if bs%2 == 1 {
+			continue
+		}
+		hi, err := strconv.ParseUint(string(raw[i+2:i+6]), 16, 32)
+		if err != nil {
+			continue
+		}
+		if hi >= 0xDC00 && hi <= 0xDFFF {
+			return errors.New("input is not I-JSON: unpaired low surrogate")
+		}
+		if hi >= 0xD800 && hi <= 0xDBFF {
+			// must be immediately followed by a low-surrogate escape
+			if i+11 >= len(raw) || raw[i+6] != '\\' || raw[i+7] != 'u' {
+				return errors.New("input is not I-JSON: unpaired high surrogate")
+			}
+			lo, err := strconv.ParseUint(string(raw[i+8:i+12]), 16, 32)
+			if err != nil || lo < 0xDC00 || lo > 0xDFFF {
+				return errors.New("input is not I-JSON: unpaired high surrogate")
+			}
+			i += 11
+		}
+	}
+	return nil
+}
+
 func readJSONStdin() (any, error) {
-	dec := json.NewDecoder(os.Stdin)
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return nil, err
+	}
+	if err := rejectNonIJSON(raw); err != nil {
+		return nil, err
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
 	var v any
 	if err := dec.Decode(&v); err != nil {
@@ -169,6 +231,14 @@ func isHex64(s string) bool {
 }
 
 func uintValue(v any, bits int) (uint64, bool) {
+	u, ok := uintValueRaw(v, bits)
+	if !ok || u > jcsSafeIntMax {
+		return 0, false
+	}
+	return u, true
+}
+
+func uintValueRaw(v any, bits int) (uint64, bool) {
 	switch x := v.(type) {
 	case json.Number:
 		u, err := strconv.ParseUint(x.String(), 10, bits)
@@ -379,6 +449,13 @@ func parseOrder(policy map[string]any) []OrderKey {
 // U+001C-U+001F and U+2000-U+200A, U+2028, U+2029, U+205F, U+3000 -- is content.
 const blankCodePoints = "\t\n\v\f\r \u0085\u00a0"
 
+// Book III §2: largest integer any canonicalized JSON here may carry. An
+// AnnotationViewID is SHA-256 over JCS bytes, and RFC 8785 §3.2.2.3 serializes
+// numbers through ECMAScript Number::toString, an IEEE-754 double -- above
+// 2^53-1 the bytes stop being a function of the value (uint64 max canonicalizes
+// as 18446744073709552000). See impl/sigma_federation.py JCS_SAFE_INT_MAX.
+const jcsSafeIntMax uint64 = 9007199254740991 // 2^53 - 1
+
 func isBlank(s string) bool {
 	for _, r := range s {
 		if !strings.ContainsRune(blankCodePoints, r) {
@@ -552,6 +629,16 @@ func cmdSelect() error {
 	epoch, ok := uintValue(req["epoch"], 64)
 	if !ok {
 		return errors.New("select request epoch must be uint64")
+	}
+	// Book III §4: assertions under an invalid policy are settlement-inactive,
+	// so there is nothing to select. This call was missing: validatePolicy
+	// existed, was correct, and was never reached from this entrypoint, so a
+	// policy ordering on a field named "vibes" was rejected by the validator and
+	// still produced a winner here -- while the Python side raised KeyError on
+	// the same input. The validator knew; the selector never asked.
+	if validatePolicy(policy) != nil {
+		return writeJSON(selectionSummary(Selection{
+			Status: "absent", Selected: nil, ConflictSet: []string{}}))
 	}
 	return writeJSON(selectionSummary(selectCandidates(cands, policy, jur, node, epoch)))
 }

@@ -97,18 +97,23 @@ Until then, a Book III consumer must not infer byte-canonicality from acceptance
 Governance is 2-of-3 (`spec/GOV-anchors.md` §5). Counted rather than
 characterised:
 
-- The threshold has been exercised **five times** — the v0.6.2 – v0.6.6
-  anchor-set adoptions — and nothing else among the store's 50 records carries a
-  second signature.
-- **Three of the five** pair `claude-fable-5` with `codex`. Those two keys sat in
+- The threshold has been exercised **six times** — the v0.6.2 – v0.6.7
+  anchor-set adoptions — and nothing else among the store's 52 records carries a
+  second signature. (This paragraph read "five times" and "50 records" for two
+  days after the v0.6.7 adoption landed; an external review caught it. A count
+  nobody recounts is the defect this file exists to name, and it was this file's.)
+- **Three of the six** pair `claude-fable-5` with `codex`. Those two keys sat in
   one directory on one host as of 2026-07-28 (warrant's
   `policies/gate-settlement.json`, `custody`), so any process there could sign as
   both. **Two signatures from one host are one custody**, and a report calling
   them a 2-of-3 quorum makes a false claim.
-- The other two pair `claude-fable-5` with the founder key `s0fractal@sigma-glyph`.
+- The other three pair `claude-fable-5` with the founder key
+  `s0fractal@sigma-glyph` — including the v0.6.7 adoption, which is the first
+  where the co-signer was the human principal acting deliberately rather than a
+  second key on the same machine.
 
 So where a document describes "2-of-3 governance", the correct reading is: a
-2-of-3 policy, satisfied five times, twice by two distinct parties and three
+2-of-3 policy, satisfied six times, three times by two distinct parties and three
 times by one. The machinery is correct as specified; what it has actually
 witnessed is smaller than the specification suggests.
 

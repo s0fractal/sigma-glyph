@@ -250,7 +250,9 @@ for _cp in (0x1C, 0x1D, 0x1E, 0x1F):
 # shipped, not by this specification: a toolchain updating its White_Space data
 # could have changed which records are live with no commit to this repository.
 # Pinned as content, which is what the enumerated repertoire says.
-for _cp in (0x2028, 0x2029, 0x205F, 0x3000, 0x1680):
+for _cp in (0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006,
+            0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F,
+            0x3000):
     select_case(f"ADV-BLANK-REPERTOIRE-U+{_cp:04X}-IS-CONTENT", [
         {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": chr(_cp)},
         {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
@@ -264,6 +266,52 @@ for _cp in (0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0x85, 0xA0):
         {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
     ], sf.POLICY_TIE, 1)
 
+
+# Totality and policy validation (Codex re-review P0).
+#
+# select() documents itself as "deterministic, total". It was not: a candidate
+# list holding a non-object raised AttributeError, a candidate without an
+# "assertion" key raised KeyError, and an order key naming a field the policy
+# validator rejects raised KeyError -- while impl-go answered each one, and for
+# the invalid policy answered with a WINNER, never having called its own
+# validatePolicy. A crash and an answer are two outcomes for one input.
+_good = cand("2", "b", 1, 1, sf.W(0, 2, 0))
+_no_assertion = {k: v for k, v in cand("1", "a", 1, 1, sf.W(0, 1, 0)).items()
+                 if k != "assertion"}
+
+select_case("ADV-TOTAL-NON-OBJECT-CANDIDATE", [7, _good], sf.POLICY_TIE, 1)
+select_case("ADV-TOTAL-CANDIDATE-WITHOUT-ASSERTION", [_no_assertion, _good],
+            sf.POLICY_TIE, 1)
+select_case("ADV-TOTAL-NULL-CANDIDATE", [None, _good], sf.POLICY_TIE, 1)
+select_case("ADV-POLICY-INVALID-FIELD-SELECTS-NOTHING", [_good],
+            {**sf.POLICY_TIE, "order": [{"field": "vibes", "dir": "asc"}]}, 1)
+
+# Integer domain (Codex re-review P0). Above 2^53-1 a conforming JCS rounds, so
+# canonical bytes stop being a function of the value and one view acquires two
+# AnnotationViewIDs. `ts` is an imported Warrant field and Warrant SPEC §2 took
+# this bound first; for one commit the two specifications disagreed about it.
+for _label, _ts, _epoch in (("TS-AT-BOUND", 9007199254740991, 1),
+                            ("TS-OVER-BOUND", 9007199254740992, 1),
+                            ("TS-INT64-MAX", 9223372036854775807, 1),
+                            ("TS-UINT64-MAX", 18446744073709551615, 1),
+                            ("EPOCH-OVER-BOUND", 1, 9007199254740992),
+                            ("EPOCH-UINT64-MAX", 1, 18446744073709551615)):
+    _c = cand("1", "a", _ts, _epoch, sf.W(0, 1, 0))
+    # request epoch stays inside the domain on purpose: an out-of-domain REQUEST
+    # epoch is refused at impl-go's CLI boundary with a nonzero exit and no JSON,
+    # which this harness cannot compare against a library return value. That case
+    # is covered by the guard in select() and named in Book III §4; here the
+    # out-of-domain value travels in the CANDIDATE, where both sides can answer.
+    select_case(f"ADV-INT-DOMAIN-{_label}", [_c, _good], sf.POLICY_TIE, 1)
+
+# NOT covered here, deliberately: the unpaired-surrogate case (Book III §4,
+# I-JSON). This harness serialises candidates with Python's json encoder before
+# handing them to impl-go, and that encoder refuses to emit a lone surrogate --
+# so the harness cannot carry the input that exposes the bug. Reproducing it
+# needs raw bytes written straight to the binary's stdin. Recorded rather than
+# quietly skipped: an implementation is required to reject the input, the
+# requirement is in the spec, and the executable evidence for it lives outside
+# this file.
 
 # Adversarial wave semantics.
 chk("ADV-WAVE-PIN-K", go_wave("K"), sf.wave_fed("K", lambda t: None))
