@@ -224,6 +224,46 @@ select_case("ADV-WHITESPACE-ACTOR-NOT-LIVE", [
     {**cand("2", "b", 1, 1, sf.W(0, 2, 0)), "actor": "\u00a0\t"},
 ], sf.POLICY_TIE, 1)
 
+# Book III \u00a74 blank repertoire, pinned code point by code point.
+#
+# The two cases above are the ones this file used to carry, and between them
+# they exercised ASCII space, NBSP and TAB -- every member of the repertoire the
+# two implementations happened to agree on. That agreement was the reason the
+# split below went unnoticed for as long as it did: Python's `str.isspace`
+# counts U+001C-U+001F, Go's `unicode.IsSpace` does not, so for actor U+001C
+# Python selected a candidate and Go reported a conflict. Not a different
+# winner -- a different answer to whether a decision existed at all.
+#
+# Each code point gets its own case rather than one string containing all of
+# them, because a single mixed string passes as soon as ONE character is treated
+# as content by both sides, which is exactly the condition that hides a
+# disagreement about the others.
+for _cp in (0x1C, 0x1D, 0x1E, 0x1F):
+    select_case(f"ADV-BLANK-REPERTOIRE-U+{_cp:04X}-IS-CONTENT", [
+        {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": chr(_cp)},
+        {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
+    ], sf.POLICY_TIE, 1)
+
+# Non-Latin-1 whitespace. These two agreed before the repertoire was frozen --
+# both runtimes called them blank -- so they are not a fixed divergence. They are
+# here because that agreement was supplied by the Unicode tables the runtimes
+# shipped, not by this specification: a toolchain updating its White_Space data
+# could have changed which records are live with no commit to this repository.
+# Pinned as content, which is what the enumerated repertoire says.
+for _cp in (0x2028, 0x2029, 0x205F, 0x3000, 0x1680):
+    select_case(f"ADV-BLANK-REPERTOIRE-U+{_cp:04X}-IS-CONTENT", [
+        {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": chr(_cp)},
+        {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
+    ], sf.POLICY_TIE, 1)
+
+# Every member of the repertoire, one case each, asserting it IS blank: an actor
+# made only of that code point is not live, so only candidate 2 can be selected.
+for _cp in (0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0x85, 0xA0):
+    select_case(f"ADV-BLANK-REPERTOIRE-U+{_cp:04X}-IS-BLANK", [
+        {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": chr(_cp)},
+        {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
+    ], sf.POLICY_TIE, 1)
+
 
 # Adversarial wave semantics.
 chk("ADV-WAVE-PIN-K", go_wave("K"), sf.wave_fed("K", lambda t: None))

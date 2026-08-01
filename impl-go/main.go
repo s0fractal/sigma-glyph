@@ -355,11 +355,44 @@ func parseOrder(policy map[string]any) []OrderKey {
 	return out
 }
 
+// Book III §4: the exact repertoire that makes an actor blank. Enumerated, not
+// derived from a character property, and deliberately so.
+//
+// This used to be `strings.TrimSpace(actor) == ""`, against Python's
+// `str.strip`. Those disagree: Python's `str.isspace` counts U+001C-U+001F (the
+// C0 information separators) as whitespace, `unicode.IsSpace` does not. For
+// actor U+001C, Python found no live candidate and selected nothing; this
+// implementation found two and reported a conflict. The two disagreed not on
+// which candidate won but on whether a decision existed.
+//
+// The fix is not "make Go match Python". Either predicate is a moving target:
+// unicode.IsSpace consults the Unicode White_Space property, so a toolchain
+// shipping a newer Unicode table can change which records are live without
+// anyone editing this repository. A normative rule whose meaning is supplied by
+// the runtime's character tables is the same defect as a gate that resolves its
+// own scope. The set is written out here, frozen, and the spec says these eight
+// code points and no others.
+//
+// Chosen to match what both implementations already agreed on across the
+// Latin-1 range, so no existing record changes liveness: HT, LF, VT, FF, CR,
+// SPACE, NEL (U+0085), NBSP (U+00A0). Everything else -- including
+// U+001C-U+001F and U+2000-U+200A, U+2028, U+2029, U+205F, U+3000 -- is content.
+const blankCodePoints = "\t\n\v\f\r \u0085\u00a0"
+
+func isBlank(s string) bool {
+	for _, r := range s {
+		if !strings.ContainsRune(blankCodePoints, r) {
+			return false
+		}
+	}
+	return true
+}
+
 func validMetadata(m map[string]any) (*Candidate, bool) {
 	wid, wok := asString(m["warrant_id"])
 	actor, aok := asString(m["actor"])
 	ts, tok := uintValue(m["ts"], 64)
-	if !wok || !isHex64(wid) || !aok || strings.TrimSpace(actor) == "" || !tok {
+	if !wok || !isHex64(wid) || !aok || isBlank(actor) || !tok {
 		return nil, false
 	}
 	assertion, ok := asMap(m["assertion"])

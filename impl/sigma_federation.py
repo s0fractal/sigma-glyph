@@ -88,11 +88,41 @@ def validate_policy(doc):
     return None
 
 
+# Book III §4: the exact repertoire that makes an actor blank. Enumerated, not
+# derived from a character property, and deliberately so.
+#
+# This used to be `c["actor"].strip()`, against Go's `strings.TrimSpace`. Those
+# disagree: Python's `str.isspace` counts U+001C-U+001F (the C0 information
+# separators) as whitespace, Go's `unicode.IsSpace` does not. For actor
+# "" Python found no live candidate and selected nothing; Go found two and
+# reported a conflict. The two implementations disagreed not on which candidate
+# won but on whether a decision existed.
+#
+# The fix is not "make Python match Go". Either language's predicate is a moving
+# target: `unicode.IsSpace` consults the Unicode White_Space property, so a
+# runtime that ships a newer Unicode table can change which records are live
+# without anyone editing this repository. A normative rule whose meaning is
+# supplied by the runtime's character tables is the same defect as a gate that
+# resolves its own scope. So the set is written out here, frozen, and the spec
+# says these eight code points and no others.
+#
+# Chosen to match what both implementations already agreed on across the Latin-1
+# range, so no existing record changes liveness: HT, LF, VT, FF, CR, SPACE,
+# NEL (U+0085), NBSP (U+00A0). Everything else -- including U+001C-U+001F and
+# including U+2000-U+200A, U+2028, U+2029, U+205F and U+3000 -- is content.
+BLANK_CODE_POINTS = "\t\n\v\f\r \u0085\u00a0"
+
+
+def _is_blank(s):
+    """True if every code point is in the frozen blank repertoire (empty is blank)."""
+    return all(ch in BLANK_CODE_POINTS for ch in s)
+
+
 def _valid_metadata(c):
     """Book III §4: fields a policy can sort on must be well-typed, or the
     candidate is not live (imported Warrant field domains)."""
     return (_is_hex64(c.get("warrant_id"))
-            and isinstance(c.get("actor"), str) and c["actor"].strip()
+            and isinstance(c.get("actor"), str) and not _is_blank(c["actor"])
             and _is_uint(c.get("ts"), 64))
 
 
