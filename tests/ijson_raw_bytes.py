@@ -131,6 +131,53 @@ print(f"  {'OK  ' if ok else 'FAIL'}  {'invalid UTF-8 byte sequence':<36} "
 if not ok:
     fails.append("invalid UTF-8")
 
+# ---- Both halves, on the SAME bytes ----
+#
+# Until parse_request() existed this section could not be written: Python's entry
+# point took decoded objects, so there was no way to hand it the byte sequence
+# impl-go was being tested on. The suite therefore tested Go's gate against raw
+# bytes and Python's against constructed objects, which are different inputs, and
+# the requirement that both refuse the same thing was never actually exercised.
+print()
+BOTH = [
+    ("unpaired high surrogate", r'"\ud800"', True),
+    ("unpaired low surrogate", r'"\udc00"', True),
+    ("valid surrogate pair", r'"\ud834\udd1e"', False),
+    ("escaped literal", r'"\\ud800"', False),
+    ("ordinary", r'"a"', False),
+]
+for label, literal, must_reject in BOTH:
+    raw = request_bytes(literal)
+    go_code, _ = run(raw)
+    try:
+        sf.parse_request(raw)
+        py_rejected = False
+    except sf.IJSONError:
+        py_rejected = True
+    ok = (go_code != 0) == must_reject and py_rejected == must_reject
+    print(f"  {'OK  ' if ok else 'FAIL'}  {('same bytes: ' + label):<46} "
+          f"go={'reject' if go_code else 'accept'} py={'reject' if py_rejected else 'accept'}")
+    if not ok:
+        fails.append("both: " + label)
+
+for label, mutate, must_reject in (
+        ("duplicate member name",
+         lambda b: b.replace(b'"epoch": 1', b'"epoch": 1, "epoch": 2', 1), True),
+        ("trailing JSON value", lambda b: b + b"{}", True),
+        ("invalid UTF-8", lambda b: b.replace(b'"a"', b'"\xc3\x28"', 1), True)):
+    raw = mutate(request_bytes(r'"a"'))
+    go_code, _ = run(raw)
+    try:
+        sf.parse_request(raw)
+        py_rejected = False
+    except sf.IJSONError:
+        py_rejected = True
+    ok = (go_code != 0) == must_reject and py_rejected == must_reject
+    print(f"  {'OK  ' if ok else 'FAIL'}  {('same bytes: ' + label):<46} "
+          f"go={'reject' if go_code else 'accept'} py={'reject' if py_rejected else 'accept'}")
+    if not ok:
+        fails.append("both: " + label)
+
 # ---- Python half ----
 #
 # Everything above drives the Go binary. For one commit that was the whole file,
@@ -174,4 +221,4 @@ print()
 if fails:
     print(f"IJSON-RAW-BYTES: FAILURES ({len(fails)}): {', '.join(fails)}")
     raise SystemExit(1)
-print(f"IJSON-RAW-BYTES: ALL PASS ({len(CASES) + 3 + len(PY_CASES)}/{len(CASES) + 3 + len(PY_CASES)})")
+print(f"IJSON-RAW-BYTES: ALL PASS ({len(CASES) + 3 + len(PY_CASES) + len(BOTH) + 3}/{len(CASES) + 3 + len(PY_CASES) + len(BOTH) + 3})")

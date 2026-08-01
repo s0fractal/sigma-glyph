@@ -93,6 +93,61 @@ def non_ijson(obj):
     return None
 
 
+class IJSONError(ValueError):
+    """Raised by parse_request: the bytes are not one I-JSON value."""
+
+
+def parse_request(raw):
+    """Book III §4: bytes -> object, refusing everything I-JSON forbids.
+
+    This exists because a review pointed out that `select()` could not enforce
+    half of its own specification. `select()` takes decoded objects, and by then
+    duplicate member names are gone (a dict cannot hold two), lone surrogates may
+    already have been substituted by whichever parser ran, and trailing data has
+    been discarded. So impl-go's CLI enforced RFC 7493 §2.3 and this side could
+    not -- the specification described that asymmetry and thereby excused it,
+    which is not the same as closing it. A justification is not a control.
+
+    With this, a Python CLI or server has the same boundary impl-go has, and the
+    requirement is enforced by both rather than described in one and implemented
+    in the other. `select()` keeps taking objects; callers that hold bytes are
+    expected to come through here.
+
+    Checks, in the order a hostile input meets them:
+      1. strict UTF-8 (no surrogate-pass, no replacement characters)
+      2. exactly one JSON value, nothing after it
+      3. unique member names within every object, at any depth
+      4. no unpaired surrogates anywhere in any string
+    """
+    if isinstance(raw, str):
+        raw = raw.encode("utf-8", errors="surrogatepass")
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise IJSONError(f"input is not I-JSON: invalid UTF-8 ({exc.reason})")
+
+    def _no_duplicates(pairs):
+        seen = set()
+        for k, _ in pairs:
+            if k in seen:
+                raise IJSONError(f"input is not I-JSON: duplicate member name {k!r}")
+            seen.add(k)
+        return dict(pairs)
+
+    dec = json.JSONDecoder(object_pairs_hook=_no_duplicates)
+    try:
+        obj, end = dec.raw_decode(text)
+    except json.JSONDecodeError as exc:
+        raise IJSONError(f"input is not I-JSON: {exc.msg}")
+    if text[end:].strip():
+        raise IJSONError("input is not I-JSON: trailing data after the JSON value")
+
+    reason = non_ijson(obj)
+    if reason:
+        raise IJSONError(reason)
+    return obj
+
+
 def _is_hex64(s):
     return isinstance(s, str) and len(s) == 64 and all(c in "0123456789abcdef" for c in s)
 
@@ -241,6 +296,20 @@ def select(candidates, policy, jurisdiction, node, epoch):
     candidates: list of {"warrant_id", "actor", "ts", "assertion": <blob dict>}
     Returns {"status": "selected"|"conflict"|"absent", "selected": cand|None,
              "conflict_set": [warrant_id...]} — deterministic, total.
+
+    **`absent` is overloaded, deliberately, and callers must know it.** It means
+    "no candidate can win", and that covers both "no live assertion exists" — the
+    protocol answer — and "the request was malformed": an invalid policy, an
+    out-of-domain epoch, input that is not I-JSON. impl-go's CLI distinguishes
+    these with a nonzero exit; a library returning a value has no equivalent
+    channel, and inventing a fourth status would put a local input complaint into
+    the protocol's own vocabulary, which is the mistake the removed node budget
+    made.
+
+    A caller that needs the distinction should not infer it from `absent`. It
+    should validate first: `parse_request()` for bytes, `validate_policy()` for a
+    policy, `_is_uint(epoch, 64)` for the epoch — each of which says what is
+    wrong. `absent` from a request that passed those is the protocol's answer.
     """
     import functools
     # Book III §4: an invalid policy makes assertions under it settlement-
