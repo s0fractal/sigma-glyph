@@ -141,6 +141,11 @@ grep -q "VACUOUS FV-BOOK-I-UNREACHABLE" <<<"$_gofed"
 ./impl-go/sigma-federation-go gov-replay tests/spec_conformance/governance_vectors.json \
   | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
 python3 tests/federation_differential.py   | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
+
+# Raw-byte I-JSON gate. Separate from the differential on purpose: that harness
+# encodes requests with Python's json, which cannot emit a lone surrogate, so it
+# is structurally incapable of carrying this input.
+python3 tests/ijson_raw_bytes.py           | tee /dev/stderr | grep -q "IJSON-RAW-BYTES: ALL PASS"
 python3 tests/governance_differential.py   | tee /dev/stderr | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
 
 say "Book III live (two-jurisdictions demo, real stores)"

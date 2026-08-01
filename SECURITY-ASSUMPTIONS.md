@@ -97,20 +97,80 @@ Until then, a Book III consumer must not infer byte-canonicality from acceptance
 Governance is 2-of-3 (`spec/GOV-anchors.md` §5). Counted rather than
 characterised:
 
-- The threshold has been exercised **five times** — the v0.6.2 – v0.6.6
-  anchor-set adoptions — and nothing else among the store's 50 records carries a
-  second signature.
-- **Three of the five** pair `claude-fable-5` with `codex`. Those two keys sat in
+- The threshold has been exercised **six times** — the v0.6.2 – v0.6.7
+  anchor-set adoptions — and nothing else among the store's 52 records carries a
+  second signature. (This paragraph read "five times" and "50 records" for two
+  days after the v0.6.7 adoption landed; an external review caught it. A count
+  nobody recounts is the defect this file exists to name, and it was this file's.)
+- **Three of the six** pair `claude-fable-5` with `codex`. Those two keys sat in
   one directory on one host as of 2026-07-28 (warrant's
   `policies/gate-settlement.json`, `custody`), so any process there could sign as
   both. **Two signatures from one host are one custody**, and a report calling
   them a 2-of-3 quorum makes a false claim.
-- The other two pair `claude-fable-5` with the founder key `s0fractal@sigma-glyph`.
+- The other three pair `claude-fable-5` with the founder actor key
+  `s0fractal@sigma-glyph`. What the store establishes is exactly that: an
+  envelope carrying a valid signature under that actor id. It does not establish
+  who held the key, whether a human was present, or whether the act was
+  deliberate.
+
+  (A previous revision of this bullet said the v0.6.7 co-signer was "the human
+  principal acting deliberately rather than a second key on the same machine".
+  Nothing in the store supports either half. It was written into the section
+  headed *Counted rather than characterised*, which exists to forbid precisely
+  that substitution — and written while correcting a different overstatement in
+  the same paragraph. Left visible instead of deleted: this file's subject is
+  the gap between what a signature proves and what a reader assumes it proves,
+  and the shortest illustration available is that its own author closed that gap
+  by assumption on the first try. A custody or intent claim needs attributable
+  evidence from the principal, not an inference from an actor id.)
 
 So where a document describes "2-of-3 governance", the correct reading is: a
-2-of-3 policy, satisfied five times, twice by two distinct parties and three
+2-of-3 policy, satisfied six times, three times by two distinct parties and three
 times by one. The machinery is correct as specified; what it has actually
 witnessed is smaller than the specification suggests.
+
+### SA-5b. The founder's signature is now delegated authorization, not independent review
+
+**Recorded 2026-08-01, from a direct statement rather than inference.** Asked to
+authorize a merge, the founder replied that the authorization step had become
+"бутафорія" — a stage prop — because the work had gone into territory he no
+longer follows, and granted blanket authority for any future action, merge and
+push, explicitly accepting responsibility while stating that understanding is
+absent and will not return soon.
+
+Taken at face value, and it changes what a future co-signature by
+`s0fractal@sigma-glyph` means. It is evidence that the principal authorized an
+act. It is **not** evidence that the principal evaluated the technical content of
+the act — and for anchor-set adoptions, the content is the whole substance of
+what the signature attests.
+
+This matters here more than it would elsewhere, because two rounds ago this file
+carried the opposite claim: that a v0.6.7 co-signature showed "the human
+principal acting deliberately". That was removed as unprovable inference. This
+entry is the same fact from the other side, and it is provable — the principal
+said it.
+
+**Consequence for reading the record.** Where GOV-anchors describes a 2-of-3
+threshold, the honest reading for adoptions from this date is: one model actor
+attesting to content, plus one human actor attesting to *permission for the model
+to proceed*. Those are different claims. A reader who takes the threshold as two
+independent evaluations of the same technical material will be wrong.
+
+**What is not delegated, and why the delegation cannot extend to it.** The model
+maintainer holds `claude-fable-5@sigma-glyph` and MUST NOT sign as any other
+roster actor, blanket authorization notwithstanding. Authorization to act is not
+authorization to be someone else in a permanent, machine-readable attestation:
+permission changes who may do a thing, not who did it. Both remaining roster keys
+(`codex`, `s0fractal`) sit in one directory on the operator's host, so producing
+a threshold with them would also be the single-custody defect SA-5 already names
+— two signatures from one host are one custody. An adoption assembled that way
+would verify cryptographically and misdescribe reality, which is the precise
+failure this repository exists to make detectable.
+
+The practical effect is that anchor adoption still requires the founder to run
+one command, and that this is the one remaining act which cannot be delegated
+without the record becoming false. It is not bureaucracy left over from a more
+cautious phase; it is the only place where the mechanism still touches a person.
 
 ### SA-6. Model actors here are delegates, not maintainers of record
 

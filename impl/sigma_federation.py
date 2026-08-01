@@ -35,12 +35,166 @@ def sha_hex(b):
     return hashlib.sha256(b).hexdigest()
 
 
+def _has_surrogate(s):
+    """True if any code point is an unpaired-surrogate value (U+D800..U+DFFF).
+
+    I-JSON (RFC 7493 §2.1) requires strings to be sequences of Unicode SCALAR
+    values, and surrogate code points are not scalar values. Python's `json`
+    accepts them anyway and preserves them; Go's `encoding/json` silently
+    substitutes U+FFFD. That difference is not cosmetic: `_cmp_order` compares
+    actor strings by code point, so for the same raw request bytes
+    `actor:"\\ud800"` this implementation once selected one warrant and impl-go
+    selected another -- 0xD800 sorts below U+E000, 0xFFFD sorts above it.
+
+    Neither behaviour is defensible, so neither is adopted: the input is not
+    I-JSON and both implementations must refuse it. Detecting it here works
+    because Python preserves the evidence; impl-go has to inspect raw bytes
+    before decoding, because by the time it has a string the evidence is gone.
+    """
+    return any(0xD800 <= ord(ch) <= 0xDFFF for ch in s)
+
+
+def non_ijson(obj):
+    """Book III §2: reject input that is not I-JSON. Returns None or a reason.
+
+    Iterative with an explicit stack, and that is the point rather than a style
+    preference. The first version recursed, so a candidate holding ~1200 nested
+    lists raised RecursionError here while impl-go answered normally --
+    reintroducing crash-versus-answer inside the function added to close a
+    crash-versus-answer split. Hostile input is exactly what this walker exists
+    to inspect, so it may not have a depth at which it stops being a function.
+
+    The second version carried a 100_000-node inspection budget and returned a
+    refusal when it ran out. That was worse than the crash it replaced. The
+    budget existed only here -- Book III did not define it and impl-go did not
+    implement it -- and its refusal was routed into `select`'s `absent`, which is
+    not "I gave up" but the protocol's assertion that NO LIVE ASSERTION EXISTS.
+    A 586 KB request of 100001 nulls plus one valid candidate therefore produced
+    `absent` in Python and `selected` in Go: a local resource decision wearing
+    the costume of a derivation result. Removed rather than mirrored into Go,
+    because the walk is linear in an input the caller has already materialised,
+    so the budget bought nothing that reading the request had not already cost.
+
+    If a resource limit is ever needed here it MUST surface as a distinguishable
+    local fault and MUST NOT be spelled as a selection outcome.
+    """
+    stack = [obj]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, str):
+            if _has_surrogate(cur):
+                return "string is not I-JSON: unpaired surrogate"
+        elif isinstance(cur, dict):
+            for k, v in cur.items():
+                stack.append(k)
+                stack.append(v)
+        elif isinstance(cur, list):
+            stack.extend(cur)
+    return None
+
+
+class IJSONError(ValueError):
+    """Raised by parse_request: the bytes are not one I-JSON value."""
+
+
+def parse_request(raw):
+    """Book III §4: bytes -> object, refusing everything I-JSON forbids.
+
+    This exists because a review pointed out that `select()` could not enforce
+    half of its own specification. `select()` takes decoded objects, and by then
+    duplicate member names are gone (a dict cannot hold two), lone surrogates may
+    already have been substituted by whichever parser ran, and trailing data has
+    been discarded. So impl-go's CLI enforced RFC 7493 §2.3 and this side could
+    not -- the specification described that asymmetry and thereby excused it,
+    which is not the same as closing it. A justification is not a control.
+
+    With this, a Python CLI or server has the same boundary impl-go has, and the
+    requirement is enforced by both rather than described in one and implemented
+    in the other. `select()` keeps taking objects; callers that hold bytes are
+    expected to come through here.
+
+    Pass **bytes**. `str` is accepted for convenience and is strictly weaker: see
+    the comment at the top of the body, and `IJSON-RAW-BYTES`'s pinned case for
+    what it cannot see.
+
+    Checks, in the order a hostile input meets them:
+      1. strict UTF-8 (no surrogate-pass, no replacement characters)
+      2. exactly one JSON value, nothing after it
+      3. unique member names within every object, at any depth
+      4. no unpaired surrogates anywhere in any string
+    """
+    # BYTES ARE THE BOUNDARY. `str` is accepted as a convenience and cannot
+    # carry the same guarantee, because a `str` has already been decoded by
+    # someone: if that decoder substituted U+FFFD for an unpaired surrogate --
+    # which Go's encoding/json does, and which is the exact defect this gate
+    # exists for -- the evidence is gone before this function is called, and no
+    # check here can recover it. A caller holding the original octets should pass
+    # them; a caller holding a `str` is trusting whoever produced it.
+    if isinstance(raw, str):
+        # Checked before the encode round-trip, not after. Encoding with
+        # surrogatepass and letting the strict decode fail also rejects this
+        # input, but reports "invalid UTF-8 (invalid continuation byte)" -- a
+        # description of bytes this function manufactured, not of anything the
+        # caller sent. A diagnosis that names the wrong thing is how the next
+        # reader spends an hour in the wrong place.
+        if _has_surrogate(raw):
+            raise IJSONError("string is not I-JSON: unpaired surrogate")
+        raw = raw.encode("utf-8")
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise IJSONError(f"input is not I-JSON: invalid UTF-8 ({exc.reason})")
+
+    def _no_duplicates(pairs):
+        seen = set()
+        for k, _ in pairs:
+            if k in seen:
+                raise IJSONError(f"input is not I-JSON: duplicate member name {k!r}")
+            seen.add(k)
+        return dict(pairs)
+
+    dec = json.JSONDecoder(object_pairs_hook=_no_duplicates)
+    try:
+        obj, end = dec.raw_decode(text)
+    except json.JSONDecodeError as exc:
+        raise IJSONError(f"input is not I-JSON: {exc.msg}")
+    if text[end:].strip():
+        raise IJSONError("input is not I-JSON: trailing data after the JSON value")
+
+    reason = non_ijson(obj)
+    if reason:
+        raise IJSONError(reason)
+    return obj
+
+
 def _is_hex64(s):
     return isinstance(s, str) and len(s) == 64 and all(c in "0123456789abcdef" for c in s)
 
 
+# Book III §2: the largest integer any canonicalized JSON here may carry.
+#
+# An AnnotationViewID is SHA-256 over the JCS serialization of a view, and
+# RFC 8785 §3.2.2.3 serializes numbers the way ECMAScript's
+# Number.prototype.toString does -- through an IEEE-754 double. Above 2^53-1
+# that is lossy, so canonical bytes stop being a function of the value:
+#
+#     epoch = 18446744073709551615   (uint64 max, formerly accepted here)
+#       this implementation  ->  18446744073709551615
+#       any conforming JCS   ->  18446744073709552000
+#
+# Two conforming implementations, one view, two ViewIDs.
+#
+# Warrant SPEC §2 took this bound first. Sigma kept accepting uint64 for one
+# commit afterwards, which was worse than an omission: `ts` here is an IMPORTED
+# Warrant field, so for that commit the two specifications disagreed about the
+# domain of the same field. A sibling that validates a borrowed field more
+# loosely than its owner is a split with extra steps.
+JCS_SAFE_INT_MAX = 9007199254740991          # 2**53 - 1
+
+
 def _is_uint(v, bits):
-    return isinstance(v, int) and not isinstance(v, bool) and 0 <= v < (1 << bits)
+    return (isinstance(v, int) and not isinstance(v, bool)
+            and 0 <= v < (1 << bits) and v <= JCS_SAFE_INT_MAX)
 
 
 def validate_assertion(doc):
@@ -88,12 +242,53 @@ def validate_policy(doc):
     return None
 
 
+# Book III §4: the exact repertoire that makes an actor blank. Enumerated, not
+# derived from a character property, and deliberately so.
+#
+# This used to be `c["actor"].strip()`, against Go's `strings.TrimSpace`. Those
+# disagree: Python's `str.isspace` counts U+001C-U+001F (the C0 information
+# separators) as whitespace, Go's `unicode.IsSpace` does not. For actor
+# "" Python found no live candidate and selected nothing; Go found two and
+# reported a conflict. The two implementations disagreed not on which candidate
+# won but on whether a decision existed.
+#
+# The fix is not "make Python match Go". Either language's predicate is a moving
+# target: `unicode.IsSpace` consults the Unicode White_Space property, so a
+# runtime that ships a newer Unicode table can change which records are live
+# without anyone editing this repository. A normative rule whose meaning is
+# supplied by the runtime's character tables is the same defect as a gate that
+# resolves its own scope. So the set is written out here, frozen, and the spec
+# says these eight code points and no others.
+#
+# Chosen to match what both implementations already agreed on across the Latin-1
+# range, so no existing record changes liveness: HT, LF, VT, FF, CR, SPACE,
+# NEL (U+0085), NBSP (U+00A0). Everything else -- including U+001C-U+001F and
+# including U+2000-U+200A, U+2028, U+2029, U+205F and U+3000 -- is content.
+BLANK_CODE_POINTS = "\t\n\v\f\r \u0085\u00a0"
+
+
+def _is_blank(s):
+    """True if every code point is in the frozen blank repertoire (empty is blank)."""
+    return all(ch in BLANK_CODE_POINTS for ch in s)
+
+
 def _valid_metadata(c):
     """Book III §4: fields a policy can sort on must be well-typed, or the
-    candidate is not live (imported Warrant field domains)."""
-    return (_is_hex64(c.get("warrant_id"))
-            and isinstance(c.get("actor"), str) and c["actor"].strip()
-            and _is_uint(c.get("ts"), 64))
+    candidate is not live (imported Warrant field domains).
+
+    The `isinstance(c, dict)` and `assertion` guards are not defensive padding.
+    This function used to call `c.get(...)` on whatever it was handed, so a
+    candidate list holding `7` raised AttributeError while impl-go answered
+    `absent`, and a candidate with no `assertion` key raised KeyError in the
+    caller while impl-go again answered `absent`. A crash and an answer are two
+    different outcomes for one input, which is the split this book exists to
+    forbid -- and `select` documents itself as total, so the crash also made the
+    docstring false."""
+    return (isinstance(c, dict)
+            and _is_hex64(c.get("warrant_id"))
+            and isinstance(c.get("actor"), str) and not _is_blank(c["actor"])
+            and _is_uint(c.get("ts"), 64)
+            and isinstance(c.get("assertion"), dict))
 
 
 def _field(c, name):
@@ -120,8 +315,44 @@ def select(candidates, policy, jurisdiction, node, epoch):
     candidates: list of {"warrant_id", "actor", "ts", "assertion": <blob dict>}
     Returns {"status": "selected"|"conflict"|"absent", "selected": cand|None,
              "conflict_set": [warrant_id...]} — deterministic, total.
+
+    **`absent` is overloaded, deliberately, and callers must know it.** It means
+    "no candidate can win", and that covers both "no live assertion exists" — the
+    protocol answer — and "the request was malformed": an invalid policy, an
+    out-of-domain epoch, input that is not I-JSON. impl-go's CLI distinguishes
+    these with a nonzero exit; a library returning a value has no equivalent
+    channel, and inventing a fourth status would put a local input complaint into
+    the protocol's own vocabulary, which is the mistake the removed node budget
+    made.
+
+    A caller that needs the distinction should not infer it from `absent`. It
+    should validate first: `parse_request()` for bytes, `validate_policy()` for a
+    policy, `_is_uint(epoch, 64)` for the epoch — each of which says what is
+    wrong. `absent` from a request that passed those is the protocol's answer.
     """
     import functools
+    # Book III §4: an invalid policy makes assertions under it settlement-
+    # inactive, so there is nothing to select. Checked here rather than assumed
+    # of the caller, because `_field` indexes `c[k["field"]]` directly: an order
+    # key of "vibes" raised KeyError while impl-go happily returned a winner.
+    # validate_policy already knew the policy was bad; select simply never asked.
+    if not isinstance(policy, dict) or validate_policy(policy) is not None:
+        return {"status": "absent", "selected": None, "conflict_set": []}
+    if not isinstance(candidates, list):
+        return {"status": "absent", "selected": None, "conflict_set": []}
+    # The REQUEST epoch is subject to the same domain as an assertion epoch.
+    # impl-go refuses an out-of-domain request outright at its CLI boundary; this
+    # is a library function with no boundary of its own, so it answers "absent"
+    # rather than crashing. Both refuse to name a winner, which is the
+    # requirement; the shape of the refusal is not.
+    if not _is_uint(epoch, 64):
+        return {"status": "absent", "selected": None, "conflict_set": []}
+    # Not I-JSON is not a candidate problem, it is a request problem: nothing in
+    # here can be ordered against anything else if the two implementations do not
+    # even agree on what the strings are (see _has_surrogate).
+    if non_ijson(candidates) or non_ijson(policy) or non_ijson(jurisdiction) \
+            or non_ijson(node):
+        return {"status": "absent", "selected": None, "conflict_set": []}
     live = []
     for c in candidates:
         if not _valid_metadata(c):                     # malformed order fields: not live
@@ -195,7 +426,24 @@ def wave_fed(term, resolve_selection):
 
 
 def view_id(jurisdiction, node, policy_hash, epoch):
-    """Book III §6."""
+    """Book III §6. Raises ValueError on a coordinate outside its domain.
+
+    This function used to hash whatever it was handed. Narrowing `_is_uint` did
+    not reach it, because it never called `_is_uint` -- so the very split the
+    integer domain exists to close stayed open in the one function whose output
+    IS the identity: `epoch = uint64 max` minted a ViewID here while impl-go's
+    entrypoint exited 1, and `-1` and `True` did the same. A validator that the
+    identity function does not consult is a validator with no jurisdiction over
+    identity.
+
+    Refusing rather than returning a sentinel is deliberate: there is no such
+    thing as the ViewID of an out-of-domain coordinate, and an oracle that
+    answers anyway is how a wrong answer acquires a hash to travel under.
+    """
+    if not (_is_hex64(jurisdiction) and _is_hex64(node) and _is_hex64(policy_hash)):
+        raise ValueError("view coordinate: jurisdiction, node and policy must be hex64")
+    if not _is_uint(epoch, 64):
+        raise ValueError("view coordinate: epoch outside the Book III integer domain")
     return sha_hex(jcs({"view": VIEW_TAG, "jurisdiction": jurisdiction,
                         "node": node, "policy": policy_hash, "epoch": epoch}))
 

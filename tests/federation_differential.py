@@ -224,6 +224,153 @@ select_case("ADV-WHITESPACE-ACTOR-NOT-LIVE", [
     {**cand("2", "b", 1, 1, sf.W(0, 2, 0)), "actor": "\u00a0\t"},
 ], sf.POLICY_TIE, 1)
 
+# Book III \u00a74 blank repertoire, pinned code point by code point.
+#
+# The two cases above are the ones this file used to carry, and between them
+# they exercised ASCII space, NBSP and TAB -- every member of the repertoire the
+# two implementations happened to agree on. That agreement was the reason the
+# split below went unnoticed for as long as it did: Python's `str.isspace`
+# counts U+001C-U+001F, Go's `unicode.IsSpace` does not, so for actor U+001C
+# Python selected a candidate and Go reported a conflict. Not a different
+# winner -- a different answer to whether a decision existed at all.
+#
+# Each code point gets its own case rather than one string containing all of
+# them, because a single mixed string passes as soon as ONE character is treated
+# as content by both sides, which is exactly the condition that hides a
+# disagreement about the others.
+for _cp in (0x1C, 0x1D, 0x1E, 0x1F):
+    select_case(f"ADV-BLANK-REPERTOIRE-U+{_cp:04X}-IS-CONTENT", [
+        {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": chr(_cp)},
+        {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
+    ], sf.POLICY_TIE, 1)
+
+# Non-Latin-1 whitespace. These two agreed before the repertoire was frozen --
+# both runtimes called them blank -- so they are not a fixed divergence. They are
+# here because that agreement was supplied by the Unicode tables the runtimes
+# shipped, not by this specification: a toolchain updating its White_Space data
+# could have changed which records are live with no commit to this repository.
+# Pinned as content, which is what the enumerated repertoire says.
+for _cp in (0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006,
+            0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F,
+            0x3000):
+    select_case(f"ADV-BLANK-REPERTOIRE-U+{_cp:04X}-IS-CONTENT", [
+        {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": chr(_cp)},
+        {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
+    ], sf.POLICY_TIE, 1)
+
+# Every member of the repertoire, one case each, asserting it IS blank: an actor
+# made only of that code point is not live, so only candidate 2 can be selected.
+for _cp in (0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0x85, 0xA0):
+    select_case(f"ADV-BLANK-REPERTOIRE-U+{_cp:04X}-IS-BLANK", [
+        {**cand("1", "a", 1, 1, sf.W(0, 1, 0)), "actor": chr(_cp)},
+        {**cand("2", "b", 1, 1, sf.W(0, 2, 0))},
+    ], sf.POLICY_TIE, 1)
+
+
+# Totality and policy validation (Codex re-review P0).
+#
+# select() documents itself as "deterministic, total". It was not: a candidate
+# list holding a non-object raised AttributeError, a candidate without an
+# "assertion" key raised KeyError, and an order key naming a field the policy
+# validator rejects raised KeyError -- while impl-go answered each one, and for
+# the invalid policy answered with a WINNER, never having called its own
+# validatePolicy. A crash and an answer are two outcomes for one input.
+_good = cand("2", "b", 1, 1, sf.W(0, 2, 0))
+_no_assertion = {k: v for k, v in cand("1", "a", 1, 1, sf.W(0, 1, 0)).items()
+                 if k != "assertion"}
+
+select_case("ADV-TOTAL-NON-OBJECT-CANDIDATE", [7, _good], sf.POLICY_TIE, 1)
+select_case("ADV-TOTAL-CANDIDATE-WITHOUT-ASSERTION", [_no_assertion, _good],
+            sf.POLICY_TIE, 1)
+select_case("ADV-TOTAL-NULL-CANDIDATE", [None, _good], sf.POLICY_TIE, 1)
+select_case("ADV-POLICY-INVALID-FIELD-SELECTS-NOTHING", [_good],
+            {**sf.POLICY_TIE, "order": [{"field": "vibes", "dir": "asc"}]}, 1)
+
+# Integer domain (Codex re-review P0). Above 2^53-1 a conforming JCS rounds, so
+# canonical bytes stop being a function of the value and one view acquires two
+# AnnotationViewIDs. `ts` is an imported Warrant field and Warrant SPEC §2 took
+# this bound first; for one commit the two specifications disagreed about it.
+for _label, _ts, _epoch in (("TS-AT-BOUND", 9007199254740991, 1),
+                            ("TS-OVER-BOUND", 9007199254740992, 1),
+                            ("TS-INT64-MAX", 9223372036854775807, 1),
+                            ("TS-UINT64-MAX", 18446744073709551615, 1),
+                            ("EPOCH-OVER-BOUND", 1, 9007199254740992),
+                            ("EPOCH-UINT64-MAX", 1, 18446744073709551615)):
+    _c = cand("1", "a", _ts, _epoch, sf.W(0, 1, 0))
+    # request epoch stays inside the domain on purpose: an out-of-domain REQUEST
+    # epoch is refused at impl-go's CLI boundary with a nonzero exit and no JSON,
+    # which this harness cannot compare against a library return value. That case
+    # is covered by the guard in select() and named in Book III §4; here the
+    # out-of-domain value travels in the CANDIDATE, where both sides can answer.
+    select_case(f"ADV-INT-DOMAIN-{_label}", [_c, _good], sf.POLICY_TIE, 1)
+
+# The unpaired-surrogate case is NOT here and structurally cannot be: this
+# harness encodes every request with Python's json, and that encoder refuses to
+# emit a lone surrogate, so it cannot carry the input. It lives in
+# tests/ijson_raw_bytes.py, which writes raw bytes to the binary's stdin and runs
+# in tools/test-all.sh alongside this file.
+#
+# The previous version of this comment ended "the executable evidence for it
+# lives outside this file", which sounded like a pointer and was in fact a
+# description of manual reproduction: no such test existed. A disclosed gap is
+# still a gap, and a comment is not a control.
+
+# ViewID domain (Codex third-round P0). Narrowing _is_uint did not reach
+# view_id(), because view_id() never called it -- so the identity function itself
+# stayed outside the domain its own repository had just declared. uint64 max, -1
+# and True each minted a ViewID in Python while impl-go exited 1.
+#
+# The in-domain boundary is a normal differential: both sides must produce the
+# same hash. The out-of-domain cases cannot be, because refusal has different
+# shapes (Python raises, the Go CLI exits nonzero), so they are asserted
+# directly: what matters is that NEITHER side returns an identifier.
+_vid_ok = sf.view_id(sf.J, sf.NODE, sf.J, 9007199254740991)
+chk("ADV-VIEWID-DOMAIN-BOUNDARY",
+    go_cmd("viewid", {"jurisdiction": sf.J, "node": sf.NODE,
+                      "policy_hash": sf.J, "epoch": 9007199254740991})["view_id"],
+    _vid_ok)
+
+# Coordinate validation, both sides. Python gained hex64 checks one round before
+# impl-go did, so for one commit the identity function had a wider domain in Go:
+# jurisdiction "x", an UPPERCASE hex64 and an absent policy_hash each minted a
+# ViewID there while Python raised. Asserted as mutual refusal, since the shapes
+# differ (raise vs nonzero exit) and what matters is that neither returns an id.
+for _label, _coord in (
+        ("SHORT-JURISDICTION", {"jurisdiction": "x", "node": sf.NODE, "policy_hash": sf.J}),
+        ("UPPERCASE-JURISDICTION", {"jurisdiction": sf.J.upper(), "node": sf.NODE, "policy_hash": sf.J}),
+        ("UPPERCASE-NODE", {"jurisdiction": sf.J, "node": sf.NODE.upper(), "policy_hash": sf.J}),
+        ("MISSING-POLICY-HASH", {"jurisdiction": sf.J, "node": sf.NODE}),
+        ("NON-STRING-NODE", {"jurisdiction": sf.J, "node": 7, "policy_hash": sf.J})):
+    _py_refused = False
+    try:
+        sf.view_id(_coord.get("jurisdiction"), _coord.get("node"),
+                   _coord.get("policy_hash"), 1)
+    except (ValueError, TypeError):
+        _py_refused = True
+    _p = subprocess.run([str(GO), "viewid"],
+                        input=json.dumps({**_coord, "epoch": 1}).encode(),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    chk(f"ADV-VIEWID-COORD-{_label}-BOTH-REFUSE",
+        {"python_refused": _py_refused, "go_refused": _p.returncode != 0},
+        {"python_refused": True, "go_refused": True})
+
+for _label, _epoch in (("OVER-BOUND", 9007199254740992),
+                       ("INT64-MAX", 9223372036854775807),
+                       ("UINT64-MAX", 18446744073709551615),
+                       ("NEGATIVE", -1),
+                       ("BOOL", True)):
+    _py_refused = False
+    try:
+        sf.view_id(sf.J, sf.NODE, sf.J, _epoch)
+    except ValueError:
+        _py_refused = True
+    _p = subprocess.run([str(GO), "viewid"],
+                        input=json.dumps({"jurisdiction": sf.J, "node": sf.NODE,
+                                          "policy_hash": sf.J, "epoch": _epoch}).encode(),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    chk(f"ADV-VIEWID-DOMAIN-{_label}-BOTH-REFUSE",
+        {"python_refused": _py_refused, "go_refused": _p.returncode != 0},
+        {"python_refused": True, "go_refused": True})
 
 # Adversarial wave semantics.
 chk("ADV-WAVE-PIN-K", go_wave("K"), sf.wave_fed("K", lambda t: None))
