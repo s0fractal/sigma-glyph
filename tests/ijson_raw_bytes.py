@@ -178,6 +178,44 @@ for label, mutate, must_reject in (
     if not ok:
         fails.append("both: " + label)
 
+# ---- The limit of the str convenience, pinned rather than described ----
+#
+# parse_request takes bytes OR str. The str path is strictly weaker and this is
+# the case that shows why: a str has already been decoded by someone, and if that
+# decoder substituted U+FFFD for an unpaired surrogate -- which is exactly what
+# encoding/json does, the defect this whole gate exists for -- the evidence is
+# gone before parse_request is called. It accepts, correctly, because there is
+# nothing left to reject.
+#
+# Asserted rather than written in a docstring, so that if someone later "fixes"
+# it by rejecting U+FFFD outright, this fails and asks them to think: U+FFFD is a
+# legitimate character that any caller may legitimately send.
+print()
+_lim_fails = []
+try:
+    sf.parse_request('{"a":"' + chr(0xD800) + '"}')
+    _lim_fails.append("str with a real surrogate should be rejected")
+except sf.IJSONError as exc:
+    if "surrogate" not in str(exc):
+        _lim_fails.append(f"str surrogate diagnosed as {exc!s}")
+print(f"  {'OK  ' if not _lim_fails else 'FAIL'}  "
+      f"{'str with a real lone surrogate: rejected, named correctly':<52}")
+
+_sub = sf.parse_request('{"a":"' + chr(0xFFFD) + '"}')
+ok = _sub == {"a": chr(0xFFFD)}
+print(f"  {'OK  ' if ok else 'FAIL'}  "
+      f"{'str already substituted to U+FFFD: accepted (the limit)':<52}")
+if not ok:
+    _lim_fails.append("U+FFFD str")
+
+_b = sf.parse_request(('{"a":"' + chr(0xFFFD) + '"}').encode("utf-8"))
+ok = _b == {"a": chr(0xFFFD)}
+print(f"  {'OK  ' if ok else 'FAIL'}  "
+      f"{'bytes carrying a genuine U+FFFD: accepted':<52}")
+if not ok:
+    _lim_fails.append("U+FFFD bytes")
+fails.extend(_lim_fails)
+
 # ---- Python half ----
 #
 # Everything above drives the Go binary. For one commit that was the whole file,
@@ -221,4 +259,4 @@ print()
 if fails:
     print(f"IJSON-RAW-BYTES: FAILURES ({len(fails)}): {', '.join(fails)}")
     raise SystemExit(1)
-print(f"IJSON-RAW-BYTES: ALL PASS ({len(CASES) + 3 + len(PY_CASES) + len(BOTH) + 3}/{len(CASES) + 3 + len(PY_CASES) + len(BOTH) + 3})")
+print(f"IJSON-RAW-BYTES: ALL PASS ({len(CASES) + 3 + len(PY_CASES) + len(BOTH) + 6}/{len(CASES) + 3 + len(PY_CASES) + len(BOTH) + 6})")

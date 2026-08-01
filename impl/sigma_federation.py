@@ -113,14 +113,33 @@ def parse_request(raw):
     in the other. `select()` keeps taking objects; callers that hold bytes are
     expected to come through here.
 
+    Pass **bytes**. `str` is accepted for convenience and is strictly weaker: see
+    the comment at the top of the body, and `IJSON-RAW-BYTES`'s pinned case for
+    what it cannot see.
+
     Checks, in the order a hostile input meets them:
       1. strict UTF-8 (no surrogate-pass, no replacement characters)
       2. exactly one JSON value, nothing after it
       3. unique member names within every object, at any depth
       4. no unpaired surrogates anywhere in any string
     """
+    # BYTES ARE THE BOUNDARY. `str` is accepted as a convenience and cannot
+    # carry the same guarantee, because a `str` has already been decoded by
+    # someone: if that decoder substituted U+FFFD for an unpaired surrogate --
+    # which Go's encoding/json does, and which is the exact defect this gate
+    # exists for -- the evidence is gone before this function is called, and no
+    # check here can recover it. A caller holding the original octets should pass
+    # them; a caller holding a `str` is trusting whoever produced it.
     if isinstance(raw, str):
-        raw = raw.encode("utf-8", errors="surrogatepass")
+        # Checked before the encode round-trip, not after. Encoding with
+        # surrogatepass and letting the strict decode fail also rejects this
+        # input, but reports "invalid UTF-8 (invalid continuation byte)" -- a
+        # description of bytes this function manufactured, not of anything the
+        # caller sent. A diagnosis that names the wrong thing is how the next
+        # reader spends an hour in the wrong place.
+        if _has_surrogate(raw):
+            raise IJSONError("string is not I-JSON: unpaired surrogate")
+        raw = raw.encode("utf-8")
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
