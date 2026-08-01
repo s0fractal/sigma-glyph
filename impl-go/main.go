@@ -179,6 +179,17 @@ func readJSONStdin() (any, error) {
 	if err := dec.Decode(&v); err != nil {
 		return nil, err
 	}
+	// One JSON text, not a stream. Decode() stops at the end of the first value
+	// and says nothing about what follows, so a complete valid request with a
+	// second value appended was accepted and answered normally -- which is not
+	// "the input is one I-JSON value", the rule this function had just been
+	// given. The governance path in this file already required EOF; the request
+	// path did not, and the difference was invisible because both looked like
+	// "decode the input".
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return nil, errors.New("input is not I-JSON: trailing data after the JSON value")
+	}
 	return v, nil
 }
 

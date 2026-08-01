@@ -107,10 +107,22 @@ characterised:
   `policies/gate-settlement.json`, `custody`), so any process there could sign as
   both. **Two signatures from one host are one custody**, and a report calling
   them a 2-of-3 quorum makes a false claim.
-- The other three pair `claude-fable-5` with the founder key
-  `s0fractal@sigma-glyph` — including the v0.6.7 adoption, which is the first
-  where the co-signer was the human principal acting deliberately rather than a
-  second key on the same machine.
+- The other three pair `claude-fable-5` with the founder actor key
+  `s0fractal@sigma-glyph`. What the store establishes is exactly that: an
+  envelope carrying a valid signature under that actor id. It does not establish
+  who held the key, whether a human was present, or whether the act was
+  deliberate.
+
+  (A previous revision of this bullet said the v0.6.7 co-signer was "the human
+  principal acting deliberately rather than a second key on the same machine".
+  Nothing in the store supports either half. It was written into the section
+  headed *Counted rather than characterised*, which exists to forbid precisely
+  that substitution — and written while correcting a different overstatement in
+  the same paragraph. Left visible instead of deleted: this file's subject is
+  the gap between what a signature proves and what a reader assumes it proves,
+  and the shortest illustration available is that its own author closed that gap
+  by assumption on the first try. A custody or intent claim needs attributable
+  evidence from the principal, not an inference from an actor id.)
 
 So where a document describes "2-of-3 governance", the correct reading is: a
 2-of-3 policy, satisfied six times, three times by two distinct parties and three

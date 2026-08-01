@@ -54,21 +54,39 @@ def _has_surrogate(s):
     return any(0xD800 <= ord(ch) <= 0xDFFF for ch in s)
 
 
-def non_ijson(obj):
-    """Book III §2: reject input that is not I-JSON. Returns None or a reason."""
-    if isinstance(obj, str):
-        return "string is not I-JSON: unpaired surrogate" if _has_surrogate(obj) else None
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            for r in (non_ijson(k), non_ijson(v)):
-                if r:
-                    return r
-        return None
-    if isinstance(obj, list):
-        for v in obj:
-            r = non_ijson(v)
-            if r:
-                return r
+NON_IJSON_NODE_BUDGET = 100_000
+
+
+def non_ijson(obj, budget=NON_IJSON_NODE_BUDGET):
+    """Book III §2: reject input that is not I-JSON. Returns None or a reason.
+
+    Iterative with an explicit stack, and that is the point rather than a style
+    preference. The first version of this walker recursed, so a candidate holding
+    ~1200 nested lists raised RecursionError here while impl-go answered normally
+    -- reintroducing crash-versus-answer inside the function added to close a
+    crash-versus-answer split. Hostile input is exactly what this walker exists
+    to inspect, so it may not have a depth at which it stops being a function.
+
+    The node budget bounds work on adversarially wide input as well as deep:
+    exceeding it is itself a refusal, not a pass, because a walk that ran out of
+    budget has not established that the input is I-JSON.
+    """
+    stack = [obj]
+    seen = 0
+    while stack:
+        cur = stack.pop()
+        seen += 1
+        if seen > budget:
+            return "input is not I-JSON: exceeds inspection budget"
+        if isinstance(cur, str):
+            if _has_surrogate(cur):
+                return "string is not I-JSON: unpaired surrogate"
+        elif isinstance(cur, dict):
+            for k, v in cur.items():
+                stack.append(k)
+                stack.append(v)
+        elif isinstance(cur, list):
+            stack.extend(cur)
     return None
 
 
@@ -317,7 +335,24 @@ def wave_fed(term, resolve_selection):
 
 
 def view_id(jurisdiction, node, policy_hash, epoch):
-    """Book III §6."""
+    """Book III §6. Raises ValueError on a coordinate outside its domain.
+
+    This function used to hash whatever it was handed. Narrowing `_is_uint` did
+    not reach it, because it never called `_is_uint` -- so the very split the
+    integer domain exists to close stayed open in the one function whose output
+    IS the identity: `epoch = uint64 max` minted a ViewID here while impl-go's
+    entrypoint exited 1, and `-1` and `True` did the same. A validator that the
+    identity function does not consult is a validator with no jurisdiction over
+    identity.
+
+    Refusing rather than returning a sentinel is deliberate: there is no such
+    thing as the ViewID of an out-of-domain coordinate, and an oracle that
+    answers anyway is how a wrong answer acquires a hash to travel under.
+    """
+    if not (_is_hex64(jurisdiction) and _is_hex64(node) and _is_hex64(policy_hash)):
+        raise ValueError("view coordinate: jurisdiction, node and policy must be hex64")
+    if not _is_uint(epoch, 64):
+        raise ValueError("view coordinate: epoch outside the Book III integer domain")
     return sha_hex(jcs({"view": VIEW_TAG, "jurisdiction": jurisdiction,
                         "node": node, "policy": policy_hash, "epoch": epoch}))
 

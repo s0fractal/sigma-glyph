@@ -304,14 +304,49 @@ for _label, _ts, _epoch in (("TS-AT-BOUND", 9007199254740991, 1),
     # out-of-domain value travels in the CANDIDATE, where both sides can answer.
     select_case(f"ADV-INT-DOMAIN-{_label}", [_c, _good], sf.POLICY_TIE, 1)
 
-# NOT covered here, deliberately: the unpaired-surrogate case (Book III §4,
-# I-JSON). This harness serialises candidates with Python's json encoder before
-# handing them to impl-go, and that encoder refuses to emit a lone surrogate --
-# so the harness cannot carry the input that exposes the bug. Reproducing it
-# needs raw bytes written straight to the binary's stdin. Recorded rather than
-# quietly skipped: an implementation is required to reject the input, the
-# requirement is in the spec, and the executable evidence for it lives outside
-# this file.
+# The unpaired-surrogate case is NOT here and structurally cannot be: this
+# harness encodes every request with Python's json, and that encoder refuses to
+# emit a lone surrogate, so it cannot carry the input. It lives in
+# tests/ijson_raw_bytes.py, which writes raw bytes to the binary's stdin and runs
+# in tools/test-all.sh alongside this file.
+#
+# The previous version of this comment ended "the executable evidence for it
+# lives outside this file", which sounded like a pointer and was in fact a
+# description of manual reproduction: no such test existed. A disclosed gap is
+# still a gap, and a comment is not a control.
+
+# ViewID domain (Codex third-round P0). Narrowing _is_uint did not reach
+# view_id(), because view_id() never called it -- so the identity function itself
+# stayed outside the domain its own repository had just declared. uint64 max, -1
+# and True each minted a ViewID in Python while impl-go exited 1.
+#
+# The in-domain boundary is a normal differential: both sides must produce the
+# same hash. The out-of-domain cases cannot be, because refusal has different
+# shapes (Python raises, the Go CLI exits nonzero), so they are asserted
+# directly: what matters is that NEITHER side returns an identifier.
+_vid_ok = sf.view_id(sf.J, sf.NODE, sf.J, 9007199254740991)
+chk("ADV-VIEWID-DOMAIN-BOUNDARY",
+    go_cmd("viewid", {"jurisdiction": sf.J, "node": sf.NODE,
+                      "policy_hash": sf.J, "epoch": 9007199254740991})["view_id"],
+    _vid_ok)
+
+for _label, _epoch in (("OVER-BOUND", 9007199254740992),
+                       ("INT64-MAX", 9223372036854775807),
+                       ("UINT64-MAX", 18446744073709551615),
+                       ("NEGATIVE", -1),
+                       ("BOOL", True)):
+    _py_refused = False
+    try:
+        sf.view_id(sf.J, sf.NODE, sf.J, _epoch)
+    except ValueError:
+        _py_refused = True
+    _p = subprocess.run([str(GO), "viewid"],
+                        input=json.dumps({"jurisdiction": sf.J, "node": sf.NODE,
+                                          "policy_hash": sf.J, "epoch": _epoch}).encode(),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    chk(f"ADV-VIEWID-DOMAIN-{_label}-BOTH-REFUSE",
+        {"python_refused": _py_refused, "go_refused": _p.returncode != 0},
+        {"python_refused": True, "go_refused": True})
 
 # Adversarial wave semantics.
 chk("ADV-WAVE-PIN-K", go_wave("K"), sf.wave_fed("K", lambda t: None))
