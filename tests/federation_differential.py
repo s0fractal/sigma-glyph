@@ -330,6 +330,30 @@ chk("ADV-VIEWID-DOMAIN-BOUNDARY",
                       "policy_hash": sf.J, "epoch": 9007199254740991})["view_id"],
     _vid_ok)
 
+# Coordinate validation, both sides. Python gained hex64 checks one round before
+# impl-go did, so for one commit the identity function had a wider domain in Go:
+# jurisdiction "x", an UPPERCASE hex64 and an absent policy_hash each minted a
+# ViewID there while Python raised. Asserted as mutual refusal, since the shapes
+# differ (raise vs nonzero exit) and what matters is that neither returns an id.
+for _label, _coord in (
+        ("SHORT-JURISDICTION", {"jurisdiction": "x", "node": sf.NODE, "policy_hash": sf.J}),
+        ("UPPERCASE-JURISDICTION", {"jurisdiction": sf.J.upper(), "node": sf.NODE, "policy_hash": sf.J}),
+        ("UPPERCASE-NODE", {"jurisdiction": sf.J, "node": sf.NODE.upper(), "policy_hash": sf.J}),
+        ("MISSING-POLICY-HASH", {"jurisdiction": sf.J, "node": sf.NODE}),
+        ("NON-STRING-NODE", {"jurisdiction": sf.J, "node": 7, "policy_hash": sf.J})):
+    _py_refused = False
+    try:
+        sf.view_id(_coord.get("jurisdiction"), _coord.get("node"),
+                   _coord.get("policy_hash"), 1)
+    except (ValueError, TypeError):
+        _py_refused = True
+    _p = subprocess.run([str(GO), "viewid"],
+                        input=json.dumps({**_coord, "epoch": 1}).encode(),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    chk(f"ADV-VIEWID-COORD-{_label}-BOTH-REFUSE",
+        {"python_refused": _py_refused, "go_refused": _p.returncode != 0},
+        {"python_refused": True, "go_refused": True})
+
 for _label, _epoch in (("OVER-BOUND", 9007199254740992),
                        ("INT64-MAX", 9223372036854775807),
                        ("UINT64-MAX", 18446744073709551615),

@@ -109,6 +109,20 @@ print(f"  {'OK  ' if ok else 'FAIL'}  {'trailing JSON value after request':<36} 
 if not ok:
     fails.append("trailing JSON")
 
+# Duplicate member names: I-JSON (RFC 7493 §2.3) requires them to be unique, and
+# both encoding/json and Python's json keep the last silently. Two last-wins
+# parsers agreeing is not conformance -- it is one unstated choice made twice,
+# and the third implementation is free to make the other one.
+_dup = request_bytes(r'"a"').replace(b'"epoch": 1', b'"epoch": 1, "epoch": 2', 1)
+if _dup == request_bytes(r'"a"'):
+    _dup = request_bytes(r'"a"').replace(b'"epoch":1', b'"epoch":1,"epoch":2', 1)
+code, err = run(_dup)
+ok = code != 0
+print(f"  {'OK  ' if ok else 'FAIL'}  {'duplicate member name':<36} "
+      f"want=reject  got={'reject' if ok else 'accept'}")
+if not ok:
+    fails.append("duplicate member name")
+
 # Invalid UTF-8 that is not an escape at all.
 code, err = run(request_bytes(r'"a"').replace(b'"a"', b'"\xc3\x28"'))
 ok = code != 0
@@ -117,8 +131,47 @@ print(f"  {'OK  ' if ok else 'FAIL'}  {'invalid UTF-8 byte sequence':<36} "
 if not ok:
     fails.append("invalid UTF-8")
 
+# ---- Python half ----
+#
+# Everything above drives the Go binary. For one commit that was the whole file,
+# which meant the Python side of the same fix had no control at all: deleting
+# non_ijson's surrogate detection would have left this suite at a clean sweep.
+# A regression suite that can only fail for one of the two implementations it
+# covers is half a regression suite.
+#
+# Python is a library here, not a CLI -- it is handed decoded objects and never
+# sees bytes -- so its refusal is `absent` rather than a nonzero exit. That
+# difference is in Book III §4 on purpose; what both MUST do is decline to name
+# a winner.
+print()
+PY_CASES = [
+    ("actor = lone high surrogate", chr(0xD800), True),
+    ("actor = lone low surrogate", chr(0xDC00), True),
+    ("actor = surrogate inside text", "ok" + chr(0xD834) + "tail", True),
+    # Positive controls: a scalar that a valid pair decodes TO, and the literal
+    # six characters backslash-u-d-8-0-0, neither of which is a surrogate.
+    ("actor = U+1D11E (what a valid pair decodes to)", chr(0x1D11E), False),
+    ("actor = literal text backslash-ud800", "\\ud800", False),
+    ("actor = ordinary", "a", False),
+]
+
+_good = {"warrant_id": "2" * 64, "actor": "b", "ts": 1,
+         "assertion": {"annotation": sf.ASSERTION_TAG, "jurisdiction": sf.J,
+                       "node": sf.NODE, "epoch": 1, "wave": sf.W(0, 2, 0)}}
+
+for label, actor, must_refuse in PY_CASES:
+    cand = {**CAND, "actor": actor}
+    res = sf.select([cand, _good], sf.POLICY_TIE, sf.J, sf.NODE, 1)
+    refused = res["status"] == "absent"
+    ok = refused == must_refuse
+    want = "absent" if must_refuse else "answer"
+    got = "absent" if refused else res["status"]
+    print(f"  {'OK  ' if ok else 'FAIL'}  {label:<46} want={want:<7} got={got}")
+    if not ok:
+        fails.append("py: " + label)
+
 print()
 if fails:
     print(f"IJSON-RAW-BYTES: FAILURES ({len(fails)}): {', '.join(fails)}")
     raise SystemExit(1)
-print(f"IJSON-RAW-BYTES: ALL PASS ({len(CASES) + 2}/{len(CASES) + 2})")
+print(f"IJSON-RAW-BYTES: ALL PASS ({len(CASES) + 3 + len(PY_CASES)}/{len(CASES) + 3 + len(PY_CASES)})")

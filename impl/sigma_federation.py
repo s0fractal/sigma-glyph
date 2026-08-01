@@ -54,30 +54,33 @@ def _has_surrogate(s):
     return any(0xD800 <= ord(ch) <= 0xDFFF for ch in s)
 
 
-NON_IJSON_NODE_BUDGET = 100_000
-
-
-def non_ijson(obj, budget=NON_IJSON_NODE_BUDGET):
+def non_ijson(obj):
     """Book III §2: reject input that is not I-JSON. Returns None or a reason.
 
     Iterative with an explicit stack, and that is the point rather than a style
-    preference. The first version of this walker recursed, so a candidate holding
-    ~1200 nested lists raised RecursionError here while impl-go answered normally
-    -- reintroducing crash-versus-answer inside the function added to close a
+    preference. The first version recursed, so a candidate holding ~1200 nested
+    lists raised RecursionError here while impl-go answered normally --
+    reintroducing crash-versus-answer inside the function added to close a
     crash-versus-answer split. Hostile input is exactly what this walker exists
     to inspect, so it may not have a depth at which it stops being a function.
 
-    The node budget bounds work on adversarially wide input as well as deep:
-    exceeding it is itself a refusal, not a pass, because a walk that ran out of
-    budget has not established that the input is I-JSON.
+    The second version carried a 100_000-node inspection budget and returned a
+    refusal when it ran out. That was worse than the crash it replaced. The
+    budget existed only here -- Book III did not define it and impl-go did not
+    implement it -- and its refusal was routed into `select`'s `absent`, which is
+    not "I gave up" but the protocol's assertion that NO LIVE ASSERTION EXISTS.
+    A 586 KB request of 100001 nulls plus one valid candidate therefore produced
+    `absent` in Python and `selected` in Go: a local resource decision wearing
+    the costume of a derivation result. Removed rather than mirrored into Go,
+    because the walk is linear in an input the caller has already materialised,
+    so the budget bought nothing that reading the request had not already cost.
+
+    If a resource limit is ever needed here it MUST surface as a distinguishable
+    local fault and MUST NOT be spelled as a selection outcome.
     """
     stack = [obj]
-    seen = 0
     while stack:
         cur = stack.pop()
-        seen += 1
-        if seen > budget:
-            return "input is not I-JSON: exceeds inspection budget"
         if isinstance(cur, str):
             if _has_surrogate(cur):
                 return "string is not I-JSON: unpaired surrogate"

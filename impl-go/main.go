@@ -165,12 +165,84 @@ func rejectNonIJSON(raw []byte) error {
 	return nil
 }
 
+// rejectDuplicateNames refuses objects with repeated member names, at any depth.
+//
+// I-JSON (RFC 7493 §2.3) requires member names within an object to be unique.
+// encoding/json does not enforce it -- it keeps the last occurrence silently,
+// as does Python's json -- so `{"epoch":1,"epoch":2}` decodes to a request
+// nobody sent, and which of the two values survives is a property of the parser
+// rather than of the message. Silent agreement between two last-wins parsers is
+// not conformance; it is two implementations making the same unstated choice,
+// and the next implementation is free to make the other one.
+//
+// This has to walk tokens rather than inspect the decoded value, for the same
+// reason the surrogate check walks raw bytes: after decoding there is one member
+// where there were two, and nothing left to compare.
+func rejectDuplicateNames(raw []byte) error {
+	type objCtx struct {
+		seen    map[string]bool
+		wantKey bool
+		isObj   bool
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var stack []*objCtx
+	top := func() *objCtx {
+		if len(stack) == 0 {
+			return nil
+		}
+		return stack[len(stack)-1]
+	}
+	for {
+		t, err := dec.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if d, ok := t.(json.Delim); ok {
+			switch d {
+			case '{':
+				stack = append(stack, &objCtx{seen: map[string]bool{}, wantKey: true, isObj: true})
+				continue
+			case '[':
+				stack = append(stack, &objCtx{isObj: false})
+				continue
+			case '}', ']':
+				stack = stack[:len(stack)-1]
+				if c := top(); c != nil && c.isObj {
+					c.wantKey = true
+				}
+				continue
+			}
+		}
+		c := top()
+		if c == nil || !c.isObj {
+			continue
+		}
+		if c.wantKey {
+			name, _ := t.(string)
+			if c.seen[name] {
+				return fmt.Errorf("input is not I-JSON: duplicate member name %q", name)
+			}
+			c.seen[name] = true
+			c.wantKey = false
+		} else {
+			c.wantKey = true
+		}
+	}
+}
+
 func readJSONStdin() (any, error) {
 	raw, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return nil, err
 	}
 	if err := rejectNonIJSON(raw); err != nil {
+		return nil, err
+	}
+	if err := rejectDuplicateNames(raw); err != nil {
 		return nil, err
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -910,12 +982,21 @@ func cmdViewID() error {
 	if !ok {
 		return errors.New("viewid request must be an object")
 	}
-	j, _ := asString(req["jurisdiction"])
-	n, _ := asString(req["node"])
-	p, _ := asString(req["policy_hash"])
+	// All four coordinates, not just the epoch. These three conversions
+	// discarded their ok results, so a jurisdiction of "x", an UPPERCASE hex64,
+	// or an absent policy_hash each received a ViewID here while the Python
+	// oracle raised ValueError. The epoch was validated one round earlier and
+	// the strings were not, which left the identity function with a wider domain
+	// on this side -- the same asymmetry, in the same function, one commit later.
+	j, jok := asString(req["jurisdiction"])
+	n, nok := asString(req["node"])
+	p, pok := asString(req["policy_hash"])
+	if !jok || !nok || !pok || !isHex64(j) || !isHex64(n) || !isHex64(p) {
+		return errors.New("view coordinate: jurisdiction, node and policy must be hex64")
+	}
 	e, ok := uintValue(req["epoch"], 64)
 	if !ok {
-		return errors.New("viewid epoch must be uint64")
+		return errors.New("view coordinate: epoch outside the Book III integer domain")
 	}
 	return writeJSON(map[string]any{"view_id": viewID(j, n, p, e)})
 }
