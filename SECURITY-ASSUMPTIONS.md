@@ -129,6 +129,49 @@ So where a document describes "2-of-3 governance", the correct reading is: a
 times by one. The machinery is correct as specified; what it has actually
 witnessed is smaller than the specification suggests.
 
+### SA-5b. The founder's signature is now delegated authorization, not independent review
+
+**Recorded 2026-08-01, from a direct statement rather than inference.** Asked to
+authorize a merge, the founder replied that the authorization step had become
+"бутафорія" — a stage prop — because the work had gone into territory he no
+longer follows, and granted blanket authority for any future action, merge and
+push, explicitly accepting responsibility while stating that understanding is
+absent and will not return soon.
+
+Taken at face value, and it changes what a future co-signature by
+`s0fractal@sigma-glyph` means. It is evidence that the principal authorized an
+act. It is **not** evidence that the principal evaluated the technical content of
+the act — and for anchor-set adoptions, the content is the whole substance of
+what the signature attests.
+
+This matters here more than it would elsewhere, because two rounds ago this file
+carried the opposite claim: that a v0.6.7 co-signature showed "the human
+principal acting deliberately". That was removed as unprovable inference. This
+entry is the same fact from the other side, and it is provable — the principal
+said it.
+
+**Consequence for reading the record.** Where GOV-anchors describes a 2-of-3
+threshold, the honest reading for adoptions from this date is: one model actor
+attesting to content, plus one human actor attesting to *permission for the model
+to proceed*. Those are different claims. A reader who takes the threshold as two
+independent evaluations of the same technical material will be wrong.
+
+**What is not delegated, and why the delegation cannot extend to it.** The model
+maintainer holds `claude-fable-5@sigma-glyph` and MUST NOT sign as any other
+roster actor, blanket authorization notwithstanding. Authorization to act is not
+authorization to be someone else in a permanent, machine-readable attestation:
+permission changes who may do a thing, not who did it. Both remaining roster keys
+(`codex`, `s0fractal`) sit in one directory on the operator's host, so producing
+a threshold with them would also be the single-custody defect SA-5 already names
+— two signatures from one host are one custody. An adoption assembled that way
+would verify cryptographically and misdescribe reality, which is the precise
+failure this repository exists to make detectable.
+
+The practical effect is that anchor adoption still requires the founder to run
+one command, and that this is the one remaining act which cannot be delegated
+without the record becoming false. It is not bureaucracy left over from a more
+cautious phase; it is the only place where the mechanism still touches a person.
+
 ### SA-6. Model actors here are delegates, not maintainers of record
 
 Authority originates with a human. A model actor holds a written, bounded,
