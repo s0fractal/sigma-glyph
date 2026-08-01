@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 const (
@@ -111,156 +110,12 @@ func die(msg string) {
 	os.Exit(1)
 }
 
-// rejectNonIJSON refuses input that is not I-JSON (RFC 7493 §2.1): strings must
-// be sequences of Unicode SCALAR values, and surrogate code points are not scalar
-// values.
-//
-// This has to run on the RAW BYTES, before decoding, and that is the whole point.
-// encoding/json does not reject an unpaired surrogate -- it silently substitutes
-// U+FFFD -- so by the time there is a Go string the evidence is gone. Python's
-// json preserves the surrogate instead. Neither is wrong about JSON and both are
-// wrong about I-JSON, and the consequence was measured: for one identical request
-// containing actor "\ud800", this implementation selected 1111... and the Python
-// implementation selected 2222..., because selectCandidates orders actors by code
-// point and 0xFFFD sorts above U+E000 while 0xD800 sorts below it.
-//
-// Refusing is the only answer available to both. Substituting means agreeing on a
-// value neither side was given; preserving means carrying a value that cannot be
-// encoded back out.
-func rejectNonIJSON(raw []byte) error {
-	if !utf8.Valid(raw) {
-		return errors.New("input is not I-JSON: invalid UTF-8")
-	}
-	for i := 0; i+5 < len(raw); i++ {
-		if raw[i] != '\\' || raw[i+1] != 'u' && raw[i+1] != 'U' {
-			continue
-		}
-		// count preceding backslashes: an escaped backslash is not an escape lead
-		bs := 0
-		for j := i - 1; j >= 0 && raw[j] == '\\'; j-- {
-			bs++
-		}
-		if bs%2 == 1 {
-			continue
-		}
-		hi, err := strconv.ParseUint(string(raw[i+2:i+6]), 16, 32)
-		if err != nil {
-			continue
-		}
-		if hi >= 0xDC00 && hi <= 0xDFFF {
-			return errors.New("input is not I-JSON: unpaired low surrogate")
-		}
-		if hi >= 0xD800 && hi <= 0xDBFF {
-			// must be immediately followed by a low-surrogate escape
-			if i+11 >= len(raw) || raw[i+6] != '\\' || raw[i+7] != 'u' {
-				return errors.New("input is not I-JSON: unpaired high surrogate")
-			}
-			lo, err := strconv.ParseUint(string(raw[i+8:i+12]), 16, 32)
-			if err != nil || lo < 0xDC00 || lo > 0xDFFF {
-				return errors.New("input is not I-JSON: unpaired high surrogate")
-			}
-			i += 11
-		}
-	}
-	return nil
-}
-
-// rejectDuplicateNames refuses objects with repeated member names, at any depth.
-//
-// I-JSON (RFC 7493 §2.3) requires member names within an object to be unique.
-// encoding/json does not enforce it -- it keeps the last occurrence silently,
-// as does Python's json -- so `{"epoch":1,"epoch":2}` decodes to a request
-// nobody sent, and which of the two values survives is a property of the parser
-// rather than of the message. Silent agreement between two last-wins parsers is
-// not conformance; it is two implementations making the same unstated choice,
-// and the next implementation is free to make the other one.
-//
-// This has to walk tokens rather than inspect the decoded value, for the same
-// reason the surrogate check walks raw bytes: after decoding there is one member
-// where there were two, and nothing left to compare.
-func rejectDuplicateNames(raw []byte) error {
-	type objCtx struct {
-		seen    map[string]bool
-		wantKey bool
-		isObj   bool
-	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	var stack []*objCtx
-	top := func() *objCtx {
-		if len(stack) == 0 {
-			return nil
-		}
-		return stack[len(stack)-1]
-	}
-	for {
-		t, err := dec.Token()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if d, ok := t.(json.Delim); ok {
-			switch d {
-			case '{':
-				stack = append(stack, &objCtx{seen: map[string]bool{}, wantKey: true, isObj: true})
-				continue
-			case '[':
-				stack = append(stack, &objCtx{isObj: false})
-				continue
-			case '}', ']':
-				stack = stack[:len(stack)-1]
-				if c := top(); c != nil && c.isObj {
-					c.wantKey = true
-				}
-				continue
-			}
-		}
-		c := top()
-		if c == nil || !c.isObj {
-			continue
-		}
-		if c.wantKey {
-			name, _ := t.(string)
-			if c.seen[name] {
-				return fmt.Errorf("input is not I-JSON: duplicate member name %q", name)
-			}
-			c.seen[name] = true
-			c.wantKey = false
-		} else {
-			c.wantKey = true
-		}
-	}
-}
-
 func readJSONStdin() (any, error) {
-	raw, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return nil, err
-	}
-	if err := rejectNonIJSON(raw); err != nil {
-		return nil, err
-	}
-	if err := rejectDuplicateNames(raw); err != nil {
-		return nil, err
-	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec := json.NewDecoder(os.Stdin)
 	dec.UseNumber()
 	var v any
 	if err := dec.Decode(&v); err != nil {
 		return nil, err
-	}
-	// One JSON text, not a stream. Decode() stops at the end of the first value
-	// and says nothing about what follows, so a complete valid request with a
-	// second value appended was accepted and answered normally -- which is not
-	// "the input is one I-JSON value", the rule this function had just been
-	// given. The governance path in this file already required EOF; the request
-	// path did not, and the difference was invisible because both looked like
-	// "decode the input".
-	var trailing any
-	if err := dec.Decode(&trailing); err != io.EOF {
-		return nil, errors.New("input is not I-JSON: trailing data after the JSON value")
 	}
 	return v, nil
 }
@@ -314,14 +169,6 @@ func isHex64(s string) bool {
 }
 
 func uintValue(v any, bits int) (uint64, bool) {
-	u, ok := uintValueRaw(v, bits)
-	if !ok || u > jcsSafeIntMax {
-		return 0, false
-	}
-	return u, true
-}
-
-func uintValueRaw(v any, bits int) (uint64, bool) {
 	switch x := v.(type) {
 	case json.Number:
 		u, err := strconv.ParseUint(x.String(), 10, bits)
@@ -508,51 +355,11 @@ func parseOrder(policy map[string]any) []OrderKey {
 	return out
 }
 
-// Book III §4: the exact repertoire that makes an actor blank. Enumerated, not
-// derived from a character property, and deliberately so.
-//
-// This used to be `strings.TrimSpace(actor) == ""`, against Python's
-// `str.strip`. Those disagree: Python's `str.isspace` counts U+001C-U+001F (the
-// C0 information separators) as whitespace, `unicode.IsSpace` does not. For
-// actor U+001C, Python found no live candidate and selected nothing; this
-// implementation found two and reported a conflict. The two disagreed not on
-// which candidate won but on whether a decision existed.
-//
-// The fix is not "make Go match Python". Either predicate is a moving target:
-// unicode.IsSpace consults the Unicode White_Space property, so a toolchain
-// shipping a newer Unicode table can change which records are live without
-// anyone editing this repository. A normative rule whose meaning is supplied by
-// the runtime's character tables is the same defect as a gate that resolves its
-// own scope. The set is written out here, frozen, and the spec says these eight
-// code points and no others.
-//
-// Chosen to match what both implementations already agreed on across the
-// Latin-1 range, so no existing record changes liveness: HT, LF, VT, FF, CR,
-// SPACE, NEL (U+0085), NBSP (U+00A0). Everything else -- including
-// U+001C-U+001F and U+2000-U+200A, U+2028, U+2029, U+205F, U+3000 -- is content.
-const blankCodePoints = "\t\n\v\f\r \u0085\u00a0"
-
-// Book III §2: largest integer any canonicalized JSON here may carry. An
-// AnnotationViewID is SHA-256 over JCS bytes, and RFC 8785 §3.2.2.3 serializes
-// numbers through ECMAScript Number::toString, an IEEE-754 double -- above
-// 2^53-1 the bytes stop being a function of the value (uint64 max canonicalizes
-// as 18446744073709552000). See impl/sigma_federation.py JCS_SAFE_INT_MAX.
-const jcsSafeIntMax uint64 = 9007199254740991 // 2^53 - 1
-
-func isBlank(s string) bool {
-	for _, r := range s {
-		if !strings.ContainsRune(blankCodePoints, r) {
-			return false
-		}
-	}
-	return true
-}
-
 func validMetadata(m map[string]any) (*Candidate, bool) {
 	wid, wok := asString(m["warrant_id"])
 	actor, aok := asString(m["actor"])
 	ts, tok := uintValue(m["ts"], 64)
-	if !wok || !isHex64(wid) || !aok || isBlank(actor) || !tok {
+	if !wok || !isHex64(wid) || !aok || strings.TrimSpace(actor) == "" || !tok {
 		return nil, false
 	}
 	assertion, ok := asMap(m["assertion"])
@@ -712,16 +519,6 @@ func cmdSelect() error {
 	epoch, ok := uintValue(req["epoch"], 64)
 	if !ok {
 		return errors.New("select request epoch must be uint64")
-	}
-	// Book III §4: assertions under an invalid policy are settlement-inactive,
-	// so there is nothing to select. This call was missing: validatePolicy
-	// existed, was correct, and was never reached from this entrypoint, so a
-	// policy ordering on a field named "vibes" was rejected by the validator and
-	// still produced a winner here -- while the Python side raised KeyError on
-	// the same input. The validator knew; the selector never asked.
-	if validatePolicy(policy) != nil {
-		return writeJSON(selectionSummary(Selection{
-			Status: "absent", Selected: nil, ConflictSet: []string{}}))
 	}
 	return writeJSON(selectionSummary(selectCandidates(cands, policy, jur, node, epoch)))
 }
@@ -982,21 +779,12 @@ func cmdViewID() error {
 	if !ok {
 		return errors.New("viewid request must be an object")
 	}
-	// All four coordinates, not just the epoch. These three conversions
-	// discarded their ok results, so a jurisdiction of "x", an UPPERCASE hex64,
-	// or an absent policy_hash each received a ViewID here while the Python
-	// oracle raised ValueError. The epoch was validated one round earlier and
-	// the strings were not, which left the identity function with a wider domain
-	// on this side -- the same asymmetry, in the same function, one commit later.
-	j, jok := asString(req["jurisdiction"])
-	n, nok := asString(req["node"])
-	p, pok := asString(req["policy_hash"])
-	if !jok || !nok || !pok || !isHex64(j) || !isHex64(n) || !isHex64(p) {
-		return errors.New("view coordinate: jurisdiction, node and policy must be hex64")
-	}
+	j, _ := asString(req["jurisdiction"])
+	n, _ := asString(req["node"])
+	p, _ := asString(req["policy_hash"])
 	e, ok := uintValue(req["epoch"], 64)
 	if !ok {
-		return errors.New("view coordinate: epoch outside the Book III integer domain")
+		return errors.New("viewid epoch must be uint64")
 	}
 	return writeJSON(map[string]any{"view_id": viewID(j, n, p, e)})
 }
