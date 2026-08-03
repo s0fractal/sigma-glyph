@@ -1,0 +1,297 @@
+% references.bib — Paper B: proof-artifact integrity
+% Every entry is a work the author has verified exists. Entries whose only
+% stable identifier is a URL are typed @misc and carry an access note.
+
+% ------------------------------------------------------------ proof assistants
+
+@inproceedings{demoura2021lean4,
+  author    = {de Moura, Leonardo and Ullrich, Sebastian},
+  title     = {The {Lean} 4 Theorem Prover and Programming Language},
+  booktitle = {Automated Deduction -- CADE 28},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {12699},
+  pages     = {625--635},
+  publisher = {Springer},
+  year      = {2021},
+  doi       = {10.1007/978-3-030-79876-5_37}
+}
+
+@mastersthesis{carneiro2019lean,
+  author  = {Carneiro, Mario},
+  title   = {The Type Theory of {Lean}},
+  school  = {Carnegie Mellon University},
+  year    = {2019},
+  note    = {Master's thesis}
+}
+
+@inproceedings{mathlib2020,
+  author    = {{The mathlib Community}},
+  title     = {The {Lean} Mathematical Library},
+  booktitle = {Proceedings of the 9th ACM SIGPLAN International Conference on
+               Certified Programs and Proofs (CPP)},
+  pages     = {367--381},
+  publisher = {ACM},
+  year      = {2020},
+  doi       = {10.1145/3372885.3373824}
+}
+
+@misc{lean4checker,
+  author       = {{Lean FRO}},
+  title        = {{lean4checker}: an external checker for {Lean} 4 environments},
+  howpublished = {\url{https://github.com/leanprover/lean4checker}},
+  year         = {2024},
+  note         = {Accessed 2026-07-31}
+}
+
+@misc{lean4lean,
+  author       = {Carneiro, Mario},
+  title        = {{lean4lean}: a verified type checker for {Lean} 4, in {Lean} 4},
+  howpublished = {\url{https://github.com/digama0/lean4lean}},
+  year         = {2024},
+  note         = {Accessed 2026-07-31}
+}
+
+% ------------------------------------------------- trustworthiness of the checker
+
+@article{wiedijk2012pollack,
+  author  = {Wiedijk, Freek},
+  title   = {Pollack-inconsistency},
+  journal = {Electronic Notes in Theoretical Computer Science},
+  volume  = {285},
+  pages   = {85--100},
+  year    = {2012},
+  doi     = {10.1016/j.entcs.2012.06.008}
+}
+
+@article{barendregt2005challenge,
+  author  = {Barendregt, Henk and Wiedijk, Freek},
+  title   = {The Challenge of Computer Mathematics},
+  journal = {Philosophical Transactions of the Royal Society A},
+  volume  = {363},
+  number  = {1835},
+  pages   = {2351--2375},
+  year    = {2005},
+  doi     = {10.1098/rsta.2005.1650}
+}
+
+@article{thompson1984trust,
+  author  = {Thompson, Ken},
+  title   = {Reflections on Trusting Trust},
+  journal = {Communications of the ACM},
+  volume  = {27},
+  number  = {8},
+  pages   = {761--763},
+  year    = {1984},
+  doi     = {10.1145/358198.358210}
+}
+
+% --------------------------------------------------------- proof engineering
+
+@article{ringer2019qed,
+  author  = {Ringer, Talia and Palmskog, Karl and Sergey, Ilya and
+             Gligoric, Milos and Tatlock, Zachary},
+  title   = {{QED} at Large: A Survey of Engineering of Formally Verified Software},
+  journal = {Foundations and Trends in Programming Languages},
+  volume  = {5},
+  number  = {2--3},
+  pages   = {102--281},
+  year    = {2019},
+  doi     = {10.1561/2500000045}
+}
+
+@inproceedings{klein2009sel4,
+  author    = {Klein, Gerwin and Elphinstone, Kevin and Heiser, Gernot and
+               Andronick, June and Cock, David and Derrin, Philip and
+               Elkaduwe, Dhammika and Engelhardt, Kai and Kolanski, Rafal and
+               Norrish, Michael and Sewell, Thomas and Tuch, Harvey and
+               Winwood, Simon},
+  title     = {{seL4}: Formal Verification of an {OS} Kernel},
+  booktitle = {Proceedings of the 22nd ACM Symposium on Operating Systems
+               Principles (SOSP)},
+  pages     = {207--220},
+  publisher = {ACM},
+  year      = {2009},
+  doi       = {10.1145/1629575.1629596}
+}
+
+@article{leroy2009compcert,
+  author  = {Leroy, Xavier},
+  title   = {Formal Verification of a Realistic Compiler},
+  journal = {Communications of the ACM},
+  volume  = {52},
+  number  = {7},
+  pages   = {107--115},
+  year    = {2009},
+  doi     = {10.1145/1538788.1538814}
+}
+
+% ---------------------------------------------------------- software supply chain
+
+@inproceedings{torresarias2019intoto,
+  author    = {Torres-Arias, Santiago and Afzali, Hammad and
+               Kuppusamy, Trishank Karthik and Curtmola, Reza and
+               Cappos, Justin},
+  title     = {in-toto: Providing Farm-to-Table Guarantees for Bits and Bytes},
+  booktitle = {28th USENIX Security Symposium},
+  pages     = {1393--1410},
+  publisher = {USENIX Association},
+  year      = {2019}
+}
+
+@misc{slsa,
+  author       = {{OpenSSF}},
+  title        = {{SLSA}: Supply-chain Levels for Software Artifacts},
+  howpublished = {\url{https://slsa.dev/}},
+  year         = {2025},
+  note         = {Accessed 2026-07-31}
+}
+
+@inproceedings{ohm2020backstabber,
+  author    = {Ohm, Marc and Plate, Henrik and Sykosch, Arnold and
+               Meier, Michael},
+  title     = {Backstabber's Knife Collection: A Review of Open Source Software
+               Supply Chain Attacks},
+  booktitle = {Detection of Intrusions and Malware, and Vulnerability Assessment
+               (DIMVA)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {12223},
+  pages     = {23--43},
+  publisher = {Springer},
+  year      = {2020},
+  doi       = {10.1007/978-3-030-52683-2_2}
+}
+
+@misc{sigstore,
+  author       = {{Sigstore}},
+  title        = {Sigstore: a new standard for signing, verifying and protecting
+                  software},
+  howpublished = {\url{https://www.sigstore.dev/}},
+  year         = {2025},
+  note         = {Accessed 2026-07-31}
+}
+
+% ------------------------------------------------------------- testing methodology
+
+@article{mckeeman1998differential,
+  author  = {McKeeman, William M.},
+  title   = {Differential Testing for Software},
+  journal = {Digital Technical Journal},
+  volume  = {10},
+  number  = {1},
+  pages   = {100--107},
+  year    = {1998}
+}
+
+@inproceedings{yang2011csmith,
+  author    = {Yang, Xuejun and Chen, Yang and Eide, Eric and Regehr, John},
+  title     = {Finding and Understanding Bugs in {C} Compilers},
+  booktitle = {Proceedings of the 32nd ACM SIGPLAN Conference on Programming
+               Language Design and Implementation (PLDI)},
+  pages     = {283--294},
+  publisher = {ACM},
+  year      = {2011},
+  doi       = {10.1145/1993498.1993532}
+}
+
+@article{demillo1978hints,
+  author  = {DeMillo, Richard A. and Lipton, Richard J. and Sayward, Frederick G.},
+  title   = {Hints on Test Data Selection: Help for the Practicing Programmer},
+  journal = {Computer},
+  volume  = {11},
+  number  = {4},
+  pages   = {34--41},
+  year    = {1978},
+  doi     = {10.1109/C-M.1978.218136}
+}
+
+@article{jia2011mutation,
+  author  = {Jia, Yue and Harman, Mark},
+  title   = {An Analysis and Survey of the Development of Mutation Testing},
+  journal = {IEEE Transactions on Software Engineering},
+  volume  = {37},
+  number  = {5},
+  pages   = {649--678},
+  year    = {2011},
+  doi     = {10.1109/TSE.2010.62}
+}
+
+@inproceedings{ivankovic2019coverage,
+  author    = {Ivankovi{\'c}, Marko and Petrovi{\'c}, Goran and
+               Just, Ren{\'e} and Fraser, Gordon},
+  title     = {Code Coverage at {Google}},
+  booktitle = {Proceedings of the 27th ACM Joint Meeting on European Software
+               Engineering Conference and Symposium on the Foundations of
+               Software Engineering (ESEC/FSE)},
+  pages     = {955--963},
+  publisher = {ACM},
+  year      = {2019},
+  doi       = {10.1145/3338906.3340459}
+}
+
+% --------------------------------------------------------------- security concepts
+
+@article{saltzer1975protection,
+  author  = {Saltzer, Jerome H. and Schroeder, Michael D.},
+  title   = {The Protection of Information in Computer Systems},
+  journal = {Proceedings of the IEEE},
+  volume  = {63},
+  number  = {9},
+  pages   = {1278--1308},
+  year    = {1975},
+  doi     = {10.1109/PROC.1975.9939}
+}
+
+% --------------------------------------------------------- LLMs as reviewers/coders
+
+@article{chen2021codex,
+  author  = {Chen, Mark and Tworek, Jerry and Jun, Heewoo and others},
+  title   = {Evaluating Large Language Models Trained on Code},
+  journal = {arXiv preprint arXiv:2107.03374},
+  year    = {2021},
+  doi     = {10.48550/arXiv.2107.03374}
+}
+
+@article{perry2023users,
+  author    = {Perry, Neil and Srivastava, Megha and Kumar, Deepak and
+               Boneh, Dan},
+  title     = {Do Users Write More Insecure Code with {AI} Assistants?},
+  booktitle = {Proceedings of the 2023 ACM SIGSAC Conference on Computer and
+               Communications Security (CCS)},
+  pages     = {2785--2799},
+  publisher = {ACM},
+  year      = {2023},
+  doi       = {10.1145/3576915.3623157}
+}
+
+@article{pearce2022asleep,
+  author    = {Pearce, Hammond and Ahmad, Baleegh and Tan, Benjamin and
+               Dolan-Gavitt, Brendan and Karri, Ramesh},
+  title     = {Asleep at the Keyboard? Assessing the Security of {GitHub}
+               {Copilot}'s Code Contributions},
+  booktitle = {2022 IEEE Symposium on Security and Privacy (S\&P)},
+  pages     = {754--768},
+  publisher = {IEEE},
+  year      = {2022},
+  doi       = {10.1109/SP46214.2022.9833571}
+}
+
+% ------------------------------------------------------------------- the artifacts
+
+@misc{sigmaglyph2026,
+  author       = {Glova, Serhii},
+  title        = {{$\Sigma$-GLYPH}: a portable deterministic check engine with
+                  size-priced budgets},
+  howpublished = {\url{https://github.com/s0fractal/sigma-glyph}},
+  year         = {2026},
+  note         = {Commit \texttt{8d6b8234959a97be564a0301ca0b3d130c8c8c2f}
+                  (\texttt{master})}
+}
+
+@misc{paperA2026,
+  author       = {Glova, Serhii},
+  title        = {One Integer for Work and Memory: A Mechanized,
+                  Content-Addressed Combinator Machine},
+  howpublished = {Companion preprint},
+  year         = {2026},
+  note         = {Describes the mechanization this paper audits}
+}

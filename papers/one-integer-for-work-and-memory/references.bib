@@ -1,0 +1,511 @@
+% references.bib — Σ-GLYPH preprint
+% Every entry below is a work the author has verified exists. Entries whose
+% only stable identifier is a URL are typed @misc and carry an access note.
+
+% ---------------------------------------------------------------- proof assistants
+
+@inproceedings{demoura2021lean4,
+  author    = {de Moura, Leonardo and Ullrich, Sebastian},
+  title     = {The {Lean} 4 Theorem Prover and Programming Language},
+  booktitle = {Automated Deduction -- CADE 28},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {12699},
+  pages     = {625--635},
+  publisher = {Springer},
+  year      = {2021},
+  doi       = {10.1007/978-3-030-79876-5_37}
+}
+
+@mastersthesis{carneiro2019lean,
+  author  = {Carneiro, Mario},
+  title   = {The Type Theory of {Lean}},
+  school  = {Carnegie Mellon University},
+  year    = {2019},
+  note    = {Master's thesis}
+}
+
+@inproceedings{mathlib2020,
+  author    = {{The mathlib Community}},
+  title     = {The {Lean} Mathematical Library},
+  booktitle = {Proceedings of the 9th ACM SIGPLAN International Conference on
+               Certified Programs and Proofs (CPP)},
+  pages     = {367--381},
+  publisher = {ACM},
+  year      = {2020},
+  doi       = {10.1145/3372885.3373824}
+}
+
+@misc{lean4checker,
+  author       = {{Lean FRO}},
+  title        = {{lean4checker}: an external checker for {Lean} 4 environments},
+  howpublished = {\url{https://github.com/leanprover/lean4checker}},
+  year         = {2024},
+  note         = {Accessed 2026-07-30}
+}
+
+@misc{lean4lean,
+  author       = {Carneiro, Mario},
+  title        = {{lean4lean}: a verified type checker for {Lean} 4, in {Lean} 4},
+  howpublished = {\url{https://github.com/digama0/lean4lean}},
+  year         = {2024},
+  note         = {Accessed 2026-07-30}
+}
+
+% ---------------------------------------------------------- proof-artifact integrity
+
+@article{wiedijk2012pollack,
+  author  = {Wiedijk, Freek},
+  title   = {Pollack-inconsistency},
+  journal = {Electronic Notes in Theoretical Computer Science},
+  volume  = {285},
+  pages   = {85--100},
+  year    = {2012},
+  doi     = {10.1016/j.entcs.2012.06.008}
+}
+
+@article{barendregt2005challenge,
+  author  = {Barendregt, Henk and Wiedijk, Freek},
+  title   = {The Challenge of Computer Mathematics},
+  journal = {Philosophical Transactions of the Royal Society A},
+  volume  = {363},
+  number  = {1835},
+  pages   = {2351--2375},
+  year    = {2005},
+  doi     = {10.1098/rsta.2005.1650}
+}
+
+@article{ringer2019qed,
+  author  = {Ringer, Talia and Palmskog, Karl and Sergey, Ilya and
+             Gligoric, Milos and Tatlock, Zachary},
+  title   = {{QED} at Large: A Survey of Engineering of Formally Verified Software},
+  journal = {Foundations and Trends in Programming Languages},
+  volume  = {5},
+  number  = {2--3},
+  pages   = {102--281},
+  year    = {2019},
+  doi     = {10.1561/2500000045}
+}
+
+% ------------------------------------------------------------- verified systems
+
+@inproceedings{klein2009sel4,
+  author    = {Klein, Gerwin and Elphinstone, Kevin and Heiser, Gernot and
+               Andronick, June and Cock, David and Derrin, Philip and
+               Elkaduwe, Dhammika and Engelhardt, Kai and Kolanski, Rafal and
+               Norrish, Michael and Sewell, Thomas and Tuch, Harvey and
+               Winwood, Simon},
+  title     = {{seL4}: Formal Verification of an {OS} Kernel},
+  booktitle = {Proceedings of the 22nd ACM Symposium on Operating Systems
+               Principles (SOSP)},
+  pages     = {207--220},
+  publisher = {ACM},
+  year      = {2009},
+  doi       = {10.1145/1629575.1629596}
+}
+
+@article{leroy2009compcert,
+  author  = {Leroy, Xavier},
+  title   = {Formal Verification of a Realistic Compiler},
+  journal = {Communications of the ACM},
+  volume  = {52},
+  number  = {7},
+  pages   = {107--115},
+  year    = {2009},
+  doi     = {10.1145/1538788.1538814}
+}
+
+@inproceedings{kumar2014cakeml,
+  author    = {Kumar, Ramana and Myreen, Magnus O. and Norrish, Michael and
+               Owens, Scott},
+  title     = {{CakeML}: A Verified Implementation of {ML}},
+  booktitle = {Proceedings of the 41st ACM SIGPLAN-SIGACT Symposium on
+               Principles of Programming Languages (POPL)},
+  pages     = {179--191},
+  publisher = {ACM},
+  year      = {2014},
+  doi       = {10.1145/2535838.2535841}
+}
+
+@inproceedings{zinzindohoue2017hacl,
+  author    = {Zinzindohou{\'e}, Jean-Karim and Bhargavan, Karthikeyan and
+               Protzenko, Jonathan and Beurdouche, Benjamin},
+  title     = {{HACL*}: A Verified Modern Cryptographic Library},
+  booktitle = {Proceedings of the 2017 ACM SIGSAC Conference on Computer and
+               Communications Security (CCS)},
+  pages     = {1789--1806},
+  publisher = {ACM},
+  year      = {2017},
+  doi       = {10.1145/3133956.3134043}
+}
+
+% ------------------------------------------------------- resource / cost semantics
+
+@inproceedings{hofmann2003aara,
+  author    = {Hofmann, Martin and Jost, Steffen},
+  title     = {Static Prediction of Heap Space Usage for First-Order
+               Functional Programs},
+  booktitle = {Proceedings of the 30th ACM SIGPLAN-SIGACT Symposium on
+               Principles of Programming Languages (POPL)},
+  pages     = {185--197},
+  publisher = {ACM},
+  year      = {2003},
+  doi       = {10.1145/604131.604148}
+}
+
+@inproceedings{hoffmann2012raml,
+  author    = {Hoffmann, Jan and Aehlig, Klaus and Hofmann, Martin},
+  title     = {Resource Aware {ML}},
+  booktitle = {Computer Aided Verification (CAV)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {7358},
+  pages     = {781--786},
+  publisher = {Springer},
+  year      = {2012},
+  doi       = {10.1007/978-3-642-31424-7_64}
+}
+
+@inproceedings{gueneau2018fistful,
+  author    = {Gu{\'e}neau, Arma{\"e}l and Chargu{\'e}raud, Arthur and
+               Pottier, Fran{\c{c}}ois},
+  title     = {A Fistful of Dollars: Formalizing Asymptotic Complexity Claims
+               via Deductive Program Verification},
+  booktitle = {Programming Languages and Systems (ESOP)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {10801},
+  pages     = {533--560},
+  publisher = {Springer},
+  year      = {2018},
+  doi       = {10.1007/978-3-319-89884-1_19}
+}
+
+@article{chargueraud2019unionfind,
+  author  = {Chargu{\'e}raud, Arthur and Pottier, Fran{\c{c}}ois},
+  title   = {Verifying the Correctness and Amortized Complexity of a
+             Union-Find Implementation in Separation Logic with Time Credits},
+  journal = {Journal of Automated Reasoning},
+  volume  = {62},
+  number  = {3},
+  pages   = {331--365},
+  year    = {2019},
+  doi     = {10.1007/s10817-017-9431-7}
+}
+
+@article{moine2023space,
+  author  = {Moine, Alexandre and Chargu{\'e}raud, Arthur and
+             Pottier, Fran{\c{c}}ois},
+  title   = {A High-Level Separation Logic for Heap Space under Garbage
+             Collection},
+  journal = {Proceedings of the ACM on Programming Languages},
+  volume  = {7},
+  number  = {POPL},
+  pages   = {718--747},
+  year    = {2023},
+  doi     = {10.1145/3571218}
+}
+
+% --------------------------------------------------- combinatory logic / compilation
+
+@article{schonfinkel1924bausteine,
+  author  = {Sch{\"o}nfinkel, Moses},
+  title   = {{\"U}ber die Bausteine der mathematischen Logik},
+  journal = {Mathematische Annalen},
+  volume  = {92},
+  pages   = {305--316},
+  year    = {1924},
+  doi     = {10.1007/BF01448013}
+}
+
+@book{curry1958combinatory,
+  author    = {Curry, Haskell B. and Feys, Robert},
+  title     = {Combinatory Logic, Volume I},
+  publisher = {North-Holland},
+  year      = {1958}
+}
+
+@article{turner1979implementation,
+  author  = {Turner, David A.},
+  title   = {A New Implementation Technique for Applicative Languages},
+  journal = {Software: Practice and Experience},
+  volume  = {9},
+  number  = {1},
+  pages   = {31--49},
+  year    = {1979},
+  doi     = {10.1002/spe.4380090105}
+}
+
+@book{barendregt1984lambda,
+  author    = {Barendregt, Hendrik Pieter},
+  title     = {The Lambda Calculus: Its Syntax and Semantics},
+  edition   = {Revised},
+  publisher = {North-Holland},
+  year      = {1984}
+}
+
+% ------------------------------------------------- content addressing / distribution
+
+@article{benet2014ipfs,
+  author  = {Benet, Juan},
+  title   = {{IPFS} -- Content Addressed, Versioned, {P2P} File System},
+  journal = {arXiv preprint arXiv:1407.3561},
+  year    = {2014},
+  doi     = {10.48550/arXiv.1407.3561}
+}
+
+@misc{multiformats,
+  author       = {{Protocol Labs}},
+  title        = {Multiformats: self-describing values for future-proofing},
+  howpublished = {\url{https://multiformats.io/}},
+  year         = {2024},
+  note         = {Accessed 2026-07-30}
+}
+
+@phdthesis{dolstra2006nix,
+  author = {Dolstra, Eelco},
+  title  = {The Purely Functional Software Deployment Model},
+  school = {Utrecht University},
+  year   = {2006}
+}
+
+@misc{unison,
+  author       = {Chiusano, Paul and Bjarnason, R{\'u}nar and
+                  {the Unison contributors}},
+  title        = {The {Unison} Language},
+  howpublished = {\url{https://www.unison-lang.org/}},
+  year         = {2024},
+  note         = {Content-addressed code; accessed 2026-07-30}
+}
+
+@misc{urbit2016,
+  author       = {Yarvin, Curtis and Monk, Philip and Dyudin, Anton and
+                  Pasco, Raymond},
+  title        = {Urbit: A Solid-State Interpreter},
+  howpublished = {\url{https://media.urbit.org/whitepaper.pdf}},
+  year         = {2016},
+  note         = {Defines the Nock combinator machine; accessed 2026-07-30}
+}
+
+% ------------------------------------------------------ deterministic execution / gas
+
+@techreport{wood2014ethereum,
+  author      = {Wood, Gavin},
+  title       = {Ethereum: A Secure Decentralised Generalised Transaction
+                 Ledger},
+  institution = {Ethereum Project},
+  type        = {Yellow Paper},
+  year        = {2014},
+  note        = {Berlin version and later revisions;
+                 \url{https://ethereum.github.io/yellowpaper/paper.pdf}}
+}
+
+@inproceedings{hirai2017evm,
+  author    = {Hirai, Yoichi},
+  title     = {Defining the {Ethereum} Virtual Machine for Interactive
+               Theorem Provers},
+  booktitle = {Financial Cryptography and Data Security (WTSC)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {10323},
+  pages     = {520--535},
+  publisher = {Springer},
+  year      = {2017},
+  doi       = {10.1007/978-3-319-70278-0_33}
+}
+
+@inproceedings{hildenbrandt2018kevm,
+  author    = {Hildenbrandt, Everett and Saxena, Manasvi and Rodrigues, Nishant
+               and Zhu, Xiaoran and Daian, Philip and Guth, Dwight and
+               Moore, Brandon and Park, Daejun and Zhang, Yi and
+               Stefanescu, Andrei and Rosu, Grigore},
+  title     = {{KEVM}: A Complete Formal Semantics of the {Ethereum} Virtual
+               Machine},
+  booktitle = {IEEE 31st Computer Security Foundations Symposium (CSF)},
+  pages     = {204--217},
+  publisher = {IEEE},
+  year      = {2018},
+  doi       = {10.1109/CSF.2018.00022}
+}
+
+@inproceedings{amani2018evm,
+  author    = {Amani, Sidney and B{\'e}gel, Myriam and Bortin, Maksym and
+               Staples, Mark},
+  title     = {Towards Verifying {Ethereum} Smart Contract Bytecode in
+               {Isabelle/HOL}},
+  booktitle = {Proceedings of the 7th ACM SIGPLAN International Conference on
+               Certified Programs and Proofs (CPP)},
+  pages     = {66--77},
+  publisher = {ACM},
+  year      = {2018},
+  doi       = {10.1145/3167084}
+}
+
+@inproceedings{haas2017wasm,
+  author    = {Haas, Andreas and Rossberg, Andreas and Schuff, Derek L. and
+               Titzer, Ben L. and Holman, Michael and Gohman, Dan and
+               Wagner, Luke and Zakai, Alon and Bastien, JF},
+  title     = {Bringing the Web up to Speed with {WebAssembly}},
+  booktitle = {Proceedings of the 38th ACM SIGPLAN Conference on Programming
+               Language Design and Implementation (PLDI)},
+  pages     = {185--200},
+  publisher = {ACM},
+  year      = {2017},
+  doi       = {10.1145/3062341.3062363}
+}
+
+@misc{wasmcore,
+  author       = {{W3C WebAssembly Working Group}},
+  title        = {{WebAssembly} Core Specification},
+  howpublished = {\url{https://webassembly.github.io/spec/core/}},
+  year         = {2025},
+  note         = {Includes the appendix on profiles, among them the
+                  deterministic profile; accessed 2026-07-30}
+}
+
+@inproceedings{watt2018wasm,
+  author    = {Watt, Conrad},
+  title     = {Mechanising and Verifying the {WebAssembly} Specification},
+  booktitle = {Proceedings of the 7th ACM SIGPLAN International Conference on
+               Certified Programs and Proofs (CPP)},
+  pages     = {53--65},
+  publisher = {ACM},
+  year      = {2018},
+  doi       = {10.1145/3167082}
+}
+
+% ------------------------------------------------------------------------- zkVMs
+
+@misc{risczero,
+  author       = {{RISC Zero}},
+  title        = {{RISC Zero} zk{VM}},
+  howpublished = {\url{https://github.com/risc0/risc0}},
+  year         = {2025},
+  note         = {Accessed 2026-07-30}
+}
+
+@misc{sp1,
+  author       = {{Succinct Labs}},
+  title        = {{SP1}: a performant, open-source zero-knowledge virtual machine},
+  howpublished = {\url{https://github.com/succinctlabs/sp1}},
+  year         = {2025},
+  note         = {Accessed 2026-07-30}
+}
+
+@misc{cairo2021,
+  author       = {Goldberg, Lior and Papini, Shahar and Riabzev, Michael},
+  title        = {Cairo -- a {Turing}-complete {STARK}-friendly {CPU}
+                  architecture},
+  howpublished = {Cryptology ePrint Archive, Paper 2021/1063},
+  year         = {2021},
+  note         = {\url{https://eprint.iacr.org/2021/1063}}
+}
+
+% ------------------------------------------------------ canonicalization / signatures
+
+@misc{rfc8785,
+  author       = {Rundgren, Anders and Jordan, Bret and Erdtman, Samuel},
+  title        = {{JSON} Canonicalization Scheme ({JCS})},
+  howpublished = {RFC 8785, IETF},
+  year         = {2020},
+  doi          = {10.17487/RFC8785}
+}
+
+@misc{rfc8032,
+  author       = {Josefsson, Simon and Liusvaara, Ilari},
+  title        = {Edwards-Curve Digital Signature Algorithm ({EdDSA})},
+  howpublished = {RFC 8032, IETF},
+  year         = {2017},
+  doi          = {10.17487/RFC8032}
+}
+
+@inproceedings{chalkias2020eddsa,
+  author    = {Chalkias, Konstantinos and Garillot, Fran{\c{c}}ois and
+               Nikolaenko, Valeria},
+  title     = {Taming the Many {EdDSAs}},
+  booktitle = {Security Standardisation Research (SSR)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {12529},
+  pages     = {67--90},
+  publisher = {Springer},
+  year      = {2020},
+  doi       = {10.1007/978-3-030-64357-7_4}
+}
+
+@misc{fips180-4,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Secure Hash Standard ({SHS})},
+  howpublished = {FIPS PUB 180-4},
+  year         = {2015},
+  doi          = {10.6028/NIST.FIPS.180-4}
+}
+
+% --------------------------------------------------------------- supply chain
+
+@inproceedings{torresarias2019intoto,
+  author    = {Torres-Arias, Santiago and Afzali, Hammad and
+               Kuppusamy, Trishank Karthik and Curtmola, Reza and
+               Cappos, Justin},
+  title     = {in-toto: Providing Farm-to-Table Guarantees for Bits and Bytes},
+  booktitle = {28th USENIX Security Symposium},
+  pages     = {1393--1410},
+  publisher = {USENIX Association},
+  year      = {2019}
+}
+
+@misc{slsa,
+  author       = {{OpenSSF}},
+  title        = {{SLSA}: Supply-chain Levels for Software Artifacts},
+  howpublished = {\url{https://slsa.dev/}},
+  year         = {2025},
+  note         = {Accessed 2026-07-30}
+}
+
+% ------------------------------------------------------------ differential testing
+
+@article{mckeeman1998differential,
+  author  = {McKeeman, William M.},
+  title   = {Differential Testing for Software},
+  journal = {Digital Technical Journal},
+  volume  = {10},
+  number  = {1},
+  pages   = {100--107},
+  year    = {1998}
+}
+
+@inproceedings{yang2011csmith,
+  author    = {Yang, Xuejun and Chen, Yang and Eide, Eric and Regehr, John},
+  title     = {Finding and Understanding Bugs in {C} Compilers},
+  booktitle = {Proceedings of the 32nd ACM SIGPLAN Conference on Programming
+               Language Design and Implementation (PLDI)},
+  pages     = {283--294},
+  publisher = {ACM},
+  year      = {2011},
+  doi       = {10.1145/1993498.1993532}
+}
+
+% ----------------------------------------------------------------- this artifact
+
+@misc{sigmaglyph2026,
+  author       = {Glova, Serhii},
+  title        = {{$\Sigma$-GLYPH}: a portable deterministic check engine with
+                  size-priced budgets},
+  howpublished = {\url{https://github.com/s0fractal/sigma-glyph}},
+  year         = {2026},
+  note         = {Commit \texttt{8d6b8234959a97be564a0301ca0b3d130c8c8c2f}
+                  (\texttt{master}); most recent adopted anchor set
+                  \texttt{v0.6.7} at \texttt{16a1355}}
+}
+
+@misc{warrant2026,
+  author       = {Glova, Serhii},
+  title        = {Warrant: signed, hash-addressed decision records for {AI} agents},
+  howpublished = {\url{https://github.com/s0fractal/warrant}},
+  year         = {2026},
+  note         = {Accessed 2026-07-30}
+}
+
+@misc{paperB2026,
+  author       = {Glova, Serhii},
+  title        = {Twenty-One Ways Past a Proof Guard: The {CI} Apparatus Around
+                  a Theorem Prover Is the Attack Surface},
+  howpublished = {Companion preprint},
+  year         = {2026},
+  note         = {Full taxonomy of the integrity vectors summarized in \S5}
+}

@@ -157,6 +157,11 @@ python3 tools/warrant_verify.py            | tee /dev/stderr | grep -q "errors 0
 say "Guard regression: WARRANT_PIN extraction fails hard on duplicate/malformed pins"
 python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUARD: ALL PASS"
 
+# The papers in papers/ state numbers about this repository -- guard line counts,
+# pin totals, Lean size. They were correct on the day they moved in and nothing
+# enforced that, which is the defect the second paper is about.
+python3 tools/paper_claims.py              | tee /dev/stderr | grep -q "PAPER-CLAIMS: ALL PASS"
+
 # Network-gated surfaces that CI runs against pinned out-of-band sources (the
 # anchor trust anchor and the Warrant CLI both live in the warrant repo, never
 # in this tree). Run them when reachable; skip cleanly offline so the local
