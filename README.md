@@ -109,6 +109,13 @@ and never part of it — ignore it entirely and Book I still holds. The names, t
 cosmology, and why FALSE sits at 270° live in [`spec/LORE.md`](spec/LORE.md):
 non-normative, and deliberately unhurried.
 
+
+**Why these three properties together** — determinism, content addressing, and a
+single Lean-proven bound over work *and* memory — is in
+[`WHY-THESE-THREE.md`](WHY-THESE-THREE.md). Short version: they are what makes it
+safe to execute a proof sent by a stranger, and none of the three works without
+the other two.
+
 ## The Three Books
 
 | Document | Status | Contract between |
