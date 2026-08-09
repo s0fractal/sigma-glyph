@@ -44,6 +44,10 @@ determinism, totality and memory bound are machine-checked theorems in Lean 4
 three against each other on every push, and `tools/x1_cross_repo.sh` runs this
 repo against warrant's HEAD rather than a pinned snapshot.
 
+How this repo relates to its siblings — which links are CI-gated contracts and
+which are only proposals — is indexed in the
+[ecosystem relationship map](https://github.com/s0fractal/protocol-ecosystem).
+
 **Where the failures have actually been.** Not in the mathematics. Every vector
 `tests/proof_guard_test.py` now rejects is an attack on the *guard* rather than on
 the kernel — a theorem hidden from the registry by a one-line `namespace`, a scope
