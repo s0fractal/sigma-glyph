@@ -54,7 +54,14 @@ if n is not None:
     chk("proof_guard.py line count",
         len((ROOT / "proofs" / "proof_guard.py").read_text().splitlines()), n)
 
-n = claimed_int(guard, r"(\d[\d,]*)-line\b(?![^.]*Lean)", "proof_guard_test.py line count")
+non_lean_line_claim = next(
+    (m for sentence in guard.split(".") if "Lean" not in sentence
+     if (m := re.search(r"(\d[\d,]*)-line\b", sentence))),
+    None)
+n = (int(non_lean_line_claim.group(1).replace(",", ""))
+     if non_lean_line_claim else None)
+if n is None:
+    unchecked.append("proof_guard_test.py line count: claim not found")
 if n is not None:
     chk("proof_guard_test.py line count",
         len((ROOT / "tests" / "proof_guard_test.py").read_text().splitlines()), n)
@@ -81,7 +88,7 @@ else:
 # --- the title's own count, against the body -------------------------------
 # The title says twenty-one. If the body enumerates a different number, one of
 # them is wrong and a reader has no way to tell which.
-enumerated = len({v for v in re.findall(r"\*\*(V\d+) —", guard)})
+enumerated = len(set(re.findall(r"\*\*(V\d+) —", guard)))
 chk("bypasses enumerated in the body vs the title", enumerated, 21)
 
 # --- what this script deliberately does not check --------------------------

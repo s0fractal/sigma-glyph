@@ -29,6 +29,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (   # noqa: E402
 RECEIPT = os.path.join(HERE, "receipt.json")
 INPUTS = os.path.join(HERE, "inputs")
 TAG = "sigma-glyph.verdict-receipt@v1"
+VECTORS_FILE = "governance_vectors.json"
 # demo producer identity: "whoever holds this seed" — a fixed seed so the demo
 # is reproducible. Identity only; it never makes the claim true.
 _SEED = hashlib.sha256(b"receipt-atom:demo-producer").digest()
@@ -55,13 +56,15 @@ def _run_replay(vectors_path):
 def mint():
     sk = Ed25519PrivateKey.from_private_bytes(_SEED)
     pub = sk.public_key().public_bytes_raw().hex()
-    src = os.path.join(REPO, "tests", "spec_conformance", "governance_vectors.json")
-    raw = open(src, "rb").read()
+    src = os.path.join(REPO, "tests", "spec_conformance", VECTORS_FILE)
+    with open(src, "rb") as vector_source:
+        raw = vector_source.read()
     os.makedirs(INPUTS, exist_ok=True)
-    open(os.path.join(INPUTS, "governance_vectors.json"), "wb").write(raw)
+    with open(os.path.join(INPUTS, VECTORS_FILE), "wb") as vector_copy:
+        vector_copy.write(raw)
     digest = sha256(raw)
     # run the computation once at mint time to record the claimed result
-    observed = _run_replay(os.path.join(INPUTS, "governance_vectors.json"))
+    observed = _run_replay(os.path.join(INPUTS, VECTORS_FILE))
     expect = "GOVERNANCE-REPLAY: ALL PASS (20/20)"
     assert expect in observed, "producer cannot mint a claim it cannot itself derive"
     body = {
@@ -74,7 +77,7 @@ def mint():
             "reexecute": "tools/anchor_governance.py replay <inputs/governance_vectors.json>",
             "expect_substring": expect,
         },
-        "inputs": {"governance_vectors.json": digest},
+        "inputs": {VECTORS_FILE: digest},
         "producer": {"id": "receipt-atom:demo-producer", "key": pub},
     }
     rid = sha256(canon(body))
@@ -117,7 +120,7 @@ def verify():
     expect = body["computation"]["expect_substring"]
     fact_ok = False
     if inputs_ok:
-        observed = _run_replay(os.path.join(INPUTS, "governance_vectors.json"))
+        observed = _run_replay(os.path.join(INPUTS, VECTORS_FILE))
         fact_ok = expect in observed
     checks.append((f"re-derived: {expect!r}", fact_ok))
 

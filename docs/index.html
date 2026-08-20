@@ -141,11 +141,11 @@ $ lean proofs/EvalMachine.lean &amp;&amp; python3 proofs/eval_bridge_check.py</p
   <h2>Why not WASM / Nix / IPFS / zkVM / just Python?</h2>
   <p>The fair skeptic's question. Honest answers, each about what Σ-GLYPH builds in:</p>
   <table>
-    <tr><td>vs WASM</td><td>WASM executes portably, but its core format gives a computation no content-derived identity — two toolchains, two byte streams, no shared name for "the same result." Σ-GLYPH's identity is the hash of canonical bytes.</td></tr>
-    <tr><td>vs Nix</td><td>Nix reproduces <em>builds</em> by hashing inputs. It pins an environment, not the semantics of a total, priced evaluation. Different layer — Σ-GLYPH is what runs, not how it was assembled.</td></tr>
-    <tr><td>vs IPFS</td><td>The IPFS protocol content-addresses <em>data</em> and does not compute. Σ-GLYPH content-addresses <em>computation</em> — terms and their results — with a totalization guarantee the storage layer makes no claim about.</td></tr>
-    <tr><td>vs zkVM</td><td>A zkVM proves a computation satisfied its relation without re-running it — powerful, and heavy. Σ-GLYPH targets the case where you <em>can</em> re-run: verification by deterministic re-execution. Complementary, not competing.</td></tr>
-    <tr><td>vs just Python</td><td>The Python impl is only the oracle. The guarantee is the spec + vectors, replayed byte-exact by independent Book I evaluators (a dependency-free Rust one in this repo; warrant's <code>ski@v1</code> in another). "Just Python" gives one binary's behaviour; this gives a contract between strangers.</td></tr>
+    <tr><th scope="row">vs WASM</th><td>WASM executes portably, but its core format gives a computation no content-derived identity — two toolchains, two byte streams, no shared name for "the same result." Σ-GLYPH's identity is the hash of canonical bytes.</td></tr>
+    <tr><th scope="row">vs Nix</th><td>Nix reproduces <em>builds</em> by hashing inputs. It pins an environment, not the semantics of a total, priced evaluation. Different layer — Σ-GLYPH is what runs, not how it was assembled.</td></tr>
+    <tr><th scope="row">vs IPFS</th><td>The IPFS protocol content-addresses <em>data</em> and does not compute. Σ-GLYPH content-addresses <em>computation</em> — terms and their results — with a totalization guarantee the storage layer makes no claim about.</td></tr>
+    <tr><th scope="row">vs zkVM</th><td>A zkVM proves a computation satisfied its relation without re-running it — powerful, and heavy. Σ-GLYPH targets the case where you <em>can</em> re-run: verification by deterministic re-execution. Complementary, not competing.</td></tr>
+    <tr><th scope="row">vs just Python</th><td>The Python impl is only the oracle. The guarantee is the spec + vectors, replayed byte-exact by independent Book I evaluators (a dependency-free Rust one in this repo; warrant's <code>ski@v1</code> in another). "Just Python" gives one binary's behaviour; this gives a contract between strangers.</td></tr>
   </table>
 
   <h2>Held to its own standard: adversarial review</h2>

@@ -6,7 +6,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-say() { printf '\n=== %s ===\n' "$1"; }
+say() {
+  local heading="$1"
+  printf '\n=== %s ===\n' "$heading"
+}
 
 # A skipped surface is not a passed one. This script printed ALL GREEN and exited
 # 0 after skipping the Lean bridges, or the two network-dependent parity checks,
@@ -17,7 +20,11 @@ say() { printf '\n=== %s ===\n' "$1"; }
 # Skips are now counted and named in the verdict, and the exit status says so.
 # ALLOW_SKIPS=1 is how an operator states the gap was accepted on purpose.
 SKIPPED=""
-skip() { SKIPPED="$SKIPPED  - $1"$'\n'; printf '\n(skipping: %s)\n' "$1"; }
+skip() {
+  local reason="$1"
+  SKIPPED="$SKIPPED  - $reason"$'\n'
+  printf '\n(skipping: %s)\n' "$reason"
+}
 
 say "Book I / II / III oracles"
 python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
@@ -42,6 +49,9 @@ say "Guard regression: exactly one construction of the Warrant signing message"
 # tools/warrant_sig.py; this fails if any other file open-codes it, in either
 # the visible form (the literal) or the silent one (signing a bare digest).
 python3 tests/one_signing_path.py          | tee /dev/stderr | grep -q "ONE-SIGNING-PATH: ALL PASS"
+
+say "Security boundaries: content addresses and local check commands"
+python3 tests/security_boundary_test.py   | tee /dev/stderr | grep -q "SECURITY-BOUNDARY: ALL PASS"
 
 say "Release surface (what an installed copy promises)"
 # The checkout half only. It drives the gate's classifier against the two real
@@ -182,7 +192,8 @@ WARRANT_PIN="$(tools/read_warrant_pin.sh)" \
 RAW=https://raw.githubusercontent.com/s0fractal/warrant
 
 say "Governance status --enforce (out-of-band trust anchor)"
-if curl -sfL "$RAW/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" \
+if curl --proto '=https' --tlsv1.2 -sfL \
+        "$RAW/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" \
         -o "$_freshdir/anchor-trust.json" 2>/dev/null; then
   # `grep -q AUTHORIZED` matched NOT AUTHORIZED too -- the gate passed on an
   # unauthorized set and failed only because pipefail happened to catch the
@@ -202,7 +213,9 @@ else
 fi
 
 say "Settlement-grade adjudication warrants (Warrant CLI, incl. ski@v1 re-runs)"
-if curl -sfL "$RAW/$WARRANT_PIN/impl/warrant.py" -o "$_freshdir/warrant.py" 2>/dev/null; then
+if curl --proto '=https' --tlsv1.2 -sfL \
+        "$RAW/$WARRANT_PIN/impl/warrant.py" \
+        -o "$_freshdir/warrant.py" 2>/dev/null; then
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify --settlement --trust-config trust-config.json
 else
@@ -225,9 +238,9 @@ else
   skip "Lean bridges: \`lean\` not on PATH — install elan to include them"
 fi
 
-if [ -n "$SKIPPED" ]; then
+if [[ -n "$SKIPPED" ]]; then
   printf '\nTEST-ALL: NOT COMPLETE — these surfaces were not checked:\n%s' "$SKIPPED"
-  if [ "${ALLOW_SKIPS:-0}" = "1" ]; then
+  if [[ "${ALLOW_SKIPS:-0}" = "1" ]]; then
     printf 'ALLOW_SKIPS=1: the gap above was accepted deliberately.\n'
     exit 0
   fi

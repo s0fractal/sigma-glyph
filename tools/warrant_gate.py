@@ -82,6 +82,15 @@ def build_argv(cmd, store, settlement=False, trust_config=None):
     return cmd + ["--store", store] + verb          # Python: --store is global
 
 
+def validated_command(cmd):
+    """Return a closed argv sequence; command text is never interpreted by a shell."""
+    if not isinstance(cmd, (list, tuple)) or not cmd:
+        raise ValueError("verifier command must be a non-empty argv sequence")
+    if not all(isinstance(arg, str) and arg and "\x00" not in arg for arg in cmd):
+        raise ValueError("verifier argv entries must be non-empty NUL-free strings")
+    return list(cmd)
+
+
 def _reject_dups(pairs):
     """object_pairs_hook that rejects duplicate members at EVERY nesting level.
     Stock json.loads collapses `"ok":false,"ok":true` last-wins, so an ambiguous
@@ -95,56 +104,87 @@ def _reject_dups(pairs):
     return dict(pairs)
 
 
+def _parse_report(stdout, stderr):
+    """Return ``(report, error)`` after the byte/JSON framing checks."""
+    if stderr != "":
+        return None, "stderr is not empty (verifier emitted extra output)"
+    line = stdout[:-1] if stdout.endswith("\n") else stdout
+    if line == "" or "\n" in line:
+        return None, "stdout is not exactly one physical JSON line"
+    try:
+        rep = json.loads(stdout, object_pairs_hook=_reject_dups)
+    except ValueError as e:
+        return None, f"stdout is not a single unambiguous JSON value ({e})"
+    if not isinstance(rep, dict):
+        return None, "report is not a JSON object"
+    return rep, None
+
+
+def _validate_report_fields(rep, expected_grade):
+    """Return the first closed-schema/scalar error, or ``None``."""
+    if rep.get("report") != REPORT_TAG:
+        return f"unknown report tag {rep.get('report')!r} (want {REPORT_TAG})"
+    if set(rep) != TOP_KEYS:
+        return "report top-level field set is not the documented v0 schema"
+    if rep["grade"] not in ("base", "settlement"):
+        return f"unknown grade {rep['grade']!r}"
+    if expected_grade is not None and rep["grade"] != expected_grade:
+        return f"grade {rep['grade']!r} != requested {expected_grade!r} (downgrade?)"
+    if type(rep["ok"]) is not bool:
+        return "ok is not a bool"
+    for k in ("records", "errors", "warnings"):
+        if type(rep[k]) is not int or isinstance(rep[k], bool) or rep[k] < 0:
+            return f"{k} is not a non-negative int"
+    if not isinstance(rep["findings"], list):
+        return "findings is not a list"
+    return None
+
+
+def _finding_counts(findings):
+    """Return ``((errors, warnings), error)`` for a closed findings list."""
+    err_c = warn_c = 0
+    for f in findings:
+        if not isinstance(f, dict) or set(f) != FINDING_KEYS:
+            return None, "a finding is not the documented {level, subject, message}"
+        if f["level"] not in ("ERR", "WARN"):
+            return None, f"finding level {f['level']!r} is not ERR/WARN"
+        if type(f["subject"]) is not str or type(f["message"]) is not str:
+            return None, "finding subject/message is not a string"
+        err_c += f["level"] == "ERR"
+        warn_c += f["level"] == "WARN"
+    return (err_c, warn_c), None
+
+
+def _consistency_error(rep, counts, returncode):
+    """Return a cross-field/exit-status contradiction, or ``None``."""
+    err_c, warn_c = counts
+    if rep["ok"] != (rep["errors"] == 0):
+        return "self-inconsistent report: ok != (errors == 0)"
+    if err_c != rep["errors"] or warn_c != rep["warnings"]:
+        return "finding levels do not match the error/warning counts"
+    if returncode != (0 if rep["ok"] else 1):
+        return f"exit code {returncode} disagrees with ok={rep['ok']}"
+    return None
+
+
 def check_report(stdout, stderr, returncode, expected_grade=None):
     """Pure fail-closed validation of the machine boundary. No subprocess, no I/O —
     so the exact contract can be tested against hostile synthetic output.
     `expected_grade` (base|settlement), when given, MUST equal the report grade —
     a producer that ignores --settlement and returns a base report is a downgrade.
     Returns (verified: bool, reason: str)."""
-    if stderr != "":
-        return False, "stderr is not empty (verifier emitted extra output)"
-    # exactly ONE physical line: the JSON, plus at most a single trailing newline.
-    line = stdout[:-1] if stdout.endswith("\n") else stdout
-    if line == "" or "\n" in line:
-        return False, "stdout is not exactly one physical JSON line"
-    try:
-        rep = json.loads(stdout, object_pairs_hook=_reject_dups)
-    except ValueError as e:
-        return False, f"stdout is not a single unambiguous JSON value ({e})"
-    if not isinstance(rep, dict):
-        return False, "report is not a JSON object"
-    if rep.get("report") != REPORT_TAG:
-        return False, f"unknown report tag {rep.get('report')!r} (want {REPORT_TAG})"
-    if set(rep) != TOP_KEYS:
-        return False, "report top-level field set is not the documented v0 schema"
-    if rep["grade"] not in ("base", "settlement"):
-        return False, f"unknown grade {rep['grade']!r}"
-    if expected_grade is not None and rep["grade"] != expected_grade:
-        return False, f"grade {rep['grade']!r} != requested {expected_grade!r} (downgrade?)"
-    if type(rep["ok"]) is not bool:
-        return False, "ok is not a bool"
-    for k in ("records", "errors", "warnings"):
-        if type(rep[k]) is not int or isinstance(rep[k], bool) or rep[k] < 0:
-            return False, f"{k} is not a non-negative int"
-    if not isinstance(rep["findings"], list):
-        return False, "findings is not a list"
-    err_c = warn_c = 0
-    for f in rep["findings"]:
-        if not isinstance(f, dict) or set(f) != FINDING_KEYS:
-            return False, "a finding is not the documented {level, subject, message}"
-        if f["level"] not in ("ERR", "WARN"):
-            return False, f"finding level {f['level']!r} is not ERR/WARN"
-        if type(f["subject"]) is not str or type(f["message"]) is not str:
-            return False, "finding subject/message is not a string"
-        err_c += f["level"] == "ERR"
-        warn_c += f["level"] == "WARN"
-    # The report must not contradict itself, and the exit code must agree.
-    if rep["ok"] != (rep["errors"] == 0):
-        return False, "self-inconsistent report: ok != (errors == 0)"
-    if err_c != rep["errors"] or warn_c != rep["warnings"]:
-        return False, "finding levels do not match the error/warning counts"
-    if returncode != (0 if rep["ok"] else 1):
-        return False, f"exit code {returncode} disagrees with ok={rep['ok']}"
+    rep, error = _parse_report(stdout, stderr)
+    if error is not None:
+        return False, error
+    error = _validate_report_fields(rep, expected_grade)
+    if error is not None:
+        return False, error
+    counts, error = _finding_counts(rep["findings"])
+    if error is not None:
+        return False, error
+    error = _consistency_error(rep, counts, returncode)
+    if error is not None:
+        return False, error
     if not rep["ok"]:
         return False, f"verification failed: {rep['errors']} error(s)"
     return True, f"verified: {rep['records']} record(s), {rep['warnings']} warning(s)"
@@ -159,12 +199,16 @@ def verify(store, settlement=False, trust_config=None, cmd=None, env=None):
         return False, "settlement requested without a trust config (not a real settlement verification)"
     if trust_config and not settlement:
         return False, "trust config given without --settlement (the option would be silently ignored)"
-    cmd = cmd or default_warrant_cmd()
-    argv = build_argv(cmd, store, settlement, trust_config)
+    try:
+        command = validated_command(cmd or default_warrant_cmd())
+    except ValueError as error:
+        return False, str(error)
+    argv = build_argv(command, store, settlement, trust_config)
     try:
         # capture BYTES: invalid UTF-8 must be a bounded rejection, not a decode
-        # traceback (Codex gate P2).
-        proc = subprocess.run(argv, capture_output=True, env=env)
+        # traceback (Codex gate P2). `argv` is a validated sequence and the
+        # verifier is explicitly operator-selected; no shell parses any value.
+        proc = subprocess.run(argv, capture_output=True, env=env, shell=False)  # NOSONAR pythonsecurity:S8701,pythonsecurity:S8705
     except OSError as e:
         return False, f"could not run verifier {argv[0]!r}: {e}"
     try:

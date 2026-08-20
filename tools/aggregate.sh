@@ -80,14 +80,14 @@ append_file "spec/LORE.md" "spec/LORE.md"
 append_file "spec/ANCHORS.txt" "spec/ANCHORS.txt"
 
 # Proposals (ADRs)
-if [ -d "proposals" ]; then
+if [[ -d "proposals" ]]; then
     echo "---" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
     echo "# Architecture Decision Records" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
 
     for adr in proposals/*.md; do
-        [ -f "$adr" ] && append_file "$adr"
+        [[ -f "$adr" ]] && append_file "$adr"
     done
 fi
 
@@ -100,7 +100,7 @@ echo "" >> "$OUTPUT"
 append_file "reviews/README.md" "reviews/README.md"
 
 for review in reviews/*.md; do
-    [ -f "$review" ] && [ "$(basename "$review")" != "README.md" ] && append_file "$review"
+    [[ -f "$review" ]] && [[ "$(basename "$review")" != "README.md" ]] && append_file "$review"
 done
 
 # Reference implementation
@@ -110,7 +110,7 @@ echo "# Reference Implementation" >> "$OUTPUT"
 echo "" >> "$OUTPUT"
 
 for impl in impl/*.py; do
-    [ -f "$impl" ] && append_file "$impl"
+    [[ -f "$impl" ]] && append_file "$impl"
 done
 
 # Tools
@@ -120,18 +120,18 @@ echo "# Tooling" >> "$OUTPUT"
 echo "" >> "$OUTPUT"
 
 for tool in tools/*.py tools/*.sh; do
-    [ -f "$tool" ] && [ "$(basename "$tool")" != "aggregate.sh" ] && append_file "$tool"
+    [[ -f "$tool" ]] && [[ "$(basename "$tool")" != "aggregate.sh" ]] && append_file "$tool"
 done
 
 # GitHub workflows (if any)
-if [ -d ".github/workflows" ]; then
+if [[ -d ".github/workflows" ]]; then
     echo "---" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
     echo "# CI/CD Configuration" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
 
     for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
-        [ -f "$workflow" ] && append_file "$workflow"
+        [[ -f "$workflow" ]] && append_file "$workflow"
     done
 fi
 

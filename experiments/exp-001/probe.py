@@ -15,7 +15,7 @@ REVIEWS = os.path.join(REPO, "reviews")
 README = os.path.join(REVIEWS, "README.md")
 TRINITY = os.path.expanduser("~/trinity")
 
-VER = re.compile(r"v0\.[3-6]\.[0-9]+")          # a clean, stampable version
+VER = re.compile(r"v0\.[3-6]\.\d+")            # a clean, stampable version
 KERNEL = {                                       # §4b candidate conserved core
     "hash is identity": ["identity is nodehash", "hash is identity", "identity; identity is"],
     "wave not in hash": ["wave ∉ hash", "wave/phase/color are views"],

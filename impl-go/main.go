@@ -168,50 +168,48 @@ func isHex64(s string) bool {
 	return true
 }
 
+func unsignedFits(value uint64, bits int) bool {
+	return bits >= 64 || value < uint64(1)<<bits
+}
+
+func signedUnsigned(value int64, bits int) (uint64, bool) {
+	if value < 0 {
+		return 0, false
+	}
+	return boundedUnsigned(uint64(value), bits)
+}
+
+func boundedUnsigned(value uint64, bits int) (uint64, bool) {
+	if !unsignedFits(value, bits) {
+		return 0, false
+	}
+	return value, true
+}
+
+func floatUnsigned(value float64, bits int) (uint64, bool) {
+	if value < 0 || math.Trunc(value) != value || (bits < 64 && value >= float64(uint64(1)<<bits)) {
+		return 0, false
+	}
+	return uint64(value), true
+}
+
 func uintValue(v any, bits int) (uint64, bool) {
 	switch x := v.(type) {
 	case json.Number:
 		u, err := strconv.ParseUint(x.String(), 10, bits)
 		return u, err == nil
 	case float64:
-		if x < 0 || math.Trunc(x) != x {
-			return 0, false
-		}
-		if bits < 64 && x >= float64(uint64(1)<<bits) {
-			return 0, false
-		}
-		return uint64(x), true
+		return floatUnsigned(x, bits)
 	case int:
-		if x < 0 {
-			return 0, false
-		}
-		if bits < 64 && uint64(x) >= uint64(1)<<bits {
-			return 0, false
-		}
-		return uint64(x), true
+		return signedUnsigned(int64(x), bits)
 	case int64:
-		if x < 0 {
-			return 0, false
-		}
-		if bits < 64 && uint64(x) >= uint64(1)<<bits {
-			return 0, false
-		}
-		return uint64(x), true
+		return signedUnsigned(x, bits)
 	case uint:
-		if bits < 64 && uint64(x) >= uint64(1)<<bits {
-			return 0, false
-		}
-		return uint64(x), true
+		return boundedUnsigned(uint64(x), bits)
 	case uint16:
-		if bits < 16 && uint64(x) >= uint64(1)<<bits {
-			return 0, false
-		}
-		return uint64(x), true
+		return boundedUnsigned(uint64(x), bits)
 	case uint64:
-		if bits < 64 && x >= uint64(1)<<bits {
-			return 0, false
-		}
-		return x, true
+		return boundedUnsigned(x, bits)
 	default:
 		return 0, false
 	}
@@ -282,6 +280,22 @@ func validateAssertion(doc any) *string {
 	return nil
 }
 
+func validateOrderKey(item any) *string {
+	key, ok := asMap(item)
+	if !ok || !sameKeys(key, []string{"field", "dir"}) {
+		return strPtr("order keys must be {field, dir}")
+	}
+	field, fieldOK := asString(key["field"])
+	if !fieldOK || !orderFields[field] {
+		return strPtr("order field must be one of ('epoch', 'ts', 'warrant_id', 'actor')")
+	}
+	direction, directionOK := asString(key["dir"])
+	if !directionOK || (direction != "asc" && direction != "desc") {
+		return strPtr("order dir must be asc|desc")
+	}
+	return nil
+}
+
 func validatePolicy(doc any) *string {
 	m, ok := asMap(doc)
 	if !ok {
@@ -306,24 +320,24 @@ func validatePolicy(doc any) *string {
 		return strPtr("order must be a nonempty list")
 	}
 	for _, item := range order {
-		k, ok := asMap(item)
-		if !ok || !sameKeys(k, []string{"field", "dir"}) {
-			return strPtr("order keys must be {field, dir}")
-		}
-		field, fok := asString(k["field"])
-		if !fok || !orderFields[field] {
-			return strPtr("order field must be one of ('epoch', 'ts', 'warrant_id', 'actor')")
-		}
-		dir, dok := asString(k["dir"])
-		if !dok || (dir != "asc" && dir != "desc") {
-			return strPtr("order dir must be asc|desc")
+		if err := validateOrderKey(item); err != nil {
+			return err
 		}
 	}
-	for _, opt := range []string{"max_age_epochs", "quota_per_actor_epoch"} {
-		if v, exists := m[opt]; exists {
-			if _, ok := uintValue(v, 64); !ok {
-				return strPtr(fmt.Sprintf("%s must be a uint64", opt))
-			}
+	if err := validatePolicyOptions(m); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validatePolicyOptions(policy map[string]any) *string {
+	for _, option := range []string{"max_age_epochs", "quota_per_actor_epoch"} {
+		value, exists := policy[option]
+		if !exists {
+			continue
+		}
+		if _, ok := uintValue(value, 64); !ok {
+			return strPtr(fmt.Sprintf("%s must be a uint64", option))
 		}
 	}
 	return nil
@@ -369,56 +383,68 @@ func validMetadata(m map[string]any) (*Candidate, bool) {
 	return &Candidate{WarrantID: wid, Actor: actor, TS: ts, Assertion: assertion, Raw: m}, true
 }
 
+func liveCandidate(raw any, policy map[string]any, jurisdiction, node string, epoch uint64) *Candidate {
+	m, ok := asMap(raw)
+	if !ok {
+		return nil
+	}
+	candidate, ok := validMetadata(m)
+	if !ok || candidate.Assertion == nil || validateAssertion(candidate.Assertion) != nil {
+		return nil
+	}
+	anode, _ := asString(candidate.Assertion["node"])
+	ajur, _ := asString(candidate.Assertion["jurisdiction"])
+	aepoch, _ := uintValue(candidate.Assertion["epoch"], 64)
+	if anode != node || ajur != jurisdiction || aepoch > epoch {
+		return nil
+	}
+	if maxRaw, exists := policy["max_age_epochs"]; exists {
+		maxAge, _ := uintValue(maxRaw, 64)
+		if epoch-aepoch > maxAge {
+			return nil
+		}
+	}
+	return candidate
+}
+
+func applyQuota(live []*Candidate, quota uint64, order []OrderKey) []*Candidate {
+	groups := map[string][]*Candidate{}
+	for _, candidate := range live {
+		epoch, _ := uintValue(candidate.Assertion["epoch"], 64)
+		key := candidate.Actor + "\x00" + strconv.FormatUint(epoch, 10)
+		groups[key] = append(groups[key], candidate)
+	}
+	keys := make([]string, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	survivors := []*Candidate{}
+	for _, key := range keys {
+		group := groups[key]
+		sort.Slice(group, func(i, j int) bool { return cmpOrder(group[i], group[j], order) < 0 })
+		keep := int(quota)
+		if uint64(keep) != quota || keep > len(group) {
+			keep = len(group)
+		}
+		survivors = append(survivors, group[:keep]...)
+	}
+	return survivors
+}
+
 func selectCandidates(candidates []any, policy map[string]any, jurisdiction, node string, epoch uint64) Selection {
 	live := make([]*Candidate, 0, len(candidates))
 	for _, raw := range candidates {
-		m, ok := asMap(raw)
-		if !ok {
-			continue
+		candidate := liveCandidate(raw, policy, jurisdiction, node, epoch)
+		if candidate != nil {
+			live = append(live, candidate)
 		}
-		c, ok := validMetadata(m)
-		if !ok || c.Assertion == nil || validateAssertion(c.Assertion) != nil {
-			continue
-		}
-		anode, _ := asString(c.Assertion["node"])
-		ajur, _ := asString(c.Assertion["jurisdiction"])
-		aepoch, _ := uintValue(c.Assertion["epoch"], 64)
-		if anode != node || ajur != jurisdiction || aepoch > epoch {
-			continue
-		}
-		if maxRaw, exists := policy["max_age_epochs"]; exists {
-			maxAge, _ := uintValue(maxRaw, 64)
-			if epoch-aepoch > maxAge {
-				continue
-			}
-		}
-		live = append(live, c)
 	}
 	order := parseOrder(policy)
 	tieOrder := append(append([]OrderKey{}, order...), OrderKey{Field: "warrant_id", Dir: "asc"})
 	if quotaRaw, exists := policy["quota_per_actor_epoch"]; exists {
 		quota, _ := uintValue(quotaRaw, 64)
-		groups := map[string][]*Candidate{}
-		for _, c := range live {
-			ep, _ := uintValue(c.Assertion["epoch"], 64)
-			key := c.Actor + "\x00" + strconv.FormatUint(ep, 10)
-			groups[key] = append(groups[key], c)
-		}
-		live = nil
-		keys := make([]string, 0, len(groups))
-		for k := range groups {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			g := groups[k]
-			sort.Slice(g, func(i, j int) bool { return cmpOrder(g[i], g[j], tieOrder) < 0 })
-			keep := int(quota)
-			if uint64(keep) != quota || keep > len(g) {
-				keep = len(g)
-			}
-			live = append(live, g[:keep]...)
-		}
+		live = applyQuota(live, quota, tieOrder)
 	}
 	if len(live) == 0 {
 		return Selection{Status: "absent", ConflictSet: []string{}}
@@ -455,26 +481,31 @@ func fieldValue(c *Candidate, name string) any {
 	return c.Actor
 }
 
+func compareValues(left, right any) int {
+	switch value := left.(type) {
+	case uint64:
+		other := right.(uint64)
+		if value < other {
+			return -1
+		}
+		if value > other {
+			return 1
+		}
+	case string:
+		other := right.(string)
+		if value < other {
+			return -1
+		}
+		if value > other {
+			return 1
+		}
+	}
+	return 0
+}
+
 func cmpOrder(a, b *Candidate, order []OrderKey) int {
 	for _, k := range order {
-		av, bv := fieldValue(a, k.Field), fieldValue(b, k.Field)
-		c := 0
-		switch x := av.(type) {
-		case uint64:
-			y := bv.(uint64)
-			if x < y {
-				c = -1
-			} else if x > y {
-				c = 1
-			}
-		case string:
-			y := bv.(string)
-			if x < y {
-				c = -1
-			} else if x > y {
-				c = 1
-			}
-		}
+		c := compareValues(fieldValue(a, k.Field), fieldValue(b, k.Field))
 		if c != 0 {
 			if k.Dir == "desc" {
 				return -c
@@ -533,6 +564,15 @@ func cmdWave() error {
 		return errors.New("wave request must be an object")
 	}
 	term := req["term"]
+	resolver := waveResolver(req, term)
+	w, err := waveFed(term, resolver)
+	if err != nil {
+		return err
+	}
+	return writeJSON(map[string]any{"wave": w})
+}
+
+func waveResolver(req map[string]any, term any) map[string]map[string]any {
 	resolver := map[string]map[string]any{}
 	if sels, ok := asList(req["selections"]); ok {
 		for _, raw := range sels {
@@ -555,11 +595,7 @@ func cmdWave() error {
 			resolver[termKey(term)] = sel
 		}
 	}
-	w, err := waveFed(term, resolver)
-	if err != nil {
-		return err
-	}
-	return writeJSON(map[string]any{"wave": w})
+	return resolver
 }
 
 func isSelectionAbsent(sel map[string]any) bool {
@@ -575,37 +611,54 @@ func cloneMap(m map[string]any) map[string]any {
 	return out
 }
 
+func selectedWave(selection map[string]any) (any, bool) {
+	status, _ := asString(selection["status"])
+	if status == "conflict" {
+		return nil, true
+	}
+	if status != "selected" {
+		return nil, false
+	}
+	if wave, ok := asMap(selection["selected_wave"]); ok {
+		return normalizeWave(wave), true
+	}
+	selected, ok := asMap(selection["selected"])
+	if !ok {
+		return nil, false
+	}
+	assertion, ok := asMap(selected["assertion"])
+	if !ok {
+		return nil, false
+	}
+	wave, ok := asMap(assertion["wave"])
+	if !ok {
+		return nil, false
+	}
+	return normalizeWave(wave), true
+}
+
+func applyWave(term []any, resolver map[string]map[string]any) (any, error) {
+	left, err := waveFed(term[1], resolver)
+	if err != nil || left == nil {
+		return nil, err
+	}
+	right, err := waveFed(term[2], resolver)
+	if err != nil || right == nil {
+		return nil, err
+	}
+	leftMap, _ := asMap(left)
+	rightMap, _ := asMap(right)
+	return interfere(leftMap, rightMap), nil
+}
+
 func waveFed(term any, resolver map[string]map[string]any) (any, error) {
 	if sel, ok := resolver[termKey(term)]; ok {
-		status, _ := asString(sel["status"])
-		if status == "selected" {
-			if w, ok := asMap(sel["selected_wave"]); ok {
-				return normalizeWave(w), nil
-			}
-			if selected, ok := asMap(sel["selected"]); ok {
-				if assertion, ok := asMap(selected["assertion"]); ok {
-					if w, ok := asMap(assertion["wave"]); ok {
-						return normalizeWave(w), nil
-					}
-				}
-			}
-		}
-		if status == "conflict" {
-			return nil, nil
+		if wave, decisive := selectedWave(sel); decisive {
+			return wave, nil
 		}
 	}
 	if s, ok := asString(term); ok {
-		if w, ok := fullPins[s]; ok {
-			return copyWave(w), nil
-		}
-		if alias, ok := aliases[s]; ok {
-			subw, err := waveFed(alias.Term, resolver)
-			if err != nil {
-				return nil, err
-			}
-			return complete(subw, alias.Pin), nil
-		}
-		return nil, nil
+		return namedWave(s, resolver)
 	}
 	if _, ok := asMap(term); ok {
 		return nil, nil
@@ -613,20 +666,25 @@ func waveFed(term any, resolver map[string]map[string]any) (any, error) {
 	if xs, ok := asList(term); ok && len(xs) > 0 {
 		tag, _ := asString(xs[0])
 		if tag == "APPLY" && len(xs) == 3 {
-			wl, err := waveFed(xs[1], resolver)
-			if err != nil || wl == nil {
-				return nil, err
-			}
-			wr, err := waveFed(xs[2], resolver)
-			if err != nil || wr == nil {
-				return nil, err
-			}
-			lm, _ := asMap(wl)
-			rm, _ := asMap(wr)
-			return interfere(lm, rm), nil
+			return applyWave(xs, resolver)
 		}
 	}
 	return nil, fmt.Errorf("bad term: %v", term)
+}
+
+func namedWave(name string, resolver map[string]map[string]any) (any, error) {
+	if wave, ok := fullPins[name]; ok {
+		return copyWave(wave), nil
+	}
+	alias, ok := aliases[name]
+	if !ok {
+		return nil, nil
+	}
+	subwave, err := waveFed(alias.Term, resolver)
+	if err != nil {
+		return nil, err
+	}
+	return complete(subwave, alias.Pin), nil
 }
 
 func termKey(v any) string {
@@ -901,6 +959,67 @@ func assertionSetRoot(ids []string) string {
 	return shaHex(jcs(cp))
 }
 
+func replayVector(v map[string]any) (any, bool, error) {
+	kind, _ := asString(v["kind"])
+	switch kind {
+	case "validate_assertion":
+		return validateAssertion(v["doc"]), false, nil
+	case "validate_policy":
+		return validatePolicy(v["doc"]), false, nil
+	case "select":
+		return replaySelection(v), false, nil
+	case "wave_fed":
+		wave, err := replayWave(v)
+		return wave, false, err
+	case "view_id":
+		jurisdiction, _ := asString(v["jurisdiction"])
+		node, _ := asString(v["node"])
+		policy, _ := asString(v["policy_hash"])
+		epoch, _ := uintValue(v["epoch"], 64)
+		return viewID(jurisdiction, node, policy, epoch), false, nil
+	case "assertion_set_root":
+		return replayAssertionSetRoot(v), false, nil
+	case "fold_probe":
+		w1, _ := asMap(v["w1"])
+		w2, _ := asMap(v["w2"])
+		w3, _ := asMap(v["w3"])
+		return map[string]any{"left": interfere(interfere(w1, w2), w3),
+			"right": interfere(w1, interfere(w2, w3))}, false, nil
+	case "book1_unreachable":
+		return nil, true, nil
+	default:
+		return fmt.Sprintf("unknown kind %s", kind), false, nil
+	}
+}
+
+func replaySelection(v map[string]any) any {
+	policy, _ := asMap(v["policy"])
+	candidates, _ := asList(v["candidates"])
+	jurisdiction, _ := asString(v["jurisdiction"])
+	node, _ := asString(v["node"])
+	epoch, _ := uintValue(v["epoch"], 64)
+	return selectionSummary(selectCandidates(candidates, policy, jurisdiction, node, epoch))
+}
+
+func replayWave(v map[string]any) (any, error) {
+	request := map[string]any{"term": v["term"]}
+	if v["selected_wave"] != nil {
+		request["selection"] = map[string]any{"status": "selected"}
+		request["selected_wave"] = v["selected_wave"]
+	}
+	return waveFed(request["term"], waveResolver(request, request["term"]))
+}
+
+func replayAssertionSetRoot(v map[string]any) string {
+	rawIDs, _ := asList(v["warrant_ids"])
+	ids := make([]string, 0, len(rawIDs))
+	for _, rawID := range rawIDs {
+		id, _ := asString(rawID)
+		ids = append(ids, id)
+	}
+	return assertionSetRoot(ids)
+}
+
 func replay(path string) error {
 	doc, err := readJSONFile(path)
 	if err != nil {
@@ -915,59 +1034,11 @@ func replay(path string) error {
 	for _, raw := range rawVectors {
 		v, _ := asMap(raw)
 		id, _ := asString(v["id"])
-		kind, _ := asString(v["kind"])
-		var got any
-		switch kind {
-		case "validate_assertion":
-			got = validateAssertion(v["doc"])
-		case "validate_policy":
-			got = validatePolicy(v["doc"])
-		case "select":
-			pol, _ := asMap(v["policy"])
-			cands, _ := asList(v["candidates"])
-			j, _ := asString(v["jurisdiction"])
-			n, _ := asString(v["node"])
-			e, _ := uintValue(v["epoch"], 64)
-			got = selectionSummary(selectCandidates(cands, pol, j, n, e))
-		case "wave_fed":
-			req := map[string]any{"term": v["term"]}
-			if v["selected_wave"] != nil {
-				req["selection"] = map[string]any{"status": "selected"}
-				req["selected_wave"] = v["selected_wave"]
-			}
-			resolver := map[string]map[string]any{}
-			if sel, ok := asMap(req["selection"]); ok {
-				sel["selected_wave"] = req["selected_wave"]
-				resolver[termKey(req["term"])] = sel
-			}
-			gotWave, err := waveFed(req["term"], resolver)
-			if err != nil {
-				return err
-			}
-			got = gotWave
-		case "view_id":
-			j, _ := asString(v["jurisdiction"])
-			n, _ := asString(v["node"])
-			p, _ := asString(v["policy_hash"])
-			e, _ := uintValue(v["epoch"], 64)
-			got = viewID(j, n, p, e)
-		case "assertion_set_root":
-			rawIDs, _ := asList(v["warrant_ids"])
-			ids := make([]string, 0, len(rawIDs))
-			for _, x := range rawIDs {
-				s, _ := asString(x)
-				ids = append(ids, s)
-			}
-			got = assertionSetRoot(ids)
-		case "fold_probe":
-			w1, _ := asMap(v["w1"])
-			w2, _ := asMap(v["w2"])
-			w3, _ := asMap(v["w3"])
-			got = map[string]any{
-				"left":  interfere(interfere(w1, w2), w3),
-				"right": interfere(w1, interfere(w2, w3)),
-			}
-		case "book1_unreachable":
+		got, isVacuous, err := replayVector(v)
+		if err != nil {
+			return err
+		}
+		if isVacuous {
 			// Not counted as a pass, and excluded from the denominator: this
 			// implementation cannot verify it. Reporting it green inflated
 			// FEDERATION-GO's tally with a vector it never checked.
@@ -975,8 +1046,6 @@ func replay(path string) error {
 			fmt.Println("VACUOUS", id,
 				"- impl-go has no Book I evaluator; echoed, not verified")
 			continue
-		default:
-			got = fmt.Sprintf("unknown kind %s", kind)
 		}
 		if jsonEqual(got, v["expected"]) {
 			okays++
@@ -1028,6 +1097,33 @@ type GovAccept struct {
 	Subject any
 }
 
+func optionalString(raw any) *string {
+	if raw == nil {
+		return nil
+	}
+	value, ok := asString(raw)
+	if !ok {
+		return nil
+	}
+	return &value
+}
+
+func govReplayVector(v map[string]any) (bool, string, error) {
+	store, err := govStoreFromVector(v["store"])
+	if err != nil {
+		return false, "", err
+	}
+	candidate, _ := asString(v["candidate"])
+	trust, _ := asMap(v["trust"])
+	gotOK, notes := govVerifyAdoption(
+		store, candidate, trust, optionalString(v["prior_set"]))
+	expected, _ := asMap(v["expected"])
+	wantOK, _ := expected["authorized"].(bool)
+	wantNote, _ := asString(expected["note"])
+	joined := strings.Join(notes, "; ")
+	return gotOK == wantOK && strings.Contains(joined, wantNote), joined, nil
+}
+
 func govReplay(path string) error {
 	doc, err := readJSONFile(path)
 	if err != nil {
@@ -1044,30 +1140,16 @@ func govReplay(path string) error {
 	for _, raw := range rawVectors {
 		v, _ := asMap(raw)
 		id, _ := asString(v["id"])
-		store, err := govStoreFromVector(v["store"])
+		good, joined, err := govReplayVector(v)
 		if err != nil {
 			fmt.Println("FAIL", id, err)
 			continue
 		}
-		candidate, _ := asString(v["candidate"])
-		trust, _ := asMap(v["trust"])
-		var prior *string
-		if v["prior_set"] != nil {
-			if s, ok := asString(v["prior_set"]); ok {
-				prior = &s
-			}
-		}
-		gotOK, notes := govVerifyAdoption(store, candidate, trust, prior)
-		expected, _ := asMap(v["expected"])
-		wantOK, _ := expected["authorized"].(bool)
-		wantNote, _ := asString(expected["note"])
-		joined := strings.Join(notes, "; ")
-		good := gotOK == wantOK && strings.Contains(joined, wantNote)
 		if good {
 			okays++
 			fmt.Println("OK ", id)
 		} else {
-			fmt.Println("FAIL", id, "authorized", gotOK, "notes", joined)
+			fmt.Println("FAIL", id, "notes", joined)
 		}
 	}
 	n := len(rawVectors)
@@ -1110,26 +1192,33 @@ func govStoreFromVector(raw any) (GovStore, error) {
 	return store, nil
 }
 
-func govVerifyAdoption(store GovStore, blobHash string, trust map[string]any, priorSetHash *string) (bool, []string) {
+type GovContext struct {
+	Closure       map[string]bool
+	Profile       string
+	ThresholdHash string
+	Threshold     GovThreshold
+}
+
+func govCandidateJurisdiction(store GovStore, blobHash string, trust map[string]any, priorSetHash *string) (string, []string) {
 	if !govValidTrust(trust) {
-		return false, []string{"trust config invalid"}
+		return "", []string{"trust config invalid"}
 	}
 	doc := store.parseJSONBlob(blobHash)
 	if doc == nil {
-		return false, []string{fmt.Sprintf("anchor-set blob %s missing or corrupt", shortHash(blobHash))}
+		return "", []string{fmt.Sprintf("anchor-set blob %s missing or corrupt", shortHash(blobHash))}
 	}
 	anchor, ok := asMap(doc)
 	if !ok || !govValidAnchorSet(anchor) {
-		return false, []string{fmt.Sprintf("anchor-set blob %s schema-invalid", shortHash(blobHash))}
+		return "", []string{fmt.Sprintf("anchor-set blob %s schema-invalid", shortHash(blobHash))}
 	}
 	jurisdiction, _ := asString(anchor["jurisdiction"])
 	trustJurisdiction, _ := asString(trust["jurisdiction"])
 	if jurisdiction != trustJurisdiction {
-		return false, []string{fmt.Sprintf("jurisdiction %s != pinned root %s (foreign blob, replay refused)", shortHash(jurisdiction), shortHash(trustJurisdiction))}
+		return "", []string{fmt.Sprintf("jurisdiction %s != pinned root %s (foreign blob, replay refused)", shortHash(jurisdiction), shortHash(trustJurisdiction))}
 	}
 	if priorSetHash == nil {
 		if _, exists := anchor["ancestor"]; exists {
-			return false, []string{"genesis anchor-set must not carry an ancestor"}
+			return "", []string{"genesis anchor-set must not carry an ancestor"}
 		}
 	} else {
 		ancestor, ok := asString(anchor["ancestor"])
@@ -1138,76 +1227,102 @@ func govVerifyAdoption(store GovStore, blobHash string, trust map[string]any, pr
 			if ok {
 				got = ancestor
 			}
-			return false, []string{fmt.Sprintf("ancestor %s != adopted prior %s (fork, not upgrade)", shortHash(got), shortHash(*priorSetHash))}
+			return "", []string{fmt.Sprintf("ancestor %s != adopted prior %s (fork, not upgrade)", shortHash(got), shortHash(*priorSetHash))}
 		}
 	}
+	return trustJurisdiction, nil
+}
 
+func govAdoptionContext(store GovStore, trust map[string]any, trustJurisdiction string) (GovContext, []string) {
 	closure := store.settlementClosure(trustJurisdiction)
 	if len(closure) == 0 {
-		return false, []string{fmt.Sprintf("jurisdiction root %s not in store", shortHash(trustJurisdiction))}
+		return GovContext{}, []string{fmt.Sprintf("jurisdiction root %s not in store", shortHash(trustJurisdiction))}
 	}
 	curProfile, lineage, errNote := store.deriveCurrentProfile(closure, trust)
 	if errNote != "" {
-		return false, []string{"ERR: " + errNote}
+		return GovContext{}, []string{"ERR: " + errNote}
 	}
 	if store.keyStateUnderGovernance(closure, lineage, trust) {
-		return false, []string{"ERR: key-state warrants under governance policy - derive key state with the warrant CLI first"}
+		return GovContext{}, []string{"ERR: key-state warrants under governance policy - derive key state with the warrant CLI first"}
 	}
 	pDoc, _ := store.parseJSONBlob(curProfile).(map[string]any)
 	tHash, _ := asString(pDoc["threshold"])
 	threshold, _ := govValidThresholdPolicy(store.parseJSONBlob(tHash))
+	return GovContext{Closure: closure, Profile: curProfile,
+		ThresholdHash: tHash, Threshold: threshold}, nil
+}
 
+func govIsAuthorizedRival(accept GovAccept, context GovContext, blobHash string,
+	trust map[string]any, priorSetHash *string, jurisdiction string) (string, bool) {
+	document, ok := accept.Subject.(map[string]any)
+	if !ok || !govValidAnchorSet(document) {
+		return "", false
+	}
+	hash := subjectHash(accept.Body)
+	documentJurisdiction, _ := asString(document["jurisdiction"])
+	if hash == "" || hash == blobHash || documentJurisdiction != jurisdiction {
+		return "", false
+	}
+	if !sameAncestor(document, priorSetHash) ||
+		!govUnderIs(accept.Body, context.Profile, context.ThresholdHash) {
+		return "", false
+	}
+	counted := govCountedSigs(
+		accept.Env, accept.ID, context.Threshold, govTrustActors(trust))
+	return hash, len(counted) >= context.Threshold.Min
+}
+
+func govAuthorizedRivals(store GovStore, context GovContext, blobHash string, trust map[string]any, priorSetHash *string, jurisdiction string) []string {
 	rivals := map[string]bool{}
-	for _, acc := range store.acceptsOf(closure) {
-		rdoc, ok := acc.Subject.(map[string]any)
-		if !ok || !govValidAnchorSet(rdoc) {
-			continue
-		}
-		h := subjectHash(acc.Body)
-		if h == "" || h == blobHash {
-			continue
-		}
-		rjur, _ := asString(rdoc["jurisdiction"])
-		if rjur != trustJurisdiction {
-			continue
-		}
-		if !sameAncestor(rdoc, priorSetHash) {
-			continue
-		}
-		if !govUnderIs(acc.Body, curProfile, tHash) {
-			continue
-		}
-		if len(govCountedSigs(acc.Env, acc.ID, threshold, govTrustActors(trust))) >= threshold.Min {
-			rivals[h] = true
+	for _, acc := range store.acceptsOf(context.Closure) {
+		if hash, ok := govIsAuthorizedRival(
+			acc, context, blobHash, trust, priorSetHash, jurisdiction); ok {
+			rivals[hash] = true
 		}
 	}
-	if len(rivals) > 0 {
-		ids := make([]string, 0, len(rivals))
-		for h := range rivals {
-			ids = append(ids, shortHash(h))
-		}
-		sort.Strings(ids)
-		return false, []string{"adoption conflict: rival authorized successor(s) " + strings.Join(ids, ", ") + " share this ancestor - chain frozen"}
+	ids := make([]string, 0, len(rivals))
+	for hash := range rivals {
+		ids = append(ids, shortHash(hash))
 	}
+	sort.Strings(ids)
+	return ids
+}
 
+func govCandidateAdoption(store GovStore, context GovContext, blobHash string, trust map[string]any) (bool, []string) {
 	notes := []string{}
-	for _, acc := range store.acceptsOf(closure) {
+	for _, acc := range store.acceptsOf(context.Closure) {
 		if subjectHash(acc.Body) != blobHash {
 			continue
 		}
-		if !govUnderIs(acc.Body, curProfile, tHash) {
+		if !govUnderIs(acc.Body, context.Profile, context.ThresholdHash) {
 			notes = append(notes, fmt.Sprintf("%s: under != current (profile, threshold) pair", shortHash(acc.ID)))
 			continue
 		}
-		counted := govCountedSigs(acc.Env, acc.ID, threshold, govTrustActors(trust))
-		if len(counted) >= threshold.Min {
-			notes = append(notes, fmt.Sprintf("adopted by %s (%d/%d of %d)", shortHash(acc.ID), len(counted), threshold.Min, len(threshold.Actors)))
+		counted := govCountedSigs(acc.Env, acc.ID, context.Threshold, govTrustActors(trust))
+		if len(counted) >= context.Threshold.Min {
+			notes = append(notes, fmt.Sprintf("adopted by %s (%d/%d of %d)", shortHash(acc.ID), len(counted), context.Threshold.Min, len(context.Threshold.Actors)))
 			return true, notes
 		}
-		notes = append(notes, fmt.Sprintf("%s: %d bound sigs < min_sigs %d", shortHash(acc.ID), len(counted), threshold.Min))
+		notes = append(notes, fmt.Sprintf("%s: %d bound sigs < min_sigs %d", shortHash(acc.ID), len(counted), context.Threshold.Min))
 	}
 	notes = append(notes, "no satisfying adoption warrant in settlement closure")
 	return false, notes
+}
+
+func govVerifyAdoption(store GovStore, blobHash string, trust map[string]any, priorSetHash *string) (bool, []string) {
+	jurisdiction, problems := govCandidateJurisdiction(store, blobHash, trust, priorSetHash)
+	if problems != nil {
+		return false, problems
+	}
+	context, problems := govAdoptionContext(store, trust, jurisdiction)
+	if problems != nil {
+		return false, problems
+	}
+	rivals := govAuthorizedRivals(store, context, blobHash, trust, priorSetHash, jurisdiction)
+	if len(rivals) > 0 {
+		return false, []string{"adoption conflict: rival authorized successor(s) " + strings.Join(rivals, ", ") + " share this ancestor - chain frozen"}
+	}
+	return govCandidateAdoption(store, context, blobHash, trust)
 }
 
 func (s GovStore) readBlob(h string) []byte {
@@ -1236,8 +1351,7 @@ func (s GovStore) parseJSONBlob(h string) any {
 	// accepts "<object> true" that Python's json.loads() rejects, which flips
 	// authorization verdicts between the two implementations. A second decode
 	// must hit io.EOF (Python parity).
-	var rest json.RawMessage
-	if err := dec.Decode(&rest); err != io.EOF {
+	if err := dec.Decode(new(json.RawMessage)); err != io.EOF {
 		return nil
 	}
 	// Canonicality (RFC 8785 / JCS) is a store invariant: a blob addressed by
@@ -1250,9 +1364,41 @@ func (s GovStore) parseJSONBlob(h string) any {
 	return v
 }
 
+func govValidTrustActors(raw any) bool {
+	actors, ok := asMap(raw)
+	if !ok || len(actors) == 0 {
+		return false
+	}
+	for actor, rawKeys := range actors {
+		keys, ok := asList(rawKeys)
+		if actor == "" || !ok || len(keys) == 0 {
+			return false
+		}
+		for _, rawKey := range keys {
+			key, ok := asString(rawKey)
+			if !ok || !isHex64(key) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func govValidResolved(raw any) bool {
+	items, ok := asList(raw)
+	if !ok {
+		return false
+	}
+	for _, item := range items {
+		value, ok := asString(item)
+		if !ok || !isHex64(value) {
+			return false
+		}
+	}
+	return true
+}
+
 func govValidTrust(doc map[string]any) bool {
-	// required keys, plus the optional resolved_key_state (Gemini STANDARD
-	// gate P0): WarrantIDs of governance rotations already derived into actors
 	for k := range doc {
 		switch k {
 		case "governance_trust", "jurisdiction", "genesis_profile", "actors",
@@ -1269,36 +1415,11 @@ func govValidTrust(doc map[string]any) bool {
 	tag, _ := asString(doc["governance_trust"])
 	j, jok := asString(doc["jurisdiction"])
 	g, gok := asString(doc["genesis_profile"])
-	actors, aok := asMap(doc["actors"])
-	if tag != govTrustTag || !jok || !gok || !isHex64(j) || !isHex64(g) || !aok || len(actors) == 0 {
+	if tag != govTrustTag || !jok || !gok || !isHex64(j) || !isHex64(g) || !govValidTrustActors(doc["actors"]) {
 		return false
 	}
-	for actor, rawKeys := range actors {
-		if actor == "" {
-			return false
-		}
-		keys, ok := asList(rawKeys)
-		if !ok || len(keys) == 0 {
-			return false
-		}
-		for _, rawKey := range keys {
-			key, ok := asString(rawKey)
-			if !ok || !isHex64(key) {
-				return false
-			}
-		}
-	}
 	if raw, ok := doc["resolved_key_state"]; ok {
-		items, ok := asList(raw)
-		if !ok {
-			return false
-		}
-		for _, it := range items {
-			s, ok := asString(it)
-			if !ok || !isHex64(s) {
-				return false
-			}
-		}
+		return govValidResolved(raw)
 	}
 	return true
 }
@@ -1345,6 +1466,29 @@ func govValidProfile(doc any) bool {
 	return tag == govProfileTag && scope == "spec/ANCHORS.txt" && ok && isHex64(th)
 }
 
+func govValidAnchorRows(raw any) bool {
+	rows, ok := asList(raw)
+	if !ok || len(rows) == 0 {
+		return false
+	}
+	paths := make([]string, 0, len(rows))
+	seenPaths := map[string]bool{}
+	for _, rawRow := range rows {
+		row, ok := asMap(rawRow)
+		if !ok || !sameKeys(row, []string{"path", "anchor"}) {
+			return false
+		}
+		path, pathOK := asString(row["path"])
+		anchor, anchorOK := asString(row["anchor"])
+		if !pathOK || path == "" || !anchorOK || !isHex64(anchor) || seenPaths[path] {
+			return false
+		}
+		seenPaths[path] = true
+		paths = append(paths, path)
+	}
+	return sort.StringsAreSorted(paths)
+}
+
 func govValidAnchorSet(doc map[string]any) bool {
 	keys := []string{"governance", "jurisdiction", "release", "anchors"}
 	if _, hasAncestor := doc["ancestor"]; hasAncestor {
@@ -1365,26 +1509,20 @@ func govValidAnchorSet(doc map[string]any) bool {
 			return false
 		}
 	}
-	rows, ok := asList(doc["anchors"])
-	if !ok || len(rows) == 0 {
+	return govValidAnchorRows(doc["anchors"])
+}
+
+func (s GovStore) reachesClosure(rid string, closure map[string]bool) bool {
+	_, body, ok := s.soundRecord(rid)
+	if !ok {
 		return false
 	}
-	paths := make([]string, 0, len(rows))
-	seenPaths := map[string]bool{}
-	for _, rawRow := range rows {
-		row, ok := asMap(rawRow)
-		if !ok || !sameKeys(row, []string{"path", "anchor"}) {
-			return false
+	for _, prior := range stringList(body["prior"]) {
+		if closure[prior] {
+			return true
 		}
-		path, pok := asString(row["path"])
-		anchor, aok := asString(row["anchor"])
-		if !pok || path == "" || !aok || !isHex64(anchor) || seenPaths[path] {
-			return false
-		}
-		seenPaths[path] = true
-		paths = append(paths, path)
 	}
-	return sort.StringsAreSorted(paths)
+	return false
 }
 
 func (s GovStore) settlementClosure(root string) map[string]bool {
@@ -1396,19 +1534,9 @@ func (s GovStore) settlementClosure(root string) map[string]bool {
 	for changed {
 		changed = false
 		for rid := range s.Records {
-			if closure[rid] {
-				continue
-			}
-			_, body, ok := s.soundRecord(rid)
-			if !ok {
-				continue
-			}
-			for _, p := range stringList(body["prior"]) {
-				if closure[p] {
-					closure[rid] = true
-					changed = true
-					break
-				}
+			if !closure[rid] && s.reachesClosure(rid, closure) {
+				closure[rid] = true
+				changed = true
 			}
 		}
 	}
@@ -1448,106 +1576,129 @@ func (s GovStore) soundRecord(rid string) (map[string]any, map[string]any, bool)
 	return env, body, true
 }
 
+func (s GovStore) lineageEntry(profileHash string) (GovLineage, string) {
+	profileDoc := s.parseJSONBlob(profileHash)
+	if !govValidProfile(profileDoc) {
+		return GovLineage{}, fmt.Sprintf("current profile %s missing or schema-invalid", shortHash(profileHash))
+	}
+	profile, _ := asMap(profileDoc)
+	thresholdHash, _ := asString(profile["threshold"])
+	threshold, ok := govValidThresholdPolicy(s.parseJSONBlob(thresholdHash))
+	if !ok {
+		return GovLineage{}, fmt.Sprintf("threshold %s pinned by profile is invalid", shortHash(thresholdHash))
+	}
+	return GovLineage{ProfileHash: profileHash, ThresholdHash: thresholdHash,
+		Threshold: threshold}, ""
+}
+
+func (s GovStore) profileSuccessors(closure map[string]bool, entry GovLineage, trust map[string]any, seen map[string]bool) map[string]bool {
+	next := map[string]bool{}
+	for _, accept := range s.acceptsOf(closure) {
+		if !govValidProfile(accept.Subject) || !govUnderIs(accept.Body, entry.ProfileHash, entry.ThresholdHash) {
+			continue
+		}
+		if len(govCountedSigs(accept.Env, accept.ID, entry.Threshold, govTrustActors(trust))) < entry.Threshold.Min {
+			continue
+		}
+		hash := subjectHash(accept.Body)
+		if hash != "" && !seen[hash] {
+			next[hash] = true
+		}
+	}
+	return next
+}
+
+func profileConflict(next map[string]bool) string {
+	ids := make([]string, 0, len(next))
+	for hash := range next {
+		ids = append(ids, shortHash(hash))
+	}
+	sort.Strings(ids)
+	return "profile-succession conflict: " + strings.Join(ids, ", ") + " - chain frozen, resolve by settlement"
+}
+
+func onlyHash(values map[string]bool) string {
+	for hash := range values {
+		return hash
+	}
+	return ""
+}
+
 func (s GovStore) deriveCurrentProfile(closure map[string]bool, trust map[string]any) (string, []GovLineage, string) {
-	cur, _ := asString(trust["genesis_profile"])
-	seen := map[string]bool{cur: true}
+	current, _ := asString(trust["genesis_profile"])
+	seen := map[string]bool{current: true}
 	lineage := []GovLineage{}
 	for {
-		pDoc := s.parseJSONBlob(cur)
-		if !govValidProfile(pDoc) {
-			return cur, lineage, fmt.Sprintf("current profile %s missing or schema-invalid", shortHash(cur))
+		entry, problem := s.lineageEntry(current)
+		if problem != "" {
+			return current, lineage, problem
 		}
-		pm, _ := asMap(pDoc)
-		tHash, _ := asString(pm["threshold"])
-		t, ok := govValidThresholdPolicy(s.parseJSONBlob(tHash))
-		if !ok {
-			return cur, lineage, fmt.Sprintf("threshold %s pinned by profile is invalid", shortHash(tHash))
-		}
-		lineage = append(lineage, GovLineage{ProfileHash: cur, ThresholdHash: tHash, Threshold: t})
-		next := map[string]bool{}
-		for _, acc := range s.acceptsOf(closure) {
-			if !govValidProfile(acc.Subject) || !govUnderIs(acc.Body, cur, tHash) {
-				continue
-			}
-			if len(govCountedSigs(acc.Env, acc.ID, t, govTrustActors(trust))) < t.Min {
-				continue
-			}
-			h := subjectHash(acc.Body)
-			if h != "" && !seen[h] {
-				next[h] = true
-			}
-		}
+		lineage = append(lineage, entry)
+		next := s.profileSuccessors(closure, entry, trust, seen)
 		if len(next) == 0 {
-			return cur, lineage, ""
+			return current, lineage, ""
 		}
 		if len(next) > 1 {
-			ids := make([]string, 0, len(next))
-			for h := range next {
-				ids = append(ids, shortHash(h))
-			}
-			sort.Strings(ids)
-			return cur, lineage, "profile-succession conflict: " + strings.Join(ids, ", ") + " - chain frozen, resolve by settlement"
+			return current, lineage, profileConflict(next)
 		}
-		for h := range next {
-			cur = h
-		}
-		seen[cur] = true
+		current = onlyHash(next)
+		seen[current] = true
 	}
 }
 
-func (s GovStore) keyStateUnderGovernance(closure map[string]bool, lineage []GovLineage, trust map[string]any) bool {
+func governanceHashes(lineage []GovLineage) (map[string]bool, map[string]GovThreshold) {
 	govHashes := map[string]bool{}
 	thresholdOf := map[string]GovThreshold{}
-	for _, g := range lineage {
-		govHashes[g.ProfileHash] = true
-		govHashes[g.ThresholdHash] = true
-		thresholdOf[g.ProfileHash] = g.Threshold
-		thresholdOf[g.ThresholdHash] = g.Threshold
+	for _, entry := range lineage {
+		govHashes[entry.ProfileHash] = true
+		govHashes[entry.ThresholdHash] = true
+		thresholdOf[entry.ProfileHash] = entry.Threshold
+		thresholdOf[entry.ThresholdHash] = entry.Threshold
 	}
-	// rotations the operator has derived into actors out-of-band no longer
-	// force a refusal (Gemini STANDARD gate P0: else the append-only closure
-	// deadlocks the chain on its first rotation)
+	return govHashes, thresholdOf
+}
+
+func (s GovStore) governedKeyState(rid string, govHashes map[string]bool, thresholdOf map[string]GovThreshold, trust map[string]any) bool {
+	env, ok := asMap(s.Records[rid])
+	if !ok {
+		return false
+	}
+	body, ok := asMap(env["body"])
+	if !ok {
+		return false
+	}
+	decision, _ := asString(body["decision"])
+	if decision != "accept" && decision != "supersede" {
+		return false
+	}
+	cited := []string{}
+	for _, hash := range stringList(body["under"]) {
+		if govHashes[hash] {
+			cited = append(cited, hash)
+		}
+	}
+	subject, validSubject := s.parseJSONBlob(subjectHash(body)).(map[string]any)
+	if len(cited) == 0 || !validSubject || !sameKeys(subject, []string{"actor", "key"}) || shaHex(jcs(body)) != rid {
+		return false
+	}
+	for _, hash := range cited {
+		threshold := thresholdOf[hash]
+		if len(govCountedSigs(env, rid, threshold, govTrustActors(trust))) >= threshold.Min {
+			return true
+		}
+	}
+	return false
+}
+
+func (s GovStore) keyStateUnderGovernance(closure map[string]bool, lineage []GovLineage, trust map[string]any) bool {
+	govHashes, thresholdOf := governanceHashes(lineage)
 	resolved := map[string]bool{}
-	for _, h := range stringList(trust["resolved_key_state"]) {
-		resolved[h] = true
+	for _, hash := range stringList(trust["resolved_key_state"]) {
+		resolved[hash] = true
 	}
 	for _, rid := range sortedRecordIDs(closure) {
-		if resolved[rid] {
-			continue
-		}
-		env, ok := asMap(s.Records[rid])
-		if !ok {
-			continue
-		}
-		body, ok := asMap(env["body"])
-		if !ok {
-			continue
-		}
-		decision, _ := asString(body["decision"])
-		if decision != "accept" && decision != "supersede" {
-			continue
-		}
-		cited := []string{}
-		for _, h := range stringList(body["under"]) {
-			if govHashes[h] {
-				cited = append(cited, h)
-			}
-		}
-		if len(cited) == 0 {
-			continue
-		}
-		subject, ok := s.parseJSONBlob(subjectHash(body)).(map[string]any)
-		if !ok || !sameKeys(subject, []string{"actor", "key"}) {
-			continue
-		}
-		if shaHex(jcs(body)) != rid {
-			continue
-		}
-		for _, h := range cited {
-			t := thresholdOf[h]
-			if len(govCountedSigs(env, rid, t, govTrustActors(trust))) >= t.Min {
-				return true
-			}
+		if !resolved[rid] && s.governedKeyState(rid, govHashes, thresholdOf, trust) {
+			return true
 		}
 	}
 	return false
@@ -1728,6 +1879,30 @@ func jsonEqual(a, b any) bool {
 	return reflect.DeepEqual(normalizeJSON(a), normalizeJSON(b))
 }
 
+func normalizeMap(values map[string]any) map[string]any {
+	out := map[string]any{}
+	for key, value := range values {
+		out[key] = normalizeJSON(value)
+	}
+	return out
+}
+
+func normalizeList(values []any) []any {
+	out := make([]any, len(values))
+	for index, value := range values {
+		out[index] = normalizeJSON(value)
+	}
+	return out
+}
+
+func normalizeStrings(values []string) []any {
+	out := make([]any, len(values))
+	for index, value := range values {
+		out[index] = value
+	}
+	return out
+}
+
 func normalizeJSON(v any) any {
 	switch x := v.(type) {
 	case *string:
@@ -1753,23 +1928,11 @@ func normalizeJSON(v any) any {
 		}
 		return x
 	case map[string]any:
-		out := map[string]any{}
-		for k, v := range x {
-			out[k] = normalizeJSON(v)
-		}
-		return out
+		return normalizeMap(x)
 	case []any:
-		out := make([]any, len(x))
-		for i, v := range x {
-			out[i] = normalizeJSON(v)
-		}
-		return out
+		return normalizeList(x)
 	case []string:
-		out := make([]any, len(x))
-		for i, v := range x {
-			out[i] = v
-		}
-		return out
+		return normalizeStrings(x)
 	default:
 		return x
 	}

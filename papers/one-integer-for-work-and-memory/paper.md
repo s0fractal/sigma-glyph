@@ -615,7 +615,7 @@ warning. So "CI compiled the proofs" is not "CI checked the proofs", and a
 repository that gates on compilation gates on nothing in particular. The standard
 remedy is a script that compiles, queries each headline theorem's axiom
 dependencies with `#print axioms`, and fails the build on anything unexpected.
-Ours was about forty lines. Over eight days of adversarial review it became 1326
+Ours was about forty lines. Over eight days of adversarial review it became 1453
 lines of Python, a 175 KB pin registry and a 981-line regression suite asserting
 122 properties — machinery 2.3× the size of the 1304 lines of Lean it guards.
 Every bypass in that history was demonstrated end-to-end: not "this check has a
@@ -778,7 +778,7 @@ engine is `warrant-go`, in a separate repository, pinned in CI by commit hash.
 Anyone reading "three independent implementations" should read it that way.
 
 The Lean artifact is 1304 lines across ten files. The integrity machinery around
-it — `proof_guard.py` (1326), `theorem_pins.json` (175 KB),
+it — `proof_guard.py` (1453), `theorem_pins.json` (175 KB),
 `tests/proof_guard_test.py` (981) and five bridge scripts (731 lines total) —
 is now **2.3×** the size of the proofs it guards, up from 1.8× before the last
 three rounds. That ratio is the honest cost of the second claim in §5. It is also

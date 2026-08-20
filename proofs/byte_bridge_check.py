@@ -127,25 +127,16 @@ def mutations(b):
     yield b""                                     # empty buffer
 
 
-def main():
-    lean = proof_guard.find_lean()
-    if lean is None:
-        print("byte bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
-        sys.exit(2)
-
-    problems = proof_guard.guard_sources(FRONT)
-    if problems:
-        fail("source guard: " + "; ".join(problems))
-    print("OK    MachineBytes + Sha256 + BytesRun pass the source guard (no "
-          "sorry/admit/axiom, no metaprogramming, imports in-set, every "
-          "theorem accounted for)")
-
-    objs = json.load(open(os.path.join(
-        REPO, "tests", "spec_conformance", "vectors.json")))["objects"]
+def byte_cases():
+    path = os.path.join(REPO, "tests", "spec_conformance", "vectors.json")
+    with open(path, encoding="utf-8") as source:
+        objs = json.load(source)["objects"]
     genesis = [g.I_BYTES, g.K_BYTES, g.S_BYTES, g.FALSE_BYTES, g.INVALID_OBJECT]
     buffers = [bytes.fromhex(h) for h in sorted(objs.values())] + genesis
-    cases = [m for b in buffers for m in mutations(b)] + buffers + [b for b, _ in FIPS]
+    return [m for b in buffers for m in mutations(b)] + buffers + [b for b, _ in FIPS]
 
+
+def run_lean_bytes(lean, cases):
     with tempfile.TemporaryDirectory() as td:
         env = dict(os.environ, LEAN_PATH=td)
         # FRONT["build"] + FRONT["runner_sources"] is the single place this
@@ -171,37 +162,57 @@ def main():
                            input=lines, capture_output=True, text=True, env=env)
     if r.returncode != 0:
         fail("BytesRun.lean failed: " + (r.stderr or r.stdout).strip()[:500])
-    got = r.stdout.strip().splitlines()
+    return r.stdout.strip().splitlines()
+
+
+def byte_case_matches(buf, line, fips_map):
+    parts = line.split()
+    if len(parts) != 3:
+        return False
+    lean_hash, lean_verdict, lean_reserialized = parts
+    if lean_hash != hashlib.sha256(buf).hexdigest():
+        return False
+    if buf in fips_map and lean_hash != fips_map[buf]:
+        return False
+    node = g.deser(buf)
+    want_verdict = "ok" if node is not None else "invalid"
+    want_reserialized = buf.hex() if node is not None else "-"
+    return lean_verdict == want_verdict and lean_reserialized == want_reserialized
+
+
+def compare_byte_cases(cases, got):
     if len(got) != len(cases):
         fail(f"BytesRun emitted {len(got)} lines for {len(cases)} cases")
 
     bad = 0
-    fips_map = {b: d for b, d in FIPS}
+    fips_map = dict(FIPS)
     for b, line in zip(cases, got):
-        parts = line.split()
-        if len(parts) != 3:
-            bad += 1
-            continue
-        lhash, lverdict, lreser = parts
-        ok = lhash == hashlib.sha256(b).hexdigest()
-        if b in fips_map:
-            ok &= lhash == fips_map[b]
-        node = g.deser(b)
-        ok &= lverdict == ("ok" if node is not None else "invalid")
-        if node is not None:
-            ok &= lreser == b.hex()          # canonicity, executed round-trip
-        else:
-            ok &= lreser == "-"
-        if not ok:
+        if not byte_case_matches(b, line, fips_map):
             bad += 1
             if bad <= 5:
                 print(f"DISAGREE  {b.hex()[:40]}…: lean={line!r}")
     if bad:
         fail(f"{bad}/{len(cases)} disagreements between Lean and the oracle")
+
+
+def main():
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("byte bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
+        return 2
+    problems = proof_guard.guard_sources(FRONT)
+    if problems:
+        fail("source guard: " + "; ".join(problems))
+    print("OK    MachineBytes + Sha256 + BytesRun pass the source guard (no "
+          "sorry/admit/axiom, no metaprogramming, imports in-set, every "
+          "theorem accounted for)")
+    cases = byte_cases()
+    compare_byte_cases(cases, run_lean_bytes(lean, cases))
     print(f"OK    Lean pipeline == oracle on {len(cases)} buffers "
           f"(CAS keys, verdicts, round-trips, FIPS)")
     print(f"\nBYTE-BRIDGE: ALL AGREE ({len(cases)}/{len(cases)})")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

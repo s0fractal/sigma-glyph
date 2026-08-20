@@ -73,19 +73,11 @@ def trace_steps(st, h, budget):
         yield before, sg.size(t), cost
 
 
-def main():
-    # Soundness guard (same two layers as the eval/byte/wave/c1 bridges):
-    # SizeBound.lean is the one proof CI compiles directly, `lean` exits 0 on
-    # sorry, and the old regex missed sorryAx / `private axiom`.
-    lean = proof_guard.find_lean()
-    if lean is None:
-        print("bridge_check needs a `lean` binary for the #print axioms "
-              "guard (elan) — set LEAN=... ; exit 2")
-        return 2
+def guard_size_proof(lean):
     problems = proof_guard.guard_sources(FRONT)
     if problems:
         print("BRIDGE: FAILED — " + "; ".join(problems))
-        return 1
+        return False
     with tempfile.TemporaryDirectory() as td:
         # `FRONT["build"]` is the single place this front's module set is
         # spelled: the bridge used to hardcode "SizeBound" while the guard
@@ -94,14 +86,16 @@ def main():
                or proof_guard.guard_semantics(lean, FRONT, td))
     if err:
         print("BRIDGE: FAILED — " + err)
-        return 1
+        return False
     print("OK    SizeBound.lean guard: source layer clean (no sorry/admit/"
           "axiom, no metaprogramming, imports in-set); axiom cone within the "
           "std axioms, statement matches its pin, and `Step`/`Reach`/`Acc` — "
           "the definitions the statement is about — match theirs, for "
           + ", ".join(THEOREMS))
+    return True
 
-    st = build_store()
+
+def adversarial_terms(st):
     payload = A(Ig, Kg)
     towers = []
     for _ in range(4):                        # S I I duplication towers
@@ -122,20 +116,39 @@ def main():
     for _ in range(12):
         target = st.put(sg.ser(sg.REF, sg.F_ATOM, atom=target))
     terms["REF-chain-12"] = None  # handled specially below
+    return terms, target
 
+
+def check_trace_premise(st, terms, target):
     steps = viol = 0
     for name, t in terms.items():
         h = target if t is None else put_tree(st, t)
         budget = 2000 if "Omega" in name else 100000
         for before, after, cost in trace_steps(st, h, budget):
             steps += 1
-            if not (after - before <= cost - 1):
+            if after - before > cost - 1:
                 viol += 1
                 print(f"VIOLATION {name}: size {before}->{after}, cost {cost}")
     print(f"steps observed: {steps}; premise (Δsize ≤ cost − 1) violations: {viol}")
-    print("BRIDGE: PREMISE HOLDS ON ALL OBSERVED STEPS" if viol == 0 and steps > 500
-          else "BRIDGE: FAILED")
-    return 0 if viol == 0 and steps > 500 else 1
+    passed = viol == 0 and steps > 500
+    print("BRIDGE: PREMISE HOLDS ON ALL OBSERVED STEPS" if passed else "BRIDGE: FAILED")
+    return passed
+
+
+def main():
+    # Soundness guard (same two layers as the eval/byte/wave/c1 bridges):
+    # SizeBound.lean is the one proof CI compiles directly, `lean` exits 0 on
+    # sorry, and the old regex missed sorryAx / `private axiom`.
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("bridge_check needs a `lean` binary for the #print axioms "
+              "guard (elan) — set LEAN=... ; exit 2")
+        return 2
+    if not guard_size_proof(lean):
+        return 1
+    st = build_store()
+    terms, target = adversarial_terms(st)
+    return 0 if check_trace_premise(st, terms, target) else 1
 
 
 if __name__ == "__main__":

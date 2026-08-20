@@ -26,7 +26,7 @@ vectors); a production annotator would use Book I NodeHashes. Warrant ids in
 this transcript are deterministic (fixed timestamps; signatures never enter a
 WarrantID) — only key material differs between runs.
 """
-import argparse, hashlib, json, os, shutil, subprocess, sys, tempfile
+import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "impl"))
@@ -58,14 +58,32 @@ def sha(b):
 
 NODE = sha(b"demo-node:SATOSHI")          # the one node everyone argues about
 TERM = "DEMO_SATOSHI"                     # its symbolic name for wave_fed
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
+STORE_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
+
+
+def content_path(directory, digest, suffix=""):
+    """Map a content address to one regular path beneath ``directory``."""
+    if not isinstance(digest, str) or HEX64.fullmatch(digest) is None:
+        return None
+    root = os.path.realpath(directory)
+    path = os.path.realpath(os.path.join(root, digest + suffix))
+    try:
+        if os.path.commonpath((root, path)) != root:
+            return None
+    except ValueError:
+        return None
+    return path
 
 
 class Jurisdiction:
     """A real .warrants store: records/, blobs/, genesis.json."""
 
     def __init__(self, name, root_dir, policy):
+        if STORE_NAME.fullmatch(name) is None:
+            raise ValueError("jurisdiction name must be a simple lowercase label")
         self.name = name
-        self.dir = os.path.join(root_dir, name)
+        self.dir = os.path.join(os.path.realpath(root_dir), name)
         os.makedirs(os.path.join(self.dir, "records"))
         os.makedirs(os.path.join(self.dir, "blobs"))
         self.keys = {}
@@ -75,13 +93,17 @@ class Jurisdiction:
         self.root = self.file(
             "propose", f"founder@{name}", self.put_blob(manifesto),
             prior=[], ts=1783400000, note=f"genesis of {name}")
-        json.dump({"roots": [self.root]},
-                  open(os.path.join(self.dir, "genesis.json"), "w"),
-                  sort_keys=True, separators=(",", ":"))
+        with open(os.path.join(self.dir, "genesis.json"), "w",
+                  encoding="utf-8") as genesis:
+            json.dump({"roots": [self.root]}, genesis, sort_keys=True,
+                      separators=(",", ":"))
 
     def put_blob(self, b):
         h = sha(b)
-        with open(os.path.join(self.dir, "blobs", h), "wb") as f:
+        path = content_path(os.path.join(self.dir, "blobs"), h)
+        if path is None:  # generated SHA-256; an invariant guard, not user input
+            raise ValueError("generated blob hash is not hex64")
+        with open(path, "wb") as f:
             f.write(b)
         return h
 
@@ -100,7 +122,10 @@ class Jurisdiction:
         wid = sha(jcs(body))
         sk = self.key(actor)
         env = {"body": body, "sigs": [warrant_sig.sig_entry(actor, sk, wid)]}
-        with open(os.path.join(self.dir, "records", wid + ".json"), "w") as f:
+        path = content_path(os.path.join(self.dir, "records"), wid, ".json")
+        if path is None:  # generated SHA-256; an invariant guard, not user input
+            raise ValueError("generated warrant id is not hex64")
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(env, f, indent=2, sort_keys=True)
         return wid
 
@@ -119,20 +144,12 @@ class Jurisdiction:
         frame and takes every well-formed accept at face value.)
         """
         out = []
-        for f in sorted(os.listdir(os.path.join(self.dir, "records"))):
-            body = json.load(open(os.path.join(self.dir, "records", f)))["body"]
-            if body["decision"] != "accept":
-                continue
-            p = os.path.join(self.dir, "blobs", body["subject"]["hash"])
-            if not os.path.exists(p):
-                continue
-            try:
-                doc = json.loads(open(p, "rb").read())
-            except ValueError:
-                continue
-            if isinstance(doc, dict) and doc.get("annotation") == ASSERTION_TAG:
-                out.append({"warrant_id": f[:-5], "actor": body["actor"]["id"],
-                            "ts": body["ts"], "assertion": doc})
+        records = os.path.join(self.dir, "records")
+        blobs = os.path.join(self.dir, "blobs")
+        for filename in sorted(os.listdir(records)):
+            candidate = _load_candidate(records, blobs, filename)
+            if candidate is not None:
+                out.append(candidate)
         return out
 
     def view(self, epoch):
@@ -149,15 +166,53 @@ class Jurisdiction:
         }
 
 
+def _load_candidate(records, blobs, filename):
+    if not filename.endswith(".json"):
+        return None
+    warrant_id = filename.removesuffix(".json")
+    record_path = content_path(records, warrant_id, ".json")
+    if record_path is None or not os.path.isfile(record_path):
+        return None
+    with open(record_path, encoding="utf-8") as record_source:
+        body = json.load(record_source)["body"]
+    if body["decision"] != "accept":
+        return None
+    blob_path = content_path(blobs, body["subject"].get("hash"))
+    if blob_path is None or not os.path.isfile(blob_path):
+        return None
+    try:
+        with open(blob_path, "rb") as blob_source:
+            doc = json.loads(blob_source.read())
+    except ValueError:
+        return None
+    if not isinstance(doc, dict) or doc.get("annotation") != ASSERTION_TAG:
+        return None
+    return {"warrant_id": warrant_id, "actor": body["actor"]["id"],
+            "ts": body["ts"], "assertion": doc}
+
+
+def _copy_gossip_file(source_dir, target_dir, filename, suffix):
+    digest = (filename.removesuffix(suffix)
+              if suffix and filename.endswith(suffix) else filename)
+    source = content_path(source_dir, digest, suffix)
+    target = content_path(target_dir, digest, suffix)
+    if source is None or target is None or not os.path.isfile(source):
+        return False
+    if os.path.exists(target):
+        return False
+    shutil.copy(source, target)
+    return True
+
+
 def gossip(src, dst):
     """The entire transport profile: copy record and blob files."""
     n = 0
     for sub in ("records", "blobs"):
-        for f in os.listdir(os.path.join(src.dir, sub)):
-            t = os.path.join(dst.dir, sub, f)
-            if not os.path.exists(t):
-                shutil.copy(os.path.join(src.dir, sub, f), t)
-                n += 1
+        source_dir = os.path.join(src.dir, sub)
+        target_dir = os.path.join(dst.dir, sub)
+        suffix = ".json" if sub == "records" else ""
+        for filename in os.listdir(source_dir):
+            n += _copy_gossip_file(source_dir, target_dir, filename, suffix)
     return n
 
 
@@ -178,6 +233,7 @@ def show(tag, name, v):
 
 
 def main():
+    epoch_label = "epoch 8"
     ap = argparse.ArgumentParser()
     ap.add_argument("--keep", metavar="DIR",
                     help="build stores under DIR instead of a temp dir")
@@ -204,18 +260,18 @@ def main():
                      ts=1783400100)
     kyiv.assert_wave("bob@kyiv", 7, {"ph": 8192, "am": 20000, "en": 50},
                      ts=1783400200)
-    show("epoch 8", "kyiv", kyiv.view(8))
+    show(epoch_label, "kyiv", kyiv.view(8))
 
     print("\n== 3. Lviv asserts — its own truth, same node ==")
     lviv.assert_wave("carol@lviv", 3, {"ph": 8192, "am": 65535, "en": -32768},
                      ts=1783400300)
-    show("epoch 8", "lviv", lviv.view(8))
+    show(epoch_label, "lviv", lviv.view(8))
 
     print("\n== 4. Gossip: kyiv -> lviv (transport = copying files) ==")
     n = gossip(kyiv, lviv)
     v = lviv.view(8)
     print(f"  {n} objects copied into lviv's store")
-    show("epoch 8", "lviv after sync", v)
+    show(epoch_label, "lviv after sync", v)
     assert v["selection"]["selected"]["actor"] == "carol@lviv", \
         "replay resistance broken: a foreign assertion went live"
     print("  -> kyiv's assertions are present but NOT live: each embeds the")
@@ -224,7 +280,7 @@ def main():
     print("\n== 5. A genuine tie in lviv ==")
     lviv.assert_wave("eve@lviv", 3, {"ph": 16384, "am": 1000, "en": 0},
                      ts=1783400400)
-    show("epoch 8", "lviv", lviv.view(8))
+    show(epoch_label, "lviv", lviv.view(8))
     print("  -> clients MUST NOT merge; automation treats the node as")
     print("     unannotated, and the absence poisons APPLY derivation (§4/§5).")
 
@@ -232,7 +288,7 @@ def main():
     kv, lv = kyiv.view(8), lviv.view(8)
     print(f"  kyiv ViewID {kv['view_id']}")
     print(f"  lviv ViewID {lv['view_id']}")
-    print(f"  same node, different (jurisdiction, policy) coordinates —")
+    print("  same node, different (jurisdiction, policy) coordinates —")
     print(f"  permanent and by design; kyiv still sees wave {kv['wave']}.")
 
     print("\n== 7. These are real warrant stores ==")

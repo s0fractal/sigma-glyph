@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd impl-rs && cargo build --release && cargo test && cd ..
+          cd impl-rs && cargo build --release --locked && cargo test --locked && cd ..
           ./impl-rs/target/release/book1 selftest | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
           ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
             | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"
@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --quiet cryptography
+          python3 -m pip install --quiet --only-binary=:all: cryptography==45.0.7
           ./impl-go/sigma-federation-go gov-replay tests/spec_conformance/governance_vectors.json \
             | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
           python3 tests/governance_differential.py \
@@ -121,7 +121,7 @@ jobs:
           python3 tests/spec_conformance/generate.py
           python3 impl/sigma_wave.py gen
           python3 impl/sigma_federation.py gen
-          python3 -m pip install --quiet cryptography
+          python3 -m pip install --quiet --only-binary=:all: cryptography==45.0.7
           python3 tools/anchor_governance.py gen
           git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json tests/spec_conformance/federation_vectors.json tests/spec_conformance/governance_vectors.json
       - name: Conformance suite (vectors.json vs oracle)
@@ -132,14 +132,14 @@ jobs:
         run: python3 tools/verify_anchors.py
       - name: Verify adjudication warrants via the warrant machine boundary (verify --store-mode --json)
         run: |
-          python3 -m pip install --quiet cryptography
+          python3 -m pip install --quiet --only-binary=:all: cryptography==45.0.7
           # Pinned to the warrant commit that ships the machine boundary (verify
           # --store-mode --json / warrant.verify-report@v0). We DOGFOOD that boundary:
           # sigma-glyph consumes the structured report through the single fail-closed
           # connector (tools/warrant_gate.py) instead of parsing human text / raw exit
           # codes. The connector trusts ONLY the documented normative fields and fails
           # closed on anything else.
-          curl -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/impl/warrant.py" -o /tmp/warrant.py
+          curl --proto '=https' --tlsv1.2 -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/impl/warrant.py" -o /tmp/warrant.py
           export WARRANT="python3 /tmp/warrant.py" WARRANT_PY=/tmp/warrant.py
           # ONE settlement gate: settlement grade already includes base integrity, so a
           # single invocation binds both to one snapshot (no base/settlement TOCTOU).
@@ -152,7 +152,7 @@ jobs:
           set -euo pipefail
           python3 tools/anchor_governance.py selftest | tee /dev/stderr | grep -q "ANCHOR-GOVERNANCE: ALL PASS"
           python3 tools/anchor_governance.py replay | tee /dev/stderr | grep -q "GOVERNANCE-REPLAY: ALL PASS"
-          curl -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" -o /tmp/anchor-trust.json
+          curl --proto '=https' --tlsv1.2 -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" -o /tmp/anchor-trust.json
           python3 tools/anchor_governance.py status --enforce --trust-config /tmp/anchor-trust.json | tee /dev/stderr | grep -q "AUTHORIZED"
       - name: Two-jurisdictions federation demo (Book III live, real stores)
         shell: bash

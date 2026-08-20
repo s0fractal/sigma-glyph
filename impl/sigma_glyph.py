@@ -130,6 +130,46 @@ def force(h, store, stats, limits):
     if op == DISSONANCE: return ("dis", n["atom"])
     return ("app", ("thunk", n["left"]), ("thunk", n["right"]))
 
+_NO_REDUCTION = object()
+
+
+def _require_budget(cost, remaining):
+    if cost > remaining:
+        raise BudgetExhausted()
+
+
+def _head_reduction(function, argument, remaining):
+    """Return an I/K/S head contraction, or the private no-redex sentinel."""
+    if glyph_eq(function, I_H):
+        _require_budget(1, remaining)
+        return argument, 1
+    if function[0] != "app":
+        return _NO_REDUCTION
+    if glyph_eq(function[1], K_H):
+        _require_budget(1, remaining)
+        return function[2], 1
+    if function[1][0] != "app" or not glyph_eq(function[1][1], S_H):
+        return _NO_REDUCTION
+    x, y, z = function[1][2], function[2], argument
+    cost = 1 + size(z)
+    _require_budget(cost, remaining)
+    return ("app", ("app", x, z), ("app", y, z)), cost
+
+
+def _step_application(t, remaining, store, stats, limits):
+    function, argument = t[1], t[2]
+    reduced = _head_reduction(function, argument, remaining)
+    if reduced is not _NO_REDUCTION:
+        return reduced
+    result = step5(function, remaining, store, stats, limits)
+    if result is not None:
+        return ("app", result[0], argument), result[1]
+    result = step5(argument, remaining, store, stats, limits)
+    if result is not None:
+        return ("app", function, result[0]), result[1]
+    return None
+
+
 def step5(t, remaining, store, stats, limits):
     """One priced action, leftmost-outermost with lazy spine resolution.
     Returns (new_term, cost) with cost <= remaining, or None (normal form).
@@ -140,37 +180,21 @@ def step5(t, remaining, store, stats, limits):
     kind = t[0]
     if kind == "thunk":
         if t[1] in GENESIS: return None                      # NF leaf by hash
-        if remaining < 1: raise BudgetExhausted()
+        _require_budget(1, remaining)
         v = force(t[1], store, stats, limits)                # may raise Unresolved
         c = size(v)                                          # 1 (lit/dis) / 2 (ref) / 3 (app)
-        if c > remaining: raise BudgetExhausted()            # fetched bytes discarded
+        _require_budget(c, remaining)                         # fetched bytes discarded
         return v, c
     if kind == "ref":                                        # R-R: unwrap one level
-        if remaining < 1: raise BudgetExhausted()
+        _require_budget(1, remaining)
         return ("thunk", t[1]), 1
     if kind == "app":
-        f, a = t[1], t[2]
-        if glyph_eq(f, I_H):                                 # R-I (O(1) hash comparison)
-            if remaining < 1: raise BudgetExhausted()
-            return a, 1
-        if f[0] == "app":
-            if glyph_eq(f[1], K_H):                          # R-K: argument NEVER forced
-                if remaining < 1: raise BudgetExhausted()
-                return f[2], 1
-            if f[1][0] == "app" and glyph_eq(f[1][1], S_H):  # R-S: size-priced
-                x, y, z = f[1][2], f[2], a
-                c = 1 + size(z)                              # hash leaves in z count 1, never forced
-                if c > remaining: raise BudgetExhausted()
-                return ("app", ("app", x, z), ("app", y, z)), c
-        r = step5(f, remaining, store, stats, limits)        # descend left spine (demand)
-        if r is not None: return ("app", r[0], a), r[1]
-        r = step5(a, remaining, store, stats, limits)        # f normal: demand argument
-        if r is not None: return ("app", f, r[0]), r[1]
-        return None
+        return _step_application(t, remaining, store, stats, limits)
     return None                                              # lit / dis are normal forms
 
-DEFAULT_LIMITS = dict(max_node_depth=4096, max_materialized_nodes=1_000_000,
-                      max_store_fetches=1_000_000)
+DEFAULT_LIMITS = {"max_node_depth": 4096,
+                  "max_materialized_nodes": 1_000_000,
+                  "max_store_fetches": 1_000_000}
 
 
 def resource_check(t, limits):
@@ -262,12 +286,16 @@ def _abstract(x, m):
     raise ValueError("free variable escapes abstraction")
 
 # ---------- Test suite ----------
-def run_tests():
+# Linear self-test orchestration shares one store and intentionally keeps each
+# conformance assertion visible in execution order; runtime logic lives above.
+def run_tests():  # NOSONAR python:S3776
     st = Store()
     for b in (I_BYTES, K_BYTES, S_BYTES, FALSE_BYTES): st.put(b)
 
     A = lambda l, r: ("app", l, r)
-    Ig, Kg, Sg = ("lit", sha(b"I")), ("lit", sha(b"K")), ("lit", sha(b"S"))
+    i_glyph, k_glyph, s_glyph = (("lit", sha(b"I")),
+                                 ("lit", sha(b"K")),
+                                 ("lit", sha(b"S")))
 
     def put_tree(t):
         if t[0] == "app": put_tree(t[1]); put_tree(t[2])
@@ -300,41 +328,43 @@ def run_tests():
     chk("genesis intrinsic: REF(K_H), empty store -> K (3 ATP)", term_hash(r) == K_H and sp == 3)
 
     # TV-4: APPLY(I,K) -> K: force root (3) + R-I (1) = 4 ATP
-    h = put_tree(A(Ig, Kg))
+    h = put_tree(A(i_glyph, k_glyph))
     r, sp = eval_hash(h, 4, st);  chk("I·K -> K (4 ATP)", term_hash(r) == K_H and sp == 4)
     r, sp = eval_hash(h, 0, st);  chk("I·K budget 0 -> ATP, 0 spent (no fetch)", r == ("dis", R_ATP) and sp == 0)
     r, sp = eval_hash(h, 3, st);  chk("I·K budget 3 -> ATP after root force", r == ("dis", R_ATP) and sp == 3)
     r, sp = eval_hash(h, 2, st);  chk("I·K budget 2 -> ATP, fetch discarded", r == ("dis", R_ATP) and sp == 0)
 
     # TV-5: SKK·I -> I: 3 forces (9) + R-S (1+size(z)=2) + R-K (1) = 12 ATP
-    h = put_tree(A(A(A(Sg, Kg), Kg), Ig))
+    h = put_tree(A(A(A(s_glyph, k_glyph), k_glyph), i_glyph))
     r, sp = eval_hash(h, 100, st); chk("SKK·I -> I (12 ATP)", term_hash(r) == I_H and sp == 12)
     r, sp = eval_hash(h, 11, st);  chk("SKK·I budget 11 -> ATP", r == ("dis", R_ATP))
 
     # TV-6: duplication — S I I (I K); hash-leaf pricing; NF unchanged from v0.4
-    T = A(A(A(Sg, Ig), Ig), A(Ig, Kg))
-    hT = put_tree(T)
-    r, sp = eval_hash(hT, 100, st)
+    term_t = A(A(A(s_glyph, i_glyph), i_glyph), A(i_glyph, k_glyph))
+    term_t_hash = put_tree(term_t)
+    r, sp = eval_hash(term_t_hash, 100, st)
     nf = term_hash(r)
     print("      SII(IK): normal form =", "APPLY(K,K)" if nf == node_hash(
         ser(APPLY, 0x06, left=K_H, right=K_H)) else nf.hex(), "| ATP =", sp,
-        "| T hash =", hT.hex())
+        "| T hash =", term_t_hash.hex())
     chk("SII(IK) normal form APPLY(K,K)", nf == node_hash(ser(APPLY, 0x06, left=K_H, right=K_H)))
     chk("SII(IK) size-priced cost = 21", sp == 21)
 
     # TV-7: Omega — non-terminating, deterministic exhaustion at any budget
-    W = A(A(Sg, Ig), Ig)
-    Om = A(W, W)
-    hO = put_tree(Om)
-    r, sp = eval_hash(hO, 500, st)
-    print("      Omega hash =", hO.hex(), "| result:", "ATP Exhausted" if r == ("dis", R_ATP) else r)
+    omega_half = A(A(s_glyph, i_glyph), i_glyph)
+    omega = A(omega_half, omega_half)
+    omega_hash = put_tree(omega)
+    r, sp = eval_hash(omega_hash, 500, st)
+    print("      Omega hash =", omega_hash.hex(), "| result:",
+          "ATP Exhausted" if r == ("dis", R_ATP) else r)
     chk("Omega -> ATP Exhausted", r == ("dis", R_ATP) and sp <= 500)
     # TV-7 "for all n": Omega's materialized size stays tiny, so even a budget
     # far past max_materialized_nodes MUST still yield canonical ATP Exhausted,
     # NOT a size ResourceFault. (Regression guard: the memory fence must key on
     # actual size, never on `spent` — see eval_hash. Opus 4.8 review 2026-07, M1.)
-    tiny_mem = dict(max_node_depth=4096, max_materialized_nodes=1000, max_store_fetches=10**6)
-    r2, sp2 = eval_hash(hO, 5000, st, limits=tiny_mem)
+    tiny_mem = {"max_node_depth": 4096, "max_materialized_nodes": 1000,
+                "max_store_fetches": 10**6}
+    r2, sp2 = eval_hash(omega_hash, 5000, st, limits=tiny_mem)
     chk("Omega, budget >> mem-limit -> ATP Exhausted (not size fault)",
         r2 == ("dis", R_ATP) and sp2 <= 5000)
 
@@ -357,7 +387,8 @@ def run_tests():
     hkd = st.put(ser(APPLY, 0x06, left=FALSE_H, right=ghost))       # (K I) ghost
     r, sp = eval_hash(hkd, 100, st)
     chk("K-dead-missing -> I (lazy; was Unresolved in v0.4)", term_hash(r) == I_H and sp == 7)
-    inner = put_tree(A(A(Sg, A(Kg, Ig)), A(Kg, Kg)))
+    inner = put_tree(A(A(s_glyph, A(k_glyph, i_glyph)),
+                       A(k_glyph, k_glyph)))
     hsd = st.put(ser(APPLY, 0x06, left=inner, right=ghost))         # S (K I) (K K) ghost
     r, sp = eval_hash(hsd, 100, st)
     chk("S(KI)(KK)-dead-missing -> K (divergence class)", term_hash(r) == K_H and sp == 20)
@@ -365,7 +396,7 @@ def run_tests():
     # Memory bound (ADR-001): materialized size - 1 < spent along any evaluation
     limits = dict(DEFAULT_LIMITS)
     stats = {"fetches": 0}
-    t, spent, smax = ("thunk", hT), 0, 1
+    t, spent, smax = ("thunk", term_t_hash), 0, 1
     while True:
         rr = step5(t, 10_000, st, stats, limits)
         if rr is None: break
@@ -378,18 +409,19 @@ def run_tests():
     chk("C1[lx.x] = I", term_hash(c1(lam_id)) == I_H)
     lam_k = ("lam", "x", ("lam", "y", ("var", "x")))
     ck = c1(lam_k)   # expected S (K K) I
-    exp = A(A(Sg, A(Kg, Kg)), Ig)
+    exp = A(A(s_glyph, A(k_glyph, k_glyph)), i_glyph)
     chk("C1[lxy.x] = S(KK)I", term_hash(ck) == term_hash(exp))
     print("      C1[lxy.x] hash =", term_hash(ck).hex())
     # behaves as K: (C1[lxy.x] S) K -> S
-    ht = put_tree(A(A(ck, Sg), Kg))
+    ht = put_tree(A(A(ck, s_glyph), k_glyph))
     r, sp = eval_hash(ht, 64, st)
     chk("C1[lxy.x] S K -> S (20 ATP)", term_hash(r) == S_H and sp == 20)
 
     # Resource guard: tiny depth limit trips as FAULT, not dissonance
     try:
-        eval_hash(hO, 10_000, st, limits=dict(max_node_depth=8,
-                  max_materialized_nodes=10**6, max_store_fetches=10**6))
+        eval_hash(omega_hash, 10_000, st, limits={"max_node_depth": 8,
+                  "max_materialized_nodes": 10**6,
+                  "max_store_fetches": 10**6})
         chk("resource fault raised", False)
     except ResourceFault:
         chk("resource fault raised (non-canonical)", True)
@@ -408,8 +440,8 @@ def run_tests():
     # Deep spine BEYOND max_node_depth with a big budget -> ResourceFault,
     # never RecursionError (s3.6 guard still the second fence; tight custom
     # limits keep the O(depth^2) spine walk fast)
-    tight = dict(max_node_depth=512, max_materialized_nodes=10**6,
-                 max_store_fetches=10**6)
+    tight = {"max_node_depth": 512, "max_materialized_nodes": 10**6,
+             "max_store_fetches": 10**6}
     try:
         eval_hash(hd, 100_000, st, limits=tight)
         chk("depth-1500 spine, depth limit 512 -> resource fault", False)
@@ -422,8 +454,9 @@ def run_tests():
     # COMPLETED normal-form return, even for evaluations that finish before
     # the 256-step in-flight sample. FALSE = APPLY(K,I): size 3, depth 2.
     stf = Store(); hf = stf.put(FALSE_BYTES)
-    def _lim(d, m): return dict(max_node_depth=d, max_materialized_nodes=m,
-                                max_store_fetches=100)
+    def _lim(d, m):
+        return {"max_node_depth": d, "max_materialized_nodes": m,
+                "max_store_fetches": 100}
     try:
         eval_hash(hf, 10, stf, _lim(1, 100))
         chk("early-NF over depth limit -> ResourceFault", False)

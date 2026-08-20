@@ -43,9 +43,9 @@ BOOK2 = {
 # (label, book, old, new, vector id the refusal must name)
 MUTATIONS = [
     ("Book I s3.4: R-I priced at 2 ATP instead of 1", BOOK1,
-     "            return a, 1\n", "            return a, 2\n", "EV-TV4-IK"),
+     "        return argument, 1\n", "        return argument, 2\n", "EV-TV4-IK"),
     ("Book I s3.4: R-S priced flat instead of 1 + size(z)", BOOK1,
-     "c = 1 + size(z)", "c = 1 + 0 * size(z)", "EV-TV5-SKKI"),
+     "cost = 1 + size(z)", "cost = 1 + 0 * size(z)", "EV-TV5-SKKI"),
     ("Book I s5.1: genesis K forged from a different preimage", BOOK1,
      'K_BYTES = ser(LITERAL, F_ATOM, atom=sha(b"K"))',
      'K_BYTES = ser(LITERAL, F_ATOM, atom=sha(b"k"))', "OBJ-K"),

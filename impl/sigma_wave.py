@@ -305,24 +305,28 @@ def check_spec_expectations(vectors):
             failures.append(f"LUT/pins {label}: got {got}, spec declares {want}")
     seen = set()
     for v in vectors:
-        vid = v["id"]
-        decl = SPEC_EXPECT.get(vid)
-        if decl is None:
-            if vid not in ORACLE_ONLY:
-                failures.append(f"{vid}: neither declared in SPEC_EXPECT nor listed "
-                                f"in ORACLE_ONLY — classify it before it ships")
-            continue
-        seen.add(vid)
-        _, cite, want = decl
-        got = v.get("expected", v.get("expected_ph"))
-        if isinstance(want, dict) and isinstance(got, dict):
-            got = {k: got.get(k) for k in want}       # partial declaration
-        if got != want:
-            failures.append(f"{vid}: got {got}, spec ({cite}) declares {want}")
+        _check_spec_vector(v, seen, failures)
     for vid in sorted(set(SPEC_EXPECT) - seen):
         failures.append(f"declared expectation {vid} was never exercised "
                         f"(vector renamed or deleted?)")
     return failures
+
+
+def _check_spec_vector(vector, seen, failures):
+    vid = vector["id"]
+    decl = SPEC_EXPECT.get(vid)
+    if decl is None:
+        if vid not in ORACLE_ONLY:
+            failures.append(f"{vid}: neither declared in SPEC_EXPECT nor listed "
+                            f"in ORACLE_ONLY — classify it before it ships")
+        return
+    seen.add(vid)
+    _, cite, want = decl
+    got = vector.get("expected", vector.get("expected_ph"))
+    if isinstance(want, dict) and isinstance(got, dict):
+        got = {key: got.get(key) for key in want}      # partial declaration
+    if got != want:
+        failures.append(f"{vid}: got {got}, spec ({cite}) declares {want}")
 
 
 def iterate_am(w0):
@@ -421,14 +425,7 @@ def gen_vectors():
           f"oracle-generated/regression-only)")
 
 
-def selftest():
-    ok = []
-    skipped = []
-
-    def chk(name, cond, detail=""):
-        ok.append(cond)
-        print(("OK  " if cond else "FAIL"), name, "" if cond else detail)
-
+def _check_core_wave_properties(chk):
     chk("LUT arbiter", hashlib.sha256(
         b"".join(struct.pack(">h", v) for v in LUT_COS)).hexdigest() == LUT_ARBITER)
     chk("LUT anchors", (LUT_COS[0], LUT_COS[16384], LUT_COS[32768]) == (32767, 0, -32767))
@@ -457,24 +454,31 @@ def selftest():
     chk("unpinned LITERAL absent", wave({"lit": "x"}) is None)
     chk("interfere with absent operand absent", wave(["APPLY", "SATOSHI", "I"]) is None)
 
+
+def _check_recorded_vector(chk, vector):
+    kind = vector.get("kind", "interfere")
+    vid = vector["id"]
+    if kind == "interfere":
+        got = interfere(vector["w1"], vector["w2"])
+        chk(f"vector {vid}", got == vector["expected"], f"got {got}")
+    elif kind == "term":
+        got = wave(vector["term"])
+        chk(f"vector {vid}", got == vector["expected"], f"got {got}")
+    elif kind == "iterate":
+        got = iterate_am(vector["start"])
+        chk(f"vector {vid}", got == vector["expected_am_sequence"], f"got {got}")
+    elif kind == "coordinate":
+        got = coordinate(vector["name"])
+        chk(f"vector {vid}", got == vector["expected_ph"], f"got {got}")
+    else:
+        chk(f"vector {vid}", False, f"unknown kind {kind}")
+
+
+def _replay_recorded_vectors(chk, skipped):
     if VEC_PATH.exists():
         doc = json.loads(VEC_PATH.read_text())
-        for v in doc["vectors"]:
-            kind = v.get("kind", "interfere")
-            if kind == "interfere":
-                got = interfere(v["w1"], v["w2"])
-                chk(f"vector {v['id']}", got == v["expected"], f"got {got}")
-            elif kind == "term":
-                got = wave(v["term"])
-                chk(f"vector {v['id']}", got == v["expected"], f"got {got}")
-            elif kind == "iterate":
-                got = iterate_am(v["start"])
-                chk(f"vector {v['id']}", got == v["expected_am_sequence"], f"got {got}")
-            elif kind == "coordinate":
-                got = coordinate(v["name"])
-                chk(f"vector {v['id']}", got == v["expected_ph"], f"got {got}")
-            else:
-                chk(f"vector {v['id']}", False, f"unknown kind {kind}")
+        for vector in doc["vectors"]:
+            _check_recorded_vector(chk, vector)
     elif FROM_CHECKOUT:
         chk("wave_vectors.json present", False, "run: python3 impl/sigma_wave.py gen")
     else:
@@ -484,6 +488,18 @@ def selftest():
               f"tests/spec_conformance/). The property checks above ran in full; "
               f"the replay did not run and is not claimed. To run it, use a "
               f"checkout: python3 impl/sigma_wave.py")
+
+
+def selftest():
+    ok = []
+    skipped = []
+
+    def chk(name, cond, detail=""):
+        ok.append(cond)
+        print(("OK  " if cond else "FAIL"), name, "" if cond else detail)
+
+    _check_core_wave_properties(chk)
+    _replay_recorded_vectors(chk, skipped)
 
     print(("\nWAVE: ALL PASS" if all(ok) else "\nWAVE: FAILURES PRESENT")
           + f" ({sum(ok)}/{len(ok)})"

@@ -85,6 +85,11 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+ALL_PASS = "ALL PASS"
+WAVE_PASS = "WAVE: ALL PASS"
+FEDERATION_PASS = "FEDERATION: ALL PASS"
+REPLAY_SKIP = "recorded-vector replay"
+CHECKOUT_REQUIRED = "requires a source checkout"
 
 # The distribution's contract: these three modules, importable at top level.
 MODULES = ("sigma_glyph", "sigma_wave", "sigma_federation")
@@ -98,17 +103,17 @@ MODULES = ("sigma_glyph", "sigma_wave", "sigma_federation")
 # adding checks; lowering one is a claim that the artifact does less, and should
 # have to be typed on purpose.
 SUITES = (
-    ("sigma_glyph", "ALL PASS", 35),
-    ("sigma_wave", "WAVE: ALL PASS", 13),
-    ("sigma_federation", "FEDERATION: ALL PASS", 15),
+    ("sigma_glyph", ALL_PASS, 35),
+    ("sigma_wave", WAVE_PASS, 13),
+    ("sigma_federation", FEDERATION_PASS, 15),
 )
 
 # Replay corpora live in the repo. If a build starts shipping them, the expected
 # behaviour of the installed self-tests changes, and this map is where the gate
 # finds that out (see `expected_skips`).
 CORPORA = {
-    "tests/spec_conformance/wave_vectors.json": ("sigma_wave", "recorded-vector replay"),
-    "tests/spec_conformance/federation_vectors.json": ("sigma_federation", "recorded-vector replay"),
+    "tests/spec_conformance/wave_vectors.json": ("sigma_wave", REPLAY_SKIP),
+    "tests/spec_conformance/federation_vectors.json": ("sigma_federation", REPLAY_SKIP),
     "tests/spec_conformance/vectors.json": ("sigma_federation", "Book I unreachable fixture"),
 }
 
@@ -137,8 +142,8 @@ VERB_TABLE = {
     ("sigma_glyph", ""): (RUNNABLE, None),
     ("sigma_wave", ""): (RUNNABLE, None),
     ("sigma_federation", ""): (RUNNABLE, None),
-    ("sigma_wave", "gen"): (NOT_RUNNABLE, "requires a source checkout"),
-    ("sigma_federation", "gen"): (NOT_RUNNABLE, "requires a source checkout"),
+    ("sigma_wave", "gen"): (NOT_RUNNABLE, CHECKOUT_REQUIRED),
+    ("sigma_federation", "gen"): (NOT_RUNNABLE, CHECKOUT_REQUIRED),
 }
 
 # A verb name no module declares. Typing it must be refused, not silently
@@ -228,6 +233,34 @@ def declared_verbs(python, cwd, module):
     return tuple(out.split()), []
 
 
+def _check_verb_inventory(module, declared, classified, problems):
+    declared_set = set(declared) | {""}
+    for verb in declared_set - classified:
+        problems.append(
+            f"{module}: verb {verb!r} is declared by the module but not "
+            f"classified in VERB_TABLE. Classify it RUNNABLE or "
+            f"{NOT_RUNNABLE} — a verb nobody decided about is a verb nobody "
+            "runs from outside a checkout")
+    for verb in classified - declared_set:
+        problems.append(
+            f"{module}: VERB_TABLE classifies {verb!r}, which the module no "
+            "longer declares. The table is checking a verb that does not "
+            "exist; delete the row or restore the verb")
+
+
+def _run_module_verbs(python, verbdir, module, problems):
+    for (table_module, verb), (kind, needle) in sorted(VERB_TABLE.items()):
+        if table_module != module:
+            continue
+        rc, out, err = run(
+            python, ["-m", table_module] + ([verb] if verb else []), verbdir)
+        problems += classify_verb(
+            table_module, verb, kind, needle, rc, out, err)
+    rc, out, err = run(python, ["-m", module, UNDECLARED_VERB], verbdir)
+    problems += classify_verb(module, UNDECLARED_VERB, NOT_RUNNABLE,
+                              UNDECLARED_VERB, rc, out, err)
+
+
 def check_verbs(python, verbdir, problems):
     """Every declared verb classified, and every classified verb executed."""
     for module in MODULES:
@@ -235,33 +268,10 @@ def check_verbs(python, verbdir, problems):
         problems += errs
         if declared is None:
             continue
-        classified = {v for (m, v) in VERB_TABLE if m == module}
-        for v in set(declared) | {""}:
-            if v not in classified:
-                problems.append(
-                    f"{module}: verb {v!r} is declared by the module but not "
-                    f"classified in VERB_TABLE. Classify it RUNNABLE or "
-                    f"{NOT_RUNNABLE} — a verb nobody decided about is a verb "
-                    f"nobody runs from outside a checkout")
-        for v in classified - (set(declared) | {""}):
-            problems.append(
-                f"{module}: VERB_TABLE classifies {v!r}, which the module no "
-                f"longer declares. The table is checking a verb that does not "
-                f"exist; delete the row or restore the verb")
-
-        # Every classified verb is EXECUTED, including one the module has
-        # stopped declaring: the mismatch above is a bookkeeping complaint, and
-        # a verb that still exists and still tracebacks must be caught by
-        # running it, not by reading a table.
-        for (m, v), (kind, needle) in sorted(VERB_TABLE.items()):
-            if m != module:
-                continue
-            rc, out, err = run(python, ["-m", m] + ([v] if v else []), verbdir)
-            problems += classify_verb(m, v, kind, needle, rc, out, err)
-
-        rc, out, err = run(python, ["-m", module, UNDECLARED_VERB], verbdir)
-        problems += classify_verb(module, UNDECLARED_VERB, NOT_RUNNABLE,
-                                  UNDECLARED_VERB, rc, out, err)
+        classified = {verb for (mod, verb), _config in VERB_TABLE.items()
+                      if mod == module}
+        _check_verb_inventory(module, declared, classified, problems)
+        _run_module_verbs(python, verbdir, module, problems)
 
 
 def expected_skips(module, shipped):
@@ -391,35 +401,35 @@ def selftest():
                       "python3 impl/sigma_wave.py gen\n\n"
                       "WAVE: FAILURES PRESENT (13/14)\n")
     cases.append(("0.6.6 wheel, sigma_wave before the fix",
-                  classify("sigma_wave", "WAVE: ALL PASS", 2, 1, real_wave_fail,
-                           "", ["recorded-vector replay"]),
+                  classify("sigma_wave", WAVE_PASS, 2, 1, real_wave_fail,
+                           "", [REPLAY_SKIP]),
                   True))
 
     real_fed_crash = (TRACEBACK + "\n  File \"x\"\nFileNotFoundError: "
                       "vectors.json\n")
     cases.append(("0.6.6 wheel, sigma_federation before the fix",
-                  classify("sigma_federation", "FEDERATION: ALL PASS", 2, 1, "",
-                           real_fed_crash, ["recorded-vector replay"]),
+                  classify("sigma_federation", FEDERATION_PASS, 2, 1, "",
+                           real_fed_crash, [REPLAY_SKIP]),
                   True))
 
     good = ("OK   a\nOK   b\nSKIP recorded-vector replay: not shipped\n\n"
             "WAVE: ALL PASS (2/2) — SKIPPED: recorded-vector replay\n")
     cases.append(("fixed wheel, replay honestly skipped",
-                  classify("sigma_wave", "WAVE: ALL PASS", 2, 0, good, "",
-                           ["recorded-vector replay"]), False))
+                  classify("sigma_wave", WAVE_PASS, 2, 0, good, "",
+                           [REPLAY_SKIP]), False))
 
     cases.append(("a suite that skipped its way to ALL PASS",
-                  classify("sigma_wave", "WAVE: ALL PASS", 13, 0,
+                  classify("sigma_wave", WAVE_PASS, 13, 0,
                            "WAVE: ALL PASS (0/0)\n", "", []), True))
 
     cases.append(("a skip with no missing file behind it",
-                  classify("sigma_wave", "WAVE: ALL PASS", 2, 0,
+                  classify("sigma_wave", WAVE_PASS, 2, 0,
                            "OK   a\nOK   b\nSKIP recorded-vector replay: eh\n"
                            "WAVE: ALL PASS (2/2)\n", "", []), True))
 
     checkout_ok = "OK   a\nOK   b\n\nWAVE: ALL PASS (2/2)\n"
     cases.append(("checkout run, corpora present, nothing skipped",
-                  classify("sigma_wave", "WAVE: ALL PASS", 2, 0, checkout_ok,
+                  classify("sigma_wave", WAVE_PASS, 2, 0, checkout_ok,
                            "", []), False))
 
     # ---- the verb matrix, driven on the REAL pre-fix behaviour ----------
@@ -429,7 +439,7 @@ def selftest():
                       "wave_vectors.json'\n")
     cases.append(("0.6.6 wheel, `sigma_wave gen` before the fix (traceback)",
                   classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
-                                "requires a source checkout", 1, "",
+                                CHECKOUT_REQUIRED, 1, "",
                                 real_gen_crash), True))
 
     refusal = ("REFUSING: `gen` regenerates the conformance corpus at "
@@ -437,16 +447,16 @@ def selftest():
                "checkout of sigma-glyph.\n")
     cases.append(("fixed wheel, `gen` refuses and says what it needs",
                   classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
-                                "requires a source checkout", 2, "", refusal),
+                                CHECKOUT_REQUIRED, 2, "", refusal),
                   False))
 
     cases.append(("a NOT_RUNNABLE verb that exits 0",
                   classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
-                                "requires a source checkout", 0, "", ""), True))
+                                CHECKOUT_REQUIRED, 0, "", ""), True))
 
     cases.append(("a refusal that never says why",
                   classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
-                                "requires a source checkout", 2, "", "nope\n"),
+                                CHECKOUT_REQUIRED, 2, "", "nope\n"),
                   True))
 
     cases.append(("a RUNNABLE verb that exits 0",
@@ -461,7 +471,7 @@ def selftest():
                                 "FAILURES PRESENT\n", ""), False))
 
     cases.append(("Book I before the fix: FAILURES PRESENT at exit 0",
-                  classify("sigma_glyph", "ALL PASS", 2, 0,
+                  classify("sigma_glyph", ALL_PASS, 2, 0,
                            "OK   a\nFAIL b\n\nFAILURES PRESENT\n", "", []),
                   True))
 
@@ -481,82 +491,67 @@ def selftest():
     e2 = expected_skips("sigma_wave", {"sigma_wave.py"})
     for name, cond in (("corpora shipped -> no skip expected", e1 == []),
                        ("corpora absent -> replay skip expected",
-                        e2 == ["recorded-vector replay"])):
+                        e2 == [REPLAY_SKIP])):
         ok &= cond
         print(("OK  " if cond else "FAIL"), name)
 
-    print("\nRELEASE-SURFACE-SELFTEST: " + ("ALL PASS" if ok else "FAILURES"))
+    print("\nRELEASE-SURFACE-SELFTEST: " + (ALL_PASS if ok else "FAILURES"))
     return 0 if ok else 1
 
 
-# --------------------------------------------------------------------------
-def main():
+def _release_args():
     ap = argparse.ArgumentParser(allow_abbrev=False)
     ap.add_argument("--wheel", help="the built wheel: the provenance root")
     ap.add_argument("--bin", help="bin/ of a venv the wheel is installed into")
     ap.add_argument("--selftest", action="store_true")
-    args = ap.parse_args()
-    if args.selftest:
-        return selftest()
+    return ap.parse_args()
 
-    problems = []
 
-    if args.bin and not args.wheel:
-        print("RELEASE SURFACE: REFUSING — --bin without --wheel.\n\n"
-              "  An installation cannot vouch for itself. Pass the wheel that\n"
-              "  will be published; what ships is what decides which checks\n"
-              "  are allowed to skip.", file=sys.stderr)
-        return 2
-
+def _release_scope(args, problems):
     if args.wheel:
         info, wproblems = inspect_wheel(Path(args.wheel).resolve())
         problems += wproblems
         if info is None:
             print("RELEASE SURFACE: FAIL\n")
-            for p in problems:
-                print(f"  {p}")
-            return 1
-        shipped = info["files"]
-        target = f"{info['name']} {info['version']} from {Path(args.wheel).name}"
-    else:
-        # Checkout mode: the "artifact" is the repo, which does ship its corpora.
-        shipped = set(CORPORA)
-        target = "this checkout"
+            for problem in problems:
+                print(f"  {problem}")
+            return None
+        return (info["files"],
+                f"{info['name']} {info['version']} from {Path(args.wheel).name}")
+    return set(CORPORA), "this checkout"
 
-    if args.bin:
-        binroot = Path(args.bin).resolve()
-        python = str(binroot / "python")
-        if not Path(python).exists():
-            python = str(binroot / "python3")
-        site = site_packages(binroot)
-        if site is None:
-            print(f"RELEASE SURFACE: FAIL — no site-packages under {binroot.parent}")
-            return 1
-        # Run from a directory that is NOT the checkout. The whole class of bug
-        # this gate exists for is invisible from inside the repo.
-        workdir = tempfile.mkdtemp(prefix="sigma-release-")
-        for m in MODULES:
-            rc, out, err = run(python, ["-c", f"import {m};print({m}.__file__)"],
-                               workdir)
-            if rc != 0:
-                last = (err.strip().splitlines() or [""])[-1]
-                problems.append(f"{m}: not importable from the installed wheel "
-                                f"({last})")
-                continue
-            origin = Path(out.strip()).resolve()
-            if site.resolve() not in origin.parents:
-                problems.append(f"{m}: imported from {origin}, which is not the "
-                                f"installed package under {site} — this run "
-                                f"would be testing a checkout, not the artifact")
-    else:
-        python, workdir = sys.executable, str(ROOT)
 
-    # The verb matrix always runs from a directory that is NOT a checkout. With
-    # --bin that is the installed package in `workdir`; without it, a temp copy
-    # of impl/ — same modules, no `impl/` parent, no pyproject.toml, so the
-    # modules' own FROM_CHECKOUT is False exactly as in site-packages. That is
-    # what lets `tools/test-all.sh` exercise the installed-copy behaviour of
-    # every verb without building a wheel.
+def _check_installed_imports(python, workdir, site, problems):
+    for module in MODULES:
+        rc, out, err = run(
+            python, ["-c", f"import {module};print({module}.__file__)"], workdir)
+        if rc != 0:
+            last = (err.strip().splitlines() or [""])[-1]
+            problems.append(f"{module}: not importable from the installed wheel "
+                            f"({last})")
+        elif site.resolve() not in Path(out.strip()).resolve().parents:
+            problems.append(f"{module}: imported from {Path(out.strip()).resolve()}, "
+                            f"which is not the installed package under {site} — "
+                            "this run would test a checkout, not the artifact")
+
+
+def _runtime_context(args, problems):
+    if not args.bin:
+        return sys.executable, str(ROOT)
+    binroot = Path(args.bin).resolve()
+    python = str(binroot / "python")
+    if not Path(python).exists():
+        python = str(binroot / "python3")
+    site = site_packages(binroot)
+    if site is None:
+        print(f"RELEASE SURFACE: FAIL — no site-packages under {binroot.parent}")
+        return None
+    workdir = tempfile.mkdtemp(prefix="sigma-release-")
+    _check_installed_imports(python, workdir, site, problems)
+    return python, workdir
+
+
+def _exercise_verbs(args, python, workdir, problems):
     if args.bin:
         check_verbs(python, workdir, problems)
     else:
@@ -565,6 +560,8 @@ def main():
                 shutil.copy(ROOT / "impl" / f"{m}.py", Path(verbdir) / f"{m}.py")
             check_verbs(python, verbdir, problems)
 
+
+def _exercise_suites(args, python, workdir, shipped, problems):
     for module, tag, floor in SUITES:
         if args.bin:
             rc, out, err = run(python, ["-m", module], workdir)
@@ -572,9 +569,10 @@ def main():
             rc, out, err = run(python, [f"impl/{module}.py"], ROOT)
         problems += classify(module, tag, floor, rc, out, err,
                              expected_skips(module, shipped))
-
     check_snippet(python if args.bin else None, problems)
 
+
+def _report_release(args, target, problems):
     if problems:
         print(f"RELEASE SURFACE: FAIL — {target} does not behave as documented "
               f"({len(problems)} problem(s)):\n")
@@ -597,6 +595,31 @@ def main():
            f"snippet runs — NOT an artifact check; pass --wheel/--bin for that")
     print(f"RELEASE SURFACE: ALL PASS ({target}: {did})")
     return 0
+
+
+# --------------------------------------------------------------------------
+def main():
+    args = _release_args()
+    if args.selftest:
+        return selftest()
+    if args.bin and not args.wheel:
+        print("RELEASE SURFACE: REFUSING — --bin without --wheel.\n\n"
+              "  An installation cannot vouch for itself. Pass the wheel that\n"
+              "  will be published; what ships is what decides which checks\n"
+              "  are allowed to skip.", file=sys.stderr)
+        return 2
+    problems = []
+    scope = _release_scope(args, problems)
+    if scope is None:
+        return 1
+    shipped, target = scope
+    runtime = _runtime_context(args, problems)
+    if runtime is None:
+        return 1
+    python, workdir = runtime
+    _exercise_verbs(args, python, workdir, problems)
+    _exercise_suites(args, python, workdir, shipped, problems)
+    return _report_release(args, target, problems)
 
 
 if __name__ == "__main__":
