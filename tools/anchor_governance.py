@@ -104,9 +104,19 @@ def parse_anchors(path):
     """Return [(release, historical, [(path, anchor), ...])] in file order."""
     sections, cur = [], None
     for line in open(path, encoding="utf-8"):
-        m = re.match(r"^== (v[\w.]+)\s*(\([^()\r\n]*\))?\s*==\s*$", line)
-        if m:
-            cur = (m.group(1), bool(m.group(2)), [])
+        header = line.strip()
+        if header.startswith("== ") and header.endswith(" =="):
+            release, separator, annotation = header[3:-3].strip().partition(" ")
+            valid_release = re.fullmatch(r"v[0-9A-Za-z_.]+", release)
+            valid_annotation = (not separator or
+                                (annotation.startswith("(") and
+                                 annotation.endswith(")") and
+                                 "(" not in annotation[1:-1] and
+                                 ")" not in annotation[1:-1]))
+        else:
+            valid_release = valid_annotation = False
+        if valid_release and valid_annotation:
+            cur = (release, bool(separator), [])
             sections.append(cur)
             continue
         m = re.match(r"^([0-9a-f]{64})\s+(\S+)\s*$", line)
@@ -145,14 +155,22 @@ def read_blob(bdir, h):
     # used to open files outside bdir before the final hash check rejected them.
     if not isinstance(h, str) or HEX64.fullmatch(h) is None:
         return None
-    root = os.path.realpath(bdir)
-    p = os.path.realpath(os.path.join(root, h))
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    file_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
-        if os.path.commonpath((root, p)) != root or not os.path.isfile(p):
-            return None
-    except ValueError:  # different drives on Windows
+        directory_fd = os.open(bdir, directory_flags)
+    except OSError:
         return None
-    with open(p, "rb") as src:
+    try:
+        try:
+            blob_fd = os.open(h, file_flags, dir_fd=directory_fd)
+        except OSError:
+            return None
+    finally:
+        os.close(directory_fd)
+    with os.fdopen(blob_fd, "rb") as src:
+        if not os.path.isfile(src.fileno()):
+            return None
         b = src.read()
     return b if sha256(b) == h else None
 
@@ -952,7 +970,7 @@ def _run_scenarios(emit=None):
     for vid, desc, builder in SCENARIOS:
         with tempfile.TemporaryDirectory() as td:
             trust, cand, prior, want_ok, note = builder(td)
-            recs, blobs, bdir = load_store(td)
+            recs, _, bdir = load_store(td)
             got_ok, notes = verify_adoption(recs, bdir, cand, trust, prior)
             joined = "; ".join(notes)
             ok = got_ok == want_ok and note in joined
@@ -1005,7 +1023,7 @@ def cmd_replay(path):
     for v in doc["vectors"]:
         with tempfile.TemporaryDirectory() as td:
             _materialize_store(td, v["store"])
-            recs, blobs, bdir = load_store(td)
+            recs, _, bdir = load_store(td)
             got_ok, notes = verify_adoption(recs, bdir, v["candidate"],
                                             v["trust"], v["prior_set"])
         joined = "; ".join(notes)

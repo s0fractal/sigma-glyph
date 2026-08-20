@@ -60,6 +60,7 @@ NODE = sha(b"demo-node:SATOSHI")          # the one node everyone argues about
 TERM = "DEMO_SATOSHI"                     # its symbolic name for wave_fed
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 STORE_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
+JSON_SUFFIX = ".json"
 
 
 def content_path(directory, digest, suffix=""):
@@ -93,7 +94,9 @@ class Jurisdiction:
         self.root = self.file(
             "propose", f"founder@{name}", self.put_blob(manifesto),
             prior=[], ts=1783400000, note=f"genesis of {name}")
-        with open(os.path.join(self.dir, "genesis.json"), "w",
+        # ``root_dir`` is the explicit --keep destination capability; ``name``
+        # is constrained by STORE_NAME before it contributes to this path.
+        with open(os.path.join(self.dir, "genesis.json"), "w",  # NOSONAR
                   encoding="utf-8") as genesis:
             json.dump({"roots": [self.root]}, genesis, sort_keys=True,
                       separators=(",", ":"))
@@ -122,7 +125,7 @@ class Jurisdiction:
         wid = sha(jcs(body))
         sk = self.key(actor)
         env = {"body": body, "sigs": [warrant_sig.sig_entry(actor, sk, wid)]}
-        path = content_path(os.path.join(self.dir, "records"), wid, ".json")
+        path = content_path(os.path.join(self.dir, "records"), wid, JSON_SUFFIX)
         if path is None:  # generated SHA-256; an invariant guard, not user input
             raise ValueError("generated warrant id is not hex64")
         with open(path, "w", encoding="utf-8") as f:
@@ -167,10 +170,10 @@ class Jurisdiction:
 
 
 def _load_candidate(records, blobs, filename):
-    if not filename.endswith(".json"):
+    if not filename.endswith(JSON_SUFFIX):
         return None
-    warrant_id = filename.removesuffix(".json")
-    record_path = content_path(records, warrant_id, ".json")
+    warrant_id = filename.removesuffix(JSON_SUFFIX)
+    record_path = content_path(records, warrant_id, JSON_SUFFIX)
     if record_path is None or not os.path.isfile(record_path):
         return None
     with open(record_path, encoding="utf-8") as record_source:
@@ -210,7 +213,7 @@ def gossip(src, dst):
     for sub in ("records", "blobs"):
         source_dir = os.path.join(src.dir, sub)
         target_dir = os.path.join(dst.dir, sub)
-        suffix = ".json" if sub == "records" else ""
+        suffix = JSON_SUFFIX if sub == "records" else ""
         for filename in os.listdir(source_dir):
             n += _copy_gossip_file(source_dir, target_dir, filename, suffix)
     return n

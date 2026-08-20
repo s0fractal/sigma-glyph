@@ -254,11 +254,11 @@ def _run_module_verbs(python, verbdir, module, problems):
             continue
         rc, out, err = run(
             python, ["-m", table_module] + ([verb] if verb else []), verbdir)
-        problems += classify_verb(
-            table_module, verb, kind, needle, rc, out, err)
+        problems.extend(classify_verb(
+            table_module, verb, kind, needle, rc, out, err))
     rc, out, err = run(python, ["-m", module, UNDECLARED_VERB], verbdir)
-    problems += classify_verb(module, UNDECLARED_VERB, NOT_RUNNABLE,
-                              UNDECLARED_VERB, rc, out, err)
+    problems.extend(classify_verb(module, UNDECLARED_VERB, NOT_RUNNABLE,
+                                  UNDECLARED_VERB, rc, out, err))
 
 
 def check_verbs(python, verbdir, problems):

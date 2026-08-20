@@ -47,11 +47,15 @@ def main():
         path = record_path(wid)
     except ValueError as exc:
         sys.exit(str(exc))
-    with open(path, encoding="utf-8") as src:
+    # record_path accepts only a fixed-root, content-addressed basename and
+    # rejects symbolic links before this read/write cycle.
+    with open(path, encoding="utf-8") as src:  # NOSONAR
         env = json.load(src)
     if hashlib.sha256(canon(env["body"])).hexdigest() != wid:
         sys.exit("record id != SHA-256(canonical body) — refusing")
-    with open(os.path.expanduser(keyfile), encoding="utf-8") as src:
+    # The keyfile is an explicit CLI capability and intentionally may live
+    # outside the repository (for example, on a mounted secret volume).
+    with open(os.path.expanduser(keyfile), encoding="utf-8") as src:  # NOSONAR
         seed = src.read().strip()
     sk = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(seed))
     pub = sk.public_key().public_bytes_raw().hex()

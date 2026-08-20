@@ -275,6 +275,17 @@ def _string_end(src, index):
     return None
 
 
+def _raw_string_token(src, index):
+    raw = _RAW_OPEN.match(src, index)
+    if raw is None:
+        return None
+    close = '"' + raw.group(1)
+    end = src.find(close, raw.end())
+    if end < 0:
+        return "", index, 0, "", "unterminated raw string literal"
+    return 'r""', end + len(close), 0, '"', None
+
+
 def _next_lean_token(src, index, depth, previous):
     if depth:
         index, depth = _advance_block_comment(src, index, depth)
@@ -284,13 +295,9 @@ def _next_lean_token(src, index, depth, previous):
     if src.startswith("--", index):
         newline = src.find("\n", index)
         return "", len(src) if newline < 0 else newline, 0, previous, None
-    raw = _RAW_OPEN.match(src, index)
-    if raw:
-        close = '"' + raw.group(1)
-        end = src.find(close, raw.end())
-        if end < 0:
-            return "", index, 0, previous, "unterminated raw string literal"
-        return 'r""', end + len(close), 0, '"', None
+    raw_token = _raw_string_token(src, index)
+    if raw_token is not None:
+        return raw_token
     if src[index] == '"':
         end = _string_end(src, index)
         if end is None:
@@ -1377,7 +1384,12 @@ def _refresh_statement_pins(pins, front, queried, got):
         old = pins["statements"].get(theorem)
         actual = got[theorem]["type"]
         pins["statements"][theorem] = actual
-        state = "unchanged" if old == actual else ("NEW" if old is None else "CHANGED")
+        if old == actual:
+            state = "unchanged"
+        elif old is None:
+            state = "NEW"
+        else:
+            state = "CHANGED"
         tag = ("" if theorem in front["guarded"]
                else "  [native_decide source]")
         print(f"{state:9s} {theorem}  axioms={got[theorem]['axioms']}{tag}")
