@@ -163,7 +163,9 @@ def read_blob(bdir, h):
         return None
     try:
         try:
-            blob_fd = os.open(h, file_flags, dir_fd=directory_fd)
+            # ``h`` is exact lowercase hex64 above; dir_fd confines lookup to
+            # the opened blob directory and O_NOFOLLOW rejects symlink escapes.
+            blob_fd = os.open(h, file_flags, dir_fd=directory_fd)  # NOSONAR
         except OSError:
             return None
     finally:
