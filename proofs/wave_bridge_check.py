@@ -42,29 +42,24 @@ def fail(msg):
     sys.exit(1)
 
 
-def main():
-    lean = proof_guard.find_lean()
-    if lean is None:
-        print("wave bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
-        sys.exit(2)
-
-    # 1. freshness
+def check_lut_freshness():
     with tempfile.TemporaryDirectory() as td:
-        cur = open(os.path.join(HERE, "LutData.lean"), "rb").read()
+        with open(os.path.join(HERE, "LutData.lean"), "rb") as source:
+            cur = source.read()
         tmp_out = os.path.join(td, "LutData.lean")
         r = subprocess.run([sys.executable, os.path.join(HERE, "gen_lut_lean.py")],
                            capture_output=True, text=True,
                            env=dict(os.environ, LUT_LEAN_OUT=tmp_out))
         if r.returncode != 0:
             fail("LUT regeneration errored: " + r.stderr.strip())
-        if open(tmp_out, "rb").read() != cur:
+        with open(tmp_out, "rb") as generated:
+            fresh = generated.read() == cur
+        if not fresh:
             fail("LutData.lean is stale — regenerate with proofs/gen_lut_lean.py")
     print("OK    LutData.lean regenerates byte-identically (arbiter-checked)")
 
-    # 2. soundness guard, source layer (literal-aware stripping, denylist,
-    #    import allowlist, coverage — the old \b-anchored regex missed
-    #    sorryAx/`private axiom`, and the old stripper was blindable by a
-    #    string literal containing "/-")
+
+def guard_wave_sources():
     problems = proof_guard.guard_sources(FRONT)
     if problems:
         fail("source guard: " + "; ".join(problems))
@@ -72,7 +67,8 @@ def main():
           "sorry/admit/axiom, no metaprogramming, imports in-set, every "
           "theorem accounted for)")
 
-    # 3. differential grid
+
+def wave_cases():
     phs = [0, 1, 8192, 16384, 32767, 32768, 49152, 65535]
     ams = [0, 1, 2, 32768, 65534, 65535]
     ens = [-32768, -32767, -1, 0, 1, 32767]
@@ -87,7 +83,10 @@ def main():
                   (w1, interfere(w2, w3))]
     cases.append((W(0, 65535, -32768), W(0, 65535, -32768)))  # crystal point
     cases.append((W(0, 100, -1), W(0, 100, -2)))              # negative tie (WV-NEG-TIE class)
+    return cases
 
+
+def run_lean_wave(lean, cases):
     lines = "".join(f"{a['ph']} {a['am']} {a['en']} {b['ph']} {b['am']} {b['en']}\n"
                     for a, b in cases)
     with tempfile.TemporaryDirectory() as td:
@@ -110,7 +109,10 @@ def main():
                            input=lines, capture_output=True, text=True, env=env)
     if r.returncode != 0:
         fail("WaveRun.lean failed: " + (r.stderr or r.stdout).strip()[:500])
-    got = r.stdout.strip().splitlines()
+    return r.stdout.strip().splitlines()
+
+
+def compare_wave_cases(cases, got):
     if len(got) != len(cases):
         fail(f"WaveRun emitted {len(got)} lines for {len(cases)} cases")
     bad = 0
@@ -123,9 +125,21 @@ def main():
                 print(f"DISAGREE  {a} · {b}: lean={line.strip()!r} oracle={want!r}")
     if bad:
         fail(f"{bad}/{len(cases)} disagreements between Lean and the oracle")
+
+
+def main():
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("wave bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
+        return 2
+    check_lut_freshness()
+    guard_wave_sources()
+    cases = wave_cases()
+    compare_wave_cases(cases, run_lean_wave(lean, cases))
     print(f"OK    Lean interfere == oracle interfere on {len(cases)} boundary cases")
     print(f"\nWAVE-BRIDGE: ALL AGREE ({len(cases)}/{len(cases)})")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

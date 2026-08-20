@@ -21,7 +21,7 @@ when. Seventeen thousand words in a folder.
 They **describe this repository**, and a description of a thing belongs beside
 the thing rather than in a drawer where drift is invisible.
 
-And they were **outside every gate**. They assert that `proof_guard.py` is 1326
+And they were **outside every gate**. They assert that `proof_guard.py` is 1465
 lines, that the pin registry is 175 KB holding 39 statement and 155 definition
 pins, that the Lean sources total 1304 lines, that the guard's test file is 981
 lines, and that there are twenty-one bypasses.

@@ -33,14 +33,14 @@
 set -euo pipefail
 
 CI_YML="${1:-.github/workflows/ci.yml}"
-[ -f "$CI_YML" ] || { echo "ERR: $CI_YML not found" >&2; exit 1; }
+[[ -f "$CI_YML" ]] || { echo "ERR: $CI_YML not found" >&2; exit 1; }
 
 matches="$(sed -n 's/^[[:space:]]*WARRANT_PIN:[[:space:]]*//p' "$CI_YML")"
 count="$(grep -cE '^[[:space:]]*WARRANT_PIN:' "$CI_YML" || true)"
 
-if [ "$count" -ne 1 ]; then
+if [[ "$count" -ne 1 ]]; then
   echo "ERR: $CI_YML has $count WARRANT_PIN: lines — exactly one is mandated." >&2
-  if [ "$count" -gt 1 ]; then
+  if [[ "$count" -gt 1 ]]; then
     echo "ERR: duplicate WARRANT_PIN is a forbidden ci.yml state (which pin" >&2
     echo "     would CI mean?) — remove the extra line(s); this is NOT a" >&2
     echo "     network problem." >&2

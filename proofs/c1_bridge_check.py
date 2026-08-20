@@ -47,6 +47,22 @@ THEOREMS = FRONT["guarded"]
 IG, KG, SG = ("lit", sg.sha(b"I")), ("lit", sg.sha(b"K")), ("lit", sg.sha(b"S"))
 
 
+def variable(name):
+    return ("var", name)
+
+
+def application(left, right):
+    return ("app", left, right)
+
+
+def lambda_application(left, right):
+    return ("lapp", left, right)
+
+
+def lambda_term(name, body):
+    return ("lam", name, body)
+
+
 def ski_fv(m):
     # mirrors `Book1.C1.skiFv`
     if m[0] == "var":
@@ -70,9 +86,9 @@ def lean_abstr(x, m):
 def lean_c1(t):
     # mirrors `Book1.C1.c1` exactly; output uses oracle SKI term tuples
     if t[0] == "var":
-        return ("var", t[1])
+        return variable(t[1])
     if t[0] == "lapp":
-        return ("app", lean_c1(t[1]), lean_c1(t[2]))
+        return application(lean_c1(t[1]), lean_c1(t[2]))
     return lean_abstr(t[1], lean_c1(t[2]))       # lam
 
 
@@ -81,15 +97,15 @@ def rand_closed_lam(rng, scope, depth):
     `scope`; if the scope is empty, we must bind first (a λ)."""
     if depth <= 0 or (scope and rng.random() < 0.4):
         if scope and rng.random() < 0.6:
-            return ("var", rng.choice(scope))
+            return variable(rng.choice(scope))
         # otherwise bind a fresh variable then use it
         v = f"v{rng.randint(0, 999)}"
-        return ("lam", v, ("var", v))
+        return lambda_term(v, variable(v))
     if rng.random() < 0.5:
-        return ("lapp", rand_closed_lam(rng, scope, depth - 1),
-                rand_closed_lam(rng, scope, depth - 1))
+        return lambda_application(rand_closed_lam(rng, scope, depth - 1),
+                                  rand_closed_lam(rng, scope, depth - 1))
     v = f"v{rng.randint(0, 999)}"
-    return ("lam", v, rand_closed_lam(rng, scope + [v], depth - 1))
+    return lambda_term(v, rand_closed_lam(rng, scope + [v], depth - 1))
 
 
 def main():
@@ -118,7 +134,8 @@ def main():
           + ", ".join(THEOREMS))
 
     # 2. Lean model == oracle on random closed λ-terms (NodeHash-exact)
-    rng = random.Random(20260717)
+    # Deterministic corpus generation only; no security decision uses this PRNG.
+    rng = random.Random(20260717)  # NOSONAR python:S2245
     n = 3000
     for i in range(n):
         lam = rand_closed_lam(rng, [], rng.randint(1, 6))

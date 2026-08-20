@@ -10,7 +10,7 @@ subject/evidence/check/transcript/under blob hash; every prior link. Reports
 DAG roots (the store is a DAG, not a single chain).
 Full CLI (why/propose/accept/...): https://github.com/s0fractal/warrant
 """
-import glob, hashlib, json, os, sys
+import glob, hashlib, json, os, re, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import warrant_sig  # noqa: E402  (the one signing-message construction)
@@ -23,6 +23,7 @@ except ImportError:
 
 STORE = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".warrants")
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def canon(body):
@@ -58,76 +59,87 @@ def weak_ed25519_pubkey(raw):
     return (int.from_bytes(raw, "little") & ((1 << 255) - 1)) >= _ED25519_P
 
 
+def load_records():
+    records = {}
+    for path in glob.glob(os.path.join(STORE, "records", "*.json")):
+        with open(path, encoding="utf-8") as source:
+            records[os.path.basename(path)[:-5]] = json.load(source)
+    return records
+
+
+def body_refs(body):
+    refs = [("under", value) for value in body.get("under", [])]
+    refs.extend(("evidence", value) for value in body.get("evidence", []))
+    subject = body.get("subject", {})
+    if isinstance(subject, dict) and "hash" in subject:
+        refs.append(("subject", subject["hash"]))
+    for reason in body.get("because", []):
+        if reason.get("kind") != "check":
+            continue
+        refs.extend((key, reason[key]) for key in ("check", "transcript")
+                    if reason.get(key))
+    return refs
+
+
+def blob_error(rid, kind, digest, blobs):
+    short = digest[:12] if isinstance(digest, str) else repr(digest)
+    if (not isinstance(digest, str) or HEX64.fullmatch(digest) is None
+            or digest not in blobs):
+        return f"{rid[:12]}: missing {kind} blob {short}"
+    path = os.path.join(STORE, "blobs", digest)
+    with open(path, "rb") as source:
+        actual = hashlib.sha256(source.read()).hexdigest()
+    if actual != digest:
+        return f"{rid[:12]}: {kind} blob {short} content mismatch"
+    return None
+
+
+def signature_error(rid, signature):
+    if not HAVE_ED25519:
+        return None
+    try:
+        key = bytes.fromhex(signature["key"])
+        if weak_ed25519_pubkey(key):
+            raise ValueError("small-order or non-canonical pubkey")
+        # The shared helper constructs/verifies the Warrant v0.4 domain-separated
+        # message; this independent auditor deliberately keeps v0.1/v0.2 severity.
+        warrant_sig.verify(key, signature["sig"], rid)
+        return None
+    except Exception:
+        return (
+            f"{rid[:12]}: bad signature by {signature.get('actor')} "
+            f"[pinned v0.1/v0.2 severity: fatal. Warrant SPEC v0.3 s6(3) "
+            f"would report this as a WARNING and exclude the signature, "
+            f"erroring only if no valid signature by the record's actor "
+            f"remained. Re-check with the live CLI before acting on it.]")
+
+
+def audit_record(rid, env, records, blobs):
+    body = env["body"]
+    if hashlib.sha256(canon(body)).hexdigest() != rid:
+        return [f"{rid[:12]}: record id != SHA-256(canonical body)"], False
+    errors = [f"{rid[:12]}: missing prior {prior[:12]}"
+              for prior in body.get("prior", []) if prior not in records]
+    errors.extend(error for kind, digest in body_refs(body)
+                  if (error := blob_error(rid, kind, digest, blobs)) is not None)
+    signatures = env.get("sigs", [])
+    if not signatures:
+        errors.append(f"{rid[:12]}: no signatures")
+    errors.extend(error for signature in signatures
+                  if (error := signature_error(rid, signature)) is not None)
+    return errors, not body.get("prior")
+
+
 def main():
-    records = {os.path.basename(f)[:-5]: json.load(open(f))
-               for f in glob.glob(os.path.join(STORE, "records", "*.json"))}
-    blobs = {os.path.basename(f) for f in glob.glob(os.path.join(STORE, "blobs", "*"))}
+    records = load_records()
+    blobs = {os.path.basename(path)
+             for path in glob.glob(os.path.join(STORE, "blobs", "*"))}
     errs, roots = [], []
     for rid in sorted(records):
-        env = records[rid]
-        body = env["body"]
-        if hashlib.sha256(canon(body)).hexdigest() != rid:
-            errs.append(f"{rid[:12]}: record id != SHA-256(canonical body)")
-            continue
-        if not body.get("prior"):
+        record_errors, is_root = audit_record(rid, records[rid], records, blobs)
+        errs.extend(record_errors)
+        if is_root:
             roots.append(rid)
-        for p in body.get("prior", []):
-            if p not in records:
-                errs.append(f"{rid[:12]}: missing prior {p[:12]}")
-        refs = [("under", u) for u in body.get("under", [])]
-        refs += [("evidence", e) for e in body.get("evidence", [])]
-        subj = body.get("subject", {})
-        if isinstance(subj, dict) and "hash" in subj:
-            refs.append(("subject", subj["hash"]))
-        for b in body.get("because", []):
-            for k in ("check", "transcript"):
-                if b.get("kind") == "check" and b.get(k):
-                    refs.append((k, b[k]))
-        for kind, h in refs:
-            path = os.path.join(STORE, "blobs", h)
-            if h not in blobs:
-                errs.append(f"{rid[:12]}: missing {kind} blob {h[:12]}")
-            elif hashlib.sha256(open(path, "rb").read()).hexdigest() != h:
-                errs.append(f"{rid[:12]}: {kind} blob {h[:12]} content mismatch")
-        sigs = env.get("sigs", [])
-        if not sigs:
-            errs.append(f"{rid[:12]}: no signatures")
-        for s in sigs:
-            if not HAVE_ED25519:
-                continue
-            try:
-                key = bytes.fromhex(s["key"])
-                if weak_ed25519_pubkey(key):
-                    raise ValueError("small-order or non-canonical pubkey")
-                # Warrant SPEC v0.4 s5: the signed message names the protocol,
-                # so a key that signs some other protocol's SHA-256 digest does
-                # not thereby sign a Warrant. Verifying the bare digest here
-                # would make this vendored copy accept what the live CLI refuses
-                # -- and this file exists precisely to be a second opinion.
-                # The construction itself is in tools/warrant_sig.py and is not
-                # rebuilt here: a second opinion that reimplements the rule is
-                # only a second opinion about its own reimplementation.
-                warrant_sig.verify(key, s["sig"], rid)
-            except Exception:
-                # SEVERITY DIVERGES FROM THE LIVE CLI, DELIBERATELY AND VISIBLY.
-                # Warrant SPEC v0.3 s6(3) makes an invalid signature a WARNING
-                # that is excluded, and errs only if no valid signature by
-                # body.actor.id remains -- so one bad co-signature cannot be used
-                # to invalidate someone else's good record. This tool is pinned to
-                # the v0.1/v0.2 snapshot governed by GOV-anchors, where any bad
-                # signature is fatal. Demonstrated 2026-07-29: on one store with a
-                # single forged co-signature this reports errors=1 and the live
-                # CLI reports 0 errors, 56 warnings.
-                #
-                # Two auditors of one store disagreeing is the exact thing this
-                # project exists to forbid, so the disagreement is printed rather
-                # than left for a reader to discover as a contradiction.
-                errs.append(
-                    f"{rid[:12]}: bad signature by {s.get('actor')} "
-                    f"[pinned v0.1/v0.2 severity: fatal. Warrant SPEC v0.3 s6(3) "
-                    f"would report this as a WARNING and exclude the signature, "
-                    f"erroring only if no valid signature by the record's actor "
-                    f"remained. Re-check with the live CLI before acting on it.]")
     for e in errs:
         print("ERR ", e)
     print("scope: pinned Warrant v0.1/v0.2 body checks; settlement-grade v0.3 "

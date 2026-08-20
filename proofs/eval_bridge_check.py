@@ -41,36 +41,29 @@ def fail(msg):
     sys.exit(1)
 
 
-def main():
-    lean = proof_guard.find_lean()
-    if lean is None:
-        print("eval bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
-        sys.exit(2)
-
-    problems = proof_guard.guard_sources(FRONT)
-    if problems:
-        fail("source guard: " + "; ".join(problems))
-    print("OK    Sha256 + MachineBytes + EvalMachine + EvalRun pass the source "
-          "guard (no sorry/admit/axiom, no metaprogramming, imports in-set, "
-          "every theorem accounted for)")
-
-    doc = json.load(open(os.path.join(
-        REPO, "tests", "spec_conformance", "vectors.json")))
+def load_eval_vectors():
+    path = os.path.join(REPO, "tests", "spec_conformance", "vectors.json")
+    with open(path, encoding="utf-8") as source:
+        doc = json.load(source)
     objects = doc["objects"]                       # hash_hex -> bytes_hex
     pool_hexes = list(objects.values())            # store pool (byte-values)
     # object KEYS (hashes) align with values by insertion order; index by key
     idx_of = {k: i for i, k in enumerate(objects.keys())}
     evs = [v for v in doc["vectors"] if v["kind"] == "eval"]
+    return pool_hexes, idx_of, evs
 
-    # runner input
+
+def runner_input(pool_hexes, idx_of, evs):
     lines = [str(len(pool_hexes))] + pool_hexes + [str(len(evs))]
     for v in evs:
         # store_subset entries are object hashes present in `objects`
         vis = ([idx_of[hx] for hx in v["store_subset"]] if "store_subset" in v
                else list(range(len(pool_hexes))))
         lines.append(f"{v['term']} {v['atp']} {len(vis)} " + " ".join(map(str, vis)))
-    stdin = "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n"
 
+
+def run_lean_eval(lean, stdin):
     with tempfile.TemporaryDirectory() as td:
         env = dict(os.environ, LEAN_PATH=td)
         # FRONT["build"] + FRONT["runner_sources"] is the single place this
@@ -91,10 +84,12 @@ def main():
                            input=stdin, capture_output=True, text=True, env=env)
     if r.returncode != 0:
         fail("EvalRun.lean failed: " + (r.stderr or r.stdout).strip()[:600])
-    got = r.stdout.strip().splitlines()
+    return r.stdout.strip().splitlines()
+
+
+def compare_eval_vectors(evs, got):
     if len(got) != len(evs):
         fail(f"EvalRun emitted {len(got)} lines for {len(evs)} vectors")
-
     bad = 0
     for v, line in zip(evs, got):
         parts = line.split()
@@ -105,10 +100,27 @@ def main():
                 print(f"DISAGREE  {v['id']}: lean={line.strip()!r} want={want!r}")
     if bad:
         fail(f"{bad}/{len(evs)} eval vectors disagree between Lean and the oracle")
+
+
+def main():
+    lean = proof_guard.find_lean()
+    if lean is None:
+        print("eval bridge needs a `lean` binary (elan) — set LEAN=... ; exit 2")
+        return 2
+    problems = proof_guard.guard_sources(FRONT)
+    if problems:
+        fail("source guard: " + "; ".join(problems))
+    print("OK    Sha256 + MachineBytes + EvalMachine + EvalRun pass the source "
+          "guard (no sorry/admit/axiom, no metaprogramming, imports in-set, "
+          "every theorem accounted for)")
+    pool_hexes, idx_of, evs = load_eval_vectors()
+    got = run_lean_eval(lean, runner_input(pool_hexes, idx_of, evs))
+    compare_eval_vectors(evs, got)
     print(f"OK    Lean evalHash == oracle on {len(evs)} eval vectors "
           f"(result NodeHash AND atp_spent)")
     print(f"\nEVAL-BRIDGE: ALL AGREE ({len(evs)}/{len(evs)})")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

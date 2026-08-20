@@ -130,7 +130,7 @@ def main():
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
-    refs = ([t for t in git("tag").split()] if args.all_tags
+    refs = (list(git("tag").split()) if args.all_tags
             else [args.ref or "HEAD"])
     out = [manifest(r) for r in refs]
 

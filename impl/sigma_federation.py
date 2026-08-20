@@ -24,6 +24,7 @@ ASSERTION_TAG = "sigma-glyph.wave-assertion@v1"
 POLICY_TAG = "sigma-glyph.selection@v1"
 VIEW_TAG = "sigma-glyph.annotation-view@v1"
 ORDER_FIELDS = ("epoch", "ts", "warrant_id", "actor")
+NON_ASCII_ACTOR = "\u0100gent"
 
 
 def jcs(obj):
@@ -65,6 +66,16 @@ def validate_assertion(doc):
     return None
 
 
+def _validate_order_key(key):
+    if not isinstance(key, dict) or set(key) != {"field", "dir"}:
+        return "order keys must be {field, dir}"
+    if key["field"] not in ORDER_FIELDS:
+        return f"order field must be one of {ORDER_FIELDS}"
+    if key["dir"] not in ("asc", "desc"):
+        return "order dir must be asc|desc"
+    return None
+
+
 def validate_policy(doc):
     """Book III §4. Returns None or an error string."""
     allowed = {"federation_policy", "order", "max_age_epochs", "quota_per_actor_epoch"}
@@ -75,13 +86,10 @@ def validate_policy(doc):
     order = doc.get("order")
     if not isinstance(order, list) or not order:
         return "order must be a nonempty list"
-    for k in order:
-        if not isinstance(k, dict) or set(k) != {"field", "dir"}:
-            return "order keys must be {field, dir}"
-        if k["field"] not in ORDER_FIELDS:
-            return f"order field must be one of {ORDER_FIELDS}"
-        if k["dir"] not in ("asc", "desc"):
-            return "order dir must be asc|desc"
+    for key in order:
+        error = _validate_order_key(key)
+        if error is not None:
+            return error
     for opt in ("max_age_epochs", "quota_per_actor_epoch"):
         if opt in doc and not _is_uint(doc[opt], 64):
             return f"{opt} must be a uint64"
@@ -114,14 +122,7 @@ def _cmp_order(a, b, order):
     return 0
 
 
-def select(candidates, policy, jurisdiction, node, epoch):
-    """Book III §4 derivation over caller-supplied accepted assertions.
-
-    candidates: list of {"warrant_id", "actor", "ts", "assertion": <blob dict>}
-    Returns {"status": "selected"|"conflict"|"absent", "selected": cand|None,
-             "conflict_set": [warrant_id...]} — deterministic, total.
-    """
-    import functools
+def _live_candidates(candidates, policy, jurisdiction, node, epoch):
     live = []
     for c in candidates:
         if not _valid_metadata(c):                     # malformed order fields: not live
@@ -139,19 +140,38 @@ def select(candidates, policy, jurisdiction, node, epoch):
         if max_age is not None and epoch - a["epoch"] > max_age:
             continue                                   # stale, criterion 9
         live.append(c)
+    return live
+
+
+def _apply_quota(live, quota, tie_order):
+    import functools
+    if quota is None:
+        return live
+    groups = {}
+    for candidate in live:
+        key = (candidate["actor"], candidate["assertion"]["epoch"])
+        groups.setdefault(key, []).append(candidate)
+    survivors = []
+    for group in groups.values():
+        group.sort(key=functools.cmp_to_key(
+            lambda left, right: _cmp_order(left, right, tie_order)))
+        survivors.extend(group[:quota])
+    return survivors
+
+
+def select(candidates, policy, jurisdiction, node, epoch):
+    """Book III §4 derivation over caller-supplied accepted assertions.
+
+    candidates: list of {"warrant_id", "actor", "ts", "assertion": <blob dict>}
+    Returns {"status": "selected"|"conflict"|"absent", "selected": cand|None,
+             "conflict_set": [warrant_id...]} — deterministic, total.
+    """
+    import functools
+    live = _live_candidates(candidates, policy, jurisdiction, node, epoch)
     order = policy["order"]
     tie_order = order + [{"field": "warrant_id", "dir": "asc"}]
-    quota = policy.get("quota_per_actor_epoch")
-    if quota is not None:
-        # anti-spam pre-filter: survivors chosen by the SAME policy order with
-        # warrant_id asc appended as deterministic tiebreak (Book III §4)
-        groups = {}
-        for c in live:
-            groups.setdefault((c["actor"], c["assertion"]["epoch"]), []).append(c)
-        live = []
-        for g in groups.values():
-            g.sort(key=functools.cmp_to_key(lambda x, y: _cmp_order(x, y, tie_order)))
-            live.extend(g[:quota])
+    # Anti-spam survivors use the same policy order plus a stable WarrantID tie.
+    live = _apply_quota(live, policy.get("quota_per_actor_epoch"), tie_order)
     if not live:
         return {"status": "absent", "selected": None, "conflict_set": []}
     live.sort(key=functools.cmp_to_key(lambda x, y: _cmp_order(x, y, tie_order)))
@@ -162,6 +182,19 @@ def select(candidates, policy, jurisdiction, node, epoch):
             "conflict_set": sorted(c["warrant_id"] for c in top)}
 
 
+_NO_DIRECT_WAVE = object()
+
+
+def _direct_wave(selection):
+    if selection is None:
+        return _NO_DIRECT_WAVE
+    if selection["status"] == "selected":
+        return dict(selection["selected"]["assertion"]["wave"])
+    if selection["status"] == "conflict":
+        return None
+    return _NO_DIRECT_WAVE
+
+
 def wave_fed(term, resolve_selection):
     """Book III §5: effective wave over symbolic terms (sigma_wave term syntax).
 
@@ -170,12 +203,9 @@ def wave_fed(term, resolve_selection):
     Priority per leaf: assertion > pin (null-jurisdiction default) > absent.
     APPLY: direct assertion wins; otherwise structural interfere (absent-poisoning).
     """
-    sel = resolve_selection(term)
-    if sel is not None:
-        if sel["status"] == "selected":
-            return dict(sel["selected"]["assertion"]["wave"])
-        if sel["status"] == "conflict":
-            return None                                # treated as unannotated, §4
+    direct = _direct_wave(resolve_selection(term))
+    if direct is not _NO_DIRECT_WAVE:
+        return direct                                  # conflict maps to absent, §4
     if isinstance(term, str):
         if term in FULL_PINS:
             return dict(FULL_PINS[term])
@@ -325,7 +355,8 @@ def gen_vectors():
             "actor desc is DIRECT Unicode-scalar lexicographic order inverted: "
             "'aa' > 'a', so 'aa' wins (complement transforms are nonconforming)")
     sel_vec("FV-SELECT-ACTOR-NONASCII",
-            [_cand("1", "\u0100gent", 100, 1, W(0, 1, 0)), _cand("2", "agent", 100, 1, W(0, 2, 0))],
+            [_cand("1", NON_ASCII_ACTOR, 100, 1, W(0, 1, 0)),
+             _cand("2", "agent", 100, 1, W(0, 2, 0))],
             POLICY_ACTOR_DESC, 1,
             "actor strings are arbitrary I-JSON: U+0100 sorts above 'a' by scalar value; "
             "implementations MUST be total over all Unicode scalars")
@@ -409,6 +440,57 @@ def gen_vectors():
     print(f"wrote {VEC_PATH.name}: {len(vectors)} vectors")
 
 
+def _vector_result(vector):
+    kind = vector["kind"]
+    if kind == "validate_assertion":
+        return validate_assertion(vector["doc"])
+    if kind == "validate_policy":
+        return validate_policy(vector["doc"])
+    if kind == "select":
+        return _sel_expected(select(
+            vector["candidates"], vector["policy"], vector["jurisdiction"],
+            vector["node"], vector["epoch"]))
+    if kind == "wave_fed":
+        if vector["selected_wave"] is None:
+            return wave_fed(vector["term"], lambda term: None)
+        selection = {"status": "selected", "conflict_set": [],
+                     "selected": {"assertion": {"wave": vector["selected_wave"]}}}
+        return wave_fed(
+            vector["term"],
+            lambda term, selected=selection, target=vector["term"]:
+            selected if term == target else None)
+    if kind == "view_id":
+        return view_id(vector["jurisdiction"], vector["node"],
+                       vector["policy_hash"], vector["epoch"])
+    if kind == "assertion_set_root":
+        return assertion_set_root(vector["warrant_ids"])
+    if kind == "fold_probe":
+        return {"left": interfere(interfere(vector["w1"], vector["w2"]), vector["w3"]),
+                "right": interfere(vector["w1"], interfere(vector["w2"], vector["w3"]))}
+    if kind == "book1_unreachable":
+        return _book1_fixture()
+    return f"unknown kind {kind}"
+
+
+def _replay_vectors(chk, skipped):
+    if VEC_PATH.exists():
+        doc = json.loads(VEC_PATH.read_text())
+        for vector in doc["vectors"]:
+            got = _vector_result(vector)
+            chk(f"vector {vector['id']}", got == vector["expected"], f"got {got}")
+        return
+    if FROM_CHECKOUT:
+        chk("federation_vectors.json present", False,
+            "run: python3 impl/sigma_federation.py gen")
+        return
+    skipped.append("recorded-vector replay")
+    print(f"SKIP recorded-vector replay: {VEC_PATH.name} is not shipped in "
+          f"the installed package (it lives in the repo at "
+          f"tests/spec_conformance/). The property checks above ran in full; "
+          f"the replay did not run and is not claimed. To run it, use a "
+          f"checkout: python3 impl/sigma_federation.py")
+
+
 def selftest():
     ok = []
     skipped = []
@@ -438,9 +520,11 @@ def selftest():
                 POLICY_ACTOR_DESC, J, NODE, 1)
     chk("actor desc: 'aa' beats 'a' (prefix pair)",
         da["selected"]["actor"] == "aa")
-    na = select([_cand("1", "\u0100gent", 1, 1, W(0, 1, 0)), _cand("2", "agent", 1, 1, W(0, 2, 0))],
+    na = select([_cand("1", NON_ASCII_ACTOR, 1, 1, W(0, 1, 0)),
+                 _cand("2", "agent", 1, 1, W(0, 2, 0))],
                 POLICY_ACTOR_DESC, J, NODE, 1)
-    chk("actor desc total over non-ASCII", na["selected"]["actor"] == "\u0100gent")
+    chk("actor desc total over non-ASCII",
+        na["selected"]["actor"] == NON_ASCII_ACTOR)
     nf = select([_cand("1", "a@x", 1, 1, W(0, 1, 0)),
                  _cand("2", "b@y", 1, 9, W(0, 2, 0), node="dd" * 32)],
                 POLICY_TIE, J, NODE, 9)
@@ -473,46 +557,7 @@ def selftest():
               f"re-derived here; run it from a checkout: "
               f"python3 impl/sigma_federation.py")
 
-    if VEC_PATH.exists():
-        doc = json.loads(VEC_PATH.read_text())
-        for v in doc["vectors"]:
-            k = v["kind"]
-            if k == "validate_assertion":
-                got = validate_assertion(v["doc"])
-            elif k == "validate_policy":
-                got = validate_policy(v["doc"])
-            elif k == "select":
-                got = _sel_expected(select(v["candidates"], v["policy"],
-                                           v["jurisdiction"], v["node"], v["epoch"]))
-            elif k == "wave_fed":
-                if v["selected_wave"] is not None:
-                    sel = {"status": "selected", "conflict_set": [],
-                           "selected": {"assertion": {"wave": v["selected_wave"]}}}
-                    got = wave_fed(v["term"], lambda t: sel if t == v["term"] else None)
-                else:
-                    got = wave_fed(v["term"], lambda t: None)
-            elif k == "view_id":
-                got = view_id(v["jurisdiction"], v["node"], v["policy_hash"], v["epoch"])
-            elif k == "assertion_set_root":
-                got = assertion_set_root(v["warrant_ids"])
-            elif k == "fold_probe":
-                got = {"left": interfere(interfere(v["w1"], v["w2"]), v["w3"]),
-                       "right": interfere(v["w1"], interfere(v["w2"], v["w3"]))}
-            elif k == "book1_unreachable":
-                got = _book1_fixture()
-            else:
-                got = f"unknown kind {k}"
-            chk(f"vector {v['id']}", got == v["expected"], f"got {got}")
-    elif FROM_CHECKOUT:
-        chk("federation_vectors.json present", False,
-            "run: python3 impl/sigma_federation.py gen")
-    else:
-        skipped.append("recorded-vector replay")
-        print(f"SKIP recorded-vector replay: {VEC_PATH.name} is not shipped in "
-              f"the installed package (it lives in the repo at "
-              f"tests/spec_conformance/). The property checks above ran in full; "
-              f"the replay did not run and is not claimed. To run it, use a "
-              f"checkout: python3 impl/sigma_federation.py")
+    _replay_vectors(chk, skipped)
 
     print(("\nFEDERATION: ALL PASS" if all(ok) else "\nFEDERATION: FAILURES PRESENT")
           + f" ({sum(ok)}/{len(ok)})"

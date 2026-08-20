@@ -25,6 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 API = "https://openrouter.ai/api/v1"
+ANCHOR_GOVERNANCE = "tools/anchor_governance.py"
 
 PRIMARY_SOURCES = [
     "reviews/README.md",
@@ -43,7 +44,7 @@ PRIMARY_SOURCES = [
     "proofs/EvalMachine.lean",
     "proposals/ADR-007-governed-anchors.md",
     "spec/GOV-anchors.md",
-    "tools/anchor_governance.py",
+    ANCHOR_GOVERNANCE,
 ]
 PRIOR_REVIEWS_GLOB = ["reviews/2026-07-gpt5-adr007-gate.md",
                       "reviews/2026-07-gpt5-adr007-gate-response.md",
@@ -64,8 +65,8 @@ GATES = [
     ["python3", "tools/verify_anchors.py"],
     ["python3", "tools/check_lazy_edges.py"],
     ["python3", "tools/warrant_verify.py"],
-    ["python3", "tools/anchor_governance.py", "selftest"],
-    ["python3", "tools/anchor_governance.py", "replay"],
+    ["python3", ANCHOR_GOVERNANCE, "selftest"],
+    ["python3", ANCHOR_GOVERNANCE, "replay"],
     ["python3", "examples/two-jurisdictions/demo.py"],
 ]
 

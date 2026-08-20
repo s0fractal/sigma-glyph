@@ -156,6 +156,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PINS_PATH = os.path.join(HERE, "theorem_pins.json")
@@ -254,6 +255,61 @@ _CHAR_LIT = re.compile(r"'(?:[^'\\\n]|\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.))'"
 _RAW_OPEN = re.compile(r'r(#*)"')
 
 
+def _advance_block_comment(src, index, depth):
+    if src.startswith("/-", index):
+        return index + 2, depth + 1
+    if src.startswith("-/", index):
+        return index + 2, depth - 1
+    return index + 1, depth
+
+
+def _string_end(src, index):
+    index += 1
+    while index < len(src):
+        if src[index] == "\\":
+            index += 2
+        elif src[index] == '"':
+            return index + 1
+        else:
+            index += 1
+    return None
+
+
+def _raw_string_token(src, index):
+    raw = _RAW_OPEN.match(src, index)
+    if raw is None:
+        return None
+    close = '"' + raw.group(1)
+    end = src.find(close, raw.end())
+    if end < 0:
+        return "", index, 0, "", "unterminated raw string literal"
+    return 'r""', end + len(close), 0, '"', None
+
+
+def _next_lean_token(src, index, depth, previous):
+    if depth:
+        index, depth = _advance_block_comment(src, index, depth)
+        return "", index, depth, previous, None
+    if src.startswith("/-", index):
+        return "", index + 2, 1, previous, None
+    if src.startswith("--", index):
+        newline = src.find("\n", index)
+        return "", len(src) if newline < 0 else newline, 0, previous, None
+    raw_token = _raw_string_token(src, index)
+    if raw_token is not None:
+        return raw_token
+    if src[index] == '"':
+        end = _string_end(src, index)
+        if end is None:
+            return "", index, 0, previous, "unterminated string literal"
+        return '""', end, 0, '"', None
+    if src[index] == "'" and not _IDENT_CH.match(previous or " "):
+        char = _CHAR_LIT.match(src, index)
+        if char:
+            return "''", char.end(), 0, "'", None
+    return src[index], index + 1, 0, src[index], None
+
+
 def strip_lean_source(src):
     """Comment-strip `src` and BLANK every literal's contents.
 
@@ -268,57 +324,11 @@ def strip_lean_source(src):
     """
     out, i, n, depth, prev = [], 0, len(src), 0, ""
     while i < n:
-        if depth:
-            if src.startswith("/-", i):
-                depth += 1
-                i += 2
-            elif src.startswith("-/", i):
-                depth -= 1
-                i += 2
-            else:
-                i += 1
-            continue
-        if src.startswith("/-", i):
-            depth += 1
-            i += 2
-            continue
-        if src.startswith("--", i):
-            j = src.find("\n", i)
-            i = n if j < 0 else j
-            continue
-        m = _RAW_OPEN.match(src, i)
-        if m:
-            close = '"' + m.group(1)
-            j = src.find(close, m.end())
-            if j < 0:
-                return "".join(out), ["unterminated raw string literal"]
-            out.append('r""')
-            prev, i = '"', j + len(close)
-            continue
-        if src[i] == '"':
-            j, closed = i + 1, False
-            while j < n:
-                if src[j] == "\\":
-                    j += 2
-                elif src[j] == '"':
-                    closed = True
-                    j += 1
-                    break
-                else:
-                    j += 1
-            if not closed:
-                return "".join(out), ["unterminated string literal"]
-            out.append('""')
-            prev, i = '"', j
-            continue
-        if src[i] == "'" and not _IDENT_CH.match(prev or " "):
-            m = _CHAR_LIT.match(src, i)
-            if m:
-                out.append("''")
-                prev, i = "'", m.end()
-                continue
-        out.append(src[i])
-        prev, i = src[i], i + 1
+        fragment, i, depth, prev, problem = _next_lean_token(
+            src, i, depth, prev)
+        if problem:
+            return "".join(out), [problem]
+        out.append(fragment)
     if depth:
         return "".join(out), ["unterminated block comment"]
     return "".join(out), []
@@ -396,6 +406,35 @@ _KEYWORDS = frozenset({"namespace", "section", "end",
                        "theorem", "lemma", "example"})
 
 
+def _command_arg(body, match, keyword):
+    pattern = (_AFTER_DECL_KW if keyword in ("theorem", "lemma", "example")
+               else _AFTER_SCOPE_KW)
+    arg = pattern.match(body, match.end()).group(1) or None
+    return None if arg in _KEYWORDS else arg
+
+
+def _update_scope(stack, keyword, arg):
+    if keyword == "namespace":
+        stack.append(("ns", arg))
+        return True
+    if keyword == "section":
+        stack.append(("sec", arg))
+        return True
+    if keyword != "end":
+        return False
+    if stack and (arg is None or stack[-1][1] == arg):
+        stack.pop()
+    return True
+
+
+def _qualified_decl_name(stack, name):
+    if not name:
+        return None
+    prefix = ".".join(value for kind, value in stack
+                      if kind == "ns" and value)
+    return f"{prefix}.{name}" if prefix else name
+
+
 def _decl_names(body):
     """[(kind, fully-qualified name or None, line)] for the declarations that
     the guard has to account for (theorem/lemma/example).
@@ -410,25 +449,62 @@ def _decl_names(body):
     for m in _CMD_KW.finditer(body):
         kw = m.group(1)
         lineno = body.count("\n", 0, m.start()) + 1
-        pat = _AFTER_DECL_KW if kw in ("theorem", "lemma", "example") \
-            else _AFTER_SCOPE_KW
-        arg = pat.match(body, m.end()).group(1) or None
-        if arg in _KEYWORDS:
-            arg = None
-        if kw == "namespace":
-            stack.append(("ns", arg))
-        elif kw == "section":
-            stack.append(("sec", arg))
-        elif kw == "end":
-            if stack and (arg is None or stack[-1][1] == arg):
-                stack.pop()
-        else:
-            name = arg
-            if name:
-                prefix = ".".join(n for k, n in stack if k == "ns" and n)
-                name = f"{prefix}.{name}" if prefix else name
-            out.append((kw, name, lineno))
+        arg = _command_arg(body, m, kw)
+        if not _update_scope(stack, kw, arg):
+            out.append((kw, _qualified_decl_name(stack, arg), lineno))
     return out
+
+
+def _denylist_problems(body, profile):
+    problems = []
+    rules = list(_DENY) + ([] if profile == "runner" else _RUNNER_ONLY)
+    for pattern, why in rules:
+        match = re.search(pattern, body)
+        if match:
+            problems.append(f"`{match.group(0)}` — {why}")
+    return problems
+
+
+def _attribute_problems(body):
+    problems = []
+    for match in re.finditer(r"@\[([^\]]*)\]", body):
+        for entry in match.group(1).split(","):
+            head = entry.strip().split(" ")[0].lstrip("-!")
+            if head and head not in ALLOWED_ATTRS:
+                problems.append(
+                    f"attribute `@[{entry.strip()}]` is not in the allowlist "
+                    f"{sorted(ALLOWED_ATTRS)} (F3: attributes are how compiled "
+                    "code is decoupled from kernel definitions)")
+    return problems
+
+
+def _option_problems(body):
+    problems = []
+    for match in re.finditer(r"\bset_option\s+([^\s]+)", body):
+        option = match.group(1)
+        if not option.startswith("linter."):
+            problems.append(f"`set_option {option}` — only `linter.*` "
+                            "options are allowed (soundness flags such as "
+                            "`debug.skipKernelTC` live in this namespace)")
+    return problems
+
+
+def _import_problems(body, root):
+    problems = []
+    allowed = {module for _rel, module in lean_sources(root)
+               if not _shadows_core(module)}
+    for line in body.splitlines():
+        stripped = line.lstrip(" \t")
+        if not stripped.startswith("import "):
+            continue
+        for module in stripped.removeprefix("import ").split():
+            if module not in allowed:
+                problems.append(
+                    f"`import {module}` is outside the proofs/ module set "
+                    f"{sorted(allowed)} — these are core-Lean-only proofs, "
+                    "and `import Lean` is what makes the guard's own query "
+                    "spoofable (F2b)")
+    return problems
 
 
 def source_guard(path, profile="strict", proofs_dir=None):
@@ -443,32 +519,16 @@ def source_guard(path, profile="strict", proofs_dir=None):
     exotic-but-legit spelling is the safe direction (fail closed) — the fix is
     to widen an allowlist deliberately, in a reviewed diff.
     """
-    src = open(path).read()
+    with open(path, encoding="utf-8") as source:
+        src = source.read()
     body, problems = strip_lean_source(src)
     if problems:                                  # lexer disagreement: stop here
         return [f"{p} (our lexer and Lean's disagree about this file)"
                 for p in problems]
 
-    rules = list(_DENY) + ([] if profile == "runner" else _RUNNER_ONLY)
-    for pat, why in rules:
-        m = re.search(pat, body)
-        if m:
-            problems.append(f"`{m.group(0)}` — {why}")
-
-    for m in re.finditer(r"@\[([^\]]*)\]", body):
-        for entry in m.group(1).split(","):
-            head = entry.strip().split(" ")[0].lstrip("-!")
-            if head and head not in ALLOWED_ATTRS:
-                problems.append(
-                    f"attribute `@[{entry.strip()}]` is not in the allowlist "
-                    f"{sorted(ALLOWED_ATTRS)} (F3: attributes are how compiled "
-                    "code is decoupled from kernel definitions)")
-
-    for m in re.finditer(r"\bset_option\s+([^\s]+)", body):
-        if not m.group(1).startswith("linter."):
-            problems.append(f"`set_option {m.group(1)}` — only `linter.*` "
-                            "options are allowed (soundness flags such as "
-                            "`debug.skipKernelTC` live in this namespace)")
+    problems += _denylist_problems(body, profile)
+    problems += _attribute_problems(body)
+    problems += _option_problems(body)
 
     # The allowlist is the WHOLE proofs tree, by module name, minus anything
     # whose name shadows core Lean. It used to be the audited file's own
@@ -479,16 +539,7 @@ def source_guard(path, profile="strict", proofs_dir=None):
     # module is refused outright by registry_guard, so it can never authorise
     # an import here either.
     root = proofs_dir or os.path.dirname(os.path.abspath(path))
-    allowed_imports = {mod for _rel, mod in lean_sources(root)
-                       if not _shadows_core(mod)}
-    for m in re.finditer(r"^[ \t]*import[ \t]+(.+)$", body, re.M):
-        for mod in m.group(1).split():
-            if mod not in allowed_imports:
-                problems.append(
-                    f"`import {mod}` is outside the proofs/ module set "
-                    f"{sorted(allowed_imports)} — these are core-Lean-only "
-                    "proofs, and `import Lean` is what makes the guard's own "
-                    "query spoofable (F2b)")
+    problems += _import_problems(body, root)
     return problems
 
 
@@ -586,6 +637,144 @@ def load_claims(path=CLAIMS_PATH):
     return claims
 
 
+def _claim_set_errors(cf, what, claimed, actual):
+    problems = [
+        f"{what}: the registry has {item!r}, which {cf} does not claim"
+        for item in sorted(set(actual) - set(claimed))]
+    problems += [
+        f"{what}: {cf} claims {item!r}, which the registry does not have"
+        for item in sorted(set(claimed) - set(actual))]
+    return problems
+
+
+def _core_claim_errors(pins, claims, cf):
+    core = pins.get("core_modules")
+    problems = []
+    if not core:
+        problems.append("the registry names no `core_modules` — the guard's "
+                        "audit scope is the complement of that allowance, so "
+                        "an empty one would put nothing in scope")
+    if claims["core-modules"] is None:
+        problems.append(f"{cf} makes no `core-modules` claim — the set of "
+                        "modules allowed to go unpinned must be reviewed")
+    else:
+        problems += _claim_set_errors(
+            cf, "core-modules", claims["core-modules"], core or [])
+    return problems
+
+
+def _one_front_claim_errors(name, front, claimed, cf):
+    problems = []
+    for key, field in sorted(CLAIM_FIELDS.items()):
+        actual = front.get(field, [])
+        if len(set(actual)) != len(actual):
+            problems.append(f"front {name!r} lists a duplicate in {field}")
+        if key not in claimed:
+            problems.append(
+                f"front {name!r} has no `{key}` claim in {cf} — every field "
+                "the guard's behaviour depends on must be claimed by identity "
+                "(write the bare key for an empty set)")
+        else:
+            problems += _claim_set_errors(
+                cf, f"front {name!r} {key}", claimed[key], actual)
+    return problems
+
+
+def _front_claim_errors(fronts, claimed_fronts, cf):
+    problems = []
+    for name in sorted(set(fronts) | set(claimed_fronts)):
+        if name not in fronts:
+            problems.append(f"front {name!r} is claimed in {cf} but is gone "
+                            "from the registry")
+        elif name not in claimed_fronts:
+            problems.append(f"front {name!r} has no claims at all in {cf}")
+        else:
+            problems += _one_front_claim_errors(
+                name, fronts[name], claimed_fronts[name], cf)
+    return problems
+
+
+def _unguarded_claim_errors(pins, claims, cf):
+    unguarded = pins.get("unguarded", {})
+    problems = []
+    for theorem in sorted(set(unguarded) | claims["unguarded"]):
+        if theorem not in unguarded:
+            problems.append(
+                f"{theorem} is on the reviewed unguarded allowlist but is no "
+                "longer registered as unguarded")
+        elif theorem not in claims["unguarded"]:
+            problems.append(
+                f"{theorem} was moved to `unguarded` without being added to "
+                f"the reviewed allowlist in {cf} — a theorem cannot leave the "
+                "guard's reach silently")
+        elif len((unguarded[theorem] or "").strip()) < 12:
+            problems.append(
+                f"{theorem} is unguarded with no real reason recorded")
+    return problems
+
+
+def _registered_module_errors(name, modules, audited, proofs_dir):
+    problems = []
+    for module in modules:
+        if _shadows_core(module):
+            problems.append(f"front {name!r} names module {module!r}, which "
+                            "shadows a core Lean module")
+        source = rel_of_module(module)
+        if not os.path.exists(os.path.join(proofs_dir, source)):
+            problems.append(f"front {name!r} builds module {module!r} with no "
+                            f"{source} in proofs/")
+        elif source not in audited:
+            problems.append(f"front {name!r} compiles {source} but does not "
+                            "audit it (strict_sources/runner_sources)")
+    return problems
+
+
+def _front_topology_errors(name, front, pins, proofs_dir):
+    strict = set(front.get("strict_sources", []))
+    runner = set(front.get("runner_sources", []))
+    build = list(front.get("build", []))
+    problems = _registered_module_errors(
+        name, build + list(front.get("modules", [])), strict | runner,
+        proofs_dir)
+    for source in sorted(strict):
+        if module_of(source) not in build:
+            problems.append(
+                f"front {name!r} audits {source} as a strict source but does "
+                "not compile it (`build`) — the guard queries the environment "
+                "built from `build`, so an uncompiled source is unchecked")
+    for module in build:
+        if rel_of_module(module) in runner:
+            problems.append(f"front {name!r} builds {module}.lean and also "
+                            "registers it as a runner (which relaxes the "
+                            "`partial` rule) — pick one")
+    for module in front.get("modules", []):
+        if module not in build:
+            problems.append(f"front {name!r} imports module {module!r} in the "
+                            "environment query but does not build it")
+    for theorem in front.get("native_decide_sources", []):
+        if (theorem not in front.get("guarded", [])
+                and theorem not in pins.get("unguarded", {})):
+            problems.append(
+                f"front {name!r} trusts native_decide axioms from {theorem}, "
+                "which is neither guarded nor registered as unguarded")
+    return strict | runner, problems
+
+
+def _source_inventory_errors(proofs_dir, listed):
+    problems = []
+    for relative, module in lean_sources(proofs_dir):
+        if _shadows_core(module):
+            problems.append(
+                f"proofs/{relative} is Lean module {module!r}, which shadows "
+                "a core Lean module — building it would poison the guard "
+                "driver's LEAN_PATH and its presence widens the import list")
+        if relative not in listed:
+            problems.append(
+                f"proofs/{relative} is not audited by any front — add it to a "
+                "front's strict_sources/runner_sources")
+    return problems
+
+
 def registry_guard(pins=None, proofs_dir=HERE, pins_path=PINS_PATH,
                    claims_path=CLAIMS_PATH):
     """`theorem_pins.json` is a claim; this is what makes it a GATED claim.
@@ -611,132 +800,25 @@ def registry_guard(pins=None, proofs_dir=HERE, pins_path=PINS_PATH,
         return [f"the guard claims file is unreadable ({e}) — the pin registry "
                 "would be self-authorizing without it"]
 
-    have = hashlib.sha256(open(pins_path, "rb").read()).hexdigest()
+    with open(pins_path, "rb") as source:
+        have = hashlib.sha256(source.read()).hexdigest()
     if claims["pins-sha256"] != have:
         problems.append(
             f"{os.path.basename(pins_path)} content hash {have} does not match "
             f"the {cf} claim {claims['pins-sha256']} — the registry changed "
             "without the reviewed claims file changing with it")
 
-    def compare(what, claimed, actual):
-        """Symmetric difference, naming every item — the point of F18."""
-        for x in sorted(set(actual) - set(claimed)):
-            problems.append(f"{what}: the registry has {x!r}, which {cf} does "
-                            "not claim")
-        for x in sorted(set(claimed) - set(actual)):
-            problems.append(f"{what}: {cf} claims {x!r}, which the registry "
-                            "does not have")
-
-    core = pins.get("core_modules")
-    if not core:
-        problems.append("the registry names no `core_modules` — the guard's "
-                        "audit scope is the complement of that allowance, so "
-                        "an empty one would put nothing in scope")
-    if claims["core-modules"] is None:
-        problems.append(f"{cf} makes no `core-modules` claim — the set of "
-                        "modules allowed to go unpinned must be reviewed")
-    else:
-        compare("core-modules", claims["core-modules"], core or [])
-
     fronts = pins.get("fronts", {})
-    for name in sorted(set(fronts) | set(claims["fronts"])):
-        if name not in fronts:
-            problems.append(f"front {name!r} is claimed in {cf} but is gone "
-                            "from the registry")
-            continue
-        if name not in claims["fronts"]:
-            problems.append(f"front {name!r} has no claims at all in {cf}")
-            continue
-        fc = claims["fronts"][name]
-        for key, field in sorted(CLAIM_FIELDS.items()):
-            actual = fronts[name].get(field, [])
-            if len(set(actual)) != len(actual):
-                problems.append(f"front {name!r} lists a duplicate in {field}")
-            if key not in fc:
-                problems.append(
-                    f"front {name!r} has no `{key}` claim in {cf} — every "
-                    "field the guard's behaviour depends on must be claimed "
-                    "by identity (write the bare key for an empty set)")
-                continue
-            compare(f"front {name!r} {key}", fc[key], actual)
-
-    unguarded = pins.get("unguarded", {})
-    for t in sorted(set(unguarded) | claims["unguarded"]):
-        if t not in unguarded:
-            problems.append(f"{t} is on the reviewed unguarded allowlist but is "
-                            "no longer registered as unguarded")
-        elif t not in claims["unguarded"]:
-            problems.append(
-                f"{t} was moved to `unguarded` without being added to the "
-                f"reviewed allowlist in {cf} — a theorem cannot leave the "
-                "guard's reach silently")
-        elif len((unguarded[t] or "").strip()) < 12:
-            problems.append(f"{t} is unguarded with no real reason recorded")
-
-    # Every .lean under proofs/ must be audited by some front; no front may name
-    # a module that shadows core Lean (which would poison LEAN_PATH); and the
-    # compiled set must equal the audited-source set in BOTH directions. Only
-    # build ⊆ audited-sources was checked, so a module could be audited as a
-    # source and never compiled, or (with the old audit derivation) compiled by
-    # a bridge and absent from `build` (2026-07 round-4 review, F17).
+    problems += _core_claim_errors(pins, claims, cf)
+    problems += _front_claim_errors(fronts, claims["fronts"], cf)
+    problems += _unguarded_claim_errors(pins, claims, cf)
     listed = set()
     for name, front in fronts.items():
-        strict = set(front.get("strict_sources", []))
-        runner = set(front.get("runner_sources", []))
-        listed |= strict | runner
-        build = list(front.get("build", []))
-        for mod in build + list(front.get("modules", [])):
-            if _shadows_core(mod):
-                problems.append(f"front {name!r} names module {mod!r}, which "
-                                "shadows a core Lean module")
-            src_rel = rel_of_module(mod)
-            if not os.path.exists(os.path.join(proofs_dir, src_rel)):
-                problems.append(f"front {name!r} builds module {mod!r} with no "
-                                f"{src_rel} in proofs/")
-            elif src_rel not in (strict | runner):
-                problems.append(f"front {name!r} compiles {src_rel} but does "
-                                "not audit it (strict_sources/runner_sources)")
-        for src in sorted(strict):
-            if module_of(src) not in build:
-                problems.append(
-                    f"front {name!r} audits {src} as a strict source but does "
-                    "not compile it (`build`) — the guard queries the "
-                    "environment built from `build`, so an uncompiled source "
-                    "is a file nothing checks the theorems of")
-        for mod in build:
-            if rel_of_module(mod) in runner:
-                problems.append(f"front {name!r} builds {mod}.lean and also "
-                                "registers it as a runner (which relaxes the "
-                                "`partial` rule) — pick one")
-        for mod in front.get("modules", []):
-            if mod not in build:
-                problems.append(f"front {name!r} imports module {mod!r} in the "
-                                "environment query but does not build it")
-        for t in front.get("native_decide_sources", []):
-            if t in front.get("guarded", []):
-                continue
-            if t not in pins.get("unguarded", {}):
-                problems.append(
-                    f"front {name!r} trusts native_decide axioms from {t}, "
-                    "which is neither guarded nor registered as unguarded")
-    # F21: this is the check the whole "every .lean under proofs/ is audited"
-    # claim rests on, and it was a flat `os.listdir`, so the claim was false for
-    # every subdirectory. A `.lean` at ANY depth must be registered by its
-    # proofs-relative PATH (`Sub/Evil.lean`, module `Sub.Evil`) — there is
-    # deliberately no auditable-but-unbuilt tier: an unregistered file that is
-    # merely scanned would be indistinguishable from one nothing scanned. A
-    # file whose PATH implies a core module name is refused outright: it would
-    # poison LEAN_PATH if built, and it can otherwise authorise its own
-    # `import Lean` through the allowlist in `source_guard`.
-    for rel, mod in lean_sources(proofs_dir):
-        if _shadows_core(mod):
-            problems.append(
-                f"proofs/{rel} is Lean module {mod!r}, which shadows a core "
-                "Lean module — building it would poison the guard driver's own "
-                "LEAN_PATH, and its mere presence widens the import allowlist")
-        if rel not in listed:
-            problems.append(f"proofs/{rel} is not audited by any front — add it "
-                            "to a front's strict_sources/runner_sources")
+        front_listed, front_problems = _front_topology_errors(
+            name, front, pins, proofs_dir)
+        listed |= front_listed
+        problems += front_problems
+    problems += _source_inventory_errors(proofs_dir, listed)
     return problems
 
 
@@ -992,6 +1074,49 @@ def build_front(lean, front, olean_dir, src_dir=HERE, runners=False):
     return None
 
 
+def _run_env_driver(lean, modules, decls, olean_dir, core):
+    qpath = os.path.join(olean_dir, "SigmaGuardDriver.lean")
+    with open(qpath, "w", encoding="utf-8") as driver:
+        driver.write(GUARD_DRIVER)
+    result = subprocess.run(
+        [lean, "--run", qpath] + list(modules) + ["--"] + list(core)
+        + ["--"] + list(decls), capture_output=True, text=True,
+        cwd=olean_dir, env=dict(os.environ, LEAN_PATH=olean_dir))
+    if result.returncode != 0:
+        raise RuntimeError("environment query failed: "
+                           + (result.stderr or result.stdout).strip()[:500])
+    lines = result.stdout.splitlines()
+    if "DRIVER-COMPLETE" not in lines:
+        raise RuntimeError("environment query produced no completion marker: "
+                           + (result.stdout + result.stderr).strip()[:500])
+    return lines
+
+
+def _parse_env_output(lines):
+    got, deps, current, loaded = {}, {}, None, None
+    for line in lines:
+        kind, _, value = line.partition(" ")
+        if kind == "MODULES":
+            loaded = value.split()
+        elif kind == "MISSING":
+            raise RuntimeError(f"declaration not in the environment: {value} "
+                               "(renamed or deleted?)")
+        elif kind == "DECL":
+            current = value
+            got[current] = {"axioms": [], "type": None}
+        elif kind == "AXIOMS" and current:
+            got[current]["axioms"] = value.split()
+        elif kind == "TYPE" and current:
+            got[current]["type"] = " ".join(value.split())
+        elif kind == "DEP":
+            name, _, dump = value.partition(" ")
+            if dump == "MISSING":
+                raise RuntimeError(
+                    f"dependency vanished from the environment: {name}")
+            deps[name] = " ".join(dump.split())
+    return got, deps, loaded
+
+
 def env_query(lean, modules, decls, olean_dir, core=CORE_ALLOWANCE):
     """`({decl: {"axioms": [...], "type": dump}}, {const: dump})`.
 
@@ -1014,40 +1139,8 @@ def env_query(lean, modules, decls, olean_dir, core=CORE_ALLOWANCE):
                            "would pass vacuously")
     if not core:
         raise RuntimeError("no core-module allowance — refusing to query")
-    qpath = os.path.join(olean_dir, "SigmaGuardDriver.lean")
-    with open(qpath, "w") as f:
-        f.write(GUARD_DRIVER)
-    r = subprocess.run([lean, "--run", qpath] + list(modules) + ["--"]
-                       + list(core)
-                       + ["--"] + list(decls), capture_output=True, text=True,
-                       cwd=olean_dir, env=dict(os.environ, LEAN_PATH=olean_dir))
-    if r.returncode != 0:
-        raise RuntimeError("environment query failed: "
-                           + (r.stderr or r.stdout).strip()[:500])
-    lines = r.stdout.splitlines()
-    if "DRIVER-COMPLETE" not in lines:
-        raise RuntimeError("environment query produced no completion marker: "
-                           + (r.stdout + r.stderr).strip()[:500])
-    got, deps, cur, loaded = {}, {}, None, None
-    for line in lines:
-        if line.startswith("MODULES "):
-            loaded = line[8:].split()
-        if line.startswith("MISSING "):
-            raise RuntimeError(f"declaration not in the environment: "
-                               f"{line[8:]} (renamed or deleted?)")
-        if line.startswith("DECL "):
-            cur = line[5:]
-            got[cur] = {"axioms": [], "type": None}
-        elif line.startswith("AXIOMS ") and cur:
-            got[cur]["axioms"] = line[7:].split()
-        elif line.startswith("TYPE ") and cur:
-            got[cur]["type"] = " ".join(line[5:].split())
-        elif line.startswith("DEP "):
-            name, _, dump = line[4:].partition(" ")
-            if dump == "MISSING":
-                raise RuntimeError(f"dependency vanished from the environment: "
-                                   f"{name}")
-            deps[name] = " ".join(dump.split())
+    got, deps, loaded = _parse_env_output(
+        _run_env_driver(lean, modules, decls, olean_dir, core))
     missing = [d for d in decls if d not in got or not got[d]["type"]]
     if missing:
         raise RuntimeError("no environment answer for: " + ", ".join(missing))
@@ -1085,7 +1178,7 @@ def strlits(dump):
     for chars, hexed in re.findall(r"\(strLit (\d+) ([0-9a-f]*)\)", dump):
         try:
             s = bytes.fromhex(hexed).decode("utf-8")
-        except (ValueError, UnicodeDecodeError):
+        except UnicodeDecodeError:
             continue
         if len(s) == int(chars):
             out.append(s)
@@ -1108,6 +1201,75 @@ def load_front(name, path=PINS_PATH):
     front["core_modules"] = pins.get("core_modules", list(CORE_ALLOWANCE))
     front["_pins"] = pins
     return front
+
+
+def _module_scope_errors(front, loaded):
+    return [
+        f"the queried environment contains module {module!r}, which "
+        f"front {front.get('name')!r} does not build — every non-core module "
+        "in scope must be one this front compiles and audits"
+        for module in sorted(set(loaded) - set(front["build"]))
+    ]
+
+
+def _definition_pin_errors(deps, queried, definitions):
+    bad = []
+    for name in sorted(set(deps) - set(queried)):
+        want = definitions.get(name)
+        if want is None:
+            bad.append(
+                f"{name} is a definition the guarded statements' meaning "
+                f"depends on, but it has no pin in "
+                f"{os.path.basename(PINS_PATH)} — refusing to certify a "
+                "theorem whose definitions are unpinned")
+            continue
+        actual = pin_of(deps[name])
+        if actual != " ".join(want.split()):
+            bad.append(f"{name}: DEFINITION DRIFT — a definition the guarded "
+                       f"theorems are stated in terms of changed.\n"
+                       f"    pinned:  {want[:400]}\n"
+                       f"    actual:  {actual[:400]}")
+    return bad
+
+
+def _theorem_axiom_errors(theorems, got, allowed, native_ok, native_sources):
+    bad = []
+    for theorem in theorems:
+        for axiom in got[theorem]["axioms"]:
+            if axiom in allowed:
+                continue
+            match = _NATIVE_DECIDE.match(axiom)
+            if match and theorem in native_ok:
+                source = match.group(1)
+                if source in native_sources:
+                    continue
+                bad.append(
+                    f"{theorem} rests on a native_decide trust axiom generated "
+                    f"by {source}, which is not on this front's "
+                    "`native_decide_sources` list — the compiler is trusted "
+                    "only for declarations named and statement-pinned as such")
+            else:
+                bad.append(f"{theorem} depends on disallowed axiom: {axiom}")
+    return bad
+
+
+def _statement_pin_errors(queried, got, pinned):
+    bad = []
+    for theorem in queried:
+        want = pinned.get(theorem)
+        if want is None:
+            bad.append(f"{theorem} has no pinned statement in "
+                       f"{os.path.basename(PINS_PATH)} — refusing to certify "
+                       "an unpinned theorem")
+            continue
+        want = " ".join(want.split())
+        actual = got[theorem]["type"]
+        if actual != want:
+            bad.append(f"{theorem}: STATEMENT DRIFT — the theorem no longer "
+                       f"says what it is pinned to say.\n    pinned:  {want}\n"
+                       f"    actual:  {actual}\n"
+                       f"    first difference at char {_first_diff(want, actual)}")
+    return bad
 
 
 def guard_semantics(lean, front, olean_dir, out=None):
@@ -1145,65 +1307,18 @@ def guard_semantics(lean, front, olean_dir, out=None):
         return str(e)
     if out is not None:
         out["decls"], out["deps"] = got, deps
-    bad = []
+    bad = _module_scope_errors(front, loaded)
     # F17: what is COMPILED into the queried environment must be exactly what
     # the front claims to build. Anything else is a module no source-layer scan
     # and no pin covers, reached through an import chain.
-    for m in sorted(set(loaded) - set(front["build"])):
-        bad.append(f"the queried environment contains module {m!r}, which "
-                   f"front {front.get('name')!r} does not build — every "
-                   "non-core module in scope must be one this front compiles "
-                   "and audits")
     # F12: pinning statements does not stop a DEFINITION from being gutted.
     # `Reach` losing its `step` constructor, or `Valid := False`, leaves every
     # statement dump byte-identical and makes the theorems vacuous. The set
     # walked here comes from the kernel environment, so a dependency cannot be
     # silently left off a hand-written list; anything unpinned is an error.
-    for name in sorted(deps):
-        if name in queried:
-            continue                       # pinned as a statement, below
-        want = defs.get(name)
-        if want is None:
-            bad.append(
-                f"{name} is a definition the guarded statements' meaning "
-                f"depends on, but it has no pin in "
-                f"{os.path.basename(PINS_PATH)} — refusing to certify a "
-                "theorem whose definitions are unpinned")
-            continue
-        if pin_of(deps[name]) != " ".join(want.split()):
-            bad.append(f"{name}: DEFINITION DRIFT — a definition the guarded "
-                       f"theorems are stated in terms of changed.\n"
-                       f"    pinned:  {want[:400]}\n"
-                       f"    actual:  {pin_of(deps[name])[:400]}")
-    for t in theorems:
-        for ax in got[t]["axioms"]:
-            if ax in allowed:
-                continue
-            m = _NATIVE_DECIDE.match(ax)
-            if m and t in native_ok:
-                src = m.group(1)
-                if src in native_src:
-                    continue
-                bad.append(
-                    f"{t} rests on a native_decide trust axiom generated by "
-                    f"{src}, which is not on this front's "
-                    "`native_decide_sources` list — the compiler is trusted "
-                    "only for declarations named and statement-pinned as such")
-                continue
-            bad.append(f"{t} depends on disallowed axiom: {ax}")
-    for t in queried:
-        want = pinned.get(t)
-        if want is None:
-            bad.append(f"{t} has no pinned statement in "
-                       f"{os.path.basename(PINS_PATH)} — refusing to certify "
-                       "an unpinned theorem")
-            continue
-        want = " ".join(want.split())
-        if got[t]["type"] != want:
-            bad.append(f"{t}: STATEMENT DRIFT — the theorem no longer says "
-                       f"what it is pinned to say.\n    pinned:  {want}\n"
-                       f"    actual:  {got[t]['type']}\n"
-                       f"    first difference at char {_first_diff(want, got[t]['type'])}")
+    bad += _definition_pin_errors(deps, queried, defs)
+    bad += _theorem_axiom_errors(theorems, got, allowed, native_ok, native_src)
+    bad += _statement_pin_errors(queried, got, pinned)
     return "; ".join(bad) if bad else None
 
 
@@ -1244,6 +1359,65 @@ def guard_sources(front, proofs_dir=HERE):
 # pin regeneration (a human runs this and reviews the diff)
 # --------------------------------------------------------------------------
 
+def _regen_front(lean, name, front, core):
+    bad = [module for module in front["build"] + front["modules"]
+           if _shadows_core(module)]
+    if bad:
+        raise RuntimeError(
+            f"front {name!r} names core-shadowing module(s) {bad} — regen "
+            "builds them into the directory it then hands the driver as "
+            "LEAN_PATH, which would poison the guard's own environment")
+    queried = list(front["guarded"]) + [
+        source for source in front.get("native_decide_sources", [])
+        if source not in front["guarded"]]
+    with tempfile.TemporaryDirectory() as temp_dir:
+        error = build_front(lean, front, temp_dir)
+        if error:
+            raise RuntimeError(error)
+        got, deps, _ = env_query(lean, front["modules"], queried, temp_dir,
+                                 core=core)
+    return queried, got, deps
+
+
+def _refresh_statement_pins(pins, front, queried, got):
+    for theorem in queried:
+        old = pins["statements"].get(theorem)
+        actual = got[theorem]["type"]
+        pins["statements"][theorem] = actual
+        if old == actual:
+            state = "unchanged"
+        elif old is None:
+            state = "NEW"
+        else:
+            state = "CHANGED"
+        tag = ("" if theorem in front["guarded"]
+               else "  [native_decide source]")
+        print(f"{state:9s} {theorem}  axioms={got[theorem]['axioms']}{tag}")
+
+
+def _refresh_definition_pins(pins, queried, deps):
+    for name in sorted(set(deps) - set(queried)):
+        new, old = pin_of(deps[name]), pins["definitions"].get(name)
+        pins["definitions"][name] = new
+        if old != new:
+            print(f"{'NEW' if old is None else 'CHANGED':9s} def {name}")
+
+
+def _write_refreshed_pins(pins):
+    with open(PINS_PATH, "w", encoding="utf-8") as target:
+        json.dump(pins, target, indent=2, ensure_ascii=False)
+        target.write("\n")
+    with open(PINS_PATH, "rb") as source:
+        digest = hashlib.sha256(source.read()).hexdigest()
+    try:
+        with open(CLAIMS_PATH, encoding="utf-8") as source:
+            claims = source.read()
+        claims = re.sub(r"(?m)^pins-sha256 .*$", "pins-sha256 " + digest, claims)
+        with open(CLAIMS_PATH, "w", encoding="utf-8") as target:
+            target.write(claims)
+    except OSError as error:
+        print(f"WARNING: could not refresh {CLAIMS_PATH}: {error}")
+
 def regen(argv):
     """Rewrite the `statements` map from the current sources.
 
@@ -1251,7 +1425,6 @@ def regen(argv):
     never invoked by a bridge or by CI: run it deliberately, then read the
     diff as you would read the theorem statements themselves.
     """
-    import tempfile
     lean = find_lean()
     if lean is None:
         print("regen needs a `lean` binary")
@@ -1262,48 +1435,14 @@ def regen(argv):
     fronts = argv or list(pins["fronts"])
     for name in fronts:
         front = pins["fronts"][name]
-        bad = [m for m in front["build"] + front["modules"] if _shadows_core(m)]
-        if bad:
-            print(f"FAIL front {name!r} names core-shadowing module(s) {bad} — "
-                  "regen builds them into the directory it then hands the "
-                  "driver as LEAN_PATH, which would poison the guard's own "
-                  "environment")
+        try:
+            queried, got, deps = _regen_front(lean, name, front, core)
+        except RuntimeError as error:
+            print("FAIL " + str(error))
             return 1
-        queried = list(front["guarded"]) + [
-            s for s in front.get("native_decide_sources", [])
-            if s not in front["guarded"]]
-        with tempfile.TemporaryDirectory() as td:
-            err = build_front(lean, front, td)
-            if err:
-                print("FAIL " + err)
-                return 1
-            got, deps, _ = env_query(lean, front["modules"], queried, td,
-                                     core=core)
-        for t in queried:
-            old = pins["statements"].get(t)
-            pins["statements"][t] = got[t]["type"]
-            state = "unchanged" if old == got[t]["type"] else \
-                    ("NEW" if old is None else "CHANGED")
-            tag = "" if t in front["guarded"] else "  [native_decide source]"
-            print(f"{state:9s} {t}  axioms={got[t]['axioms']}{tag}")
-        for d in sorted(deps):
-            if d in queried:
-                continue
-            new, old = pin_of(deps[d]), pins["definitions"].get(d)
-            pins["definitions"][d] = new
-            if old != new:
-                print(f"{'NEW' if old is None else 'CHANGED':9s} def {d}")
-    with open(PINS_PATH, "w") as f:
-        json.dump(pins, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    digest = hashlib.sha256(open(PINS_PATH, "rb").read()).hexdigest()
-    try:
-        claims = open(CLAIMS_PATH).read()
-        claims = re.sub(r"(?m)^pins-sha256 .*$", "pins-sha256 " + digest, claims)
-        with open(CLAIMS_PATH, "w") as f:
-            f.write(claims)
-    except OSError as e:
-        print(f"WARNING: could not refresh {CLAIMS_PATH}: {e}")
+        _refresh_statement_pins(pins, front, queried, got)
+        _refresh_definition_pins(pins, queried, deps)
+    _write_refreshed_pins(pins)
     print(f"wrote {PINS_PATH} — review the diff")
     print(f"refreshed the pins-sha256 line of {CLAIMS_PATH}. Nothing else "
           "there is regenerated: every identity claim (guarded theorems, "

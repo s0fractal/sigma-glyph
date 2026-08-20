@@ -111,7 +111,7 @@ def oracle_verdict(v):
     with tempfile.TemporaryDirectory() as td:
         ag._materialize_store(td, v["store"])
         recs, blobs, bdir = ag.load_store(td)
-        return ag.verify_adoption(recs, blobs, bdir, v["candidate"],
+        return ag.verify_adoption(recs, bdir, v["candidate"],
                                   v["trust"], v["prior_set"])
 
 

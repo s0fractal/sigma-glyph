@@ -44,6 +44,11 @@ PROFILE_TAG = "sigma-glyph.anchor-governance@v1"
 ANCHOR_SET_TAG = "sigma-glyph.anchor-set@v1"
 TRUST_TAG = "sigma-glyph.anchor-trust@v1"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
+JSON_SUFFIX = ".json"
+ANCHORS_SCOPE = "spec/ANCHORS.txt"
+BOOK_I_PATH = "spec/book-1-truth.md"
+NEXT_RELEASE = "v0.7.0"
+ADOPTED_NOTE = "adopted by"
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -99,9 +104,19 @@ def parse_anchors(path):
     """Return [(release, historical, [(path, anchor), ...])] in file order."""
     sections, cur = [], None
     for line in open(path, encoding="utf-8"):
-        m = re.match(r"^== (v[\w.]+)\s*(\(.*\))?\s*==\s*$", line)
-        if m:
-            cur = (m.group(1), bool(m.group(2)), [])
+        header = line.strip()
+        if header.startswith("== ") and header.endswith(" =="):
+            release, separator, annotation = header[3:-3].strip().partition(" ")
+            valid_release = re.fullmatch(r"v[0-9A-Za-z_.]+", release)
+            valid_annotation = (not separator or
+                                (annotation.startswith("(") and
+                                 annotation.endswith(")") and
+                                 "(" not in annotation[1:-1] and
+                                 ")" not in annotation[1:-1]))
+        else:
+            valid_release = valid_annotation = False
+        if valid_release and valid_annotation:
+            cur = (release, bool(separator), [])
             sections.append(cur)
             continue
         m = re.match(r"^([0-9a-f]{64})\s+(\S+)\s*$", line)
@@ -126,18 +141,39 @@ def load_store(store):
     rdir = os.path.join(store, "records")
     if os.path.isdir(rdir):
         for f in os.listdir(rdir):
-            if f.endswith(".json"):
-                recs[f[:-5]] = json.load(open(os.path.join(rdir, f)))
+            if f.endswith(JSON_SUFFIX):
+                with open(os.path.join(rdir, f), encoding="utf-8") as src:
+                    recs[f[:-5]] = json.load(src)
     bdir = os.path.join(store, "blobs")
     blobs = set(os.listdir(bdir)) if os.path.isdir(bdir) else set()
     return recs, blobs, bdir
 
 
 def read_blob(bdir, h):
-    p = os.path.join(bdir, h)
-    if not os.path.exists(p):
+    # A content address is a filename, not a path.  Verify that invariant before
+    # *any* filesystem operation: joining an absolute or traversal-shaped value
+    # used to open files outside bdir before the final hash check rejected them.
+    if not isinstance(h, str) or HEX64.fullmatch(h) is None:
         return None
-    b = open(p, "rb").read()
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    file_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        directory_fd = os.open(bdir, directory_flags)
+    except OSError:
+        return None
+    try:
+        try:
+            # ``h`` is exact lowercase hex64 above; dir_fd confines lookup to
+            # the opened blob directory and O_NOFOLLOW rejects symlink escapes.
+            blob_fd = os.open(h, file_flags, dir_fd=directory_fd)  # NOSONAR
+        except OSError:
+            return None
+    finally:
+        os.close(directory_fd)
+    with os.fdopen(blob_fd, "rb") as src:
+        if not os.path.isfile(src.fileno()):
+            return None
+        b = src.read()
     return b if sha256(b) == h else None
 
 
@@ -217,35 +253,38 @@ def valid_profile(doc):
     return (isinstance(doc, dict)
             and set(doc) == {"governance_policy", "scope", "threshold"}
             and doc["governance_policy"] == PROFILE_TAG
-            and doc["scope"] == "spec/ANCHORS.txt"
+            and doc["scope"] == ANCHORS_SCOPE
             and isinstance(doc["threshold"], str)
             and HEX64.match(doc["threshold"])) or False
 
 
-def valid_anchor_set(doc):
-    if not isinstance(doc, dict):
-        return False
+def _valid_anchor_row(row):
+    return (isinstance(row, dict) and set(row) == {"path", "anchor"}
+            and isinstance(row["path"], str) and bool(row["path"])
+            and isinstance(row["anchor"], str)
+            and HEX64.fullmatch(row["anchor"]) is not None)
+
+
+def _valid_anchor_metadata(doc):
     keys = set(doc)
     base = {"governance", "jurisdiction", "release", "anchors"}
-    if not (base <= keys and keys <= base | {"ancestor"}):
-        return False
-    if doc["governance"] != ANCHOR_SET_TAG or not isinstance(doc["release"], str):
-        return False
-    if not (isinstance(doc["jurisdiction"], str) and HEX64.match(doc["jurisdiction"])):
+    return (base <= keys <= base | {"ancestor"}
+            and doc["governance"] == ANCHOR_SET_TAG
+            and isinstance(doc["release"], str)
+            and isinstance(doc["jurisdiction"], str)
+            and HEX64.fullmatch(doc["jurisdiction"]) is not None)
+
+
+def valid_anchor_set(doc):
+    if not isinstance(doc, dict) or not _valid_anchor_metadata(doc):
         return False
     if "ancestor" in doc and not (isinstance(doc["ancestor"], str)
-                                  and HEX64.match(doc["ancestor"])):
+                                  and HEX64.fullmatch(doc["ancestor"])):
         return False
     rows = doc["anchors"]
-    if not (isinstance(rows, list) and rows):
+    if not isinstance(rows, list) or not rows or not all(map(_valid_anchor_row, rows)):
         return False
-    paths = []
-    for r in rows:
-        if not (isinstance(r, dict) and set(r) == {"path", "anchor"}
-                and isinstance(r["path"], str) and r["path"]
-                and isinstance(r["anchor"], str) and HEX64.match(r["anchor"])):
-            return False
-        paths.append(r["path"])
+    paths = [row["path"] for row in rows]
     return paths == sorted(paths) and len(set(paths)) == len(paths)
 
 
@@ -273,18 +312,15 @@ def settlement_closure(recs, root):
     if _sound_body(recs.get(root), root) is None:
         return set()
     closure = {root}
-    changed = True
-    while changed:
-        changed = False
-        for rid, env in recs.items():
-            if rid in closure:
-                continue
-            body = _sound_body(env, rid)
-            if body is None:
-                continue
-            if any(p in closure for p in body.get("prior", [])):
-                closure.add(rid)
-                changed = True
+    while True:
+        reached = {
+            rid for rid, env in recs.items()
+            if rid not in closure
+            and (body := _sound_body(env, rid)) is not None
+            and any(prior in closure for prior in body.get("prior", []))}
+        if not reached:
+            break
+        closure |= reached
     return closure
 
 
@@ -331,6 +367,19 @@ def _under_is(body, profile_hash, threshold_hash):
     return len(u) == 2 and set(u) == {profile_hash, threshold_hash}
 
 
+def _profile_successors(recs, closure, bdir, trust, profile_hash,
+                        threshold_hash, threshold):
+    successors = set()
+    for rid, body, doc in _accepts_of(recs, closure, bdir):
+        if not valid_profile(doc) or not _under_is(
+                body, profile_hash, threshold_hash):
+            continue
+        counted = counted_sigs(recs[rid], rid, threshold, trust["actors"])
+        if len(counted) >= threshold["min_sigs"]:
+            successors.add(body["subject"]["hash"])
+    return successors
+
+
 def derive_current_profile(recs, closure, bdir, trust):
     """Walk profile adoptions from the genesis profile; each hop must be
     authorized under the policy being replaced (Warrant §5.1 current-policy
@@ -352,15 +401,7 @@ def derive_current_profile(recs, closure, bdir, trust):
         if t is None:
             return cur, gov, f"threshold {t_hash[:12]} pinned by profile is invalid"
         gov.append((cur, t, t_hash))
-        nxt = set()
-        for rid, body, doc in _accepts_of(recs, closure, bdir):
-            if not valid_profile(doc):
-                continue
-            if not _under_is(body, cur, t_hash):
-                continue
-            if len(counted_sigs(recs[rid], rid, t, trust["actors"])) < t["min_sigs"]:
-                continue
-            nxt.add(body["subject"]["hash"])
+        nxt = _profile_successors(recs, closure, bdir, trust, cur, t_hash, t)
         nxt -= seen
         if not nxt:
             return cur, gov, None
@@ -370,6 +411,21 @@ def derive_current_profile(recs, closure, bdir, trust):
                               + " — chain frozen, resolve by settlement")
         cur = nxt.pop()
         seen.add(cur)
+
+
+def _record_changes_governed_key(rid, env, bdir, gov_hashes,
+                                 threshold_of, trust_actors):
+    body = env.get("body", {})
+    if body.get("decision") not in ("accept", "supersede"):
+        return False
+    cited = set(body.get("under", [])) & gov_hashes
+    if not cited or sha256(canon(body)) != rid:
+        return False
+    doc = parse_json_blob(bdir, body.get("subject", {}).get("hash", ""))
+    if not (isinstance(doc, dict) and set(doc) == {"actor", "key"}):
+        return False
+    return any(len(counted_sigs(env, rid, threshold_of[policy], trust_actors))
+               >= threshold_of[policy]["min_sigs"] for policy in cited)
 
 
 def key_state_under_governance(recs, closure, bdir, gov, trust):
@@ -398,31 +454,68 @@ def key_state_under_governance(recs, closure, bdir, gov, trust):
         if rid in resolved:                       # operator has absorbed this rotation
             continue
         env = recs[rid]
-        body = env.get("body", {})
-        if body.get("decision") not in ("accept", "supersede"):
-            continue
-        cited = set(body.get("under", [])) & gov_hashes
-        if not cited:
-            continue
-        doc = parse_json_blob(bdir, body.get("subject", {}).get("hash", ""))
-        if not (isinstance(doc, dict) and set(doc) == {"actor", "key"}):
-            continue
-        if sha256(canon(body)) != rid:
-            continue
-        for h in cited:
-            t = threshold_of[h]
-            if len(counted_sigs(env, rid, t, trust["actors"])) >= t["min_sigs"]:
-                return True
+        if _record_changes_governed_key(
+                rid, env, bdir, gov_hashes, threshold_of, trust["actors"]):
+            return True
     return False
 
 
-def verify_adoption(recs, blobs, bdir, blob_hash, trust, prior_set_hash):
+def _authorized_rivals(recs, closure, bdir, blob_hash, prior_set_hash,
+                       profile_hash, threshold_hash, threshold, trust):
+    rivals = set()
+    expected_ancestor = prior_set_hash if prior_set_hash else None
+    for rid, body, doc in _accepts_of(recs, closure, bdir):
+        candidate_hash = body["subject"]["hash"]
+        if not _is_rival_candidate(
+                doc, body, candidate_hash, blob_hash, expected_ancestor,
+                prior_set_hash, profile_hash, threshold_hash, trust):
+            continue
+        counted = counted_sigs(recs[rid], rid, threshold, trust["actors"])
+        if len(counted) >= threshold["min_sigs"]:
+            rivals.add(candidate_hash)
+    return rivals
+
+
+def _is_rival_candidate(doc, body, candidate_hash, blob_hash,
+                        expected_ancestor, prior_set_hash, profile_hash,
+                        threshold_hash, trust):
+    if not isinstance(doc, dict) or not valid_anchor_set(doc):
+        return False
+    if (candidate_hash == blob_hash
+            or doc["jurisdiction"] != trust["jurisdiction"]):
+        return False
+    ancestor_matches = doc.get("ancestor") == expected_ancestor
+    if prior_set_hash is None and "ancestor" not in doc:
+        ancestor_matches = True
+    return ancestor_matches and _under_is(body, profile_hash, threshold_hash)
+
+
+def _candidate_adoption(recs, closure, bdir, blob_hash, profile_hash,
+                        threshold_hash, threshold, trust):
+    notes = []
+    for rid, body, _doc in _accepts_of(recs, closure, bdir):
+        if body["subject"]["hash"] != blob_hash:
+            continue
+        if not _under_is(body, profile_hash, threshold_hash):
+            notes.append(f"{rid[:12]}: under != current (profile, threshold) pair")
+            continue
+        counted = counted_sigs(recs[rid], rid, threshold, trust["actors"])
+        if len(counted) >= threshold["min_sigs"]:
+            notes.append(f"adopted by {rid[:12]} ({len(counted)}/{threshold['min_sigs']}"
+                         f" of {len(threshold['actors'])})")
+            return True, notes
+        notes.append(f"{rid[:12]}: {len(counted)} bound sigs < "
+                     f"min_sigs {threshold['min_sigs']}")
+    notes.append("no satisfying adoption warrant in settlement closure")
+    return False, notes
+
+
+def verify_adoption(recs, bdir, blob_hash, trust, prior_set_hash):
     """(authorized: bool, notes: [str]) for one anchor-set blob hash, under
     the out-of-band trust config. Pure function of (store, trust)."""
     if not HAVE_ED25519:
         return False, ["ERR: python 'cryptography' missing — signatures "
                        "cannot be verified, refusing to authorize"]
-    notes = []
     doc = parse_json_blob(bdir, blob_hash)
     if doc is None:
         return False, [f"anchor-set blob {blob_hash[:12]} missing or corrupt"]
@@ -454,60 +547,64 @@ def verify_adoption(recs, blobs, bdir, blob_hash, trust, prior_set_hash):
     # competing successor rule: another AUTHORIZED adoption of a DIFFERENT
     # valid anchor-set with the same ancestor freezes the chain (no tie-break
     # — a deterministic winner rule would be grindable; ties surface).
-    rivals = set()
-    for rid, body, rdoc in _accepts_of(recs, closure, bdir):
-        if not (isinstance(rdoc, dict) and valid_anchor_set(rdoc)):
-            continue
-        h = body["subject"]["hash"]
-        if h == blob_hash or rdoc["jurisdiction"] != trust["jurisdiction"]:
-            continue
-        if rdoc.get("ancestor") != (prior_set_hash if prior_set_hash else None):
-            if not (prior_set_hash is None and "ancestor" not in rdoc):
-                continue
-        if not _under_is(body, cur_profile, t_hash):
-            continue
-        if len(counted_sigs(recs[rid], rid, t, trust["actors"])) >= t["min_sigs"]:
-            rivals.add(h)
+    rivals = _authorized_rivals(
+        recs, closure, bdir, blob_hash, prior_set_hash, cur_profile, t_hash,
+        t, trust)
     if rivals:
         return False, ["adoption conflict: rival authorized successor(s) "
                        + ", ".join(h[:12] for h in sorted(rivals))
                        + " share this ancestor — chain frozen"]
 
-    for rid, body, rdoc in _accepts_of(recs, closure, bdir):
-        if body["subject"]["hash"] != blob_hash:
-            continue
-        if not _under_is(body, cur_profile, t_hash):
-            notes.append(f"{rid[:12]}: under != current (profile, threshold) pair")
-            continue
-        counted = counted_sigs(recs[rid], rid, t, trust["actors"])
-        if len(counted) >= t["min_sigs"]:
-            notes.append(f"adopted by {rid[:12]} ({len(counted)}/{t['min_sigs']}"
-                         f" of {len(t['actors'])})")
-            return True, notes
-        notes.append(f"{rid[:12]}: {len(counted)} bound sigs < "
-                     f"min_sigs {t['min_sigs']}")
-    notes.append("no satisfying adoption warrant in settlement closure")
-    return False, notes
+    return _candidate_adoption(
+        recs, closure, bdir, blob_hash, cur_profile, t_hash, t, trust)
 
 
 # ---------- commands ----------
 
+def _load_out_of_band_trust(trust_path):
+    if not trust_path:
+        return None, None
+    repo = os.path.realpath(REPO)
+    path = os.path.realpath(trust_path)
+    try:
+        if os.path.commonpath((repo, path)) == repo:
+            return None, ("trust config must be out-of-band — refusing a path "
+                          "inside the verified tree")
+    except ValueError:
+        pass  # a different Windows drive is necessarily outside this repo
+    try:
+        with open(path, encoding="utf-8") as source:
+            trust = valid_trust(json.load(source))
+    except (OSError, ValueError) as exc:
+        return None, f"trust config unreadable: {exc}"
+    if trust is None:
+        return None, "trust config invalid (want sigma-glyph.anchor-trust@v1)"
+    return trust, None
+
+
+def _report_release(release, entries, trust, recs, blobs, bdir, prior):
+    blob_hash = sha256(canon(anchor_set_blob(
+        release, entries, trust["jurisdiction"], prior)))
+    if blob_hash not in blobs:
+        print(f"{release:10s} NOT AUTHORIZED — no anchor-set blob in store")
+        return prior, False
+    ok, notes = verify_adoption(recs, bdir, blob_hash, trust, prior)
+    verdict = "AUTHORIZED — " if ok else "NOT AUTHORIZED — "
+    print(f"{release:10s} {verdict}" + "; ".join(notes))
+    return (blob_hash if ok else prior), ok
+
+
 def cmd_status(trust_path, enforce):
     sections = parse_anchors(ANCHORS)
-    live = [(r, e) for r, hist, e in sections if not hist]
+    live = [(release, entries) for release, historical, entries in sections
+            if not historical]
     if not live:
         print("ERR: no live release sections in ANCHORS.txt")
         return 1
-    trust = None
-    if trust_path:
-        if os.path.realpath(trust_path).startswith(os.path.realpath(REPO) + os.sep):
-            print("ERR: trust config must be out-of-band — refusing a path "
-                  "inside the verified tree")
-            return 1
-        trust = valid_trust(json.load(open(trust_path)))
-        if trust is None:
-            print("ERR: trust config invalid (want sigma-glyph.anchor-trust@v1)")
-            return 1
+    trust, error = _load_out_of_band_trust(trust_path)
+    if error is not None:
+        print("ERR: " + error)
+        return 1
     if trust is None:
         for rel, _ in reversed(live):
             print(f"{rel:10s} UNGOVERNED (no out-of-band trust config)")
@@ -516,19 +613,10 @@ def cmd_status(trust_path, enforce):
         return 1 if enforce else 0
     recs, blobs, bdir = load_store(STORE)
     prior, all_ok = None, True
-    for rel, ent in reversed(live):
-        h = sha256(canon(anchor_set_blob(rel, ent, trust["jurisdiction"], prior)))
-        if h not in blobs:
-            print(f"{rel:10s} NOT AUTHORIZED — no anchor-set blob in store")
-            all_ok = False
-            continue
-        ok, notes = verify_adoption(recs, blobs, bdir, h, trust, prior)
-        print(f"{rel:10s} " + ("AUTHORIZED — " if ok else "NOT AUTHORIZED — ")
-              + "; ".join(notes))
-        if ok:
-            prior = h
-        else:
-            all_ok = False
+    for release, entries in reversed(live):
+        prior, ok = _report_release(
+            release, entries, trust, recs, blobs, bdir, prior)
+        all_ok &= ok
     return 0 if all_ok else 1
 
 
@@ -572,7 +660,7 @@ def _file(root, decision, actor, subject, under, prior, signers, note="x"):
     rid = sha256(canon(body))
     env = {"body": body, "sigs": [
         warrant_sig.sig_entry(a, _sk(a), rid) for a in signers]}
-    open(os.path.join(root, "records", rid + ".json"), "w").write(
+    open(os.path.join(root, "records", rid + JSON_SUFFIX), "w").write(
         json.dumps(env, indent=2, sort_keys=True))
     return rid
 
@@ -590,10 +678,10 @@ def _fixture(td):
     root = _file(td, "propose", ACTORS[0], manifesto, [t1], [],
                  [ACTORS[0]], note="governance genesis")
     p1 = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
-                              "scope": "spec/ANCHORS.txt", "threshold": t1}))
+                              "scope": ANCHORS_SCOPE, "threshold": t1}))
     trust = {"governance_trust": TRUST_TAG, "jurisdiction": root,
              "genesis_profile": p1, "actors": {a: [_pub(a)] for a in ACTORS}}
-    set1 = canon(anchor_set_blob("v0.6.1", [("spec/book-1-truth.md", "a" * 64)], root))
+    set1 = canon(anchor_set_blob("v0.6.1", [(BOOK_I_PATH, "a" * 64)], root))
     h1 = _put_blob(td, set1)
     wid1 = _file(td, "accept", ACTORS[0], h1, [p1, t1], [root],
                  [ACTORS[0], ACTORS[2]], note="adopt v0.6.1")
@@ -604,7 +692,7 @@ MODEL_C = "model-c@sigma-glyph"
 
 
 def _successor_blob(td, hx, byte="b"):
-    s = canon(anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", byte * 64)],
+    s = canon(anchor_set_blob(NEXT_RELEASE, [(BOOK_I_PATH, byte * 64)],
                               hx["root"], ancestor=hx["h1"]))
     return _put_blob(td, s)
 
@@ -616,7 +704,7 @@ def _successor_blob(td, hx, byte="b"):
 
 def _scn_genesis_adopted(td):
     trust, hx = _fixture(td)
-    return trust, hx["h1"], None, True, "adopted by"
+    return trust, hx["h1"], None, True, ADOPTED_NOTE
 
 
 def _scn_succession_rotated(td):
@@ -624,14 +712,14 @@ def _scn_succession_rotated(td):
     t2 = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
                               {"min_sigs": 2, "actors": ACTORS[:2] + [MODEL_C]}}))
     p2 = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
-                              "scope": "spec/ANCHORS.txt", "threshold": t2}))
+                              "scope": ANCHORS_SCOPE, "threshold": t2}))
     _file(td, "accept", ACTORS[0], p2, [hx["p1"], hx["t1"]], [hx["wid1"]],
           [ACTORS[0], ACTORS[1]], note="rotate policy to include model-c")
     h2 = _successor_blob(td, hx)
     trust2 = dict(trust, actors={**trust["actors"], MODEL_C: [_pub(MODEL_C)]})
     _file(td, "accept", ACTORS[0], h2, [p2, t2], [hx["wid1"]],
           [ACTORS[0], MODEL_C], note="adopt v0.7.0")
-    return trust2, h2, hx["h1"], True, "adopted by"
+    return trust2, h2, hx["h1"], True, ADOPTED_NOTE
 
 
 def _scn_ancestor_fork(td):
@@ -641,7 +729,7 @@ def _scn_ancestor_fork(td):
 
 def _scn_genesis_with_ancestor(td):
     trust, hx = _fixture(td)
-    bad = anchor_set_blob("v0.6.1", [("spec/book-1-truth.md", "a" * 64)],
+    bad = anchor_set_blob("v0.6.1", [(BOOK_I_PATH, "a" * 64)],
                           hx["root"], ancestor="a" * 64)
     hb = _put_blob(td, canon(bad))
     return trust, hb, None, False, "must not carry an ancestor"
@@ -652,7 +740,7 @@ def _scn_hijack_minted_pair(td):
     t_evil = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
                                   {"min_sigs": 1, "actors": [ACTORS[1]]}}))
     p_evil = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
-                                  "scope": "spec/ANCHORS.txt",
+                                  "scope": ANCHORS_SCOPE,
                                   "threshold": t_evil}))
     h2 = _successor_blob(td, hx, byte="e")
     _file(td, "accept", ACTORS[1], h2, [p_evil, t_evil], [hx["wid1"]],
@@ -695,12 +783,12 @@ def _scn_bound_keys_authorize(td):
     h2 = _successor_blob(td, hx)
     _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [hx["wid1"]],
           [ACTORS[0], ACTORS[1]], note="two sigs")
-    return trust, h2, hx["h1"], True, "adopted by"
+    return trust, h2, hx["h1"], True, ADOPTED_NOTE
 
 
 def _scn_foreign_jurisdiction(td):
     trust, hx = _fixture(td)
-    foreign = anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
+    foreign = anchor_set_blob(NEXT_RELEASE, [(BOOK_I_PATH, "b" * 64)],
                               "f" * 64, ancestor=hx["h1"])
     hf = _put_blob(td, canon(foreign))
     _file(td, "accept", ACTORS[0], hf, [hx["p1"], hx["t1"]], [hx["wid1"]],
@@ -731,7 +819,7 @@ def _scn_keystate_unrelated_ignored(td):
     other = _put_blob(td, b"an unrelated policy blob")
     _file(td, "accept", ACTORS[0], rot, [other], [hx["root"]],
           [ACTORS[0], ACTORS[2]], note="key-state under UNRELATED policy")
-    return trust, hx["h1"], None, True, "adopted by"
+    return trust, hx["h1"], None, True, ADOPTED_NOTE
 
 
 def _scn_keystate_unauth_profile(td):
@@ -742,13 +830,13 @@ def _scn_keystate_unauth_profile(td):
     t_fake = _put_blob(td, canon({"warrant_policy": "0.3", "threshold":
                                   {"min_sigs": 1, "actors": [ACTORS[1]]}}))
     p_fake = _put_blob(td, canon({"governance_policy": PROFILE_TAG,
-                                  "scope": "spec/ANCHORS.txt",
+                                  "scope": ANCHORS_SCOPE,
                                   "threshold": t_fake}))
     _file(td, "accept", ACTORS[1], p_fake, [p_fake, t_fake], [hx["root"]],
           [ACTORS[1]], note="unauthorized profile-shaped adoption")
     _file(td, "accept", ACTORS[1], rot, [p_fake], [hx["root"]],
           [ACTORS[1]], note="key-state under the unauthorized profile")
-    return trust, hx["h1"], None, True, "adopted by"
+    return trust, hx["h1"], None, True, ADOPTED_NOTE
 
 
 def _scn_keystate_unquorumed(td):
@@ -758,7 +846,7 @@ def _scn_keystate_unquorumed(td):
     rot = _put_blob(td, canon({"actor": ACTORS[1], "key": "d" * 64}))
     _file(td, "accept", ACTORS[1], rot, [hx["t1"]], [hx["root"]],
           [ACTORS[1]], note="key-state under governance, NO quorum")
-    return trust, hx["h1"], None, True, "adopted by"
+    return trust, hx["h1"], None, True, ADOPTED_NOTE
 
 
 def _scn_keystate_quorum_refused(td):
@@ -778,7 +866,7 @@ def _scn_keystate_resolved(td):
     ks_wid = _file(td, "accept", ACTORS[0], rot, [hx["t1"]], [hx["root"]],
                    [ACTORS[0], ACTORS[2]], note="key-state under GOVERNANCE policy")
     trust = dict(trust, resolved_key_state=[ks_wid])
-    return trust, hx["h1"], None, True, "adopted by"
+    return trust, hx["h1"], None, True, ADOPTED_NOTE
 
 
 def _scn_malformed_bridge_ignored(td):
@@ -794,7 +882,7 @@ def _scn_malformed_bridge_ignored(td):
                    "evidence": [], "actor": {"id": ACTORS[0]},
                    "prior": [hx["wid1"]], "ts": 1783400000}
     bad_rid = "f" * 64                    # deliberately != sha256(canon(body))
-    open(os.path.join(td, "records", bad_rid + ".json"), "w").write(
+    open(os.path.join(td, "records", bad_rid + JSON_SUFFIX), "w").write(
         json.dumps({"body": bridge_body, "sigs": []}, indent=2, sort_keys=True))
     _file(td, "accept", ACTORS[0], h2, [hx["p1"], hx["t1"]], [bad_rid],
           [ACTORS[0], ACTORS[2]], note="adoption reachable only via forged bridge")
@@ -807,7 +895,7 @@ def _scn_noncanonical_blob_rejected(td):
     # store invariant, not an implementation's whitespace preference — the
     # blob no longer equals canon(doc), so parse rejects it.
     trust, hx = _fixture(td)
-    doc = anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
+    doc = anchor_set_blob(NEXT_RELEASE, [(BOOK_I_PATH, "b" * 64)],
                           hx["root"], ancestor=hx["h1"])
     pretty = json.dumps(doc, indent=2).encode()       # not canon(doc)
     hp = sha256(pretty)
@@ -823,7 +911,7 @@ def _scn_trailing_json_rejected(td):
     # accepted it, flipping the verdict across implementations. Both must
     # refuse — trailing content is not a canonical blob.
     trust, hx = _fixture(td)
-    doc = anchor_set_blob("v0.7.0", [("spec/book-1-truth.md", "b" * 64)],
+    doc = anchor_set_blob(NEXT_RELEASE, [(BOOK_I_PATH, "b" * 64)],
                           hx["root"], ancestor=hx["h1"])
     trailing = canon(doc) + b" true"
     hp = sha256(trailing)
@@ -871,7 +959,7 @@ def _serialize_store(td):
 def _materialize_store(td, store):
     _mk_store(td)
     for wid, env in store["records"].items():
-        open(os.path.join(td, "records", wid + ".json"), "w").write(
+        open(os.path.join(td, "records", wid + JSON_SUFFIX), "w").write(
             json.dumps(env, indent=2, sort_keys=True))
     for h, hexbytes in store["blobs"].items():
         open(os.path.join(td, "blobs", h), "wb").write(bytes.fromhex(hexbytes))
@@ -884,8 +972,8 @@ def _run_scenarios(emit=None):
     for vid, desc, builder in SCENARIOS:
         with tempfile.TemporaryDirectory() as td:
             trust, cand, prior, want_ok, note = builder(td)
-            recs, blobs, bdir = load_store(td)
-            got_ok, notes = verify_adoption(recs, blobs, bdir, cand, trust, prior)
+            recs, _, bdir = load_store(td)
+            got_ok, notes = verify_adoption(recs, bdir, cand, trust, prior)
             joined = "; ".join(notes)
             ok = got_ok == want_ok and note in joined
             print(("OK  " if ok else "FAIL") + "  " + vid + "  " + desc)
@@ -937,8 +1025,8 @@ def cmd_replay(path):
     for v in doc["vectors"]:
         with tempfile.TemporaryDirectory() as td:
             _materialize_store(td, v["store"])
-            recs, blobs, bdir = load_store(td)
-            got_ok, notes = verify_adoption(recs, blobs, bdir, v["candidate"],
+            recs, _, bdir = load_store(td)
+            got_ok, notes = verify_adoption(recs, bdir, v["candidate"],
                                             v["trust"], v["prior_set"])
         joined = "; ".join(notes)
         good = (got_ok == v["expected"]["authorized"]
@@ -973,7 +1061,7 @@ def selftest():
     # schema edges not expressible as adoption scenarios
     check("profile without threshold pin is schema-invalid",
           valid_profile({"governance_policy": PROFILE_TAG,
-                         "scope": "spec/ANCHORS.txt"}), False)
+                         "scope": ANCHORS_SCOPE}), False)
     check("trust config schema closed",
           valid_trust({"governance_trust": TRUST_TAG, "jurisdiction": "a" * 64,
                        "genesis_profile": "b" * 64,

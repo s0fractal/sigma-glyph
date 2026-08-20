@@ -20,7 +20,7 @@ Env: HERMES_MODEL (default qwen3-coder:30b), HERMES_OLLAMA (default
 http://localhost:11434), HERMES_CHECK (default the run_reference.py gate),
 HERMES_KEY (default ~/.config/sigma-hermes/ed25519.key — auto-created).
 """
-import hashlib, json, os, subprocess, sys, time, urllib.request
+import hashlib, json, os, shlex, subprocess, sys, time, urllib.request
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -32,8 +32,10 @@ STORE = os.path.join(REPO, ".warrants")
 ACTOR = os.environ.get("HERMES_ACTOR", "hermes-qwen3-coder@local")
 MODEL = os.environ.get("HERMES_MODEL", "qwen3-coder:30b")
 OLLAMA = os.environ.get("HERMES_OLLAMA", "http://localhost:11434")
-CHECK = os.environ.get("HERMES_CHECK",
-                       "python3 tests/spec_conformance/run_reference.py")
+CHECK = shlex.split(os.environ.get(
+    "HERMES_CHECK", "python3 tests/spec_conformance/run_reference.py"))
+if not CHECK:
+    raise ValueError("HERMES_CHECK must name a command")
 KEYFILE = os.path.expanduser(
     os.environ.get("HERMES_KEY", "~/.config/sigma-hermes/ed25519.key"))
 MODEL_INPUT_CAP = 16000  # chars of diff fed to the model; full diff is pinned
@@ -85,11 +87,15 @@ def ask_hermes(diff: str, note: str) -> str:
         return json.load(r).get("response", "").strip()
 
 
-def run_check() -> tuple[str, str]:
+def run_check(command=None) -> tuple[str, str]:
     """Run the deterministic gate; return (transcript, verdict)."""
-    p = subprocess.run(CHECK, shell=True, cwd=REPO, capture_output=True,
-                       text=True)
-    transcript = (f"$ {CHECK}\n[exit {p.returncode}]\n"
+    argv = CHECK if command is None else command
+    if not isinstance(argv, (list, tuple)) or not argv:
+        raise ValueError("check command must be a non-empty argv sequence")
+    p = subprocess.run(argv, shell=False, cwd=REPO, capture_output=True,
+                       text=True, check=False)
+    rendered = shlex.join(argv)
+    transcript = (f"$ {rendered}\n[exit {p.returncode}]\n"
                   f"----- stdout -----\n{p.stdout}\n"
                   f"----- stderr -----\n{p.stderr}")
     return transcript, ("pass" if p.returncode == 0 else "fail")
@@ -111,7 +117,7 @@ def main():
     transcript, verdict = run_check()
 
     diff_h = put_blob(diff.encode())
-    check_h = put_blob((CHECK + "\n").encode())
+    check_h = put_blob((shlex.join(CHECK) + "\n").encode())
     trans_h = put_blob(transcript.encode())
 
     body = {
@@ -139,7 +145,7 @@ def main():
     print(f"\n--- hermes review ---\n{review}\n")
     print(f"gate verdict: {verdict.upper()}  ->  decision: {body['decision']}")
     print(f"warrant {wid[:12]}… written to .warrants/records/{wid}.json")
-    print(f"verify: python3 tools/warrant_verify.py")
+    print("verify: python3 tools/warrant_verify.py")
     print(f"ratify: python3 tools/cosign.py {wid} you@host <yourkey>")
     # The warrant is written either way — a `reject` warrant is a successful
     # minting of an honest rejection, and it stays on disk. But this printed
