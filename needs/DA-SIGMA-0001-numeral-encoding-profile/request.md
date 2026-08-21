@@ -57,6 +57,15 @@ here, or if the owner holds that encoding conventions are application-side by
 design, then Decision Archaeology publishes its own profile and this request is
 `already-supported` or `application-adapter` — not a protocol change.
 
+## Owner disposition
+
+Owner-side replay at the pinned evaluator revision reproduced the exact term,
+ATP cost, and both negative counterexamples. The request is classified
+`application-adapter`: Book I §6 already defines the ownership boundary by
+placing non-C1 frontend profiles outside the standard. Decision Archaeology is
+therefore the canonical owner of the narrow encoding needed by its case. This
+classification records routing only; it does not adopt that encoding here.
+
 ## Non-claims
 
 - Nothing here asserts that the procurement case's hypothesis is true.

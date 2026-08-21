@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "impl"))
@@ -21,6 +22,8 @@ LIMITS = {"max_node_depth": 200_000,
           "max_materialized_nodes": 50_000_000,
           "max_store_fetches": 200_000_000}
 WIDTH = 36
+EXPECTED_BASELINE_HASH = "025e3c7632c633850851dab5d2dfe789217fd640477cc287a3fd8374d87be99b"
+EXPECTED_BASELINE_ATP = 61_479
 
 V = lambda name: ("var", name)                       # noqa: E731
 L = lambda name, body: ("lam", name, body)           # noqa: E731
@@ -104,12 +107,29 @@ def church_cost_per_unit(store):
     return (s_2 - s_1) / (n_2 - n_1)
 
 
+def minor_units(value, decimal_places):
+    """Parse a decimal amount exactly and reject fractional minor units."""
+    try:
+        amount = Decimal(value)
+    except (InvalidOperation, TypeError) as error:
+        raise ValueError(f"invalid decimal amount: {value!r}") from error
+    scaled = amount * (Decimal(10) ** decimal_places)
+    if not scaled.is_finite() or scaled != scaled.to_integral_value():
+        raise ValueError(
+            f"amount {value!r} is not exact at {decimal_places} decimal places"
+        )
+    result = int(scaled)
+    if result < 0 or result >= 2 ** WIDTH:
+        raise ValueError(f"amount {value!r} does not fit unsigned {WIDTH}-bit encoding")
+    return result
+
+
 def main() -> int:
     amounts = json.loads((FIXTURES / "amounts.json").read_text())
-    scale = 10 ** amounts["decimal_places"]
-    a = int(round(float(amounts["addends"][0]["amount_uah"]) * scale))
-    b = int(round(float(amounts["addends"][1]["amount_uah"]) * scale))
-    published = int(round(float(amounts["published_sum_uah"]) * scale))
+    decimal_places = amounts["decimal_places"]
+    a = minor_units(amounts["addends"][0]["amount_uah"], decimal_places)
+    b = minor_units(amounts["addends"][1]["amount_uah"], decimal_places)
+    published = minor_units(amounts["published_sum_uah"], decimal_places)
 
     store = Store()
     g = booleans(store)
@@ -120,14 +140,25 @@ def main() -> int:
     print(f"published sum:         {published:,}\n")
 
     baseline = None
-    for label, claimed in (("published sum", published),
-                           ("tampered by 1 minor unit", published - 1),
-                           ("tampered by 10 minor units", published + 10)):
+    for label, claimed, expected_true in (
+            ("published sum", published, True),
+            ("tampered by 1 minor unit", published - 1, False),
+            ("tampered by 10 minor units", published + 10, False)):
         term = positional_check(store, g, a, b, claimed)
         result, spent = eval_hash(term[1], 100_000_000, store, limits=LIMITS)
-        verdict = "TRUE" if term_hash(result) == true_hash else "not TRUE"
+        is_true = term_hash(result) == true_hash
+        verdict = "TRUE" if is_true else "not TRUE"
         print(f"positional, {WIDTH}-bit  {label:<26} term={term[1].hex()[:16]}  "
               f"ATP={spent:>8,}  -> {verdict}")
+        if is_true != expected_true:
+            raise AssertionError(f"{label}: expected {expected_true=}, got {verdict}")
+        if label == "published sum":
+            if term[1].hex() != EXPECTED_BASELINE_HASH:
+                raise AssertionError("published-sum term hash changed")
+            if spent != EXPECTED_BASELINE_ATP:
+                raise AssertionError(
+                    f"published-sum ATP changed: expected {EXPECTED_BASELINE_ATP}, got {spent}"
+                )
         baseline = baseline or spent
 
     per_unit = church_cost_per_unit(Store())
@@ -138,6 +169,7 @@ def main() -> int:
     print("\nBoth encodings are ordinary SKI citizens. Neither is named by the "
           "specification, so two verifiers who encode the same claim independently "
           "get different term hashes.")
+    print("DA-SIGMA-0001: PASS")
     return 0
 
 

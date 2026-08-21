@@ -3,7 +3,7 @@
   "schema": "decision-archaeology.need@v0",
   "template": "decision-archaeology.need-template@v0.1.0",
   "id": "DA-SIGMA-0001",
-  "status": "filed",
+  "status": "triaged",
   "source": {
     "repository": "https://github.com/s0fractal/decision-archaeology",
     "revision": "7e9a3a9f94af28d19bfb224348162ee9cf202e61",
