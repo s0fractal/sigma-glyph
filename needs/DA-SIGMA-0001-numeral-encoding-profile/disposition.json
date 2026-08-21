@@ -1,0 +1,12 @@
+{
+  "$schema": "https://github.com/s0fractal/decision-archaeology/blob/main/schemas/need-disposition.schema.json",
+  "schema": "decision-archaeology.need-disposition@v0",
+  "request_id": "DA-SIGMA-0001",
+  "status": "untriaged",
+  "owner_surface": "unassigned",
+  "rationale": "No owner-side triage has been recorded.",
+  "next_action": "Reproduce the fixture at the pinned revision and classify the request: already-supported, application-adapter, profile-change, protocol-candidate, wrong-owner, or declined.",
+  "decided_at": null,
+  "decided_by": null,
+  "authority": "non-normative-routing-only"
+}
