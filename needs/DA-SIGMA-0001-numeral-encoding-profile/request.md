@@ -66,6 +66,16 @@ placing non-C1 frontend profiles outside the standard. Decision Archaeology is
 therefore the canonical owner of the narrow encoding needed by its case. This
 classification records routing only; it does not adopt that encoding here.
 
+## Closure
+
+Decision Archaeology implemented the routed profile at revision
+`47048acaf782c29dc478d62a1e041345351ebbe1` and merged the machine-readable
+outcome receipt at `1657954ea4142842254623819c3a6b066ac46f91`. The source case
+now reaches C1-TRUE at claim-bound term
+`293c4942f543d7224e34eb3ff9353588d5da67e34048d4decf3826e431415c57`
+under its pinned `sigma-glyph==0.6.7` dependency. This closes the blocked
+operation; it does not add the application profile to this standard.
+
 ## Non-claims
 
 - Nothing here asserts that the procurement case's hypothesis is true.
