@@ -4,8 +4,8 @@
   "request_id": "DA-SIGMA-0001",
   "status": "application-adapter",
   "owner_surface": "Book I section 6 external frontend-profile boundary",
-  "rationale": "Owner-side replay reproduced the exact TRUE term, both negative counterexamples, and the 61,479 ATP baseline. The Sigma-Glyph kernel and Profile C1 already express the operation, while section 6 deliberately assigns non-C1 frontend encodings no protocol status. Cross-party claim identity therefore belongs in a named application-owned encoding profile, not in the Sigma-Glyph protocol.",
-  "next_action": "Decision Archaeology should publish a narrow, versioned fixed-width integer equality encoding with byte-level test vectors, pin its Sigma-Glyph dependency, replay the source case, and record an outcome receipt linking both repository revisions.",
+  "rationale": "Owner-side replay reproduced the exact TRUE term, both negative counterexamples, and the 61,479 ATP baseline. The Sigma-Glyph kernel and Profile C1 already express the operation, while section 6 deliberately assigns non-C1 frontend encodings no protocol status. Decision Archaeology implemented the routed application profile at revision 47048acaf782c29dc478d62a1e041345351ebbe1 and recorded the successful case replay and cross-repository outcome at merge 1657954ea4142842254623819c3a6b066ac46f91. The blocked operation is fulfilled without a Sigma-Glyph protocol change.",
+  "next_action": "Closed: preserve this packet and its application-adapter disposition. File a new need with a new reproducer if a materially different operation is blocked.",
   "decided_at": "2026-08-21T11:45:13Z",
   "decided_by": "Codex owner-side triage, authorized by s0fractal",
   "authority": "non-normative-routing-only"
