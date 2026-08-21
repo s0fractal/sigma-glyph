@@ -32,6 +32,15 @@ are not style — breaking them corrupts the thing this project exists to protec
    rewriting shared history, publishing) require explicit human authorization for
    the specific action. Approval of one step is not approval of the next.
 
+## Case-derived needs
+
+Before proposing a new protocol or profile capability, inspect `needs/` for
+reproducible application pressure on the same surface. A need packet must be
+replayed and classified owner-side. Merging a classified packet records demand
+and routing only; it is not review, adoption, or a protocol change. Preserve
+closed packets so later agents can reconstruct the decision from exact revisions,
+digests, fixtures, and the non-normative disposition.
+
 ## Precedent (why this file exists)
 
 2026-07-27: an assisting agent ran the green suites, committed the WRT-001 /

@@ -1,0 +1,10 @@
+{
+  "note": "Minimized projection of two public Prozorro expected-value records. Identities, bids, participants and every other field of the source case are deliberately omitted.",
+  "decimal_places": 2,
+  "currency": "UAH",
+  "addends": [
+    {"record": "UA-2025-02-03-015471-a", "amount_uah": "178530840.00"},
+    {"record": "UA-2025-03-17-004896-a", "amount_uah": "157960871.70"}
+  ],
+  "published_sum_uah": "336491711.70"
+}

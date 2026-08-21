@@ -1,0 +1,59 @@
+{
+  "$schema": "https://github.com/s0fractal/decision-archaeology/blob/main/schemas/need.schema.json",
+  "schema": "decision-archaeology.need@v0",
+  "template": "decision-archaeology.need-template@v0.1.0",
+  "id": "DA-SIGMA-0001",
+  "status": "triaged",
+  "source": {
+    "repository": "https://github.com/s0fractal/decision-archaeology",
+    "revision": "7e9a3a9f94af28d19bfb224348162ee9cf202e61",
+    "case_id": "barite-bid-rigging-2025",
+    "artifacts": [
+      {
+        "path": "examples/barite-bid-rigging-2025/sources/prozorro-projection.json",
+        "sha256": "d51615e22cea6c91f57502279f658ad50d0446c93a81fb867d3327a3e3326aa8"
+      },
+      {
+        "path": "examples/barite-bid-rigging-2025/artifacts/check-report.json",
+        "sha256": "2f8b28941ff8894ac8daaccb9692529aee93b6998098fb283c0c2fd9361da492"
+      }
+    ]
+  },
+  "target": {
+    "repository": "https://github.com/s0fractal/sigma-glyph",
+    "revision": "d78fe1698ca46f8be9a37232438a3740d1c8ff96",
+    "surface": "spec/book-1-truth.md §6 — Canonical Lambda->SKI Compiler, Profile C1 (Normative Annex), and the absence of any named encoding profile beside it"
+  },
+  "need": {
+    "blocked_operation": "Publish the case's exact-sum check as a Sigma-Glyph term whose hash means the same claim to an independent verifier who did not receive our encoder.",
+    "current_behavior": "Profile C1 fixes lambda->SKI compilation but nothing fixes how a decimal amount becomes a term. Section 6 states that other frontend profiles MAY exist outside the standard as ordinary SKI citizens with no special status, so two honest implementers encoding the same arithmetic claim produce different term hashes.",
+    "required_capability": "A named, versioned encoding profile for integer-valued comparisons — minor-unit scaling, fixed width, bit order, and the boolean normal form a verdict reduces to — reproducible byte-for-byte by parties who share no code.",
+    "local_workaround": "A 36-bit LSB-first ripple-carry adder over C1-compiled booleans, private to Decision Archaeology. It answers the case's exact-sum check in 61,479 ATP and returns not-TRUE when either addend or the published sum is altered by one minor unit.",
+    "why_workaround_is_insufficient": "The term hash pins our encoder, not the claim. A verifier who rebuilds the same arithmetic with a different width, bit order, or adder shape gets a different hash, so a receipt over that hash binds nothing beyond our own toolchain — which is the property the case needed Sigma-Glyph for.",
+    "candidate_placement": "profile"
+  },
+  "reproducer": {
+    "command": "python3 needs/DA-SIGMA-0001-numeral-encoding-profile/fixtures/reproduce.py",
+    "expected": "The published sum evaluates to TRUE in 61,479 ATP at term 025e3c7632c63385; both tampered sums evaluate to not-TRUE; the Church-encoded form of the same claim costs about 61 ATP per unit of magnitude, i.e. ~2.05e12 ATP, roughly 3.3e7 times more.",
+    "counterexample": "If a published Sigma-Glyph profile, ADR, or test vector already fixes an integer encoding, this closes as already-supported. If the owner holds that encoding conventions are application-side by design — the reading Section 6 invites — this reroutes to an application adapter and Decision Archaeology publishes its own encoding without any change here."
+  },
+  "boundaries": {
+    "data_minimization": "The fixture carries two public expected-value amounts and their published sum. Company identities, bid records, document hashes, the AMCU decision, and every other field of the source case are deliberately omitted.",
+    "non_claims": [
+      "Filing this request does not establish the source case's substantive hypothesis about the procurement it examines.",
+      "Merging this packet records demand and routing only; it does not adopt a protocol change, a profile, or the encoding used in the fixture.",
+      "The measured ATP figures describe the reference Python evaluator at the pinned target revision, not a property of the specification.",
+      "The local workaround is evidence that the need is real, not a proposed implementation for this repository."
+    ]
+  },
+  "provenance": {
+    "producer": "Claude Opus 5 agent, working in decision-archaeology at the direction of s0fractal",
+    "generated_at": "2026-08-21T11:32:29Z",
+    "authority": "case-derived-demand-only"
+  },
+  "paths": {
+    "narrative": "request.md",
+    "fixtures": "fixtures/",
+    "disposition": "disposition.json"
+  }
+}

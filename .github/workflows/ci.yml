@@ -29,6 +29,7 @@ on: [push, pull_request]
 # surface that changed, and include the outputs run at the new pin.
 env:
   WARRANT_PIN: 0d147aa12158d18e686270fe4eca2972bd4707f1
+  DECISION_ARCHAEOLOGY_NEEDS_PIN: 7e9a3a9f94af28d19bfb224348162ee9cf202e61
 
 jobs:
   test:
@@ -37,6 +38,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: '3.12' }
+      - name: Case-derived needs are structurally valid (pinned needs@v0 validator)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone -q https://github.com/s0fractal/decision-archaeology /tmp/decision-archaeology
+          git -C /tmp/decision-archaeology checkout -q "$DECISION_ARCHAEOLOGY_NEEDS_PIN"
+          mapfile -d '' packets < <(find needs -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+          test "${#packets[@]}" -gt 0
+          python3 /tmp/decision-archaeology/tools/validate_need.py "${packets[@]}"
+      - name: DA-SIGMA-0001 owner-side reproducer
+        run: python3 needs/DA-SIGMA-0001-numeral-encoding-profile/fixtures/reproduce.py
       # Mirrored from warrant (X1 enforces byte-identity of shared tooling).
       # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
       # it demands instead that every citation be accounted for in the committed
