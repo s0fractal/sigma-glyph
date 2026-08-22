@@ -162,6 +162,25 @@ as numbers pretending to be measurements.
 Thresholds may not be edited after a result is known. A different threshold means
 **EXP-003**, with this document left intact and cited.
 
+## 7a. Authoring timebox (added before implementation)
+
+SKI is universal, so "we did not manage it" and "it cannot be expressed" are
+different statements and only one of them is a fact about the runtime. Without a
+limit, this experiment turns into unbounded construction of a JSON compiler, and
+the longer it runs the more the result measures persistence rather than fitness.
+
+**Each side gets at most 3 working days of authoring effort**, recorded honestly
+including failed attempts. When the budget is exhausted, the outcome recorded is:
+
+> **not implemented within the fixed budget** — with what was built, where it
+> stopped, and what the next step would have been.
+
+That is a result about the authoring surface, reportable as such. It is **not**
+recorded as "inexpressible", and it does not by itself trigger K1: K1 is about
+the published profile and the ATP budget, this is about a human-scale cost. If a
+later attempt inside a new budget succeeds, it supersedes this outcome with the
+same fixtures.
+
 ## 8. Allowed and forbidden changes after the start
 
 **Allowed:** adding a fixture to both sides with a change-log entry; fixing a bug
@@ -188,3 +207,4 @@ running.
 | Date | Change | Result already known? |
 | --- | --- | --- |
 | 2026-08-22 | initial preregistration | no |
+| 2026-08-23 | added §7a authoring timebox: 3 working days per side, and the distinction between "not implemented within budget" and "inexpressible" | no |
