@@ -26,6 +26,7 @@ from pathlib import Path
 from nets import Net
 
 HERE = Path(__file__).resolve().parent
+FIXTURES = HERE / "fixtures.json"
 
 CAP = 200_000          # interactions before a net is declared non-normalising
 SIZE_CAP = 40_000      # agents; a net that keeps growing is recorded, not chased
@@ -126,8 +127,7 @@ def fingerprint(corpus) -> tuple[str, list[str]]:
     starting net and fails if any of them changes — including through a change in
     Python's own random layout, which no version pin in prose would catch.
     """
-    pinned = json.loads((HERE / "fixtures.json").read_text()) \
-        if (HERE / "fixtures.json").exists() else {}
+    pinned = json.loads(FIXTURES.read_text()) if FIXTURES.exists() else {}
     seen, drift = {}, []
     for name, make in corpus:
         seen[name] = digest_of(make())
@@ -142,7 +142,7 @@ def fingerprint(corpus) -> tuple[str, list[str]]:
 if __name__ == "__main__":
     import sys
     if "--pin" in sys.argv:
-        (HERE / "fixtures.json").write_text(json.dumps(
+        FIXTURES.write_text(json.dumps(
             {name: digest_of(make()) for name, make in CORPUS},
             indent=2, sort_keys=True) + "\n")
         print(f"pinned {len(CORPUS)} starting nets")

@@ -44,11 +44,33 @@ from nets import Net  # noqa: E402
 WANTED = ("dup-tree-3", "dup-tree-5", "race-3-4", "race-3-16", "random-3-12")
 SMALL = [(n, m) for n, m in corpus.CORPUS if n in WANTED]
 BUDGET = 200
+PER_RULE_BOUND = "the per-rule bound"
 
 ORIGINAL = {"interact": Net.interact, "delta": Net.delta,
-            "parallel": measure.SCHEDULES["parallel"],
-            "allocates": dict(measure.ALLOCATES),
             "dup_tree": corpus.dup_tree}
+
+
+@contextlib.contextmanager
+def swapped(container, key, value):
+    """Put the perturbation in place and take it out again, so no control is
+    left broken for the next one — the whole point is one defect at a time."""
+    keep = container[key]
+    container[key] = value
+    try:
+        yield
+    finally:
+        container[key] = keep
+
+
+@contextlib.contextmanager
+def patched(target, name, value):
+    """The same, for a class attribute rather than a dict entry."""
+    keep = getattr(target, name)
+    setattr(target, name, value)
+    try:
+        yield
+    finally:
+        setattr(target, name, keep)
 
 
 def run() -> tuple[int, str]:
@@ -115,7 +137,7 @@ def rounds_capped(net, budget=BUDGET):
 
 
 def incomplete(net, budget=BUDGET):
-    result = ORIGINAL["parallel"](net, budget)
+    result = measure.parallel(net, budget)
     return {k: v for k, v in result.items() if k != "rounds"}
 
 
@@ -136,41 +158,36 @@ def main() -> int:
     problems = []
     independent = ("no observation recorded", "stopped on the budget")
 
-    Net.interact = leaky_interact
-    problems += expect("A  a rule allocating more than its price", "the per-rule bound",
-                       independent)
-    Net.interact = ORIGINAL["interact"]
+    with patched(Net, "interact", leaky_interact):
+        problems += expect("A  a rule allocating more than its price",
+                           PER_RULE_BOUND, independent)
 
-    keep = measure.SCHEDULES["grow-first"]
-    measure.SCHEDULES["grow-first"] = lambda net, budget=BUDGET: forgetful(
-        net, lambda d: -d, budget)
-    problems += expect("B  a schedule losing an interaction", "interaction counts differ",
-                       independent + ("the per-rule bound",))
-    measure.SCHEDULES["grow-first"] = keep
+    with swapped(measure.SCHEDULES, "grow-first",
+                 lambda net, budget=BUDGET: forgetful(net, lambda d: -d, budget)):
+        problems += expect("B  a schedule losing an interaction",
+                           "interaction counts differ",
+                           independent + (PER_RULE_BOUND,))
 
-    Net.delta = blind_delta
-    problems += expect("C  a price under-reporting growth",
-                       "where reordering one fixed multiset allows at most", independent)
-    Net.delta = ORIGINAL["delta"]
+    with patched(Net, "delta", blind_delta):
+        problems += expect("C  a price under-reporting growth",
+                           "where reordering one fixed multiset allows at most",
+                           independent)
 
-    measure.SCHEDULES["parallel"] = rounds_capped
-    problems += expect("D  a schedule capped on rounds, not interactions",
-                       "the cap is not being applied in interactions")
-    measure.SCHEDULES["parallel"] = ORIGINAL["parallel"]
+    with swapped(measure.SCHEDULES, "parallel", rounds_capped):
+        problems += expect("D  a schedule capped on rounds, not interactions",
+                           "the cap is not being applied in interactions")
 
-    measure.SCHEDULES["parallel"] = incomplete
-    problems += expect("E  an observation reaching the record incomplete",
-                       "the record omits", ("the per-rule bound",))
-    measure.SCHEDULES["parallel"] = ORIGINAL["parallel"]
+    with swapped(measure.SCHEDULES, "parallel", incomplete):
+        problems += expect("E  an observation reaching the record incomplete",
+                           "the record omits", (PER_RULE_BOUND,))
 
-    measure.ALLOCATES["growing"] = 2
-    problems += expect("F  an allocation model understating a commutation",
-                       "ALLOCATES/FREES misstate a rule", independent)
-    measure.ALLOCATES.update(ORIGINAL["allocates"])
+    with swapped(measure.ALLOCATES, "growing", 2):
+        problems += expect("F  an allocation model understating a commutation",
+                           "ALLOCATES/FREES misstate a rule", independent)
 
-    corpus.dup_tree = fatter_tree
-    corpus.CORPUS[:] = [(n, (lambda d=int(n[-1]): fatter_tree(d)) if n.startswith("dup-tree")
-                         else m) for n, m in corpus.CORPUS]
+    corpus.CORPUS[:] = [(n, (lambda d=int(n[-1]): fatter_tree(d))
+                         if n.startswith("dup-tree") else m)
+                        for n, m in corpus.CORPUS]
     SMALL[:] = [(n, m) for n, m in corpus.CORPUS if n in WANTED]
     problems += expect("G  a starting net that is not the one frozen",
                        "the corpus is not the one that was frozen", independent)
