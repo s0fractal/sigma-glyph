@@ -208,3 +208,4 @@ running.
 | --- | --- | --- |
 | 2026-08-22 | initial preregistration | no |
 | 2026-08-23 | added §7a authoring timebox: 3 working days per side, and the distinction between "not implemented within budget" and "inexpressible" | no |
+| 2026-08-23 | result recorded in [`exp-002/RESULT.md`](exp-002/RESULT.md); no threshold was edited | yes — recorded after, and changing nothing |

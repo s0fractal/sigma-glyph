@@ -13,3 +13,5 @@ build/
 dist/
 *.egg-info/
 .venv*/
+experiments/exp-002/wasm/target/
+!experiments/exp-002/wasm/exp002_verdict.wasm
