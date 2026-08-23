@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""Lafont's interaction combinators, small enough to read in one sitting.
+
+Agents: `G` (constructor γ) and `D<label>` (duplicator δ), both binary — one
+principal port and two auxiliary — and `E` (eraser ε), principal port only.
+Labels on duplicators are HVM's device, not Lafont's: two duplicators with the
+same label annihilate, with different labels they commute, which is what makes
+sharing observable.
+
+Wires are union-find variables rather than port-to-port links. That is not a
+performance choice: it makes the degenerate cases — an agent wired to itself, an
+active pair whose auxiliary ports already face each other — collapse correctly
+instead of needing four special cases each.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+def arity(symbol: str) -> int:
+    return 0 if symbol == "E" else 2
+
+
+def annihilates(a: str, b: str) -> bool:
+    """Same symbol, same label. `D1` and `D2` commute; that is the point of labels."""
+    return a == b
+
+
+@dataclass
+class Net:
+    symbol: dict[int, str] = field(default_factory=dict)
+    var: dict[tuple[int, int], int] = field(default_factory=dict)
+    up: dict[int, int] = field(default_factory=dict)          # union-find over wires
+    free: dict[str, int] = field(default_factory=dict)        # interface name -> wire
+    _node: int = 0
+    _var: int = 0
+
+    # -- wires ---------------------------------------------------------------
+
+    def new_var(self) -> int:
+        self._var += 1
+        self.up[self._var] = self._var
+        return self._var
+
+    def find(self, v: int) -> int:
+        root = v
+        while self.up[root] != root:
+            root = self.up[root]
+        while self.up[v] != root:
+            self.up[v], v = root, self.up[v]
+        return root
+
+    def union(self, u: int, v: int) -> None:
+        u, v = self.find(u), self.find(v)
+        if u != v:
+            self.up[v] = u
+
+    # -- agents --------------------------------------------------------------
+
+    def new_node(self, symbol: str, wires: dict[int, int]) -> int:
+        self._node += 1
+        nid = self._node
+        self.symbol[nid] = symbol
+        for slot in range(arity(symbol) + 1):
+            self.var[(nid, slot)] = wires[slot] if slot in wires else self.new_var()
+        return nid
+
+    def delete(self, nid: int) -> None:
+        for slot in range(arity(self.symbol[nid]) + 1):
+            del self.var[(nid, slot)]
+        del self.symbol[nid]
+
+    def size(self) -> int:
+        """Memory, counted as agents. Wires are not counted: an interaction
+        changes the wire count by a bounded amount too, and counting both only
+        scales the same quantity."""
+        return len(self.symbol)
+
+    # -- reduction -----------------------------------------------------------
+
+    def active_pairs(self) -> list[tuple[int, int]]:
+        """Agents facing each other principal to principal. They are pairwise
+        disjoint by construction — an agent has one principal port — which is
+        why a whole set of them can fire in one parallel step."""
+        by_wire: dict[int, list[int]] = {}
+        for nid in self.symbol:
+            by_wire.setdefault(self.find(self.var[(nid, 0)]), []).append(nid)
+        return sorted(tuple(sorted(ns)) for ns in by_wire.values() if len(ns) == 2)
+
+    def delta(self, a: int, b: int) -> int:
+        """Net-size change of the interaction, before performing it."""
+        sa, sb = self.symbol[a], self.symbol[b]
+        if sa == "E" and sb == "E":
+            return -2
+        if sa == "E" or sb == "E":
+            return 0                       # the eraser is copied onto both aux ports
+        return -2 if annihilates(sa, sb) else +2
+
+    def interact(self, a: int, b: int) -> int:
+        sa, sb = self.symbol[a], self.symbol[b]
+        change = self.delta(a, b)
+
+        if sa == "E" and sb == "E":
+            self.delete(a)
+            self.delete(b)
+        elif sa == "E" or sb == "E":
+            eraser, agent = (a, b) if sa == "E" else (b, a)
+            below = [self.find(self.var[(agent, 1)]), self.find(self.var[(agent, 2)])]
+            self.delete(eraser)
+            self.delete(agent)
+            for wire in below:
+                self.new_node("E", {0: wire})
+        elif annihilates(sa, sb):
+            self.union(self.var[(a, 1)], self.var[(b, 1)])
+            self.union(self.var[(a, 2)], self.var[(b, 2)])
+            self.delete(a)
+            self.delete(b)
+        else:
+            a1, a2 = self.find(self.var[(a, 1)]), self.find(self.var[(a, 2)])
+            b1, b2 = self.find(self.var[(b, 1)]), self.find(self.var[(b, 2)])
+            self.delete(a)
+            self.delete(b)
+            w = [self.new_var() for _ in range(4)]
+            self.new_node(sb, {0: a1, 1: w[0], 2: w[1]})
+            self.new_node(sb, {0: a2, 1: w[2], 2: w[3]})
+            self.new_node(sa, {0: b1, 1: w[0], 2: w[2]})
+            self.new_node(sa, {0: b2, 1: w[1], 2: w[3]})
+        return change
+
+    # -- identity ------------------------------------------------------------
+
+    def signature(self) -> str:
+        """A sound invariant: equal nets give equal signatures, so a mismatch is
+        a real difference and never a false alarm. Colour refinement over the
+        port structure, which is what a normal-form comparison needs here — not
+        a proof of isomorphism, and not used as one."""
+        colour = {nid: self.symbol[nid] for nid in self.symbol}
+        ends: dict[int, list[tuple[int, int]]] = {}
+        for port, wire in self.var.items():
+            ends.setdefault(self.find(wire), []).append(port)
+        names = {self.find(w): n for n, w in self.free.items()}
+
+        for _ in range(min(len(colour) + 1, 64)):
+            fresh = {}
+            for nid in colour:
+                around = []
+                for slot in range(arity(self.symbol[nid]) + 1):
+                    wire = self.find(self.var[(nid, slot)])
+                    other = sorted(colour.get(p[0], "?") + f".{p[1]}"
+                                   for p in ends[wire] if p != (nid, slot))
+                    around.append(f"{slot}[{names.get(wire, '')}|{','.join(other)}]")
+                fresh[nid] = str(hash((colour[nid], tuple(around))) % (1 << 61))
+            if fresh == colour:
+                break
+            colour = fresh
+
+        interface = sorted(f"{n}={colour.get(p[0], 'wire')}"
+                           for n, w in self.free.items()
+                           for p in ends.get(self.find(w), []))
+        return "|".join(sorted(colour.values())) + "//" + "|".join(interface)
