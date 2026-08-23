@@ -10,13 +10,17 @@ written before the reducer existed. The corpus was committed at `3040b57`, befor
 | corpus | 29 nets in four families, pinned by digest in `fixtures.json`, 21 of which normalise |
 | schedules | sequential, shrink-first, grow-first, maximal-parallel |
 | budget | 200,000 **interactions** for every schedule, or 40,000 agents |
-| host | Python 3.14.7; corpus digest `4e8b7adc1c20bc6d` |
+| host | Python 3.14.7; corpus digest `9d3b8844ce0b3a66`, each net pinned by exact structure |
+| gate | nine controls; `selftest.py` in CI on every push, full replay path-filtered |
 
-## Corrections to the first version of this document
+## Corrections
 
-Four defects were found in review after the first result was written. The result
-survives all four, but two of its statements did not, and they are named here
-rather than quietly repaired.
+Nine defects were found in two rounds of review after the first result was
+written. The result survives all nine; two of its statements did not, and one
+control turned out to be measuring nothing. They are named here rather than
+quietly repaired.
+
+### First round
 
 1. **"Equal work, 200,000 interactions" was false.** The receipt recorded only
    the sequential schedule's interaction count and applied it to all four, and
@@ -37,10 +41,35 @@ rather than quietly repaired.
    checked from its own record. Found by the new corpus pin on its first
    execution.
 
+### Second round
+
+5. **The experiment was not in CI.** Every check on the pull request was green
+   while no workflow ran `measure.py` or `selftest.py`. A green result about an
+   artifact nobody executes is the exact shape of defect this repository keeps
+   finding, and it had been reintroduced by the document reporting on it.
+6. **The allocation control was still half empty.** It compared only
+   `ALLOCATES − FREES`, so declaring `5` and `3` passed while the reducer does
+   `4` and `2` — the same net change, a different widest point, which is the only
+   thing the figure is for. The reducer now counts agents created and destroyed,
+   and every interaction is compared against **both** numbers.
+7. **Reserved-then-released spanned different rounds.** It was
+   `max(envelope) − max(kept)` over the whole run. It is now per round, and it
+   has an exact identity that makes it checkable — see below.
+8. **The batch schedule truncated its last round.** Choosing part of a round *is*
+   the arbitration that the architectural conclusion says round granularity
+   avoids, so the schedule was contradicting the claim it was evidence for. There
+   are now two: `parallel-round` runs a round or refuses it, and a prefix variant
+   is used only where every schedule must stop at exactly the same count.
+9. **The corpus pin used the non-injective signature, and `results.json` was
+   written even when controls failed.** The pin is now the net's exact structure —
+   symbols, every port's wire root, the interface — hashed; the receipt is
+   written only by `--record`, and only after every control passes.
+
 ## The short version
 
 **The bound transfers. Parallelism forces an explicit choice of refusal
-granularity — per redex or per round — and Book I only has the first.**
+granularity — per redex, per prefix, or per whole round — and Book I has only the
+first.**
 
 ## What was settled on paper, and stayed settled
 
@@ -133,20 +162,30 @@ avoid.
 
 But a round-granular machine does not need it. For a maximal-parallel round:
 count `k`, reserve `3k` ATP and the round's allocation envelope, then run the
-whole round or refuse the whole round. No order among the `k` is required. So the
-correct statement is not that enforcement fails to transfer, but that
+whole round or refuse the whole round. No order among the `k` is required — and
+the schedule measured here really does refuse whole rounds, which a control
+enforces, because a schedule that quietly took a prefix would be doing the very
+arbitration this paragraph claims to avoid. Two rounds were refused for want of
+budget across the corpus, the largest of eight interactions.
+
+So the correct statement is not that enforcement fails to transfer, but that
 
 > **the bound transfers unchanged; Book I's per-redex partial-progress
 > enforcement does not.**
 
-The price of that trade is measurable. Under an explicit allocation model — every
-rule builds its entire right-hand side before any agent of its left-hand side is
-freed, so a commutation holds six agents at its widest and an erasure four — the
-envelope a round must reserve exceeds what the round keeps on **28 of 29** nets.
-A sequential machine's transient never exceeds its peak by more than 2 agents. A
-round-granular one exceeded it by up to **20,102**, and exceeded the sequential
-transient on the same net by up to **27,034**. Refusing per round is simple; it
-is not free, and this experiment does not say which is cheaper.
+The price of that trade is measurable, and it has an exact form. Under the
+allocation profile — every rule builds its entire right-hand side before any agent
+of its left-hand side is freed, so a commutation holds six agents at its widest
+and an erasure four, both checked against the reducer's own counters on every
+interaction — the memory a round reserves and hands straight back is
+
+    envelope − what the round keeps = exactly the agents that round destroys
+
+which is an identity, not an estimate, and a control compares the arithmetic
+against the reducer's free counter to keep it one. That quantity is nonzero on
+**28 of 29** nets. A sequential machine never holds more than **2** agents above
+its own peak; the round-granular machine held up to **20,102**. Refusing per round
+is simple, and it is not free; this experiment does not say which is cheaper.
 
 ## What this says about interaction counts as a cost model
 
@@ -173,26 +212,39 @@ existing runtime.
   programs, or sharing as an optimisation — only about nets.
 - Eight nets did not normalise within the budget. Whether they normalise at all
   was not determined and is not claimed either way.
-- The corpus is pinned by digest and the Python version recorded, because the
-  nets come out of a seeded generator and the file alone does not say what was
-  measured.
+- The corpus is pinned by the exact structure of every starting net and the
+  Python version recorded, because the nets come out of a seeded generator and
+  the file alone does not say what was measured. The generator itself was **not**
+  replaced with a version-independent one: that would have produced a different
+  corpus after the numbers were known, which the preregistration forbids.
 
 ## Controls
 
-`measure.py` fails rather than reports if any schedule's observation is missing
-from the record; if a schedule stopping on the budget did not spend it in
+`measure.py` is check-only unless given `--record`, and writes the receipt only
+after every control has passed: a receipt beside a failure looks exactly like a
+receipt beside a success. It fails rather than reports if any schedule's
+observation is missing from the record, or is incomplete — an incomplete record is
+rejected before analysis, because a control that reads past a missing field
+crashes instead of reporting, which is a silent control; if a schedule stopping on the budget did not spend it in
 interactions; if the allocation model predicts a final size the net does not
 have; if any peak exceeds `initial + 2 × interactions`; if any starting net
 differs from its pinned digest; or, on a net that normalises, if the schedules
 disagree on the interaction count, the multiset of rules or the normal-form
 signature, or spread further than reordering permits.
 
-`selftest.py` breaks each of those seven controls in turn and requires each to
+`selftest.py` breaks each of those nine controls in turn and requires each to
 fail **for its own reason** — a control that cannot be made to fail is not a
-control, and a perturbation that breaks everything attributes nothing. Three of
-the perturbations reproduce defects this harness actually shipped: the parallel
+control, and a perturbation that breaks everything attributes nothing. Six of the
+perturbations reproduce defects this harness actually shipped: the parallel
 schedule capped on rounds, the record carrying one schedule's count for all four,
-and a transient computed from a formula that did not match its description.
+a transient computed from a formula that did not match its description, a profile
+whose difference was right and whose widest point was wrong, a batch schedule
+truncating its last round, and reserved-then-released assembled from maxima of
+different rounds.
+
+`selftest.py` runs in CI on every push. The full corpus replay runs in its own
+path-filtered workflow, check-only, and fails if the committed `results.json`
+differs from what the replay derives.
 
 ---
 
@@ -204,3 +256,4 @@ and a transient computed from a formula that did not match its description.
 | 2026-08-23 | initial preregistration | no |
 | 2026-08-23 | result recorded; no hypothesis, threshold or net was edited | — |
 | 2026-08-23 | four review defects corrected; conclusion narrowed, not widened | yes, and the corrections are listed above |
+| 2026-08-24 | five further defects corrected, three of them in the controls themselves; experiment wired into CI | yes, and the corrections are listed above |

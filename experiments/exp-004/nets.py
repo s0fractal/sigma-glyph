@@ -34,6 +34,8 @@ class Net:
     var: dict[tuple[int, int], int] = field(default_factory=dict)
     up: dict[int, int] = field(default_factory=dict)          # union-find over wires
     free: dict[str, int] = field(default_factory=dict)        # interface name -> wire
+    allocated: int = 0                                        # agents ever created
+    freed: int = 0                                            # agents ever deleted
     owner: dict[int, int] = field(default_factory=dict)       # wire -> agent whose principal is on it
     mate: dict[int, int] = field(default_factory=dict)        # the active pairs, maintained as they arise
     _node: int = 0
@@ -83,6 +85,7 @@ class Net:
 
     def new_node(self, symbol: str, wires: dict[int, int]) -> int:
         self._node += 1
+        self.allocated += 1
         nid = self._node
         self.symbol[nid] = symbol
         for slot in range(arity(symbol) + 1):
@@ -96,12 +99,30 @@ class Net:
         return nid
 
     def delete(self, nid: int) -> None:
+        self.freed += 1
         partner = self.mate.pop(nid, None)
         if partner is not None:
             self.mate.pop(partner, None)
         for slot in range(arity(self.symbol[nid]) + 1):
             del self.var[(nid, slot)]
         del self.symbol[nid]
+
+    def structure(self) -> str:
+        """The net written out exactly, for pinning.
+
+        Not the colour-refinement signature: that is invariant under renaming and
+        therefore not injective, so two different starting nets could share one.
+        This is the literal layout — symbols, every port's wire root, and the
+        interface — which is what "the corpus did not change" has to mean.
+        """
+        agents = ";".join(
+            f"{nid}:{self.symbol[nid]}:" +
+            ",".join(str(self.find(self.var[(nid, slot)]))
+                     for slot in range(arity(self.symbol[nid]) + 1))
+            for nid in sorted(self.symbol))
+        interface = ";".join(f"{name}={self.find(wire)}"
+                             for name, wire in sorted(self.free.items()))
+        return f"agents[{agents}]free[{interface}]"
 
     def size(self) -> int:
         """Memory, counted as agents. Wires are not counted: an interaction

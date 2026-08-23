@@ -115,8 +115,12 @@ CORPUS = (
 
 
 def digest_of(net: Net) -> str:
-    """A net's identity for pinning purposes: its size and its signature."""
-    return hashlib.sha256(f"{net.size()}|{net.signature()}".encode()).hexdigest()[:16]
+    """A net's identity for pinning: the exact structure, hashed.
+
+    An earlier version hashed the colour-refinement signature, which is invariant
+    under renaming and so cannot tell two distinct nets apart with certainty. A
+    pin has to be exact or it is decoration."""
+    return hashlib.sha256(net.structure().encode()).hexdigest()[:16]
 
 
 def fingerprint(corpus) -> tuple[str, list[str]]:

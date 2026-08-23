@@ -1,25 +1,25 @@
 {
   "budget_interactions": 200000,
-  "corpus_digest": "4e8b7adc1c20bc6d",
+  "corpus_digest": "9d3b8844ce0b3a66",
   "nets": [
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 30,
-        "handed_back": 8,
-        "kept": 22
+        "handed_back_worst_round": 8,
+        "kept": 22,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 7,
         "peaks": {
           "grow-first": 22,
-          "parallel": 22,
+          "parallel-round": 22,
           "sequential": 22,
           "shrink-first": 22
         },
         "transients": {
           "grow-first": 24,
-          "parallel": 30,
+          "parallel-round": 30,
           "sequential": 24,
           "shrink-first": 24
         }
@@ -28,7 +28,7 @@
       "net": "dup-tree-3",
       "peaks": {
         "grow-first": 22,
-        "parallel": 22,
+        "parallel-round": 22,
         "sequential": 22,
         "shrink-first": 22
       },
@@ -37,10 +37,15 @@
       "schedules": {
         "grow-first": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 7,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 22,
-          "rounds": 7,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -49,11 +54,16 @@
           "stopped": null,
           "transient_peak": 24
         },
-        "parallel": {
+        "parallel-round": {
           "final": 22,
+          "handed_back": 8,
           "interactions": 7,
+          "max_round_freed": 8,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 22,
+          "pending_round": 0,
           "rounds": 3,
           "rules": {
             "growing": 7,
@@ -65,10 +75,15 @@
         },
         "sequential": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 7,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 22,
-          "rounds": 7,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -79,10 +94,15 @@
         },
         "shrink-first": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 7,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 22,
-          "rounds": 7,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -97,22 +117,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 126,
-        "handed_back": 32,
-        "kept": 94
+        "handed_back_worst_round": 32,
+        "kept": 94,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 31,
         "peaks": {
           "grow-first": 94,
-          "parallel": 94,
+          "parallel-round": 94,
           "sequential": 94,
           "shrink-first": 94
         },
         "transients": {
           "grow-first": 96,
-          "parallel": 126,
+          "parallel-round": 126,
           "sequential": 96,
           "shrink-first": 96
         }
@@ -121,7 +141,7 @@
       "net": "dup-tree-5",
       "peaks": {
         "grow-first": 94,
-        "parallel": 94,
+        "parallel-round": 94,
         "sequential": 94,
         "shrink-first": 94
       },
@@ -130,10 +150,15 @@
       "schedules": {
         "grow-first": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 31,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 94,
-          "rounds": 31,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -142,11 +167,16 @@
           "stopped": null,
           "transient_peak": 96
         },
-        "parallel": {
+        "parallel-round": {
           "final": 94,
+          "handed_back": 32,
           "interactions": 31,
+          "max_round_freed": 32,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 94,
+          "pending_round": 0,
           "rounds": 5,
           "rules": {
             "growing": 31,
@@ -158,10 +188,15 @@
         },
         "sequential": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 31,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 94,
-          "rounds": 31,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -172,10 +207,15 @@
         },
         "shrink-first": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 31,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 94,
-          "rounds": 31,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -190,22 +230,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 510,
-        "handed_back": 128,
-        "kept": 382
+        "handed_back_worst_round": 128,
+        "kept": 382,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 127,
         "peaks": {
           "grow-first": 382,
-          "parallel": 382,
+          "parallel-round": 382,
           "sequential": 382,
           "shrink-first": 382
         },
         "transients": {
           "grow-first": 384,
-          "parallel": 510,
+          "parallel-round": 510,
           "sequential": 384,
           "shrink-first": 384
         }
@@ -214,7 +254,7 @@
       "net": "dup-tree-7",
       "peaks": {
         "grow-first": 382,
-        "parallel": 382,
+        "parallel-round": 382,
         "sequential": 382,
         "shrink-first": 382
       },
@@ -223,10 +263,15 @@
       "schedules": {
         "grow-first": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 127,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 382,
-          "rounds": 127,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -235,11 +280,16 @@
           "stopped": null,
           "transient_peak": 384
         },
-        "parallel": {
+        "parallel-round": {
           "final": 382,
+          "handed_back": 128,
           "interactions": 127,
+          "max_round_freed": 128,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 382,
+          "pending_round": 0,
           "rounds": 7,
           "rules": {
             "growing": 127,
@@ -251,10 +301,15 @@
         },
         "sequential": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 127,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 382,
-          "rounds": 127,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -265,10 +320,15 @@
         },
         "shrink-first": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 127,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 382,
-          "rounds": 127,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -283,22 +343,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 2046,
-        "handed_back": 512,
-        "kept": 1534
+        "handed_back_worst_round": 512,
+        "kept": 1534,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 511,
         "peaks": {
           "grow-first": 1534,
-          "parallel": 1534,
+          "parallel-round": 1534,
           "sequential": 1534,
           "shrink-first": 1534
         },
         "transients": {
           "grow-first": 1536,
-          "parallel": 2046,
+          "parallel-round": 2046,
           "sequential": 1536,
           "shrink-first": 1536
         }
@@ -307,7 +367,7 @@
       "net": "dup-tree-9",
       "peaks": {
         "grow-first": 1534,
-        "parallel": 1534,
+        "parallel-round": 1534,
         "sequential": 1534,
         "shrink-first": 1534
       },
@@ -316,10 +376,15 @@
       "schedules": {
         "grow-first": {
           "final": 1534,
+          "handed_back": 0,
           "interactions": 511,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 1534,
-          "rounds": 511,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 511,
             "neutral": 0,
@@ -328,11 +393,16 @@
           "stopped": null,
           "transient_peak": 1536
         },
-        "parallel": {
+        "parallel-round": {
           "final": 1534,
+          "handed_back": 512,
           "interactions": 511,
+          "max_round_freed": 512,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 1534,
+          "pending_round": 0,
           "rounds": 9,
           "rules": {
             "growing": 511,
@@ -344,10 +414,15 @@
         },
         "sequential": {
           "final": 1534,
+          "handed_back": 0,
           "interactions": 511,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 1534,
-          "rounds": 511,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 511,
             "neutral": 0,
@@ -358,10 +433,15 @@
         },
         "shrink-first": {
           "final": 1534,
+          "handed_back": 0,
           "interactions": 511,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 1534,
-          "rounds": 511,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 511,
             "neutral": 0,
@@ -376,22 +456,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 16,
-        "handed_back": 8,
-        "kept": 8
+        "handed_back_worst_round": 8,
+        "kept": 8,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 7,
         "peaks": {
           "grow-first": 8,
-          "parallel": 8,
+          "parallel-round": 8,
           "sequential": 8,
           "shrink-first": 8
         },
         "transients": {
           "grow-first": 10,
-          "parallel": 16,
+          "parallel-round": 16,
           "sequential": 10,
           "shrink-first": 10
         }
@@ -400,7 +480,7 @@
       "net": "erase-tree-3",
       "peaks": {
         "grow-first": 8,
-        "parallel": 8,
+        "parallel-round": 8,
         "sequential": 8,
         "shrink-first": 8
       },
@@ -409,10 +489,15 @@
       "schedules": {
         "grow-first": {
           "final": 8,
+          "handed_back": 0,
           "interactions": 7,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 8,
-          "rounds": 7,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 7,
@@ -421,11 +506,16 @@
           "stopped": null,
           "transient_peak": 10
         },
-        "parallel": {
+        "parallel-round": {
           "final": 8,
+          "handed_back": 8,
           "interactions": 7,
+          "max_round_freed": 8,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 8,
+          "pending_round": 0,
           "rounds": 3,
           "rules": {
             "growing": 0,
@@ -437,10 +527,15 @@
         },
         "sequential": {
           "final": 8,
+          "handed_back": 0,
           "interactions": 7,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 8,
-          "rounds": 7,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 7,
@@ -451,10 +546,15 @@
         },
         "shrink-first": {
           "final": 8,
+          "handed_back": 0,
           "interactions": 7,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 8,
-          "rounds": 7,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 7,
@@ -469,22 +569,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 128,
-        "handed_back": 64,
-        "kept": 64
+        "handed_back_worst_round": 64,
+        "kept": 64,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 63,
         "peaks": {
           "grow-first": 64,
-          "parallel": 64,
+          "parallel-round": 64,
           "sequential": 64,
           "shrink-first": 64
         },
         "transients": {
           "grow-first": 66,
-          "parallel": 128,
+          "parallel-round": 128,
           "sequential": 66,
           "shrink-first": 66
         }
@@ -493,7 +593,7 @@
       "net": "erase-tree-6",
       "peaks": {
         "grow-first": 64,
-        "parallel": 64,
+        "parallel-round": 64,
         "sequential": 64,
         "shrink-first": 64
       },
@@ -502,10 +602,15 @@
       "schedules": {
         "grow-first": {
           "final": 64,
+          "handed_back": 0,
           "interactions": 63,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 64,
-          "rounds": 63,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 63,
@@ -514,11 +619,16 @@
           "stopped": null,
           "transient_peak": 66
         },
-        "parallel": {
+        "parallel-round": {
           "final": 64,
+          "handed_back": 64,
           "interactions": 63,
+          "max_round_freed": 64,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 64,
+          "pending_round": 0,
           "rounds": 6,
           "rules": {
             "growing": 0,
@@ -530,10 +640,15 @@
         },
         "sequential": {
           "final": 64,
+          "handed_back": 0,
           "interactions": 63,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 64,
-          "rounds": 63,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 63,
@@ -544,10 +659,15 @@
         },
         "shrink-first": {
           "final": 64,
+          "handed_back": 0,
           "interactions": 63,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 64,
-          "rounds": 63,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 63,
@@ -562,22 +682,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 1024,
-        "handed_back": 512,
-        "kept": 512
+        "handed_back_worst_round": 512,
+        "kept": 512,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 511,
         "peaks": {
           "grow-first": 512,
-          "parallel": 512,
+          "parallel-round": 512,
           "sequential": 512,
           "shrink-first": 512
         },
         "transients": {
           "grow-first": 514,
-          "parallel": 1024,
+          "parallel-round": 1024,
           "sequential": 514,
           "shrink-first": 514
         }
@@ -586,7 +706,7 @@
       "net": "erase-tree-9",
       "peaks": {
         "grow-first": 512,
-        "parallel": 512,
+        "parallel-round": 512,
         "sequential": 512,
         "shrink-first": 512
       },
@@ -595,10 +715,15 @@
       "schedules": {
         "grow-first": {
           "final": 512,
+          "handed_back": 0,
           "interactions": 511,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 512,
-          "rounds": 511,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 511,
@@ -607,11 +732,16 @@
           "stopped": null,
           "transient_peak": 514
         },
-        "parallel": {
+        "parallel-round": {
           "final": 512,
+          "handed_back": 512,
           "interactions": 511,
+          "max_round_freed": 512,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 512,
+          "pending_round": 0,
           "rounds": 9,
           "rules": {
             "growing": 0,
@@ -623,10 +753,15 @@
         },
         "sequential": {
           "final": 512,
+          "handed_back": 0,
           "interactions": 511,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 512,
-          "rounds": 511,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 511,
@@ -637,10 +772,15 @@
         },
         "shrink-first": {
           "final": 512,
+          "handed_back": 0,
           "interactions": 511,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 512,
-          "rounds": 511,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 0,
             "neutral": 511,
@@ -655,22 +795,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 30,
-        "handed_back": 8,
-        "kept": 22
+        "handed_back_worst_round": 10,
+        "kept": 22,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 11,
         "peaks": {
           "grow-first": 30,
-          "parallel": 22,
+          "parallel-round": 22,
           "sequential": 30,
           "shrink-first": 22
         },
         "transients": {
           "grow-first": 32,
-          "parallel": 30,
+          "parallel-round": 30,
           "sequential": 32,
           "shrink-first": 24
         }
@@ -679,7 +819,7 @@
       "net": "race-3-4",
       "peaks": {
         "grow-first": 30,
-        "parallel": 22,
+        "parallel-round": 22,
         "sequential": 30,
         "shrink-first": 22
       },
@@ -688,10 +828,15 @@
       "schedules": {
         "grow-first": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 11,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 30,
-          "rounds": 11,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -700,11 +845,16 @@
           "stopped": null,
           "transient_peak": 32
         },
-        "parallel": {
+        "parallel-round": {
           "final": 22,
+          "handed_back": 10,
           "interactions": 11,
+          "max_round_freed": 10,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 22,
+          "pending_round": 0,
           "rounds": 3,
           "rules": {
             "growing": 7,
@@ -716,10 +866,15 @@
         },
         "sequential": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 11,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 30,
-          "rounds": 11,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -730,10 +885,15 @@
         },
         "shrink-first": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 11,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 22,
-          "rounds": 11,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -748,22 +908,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 44,
-        "handed_back": 4,
-        "kept": 40
+        "handed_back_worst_round": 34,
+        "kept": 40,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 23,
         "peaks": {
           "grow-first": 54,
-          "parallel": 40,
+          "parallel-round": 40,
           "sequential": 54,
           "shrink-first": 40
         },
         "transients": {
           "grow-first": 56,
-          "parallel": 44,
+          "parallel-round": 44,
           "sequential": 56,
           "shrink-first": 40
         }
@@ -772,7 +932,7 @@
       "net": "race-3-16",
       "peaks": {
         "grow-first": 54,
-        "parallel": 40,
+        "parallel-round": 40,
         "sequential": 54,
         "shrink-first": 40
       },
@@ -781,10 +941,15 @@
       "schedules": {
         "grow-first": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 23,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 54,
-          "rounds": 23,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -793,11 +958,16 @@
           "stopped": null,
           "transient_peak": 56
         },
-        "parallel": {
+        "parallel-round": {
           "final": 22,
+          "handed_back": 34,
           "interactions": 23,
+          "max_round_freed": 34,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 40,
+          "pending_round": 0,
           "rounds": 3,
           "rules": {
             "growing": 7,
@@ -809,10 +979,15 @@
         },
         "sequential": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 23,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 54,
-          "rounds": 23,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -823,10 +998,15 @@
         },
         "shrink-first": {
           "final": 22,
+          "handed_back": 0,
           "interactions": 23,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 40,
-          "rounds": 23,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 0,
@@ -841,22 +1021,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 126,
-        "handed_back": 32,
-        "kept": 94
+        "handed_back_worst_round": 34,
+        "kept": 94,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 47,
         "peaks": {
           "grow-first": 126,
-          "parallel": 94,
+          "parallel-round": 94,
           "sequential": 126,
           "shrink-first": 94
         },
         "transients": {
           "grow-first": 128,
-          "parallel": 126,
+          "parallel-round": 126,
           "sequential": 128,
           "shrink-first": 96
         }
@@ -865,7 +1045,7 @@
       "net": "race-5-16",
       "peaks": {
         "grow-first": 126,
-        "parallel": 94,
+        "parallel-round": 94,
         "sequential": 126,
         "shrink-first": 94
       },
@@ -874,10 +1054,15 @@
       "schedules": {
         "grow-first": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 47,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 126,
-          "rounds": 47,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -886,11 +1071,16 @@
           "stopped": null,
           "transient_peak": 128
         },
-        "parallel": {
+        "parallel-round": {
           "final": 94,
+          "handed_back": 34,
           "interactions": 47,
+          "max_round_freed": 34,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 94,
+          "pending_round": 0,
           "rounds": 5,
           "rules": {
             "growing": 31,
@@ -902,10 +1092,15 @@
         },
         "sequential": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 47,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 126,
-          "rounds": 47,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -916,10 +1111,15 @@
         },
         "shrink-first": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 47,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 94,
-          "rounds": 47,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -934,22 +1134,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 164,
-        "handed_back": 4,
-        "kept": 160
+        "handed_back_worst_round": 130,
+        "kept": 160,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 95,
         "peaks": {
           "grow-first": 222,
-          "parallel": 160,
+          "parallel-round": 160,
           "sequential": 222,
           "shrink-first": 160
         },
         "transients": {
           "grow-first": 224,
-          "parallel": 164,
+          "parallel-round": 164,
           "sequential": 224,
           "shrink-first": 160
         }
@@ -958,7 +1158,7 @@
       "net": "race-5-64",
       "peaks": {
         "grow-first": 222,
-        "parallel": 160,
+        "parallel-round": 160,
         "sequential": 222,
         "shrink-first": 160
       },
@@ -967,10 +1167,15 @@
       "schedules": {
         "grow-first": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 95,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 222,
-          "rounds": 95,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -979,11 +1184,16 @@
           "stopped": null,
           "transient_peak": 224
         },
-        "parallel": {
+        "parallel-round": {
           "final": 94,
+          "handed_back": 130,
           "interactions": 95,
+          "max_round_freed": 130,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 160,
+          "pending_round": 0,
           "rounds": 5,
           "rules": {
             "growing": 31,
@@ -995,10 +1205,15 @@
         },
         "sequential": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 95,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 222,
-          "rounds": 95,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -1009,10 +1224,15 @@
         },
         "shrink-first": {
           "final": 94,
+          "handed_back": 0,
           "interactions": 95,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 160,
-          "rounds": 95,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 31,
             "neutral": 0,
@@ -1027,22 +1247,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 510,
-        "handed_back": 128,
-        "kept": 382
+        "handed_back_worst_round": 130,
+        "kept": 382,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 191,
         "peaks": {
           "grow-first": 510,
-          "parallel": 382,
+          "parallel-round": 382,
           "sequential": 510,
           "shrink-first": 382
         },
         "transients": {
           "grow-first": 512,
-          "parallel": 510,
+          "parallel-round": 510,
           "sequential": 512,
           "shrink-first": 384
         }
@@ -1051,7 +1271,7 @@
       "net": "race-7-64",
       "peaks": {
         "grow-first": 510,
-        "parallel": 382,
+        "parallel-round": 382,
         "sequential": 510,
         "shrink-first": 382
       },
@@ -1060,10 +1280,15 @@
       "schedules": {
         "grow-first": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 191,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 510,
-          "rounds": 191,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -1072,11 +1297,16 @@
           "stopped": null,
           "transient_peak": 512
         },
-        "parallel": {
+        "parallel-round": {
           "final": 382,
+          "handed_back": 130,
           "interactions": 191,
+          "max_round_freed": 130,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 382,
+          "pending_round": 0,
           "rounds": 7,
           "rules": {
             "growing": 127,
@@ -1088,10 +1318,15 @@
         },
         "sequential": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 191,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 510,
-          "rounds": 191,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -1102,10 +1337,15 @@
         },
         "shrink-first": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 191,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 382,
-          "rounds": 191,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -1120,22 +1360,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 644,
-        "handed_back": 4,
-        "kept": 640
+        "handed_back_worst_round": 514,
+        "kept": 640,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 383,
         "peaks": {
           "grow-first": 894,
-          "parallel": 640,
+          "parallel-round": 640,
           "sequential": 894,
           "shrink-first": 640
         },
         "transients": {
           "grow-first": 896,
-          "parallel": 644,
+          "parallel-round": 644,
           "sequential": 896,
           "shrink-first": 640
         }
@@ -1144,7 +1384,7 @@
       "net": "race-7-256",
       "peaks": {
         "grow-first": 894,
-        "parallel": 640,
+        "parallel-round": 640,
         "sequential": 894,
         "shrink-first": 640
       },
@@ -1153,10 +1393,15 @@
       "schedules": {
         "grow-first": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 383,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 894,
-          "rounds": 383,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -1165,11 +1410,16 @@
           "stopped": null,
           "transient_peak": 896
         },
-        "parallel": {
+        "parallel-round": {
           "final": 382,
+          "handed_back": 514,
           "interactions": 383,
+          "max_round_freed": 514,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 640,
+          "pending_round": 0,
           "rounds": 7,
           "rules": {
             "growing": 127,
@@ -1181,10 +1431,15 @@
         },
         "sequential": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 383,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 894,
-          "rounds": 383,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -1195,10 +1450,15 @@
         },
         "shrink-first": {
           "final": 382,
+          "handed_back": 0,
           "interactions": 383,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 640,
-          "rounds": 383,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 127,
             "neutral": 0,
@@ -1213,22 +1473,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 16,
-        "handed_back": 4,
-        "kept": 12
+        "handed_back_worst_round": 6,
+        "kept": 12,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 5,
         "peaks": {
           "grow-first": 14,
-          "parallel": 12,
+          "parallel-round": 12,
           "sequential": 14,
           "shrink-first": 12
         },
         "transients": {
           "grow-first": 16,
-          "parallel": 16,
+          "parallel-round": 16,
           "sequential": 16,
           "shrink-first": 12
         }
@@ -1237,7 +1497,7 @@
       "net": "random-1-12",
       "peaks": {
         "grow-first": 14,
-        "parallel": 12,
+        "parallel-round": 12,
         "sequential": 14,
         "shrink-first": 12
       },
@@ -1246,10 +1506,15 @@
       "schedules": {
         "grow-first": {
           "final": 6,
+          "handed_back": 0,
           "interactions": 5,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 14,
-          "rounds": 5,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 1,
             "neutral": 0,
@@ -1258,11 +1523,16 @@
           "stopped": null,
           "transient_peak": 16
         },
-        "parallel": {
+        "parallel-round": {
           "final": 6,
+          "handed_back": 6,
           "interactions": 5,
+          "max_round_freed": 6,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 12,
+          "pending_round": 0,
           "rounds": 2,
           "rules": {
             "growing": 1,
@@ -1274,10 +1544,15 @@
         },
         "sequential": {
           "final": 6,
+          "handed_back": 0,
           "interactions": 5,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 14,
-          "rounds": 5,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 1,
             "neutral": 0,
@@ -1288,10 +1563,15 @@
         },
         "shrink-first": {
           "final": 6,
+          "handed_back": 0,
           "interactions": 5,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 12,
-          "rounds": 5,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 1,
             "neutral": 0,
@@ -1306,22 +1586,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 72,
-        "handed_back": 24,
-        "kept": 48
+        "handed_back_worst_round": 26,
+        "kept": 48,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 67,
         "peaks": {
           "grow-first": 60,
-          "parallel": 48,
+          "parallel-round": 48,
           "sequential": 50,
           "shrink-first": 48
         },
         "transients": {
           "grow-first": 62,
-          "parallel": 72,
+          "parallel-round": 72,
           "sequential": 52,
           "shrink-first": 48
         }
@@ -1330,7 +1610,7 @@
       "net": "random-1-48",
       "peaks": {
         "grow-first": 60,
-        "parallel": 48,
+        "parallel-round": 48,
         "sequential": 50,
         "shrink-first": 48
       },
@@ -1339,10 +1619,15 @@
       "schedules": {
         "grow-first": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 67,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 60,
-          "rounds": 67,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 8,
             "neutral": 33,
@@ -1351,11 +1636,16 @@
           "stopped": null,
           "transient_peak": 62
         },
-        "parallel": {
+        "parallel-round": {
           "final": 12,
+          "handed_back": 26,
           "interactions": 67,
+          "max_round_freed": 26,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
+          "pending_round": 0,
           "rounds": 10,
           "rules": {
             "growing": 8,
@@ -1367,10 +1657,15 @@
         },
         "sequential": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 67,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 50,
-          "rounds": 67,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 8,
             "neutral": 33,
@@ -1381,10 +1676,15 @@
         },
         "shrink-first": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 67,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
-          "rounds": 67,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 8,
             "neutral": 33,
@@ -1399,22 +1699,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 40010,
-        "handed_back": 8,
-        "kept": 40002
+        "handed_back_worst_round": 8,
+        "kept": 40002,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 19995,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 20010,
+          "parallel-round": 20010,
           "sequential": 20008,
           "shrink-first": 20008
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 20018,
+          "parallel-round": 20018,
           "sequential": 20010,
           "shrink-first": 20010
         }
@@ -1423,7 +1723,7 @@
       "net": "random-2-12",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 40002,
+        "parallel-round": 40002,
         "sequential": 40002,
         "shrink-first": 40002
       },
@@ -1432,10 +1732,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 19995,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 19995,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19995,
             "neutral": 0,
@@ -1444,11 +1749,16 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
+        "parallel-round": {
           "final": 40002,
+          "handed_back": 8,
           "interactions": 39987,
+          "max_round_freed": 8,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
+          "pending_round": 0,
           "rounds": 9998,
           "rules": {
             "growing": 19995,
@@ -1460,10 +1770,15 @@
         },
         "sequential": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 39989,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 39989,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19995,
             "neutral": 19994,
@@ -1474,10 +1789,15 @@
         },
         "shrink-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 39989,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 39989,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19995,
             "neutral": 19994,
@@ -1492,22 +1812,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 72,
-        "handed_back": 22,
-        "kept": 50
+        "handed_back_worst_round": 24,
+        "kept": 50,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 70,
         "peaks": {
           "grow-first": 58,
-          "parallel": 50,
+          "parallel-round": 50,
           "sequential": 52,
           "shrink-first": 48
         },
         "transients": {
           "grow-first": 60,
-          "parallel": 72,
+          "parallel-round": 72,
           "sequential": 54,
           "shrink-first": 48
         }
@@ -1516,7 +1836,7 @@
       "net": "random-2-48",
       "peaks": {
         "grow-first": 58,
-        "parallel": 50,
+        "parallel-round": 50,
         "sequential": 52,
         "shrink-first": 48
       },
@@ -1525,10 +1845,15 @@
       "schedules": {
         "grow-first": {
           "final": 4,
+          "handed_back": 0,
           "interactions": 70,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 58,
-          "rounds": 70,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 5,
             "neutral": 38,
@@ -1537,11 +1862,16 @@
           "stopped": null,
           "transient_peak": 60
         },
-        "parallel": {
+        "parallel-round": {
           "final": 4,
+          "handed_back": 24,
           "interactions": 70,
+          "max_round_freed": 24,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 50,
+          "pending_round": 0,
           "rounds": 8,
           "rules": {
             "growing": 5,
@@ -1553,10 +1883,15 @@
         },
         "sequential": {
           "final": 4,
+          "handed_back": 0,
           "interactions": 70,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 52,
-          "rounds": 70,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 5,
             "neutral": 38,
@@ -1567,10 +1902,15 @@
         },
         "shrink-first": {
           "final": 4,
+          "handed_back": 0,
           "interactions": 70,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
-          "rounds": 70,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 5,
             "neutral": 38,
@@ -1585,22 +1925,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 32,
-        "handed_back": 12,
-        "kept": 20
+        "handed_back_worst_round": 12,
+        "kept": 20,
+        "refused_round": 6
       },
       "equal_work": {
         "interactions": 19995,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 20,
+          "parallel-round": 20,
           "sequential": 16,
           "shrink-first": 14
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 32,
+          "parallel-round": 32,
           "sequential": 18,
           "shrink-first": 16
         }
@@ -1609,7 +1949,7 @@
       "net": "random-3-12",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 20,
+        "parallel-round": 20,
         "sequential": 16,
         "shrink-first": 14
       },
@@ -1618,10 +1958,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 19995,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 19995,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19995,
             "neutral": 0,
@@ -1630,26 +1975,36 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
-          "final": 18,
-          "interactions": 200000,
+        "parallel-round": {
+          "final": 20,
+          "handed_back": 12,
+          "interactions": 199998,
+          "max_round_freed": 12,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 20,
-          "rounds": 33336,
+          "pending_round": 6,
+          "rounds": 33335,
           "rules": {
             "growing": 66669,
-            "neutral": 66665,
-            "shrinking": 66666
+            "neutral": 66664,
+            "shrinking": 66665
           },
           "stopped": "budget",
           "transient_peak": 32
         },
         "sequential": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 200000,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 16,
-          "rounds": 200000,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 66667,
             "neutral": 66666,
@@ -1660,10 +2015,15 @@
         },
         "shrink-first": {
           "final": 14,
+          "handed_back": 0,
           "interactions": 200000,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 14,
-          "rounds": 200000,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 66667,
             "neutral": 66667,
@@ -1678,22 +2038,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 74,
-        "handed_back": 24,
-        "kept": 50
+        "handed_back_worst_round": 30,
+        "kept": 50,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 60,
         "peaks": {
           "grow-first": 58,
-          "parallel": 50,
+          "parallel-round": 50,
           "sequential": 50,
           "shrink-first": 48
         },
         "transients": {
           "grow-first": 60,
-          "parallel": 74,
+          "parallel-round": 74,
           "sequential": 52,
           "shrink-first": 48
         }
@@ -1702,7 +2062,7 @@
       "net": "random-3-48",
       "peaks": {
         "grow-first": 58,
-        "parallel": 50,
+        "parallel-round": 50,
         "sequential": 50,
         "shrink-first": 48
       },
@@ -1711,10 +2071,15 @@
       "schedules": {
         "grow-first": {
           "final": 8,
+          "handed_back": 0,
           "interactions": 60,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 58,
-          "rounds": 60,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 5,
             "neutral": 30,
@@ -1723,11 +2088,16 @@
           "stopped": null,
           "transient_peak": 60
         },
-        "parallel": {
+        "parallel-round": {
           "final": 8,
+          "handed_back": 30,
           "interactions": 60,
+          "max_round_freed": 30,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 50,
+          "pending_round": 0,
           "rounds": 6,
           "rules": {
             "growing": 5,
@@ -1739,10 +2109,15 @@
         },
         "sequential": {
           "final": 8,
+          "handed_back": 0,
           "interactions": 60,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 50,
-          "rounds": 60,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 5,
             "neutral": 30,
@@ -1753,10 +2128,15 @@
         },
         "shrink-first": {
           "final": 8,
+          "handed_back": 0,
           "interactions": 60,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
-          "rounds": 60,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 5,
             "neutral": 30,
@@ -1771,22 +2151,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 40008,
-        "handed_back": 6,
-        "kept": 40002
+        "handed_back_worst_round": 8,
+        "kept": 40002,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 19997,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 6676,
+          "parallel-round": 6676,
           "sequential": 6678,
           "shrink-first": 6674
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 6682,
+          "parallel-round": 6682,
           "sequential": 6680,
           "shrink-first": 6676
         }
@@ -1795,7 +2175,7 @@
       "net": "random-5-12",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 40002,
+        "parallel-round": 40002,
         "sequential": 40002,
         "shrink-first": 40002
       },
@@ -1804,10 +2184,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 19997,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 19997,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19996,
             "neutral": 0,
@@ -1816,11 +2201,16 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
+        "parallel-round": {
           "final": 40002,
+          "handed_back": 8,
           "interactions": 119975,
+          "max_round_freed": 8,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
+          "pending_round": 0,
           "rounds": 39992,
           "rules": {
             "growing": 39993,
@@ -1832,10 +2222,15 @@
         },
         "sequential": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 119966,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 119966,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 39991,
             "neutral": 59979,
@@ -1846,10 +2241,15 @@
         },
         "shrink-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 119978,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 119978,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 39994,
             "neutral": 59985,
@@ -1864,22 +2264,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 26708,
-        "handed_back": 12,
-        "kept": 26696
+        "handed_back_worst_round": 38,
+        "kept": 26692,
+        "refused_round": 8
       },
       "equal_work": {
         "interactions": 19977,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 2688,
+          "parallel-round": 2688,
           "sequential": 2702,
           "shrink-first": 2680
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 2704,
+          "parallel-round": 2704,
           "sequential": 2704,
           "shrink-first": 2682
         }
@@ -1888,7 +2288,7 @@
       "net": "random-5-48",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 26696,
+        "parallel-round": 26692,
         "sequential": 26706,
         "shrink-first": 26684
       },
@@ -1897,10 +2297,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 19977,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 19977,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19977,
             "neutral": 0,
@@ -1909,14 +2314,19 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
-          "final": 26696,
-          "interactions": 200000,
+        "parallel-round": {
+          "final": 26692,
+          "handed_back": 38,
+          "interactions": 199998,
+          "max_round_freed": 38,
+          "model_errors": [],
           "normal": false,
-          "peak": 26696,
-          "rounds": 26660,
+          "partial_rounds": 0,
+          "peak": 26692,
+          "pending_round": 8,
+          "rounds": 26659,
           "rules": {
-            "growing": 60002,
+            "growing": 60000,
             "neutral": 93320,
             "shrinking": 46678
           },
@@ -1925,10 +2335,15 @@
         },
         "sequential": {
           "final": 26706,
+          "handed_back": 0,
           "interactions": 200000,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 26706,
-          "rounds": 200000,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 60005,
             "neutral": 93319,
@@ -1939,10 +2354,15 @@
         },
         "shrink-first": {
           "final": 26682,
+          "handed_back": 0,
           "interactions": 200000,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 26684,
-          "rounds": 200000,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 59999,
             "neutral": 93319,
@@ -1957,22 +2377,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 56490,
-        "handed_back": 12614,
-        "kept": 43876
+        "handed_back_worst_round": 12614,
+        "kept": 43876,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 19995,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 33122,
+          "parallel-round": 33122,
           "sequential": 31794,
           "shrink-first": 31794
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 42644,
+          "parallel-round": 42644,
           "sequential": 31796,
           "shrink-first": 31796
         }
@@ -1981,7 +2401,7 @@
       "net": "random-8-12",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 43876,
+        "parallel-round": 43876,
         "sequential": 40002,
         "shrink-first": 40002
       },
@@ -1990,10 +2410,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 19995,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 19995,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19995,
             "neutral": 0,
@@ -2002,11 +2427,16 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
+        "parallel-round": {
           "final": 43876,
+          "handed_back": 12614,
           "interactions": 25734,
+          "max_round_freed": 12614,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 43876,
+          "pending_round": 0,
           "rounds": 33,
           "rules": {
             "growing": 23833,
@@ -2018,10 +2448,15 @@
         },
         "sequential": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 24099,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 24099,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 22047,
             "neutral": 0,
@@ -2032,10 +2467,15 @@
         },
         "shrink-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 24099,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 24099,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 22047,
             "neutral": 0,
@@ -2050,22 +2490,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 72,
-        "handed_back": 24,
-        "kept": 48
+        "handed_back_worst_round": 26,
+        "kept": 48,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 56,
         "peaks": {
           "grow-first": 54,
-          "parallel": 48,
+          "parallel-round": 48,
           "sequential": 48,
           "shrink-first": 48
         },
         "transients": {
           "grow-first": 56,
-          "parallel": 72,
+          "parallel-round": 72,
           "sequential": 50,
           "shrink-first": 48
         }
@@ -2074,7 +2514,7 @@
       "net": "random-8-48",
       "peaks": {
         "grow-first": 54,
-        "parallel": 48,
+        "parallel-round": 48,
         "sequential": 48,
         "shrink-first": 48
       },
@@ -2083,10 +2523,15 @@
       "schedules": {
         "grow-first": {
           "final": 2,
+          "handed_back": 0,
           "interactions": 56,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 54,
-          "rounds": 56,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 3,
             "neutral": 27,
@@ -2095,11 +2540,16 @@
           "stopped": null,
           "transient_peak": 56
         },
-        "parallel": {
+        "parallel-round": {
           "final": 2,
+          "handed_back": 26,
           "interactions": 56,
+          "max_round_freed": 26,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
+          "pending_round": 0,
           "rounds": 7,
           "rules": {
             "growing": 3,
@@ -2111,10 +2561,15 @@
         },
         "sequential": {
           "final": 2,
+          "handed_back": 0,
           "interactions": 56,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
-          "rounds": 56,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 3,
             "neutral": 27,
@@ -2125,10 +2580,15 @@
         },
         "shrink-first": {
           "final": 2,
+          "handed_back": 0,
           "interactions": 56,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
-          "rounds": 56,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 3,
             "neutral": 27,
@@ -2143,22 +2603,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 67038,
-        "handed_back": 20102,
-        "kept": 46936
+        "handed_back_worst_round": 20102,
+        "kept": 46936,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 19995,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 31358,
+          "parallel-round": 31358,
           "sequential": 28354,
           "shrink-first": 23622
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 44262,
+          "parallel-round": 44262,
           "sequential": 28356,
           "shrink-first": 23624
         }
@@ -2167,7 +2627,7 @@
       "net": "random-13-12",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 46936,
+        "parallel-round": 46936,
         "sequential": 40002,
         "shrink-first": 40002
       },
@@ -2176,10 +2636,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 19995,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 19995,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19995,
             "neutral": 0,
@@ -2188,11 +2653,16 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
+        "parallel-round": {
           "final": 46936,
+          "handed_back": 20102,
           "interactions": 30314,
+          "max_round_freed": 20102,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 46936,
+          "pending_round": 0,
           "rounds": 22,
           "rules": {
             "growing": 26888,
@@ -2204,10 +2674,15 @@
         },
         "sequential": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 28185,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 28185,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 24090,
             "neutral": 0,
@@ -2218,10 +2693,15 @@
         },
         "shrink-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 36377,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 36377,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 28186,
             "neutral": 0,
@@ -2236,22 +2716,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 76,
-        "handed_back": 26,
-        "kept": 50
+        "handed_back_worst_round": 32,
+        "kept": 50,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 89,
         "peaks": {
           "grow-first": 72,
-          "parallel": 50,
+          "parallel-round": 50,
           "sequential": 54,
           "shrink-first": 48
         },
         "transients": {
           "grow-first": 74,
-          "parallel": 76,
+          "parallel-round": 76,
           "sequential": 56,
           "shrink-first": 48
         }
@@ -2260,7 +2740,7 @@
       "net": "random-13-48",
       "peaks": {
         "grow-first": 72,
-        "parallel": 50,
+        "parallel-round": 50,
         "sequential": 54,
         "shrink-first": 48
       },
@@ -2269,10 +2749,15 @@
       "schedules": {
         "grow-first": {
           "final": 0,
+          "handed_back": 0,
           "interactions": 89,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 72,
-          "rounds": 89,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 14,
             "neutral": 37,
@@ -2281,11 +2766,16 @@
           "stopped": null,
           "transient_peak": 74
         },
-        "parallel": {
+        "parallel-round": {
           "final": 0,
+          "handed_back": 32,
           "interactions": 89,
+          "max_round_freed": 32,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 50,
+          "pending_round": 0,
           "rounds": 10,
           "rules": {
             "growing": 14,
@@ -2297,10 +2787,15 @@
         },
         "sequential": {
           "final": 0,
+          "handed_back": 0,
           "interactions": 89,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 54,
-          "rounds": 89,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 14,
             "neutral": 37,
@@ -2311,10 +2806,15 @@
         },
         "shrink-first": {
           "final": 0,
+          "handed_back": 0,
           "interactions": 89,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
-          "rounds": 89,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 14,
             "neutral": 37,
@@ -2329,22 +2829,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 55294,
-        "handed_back": 14336,
-        "kept": 40958
+        "handed_back_worst_round": 14336,
+        "kept": 40958,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 19995,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 31798,
+          "parallel-round": 31798,
           "sequential": 31798,
           "shrink-first": 30960
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 38910,
+          "parallel-round": 38910,
           "sequential": 31800,
           "shrink-first": 30962
         }
@@ -2353,7 +2853,7 @@
       "net": "random-21-12",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 40958,
+        "parallel-round": 40958,
         "sequential": 40002,
         "shrink-first": 40002
       },
@@ -2362,10 +2862,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 19995,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 19995,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19995,
             "neutral": 0,
@@ -2374,11 +2879,16 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
+        "parallel-round": {
           "final": 40958,
+          "handed_back": 14336,
           "interactions": 24575,
+          "max_round_freed": 14336,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40958,
+          "pending_round": 0,
           "rounds": 24,
           "rules": {
             "growing": 20476,
@@ -2390,10 +2900,15 @@
         },
         "sequential": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 24097,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 24097,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19998,
             "neutral": 4096,
@@ -2404,10 +2919,15 @@
         },
         "shrink-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 26030,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 26030,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19998,
             "neutral": 6029,
@@ -2422,22 +2942,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 70,
-        "handed_back": 22,
-        "kept": 48
+        "handed_back_worst_round": 26,
+        "kept": 48,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 73,
         "peaks": {
           "grow-first": 62,
-          "parallel": 48,
+          "parallel-round": 48,
           "sequential": 52,
           "shrink-first": 48
         },
         "transients": {
           "grow-first": 64,
-          "parallel": 70,
+          "parallel-round": 70,
           "sequential": 54,
           "shrink-first": 48
         }
@@ -2446,7 +2966,7 @@
       "net": "random-21-48",
       "peaks": {
         "grow-first": 62,
-        "parallel": 48,
+        "parallel-round": 48,
         "sequential": 52,
         "shrink-first": 48
       },
@@ -2455,10 +2975,15 @@
       "schedules": {
         "grow-first": {
           "final": 2,
+          "handed_back": 0,
           "interactions": 73,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 62,
-          "rounds": 73,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 36,
@@ -2467,11 +2992,16 @@
           "stopped": null,
           "transient_peak": 64
         },
-        "parallel": {
+        "parallel-round": {
           "final": 2,
+          "handed_back": 26,
           "interactions": 73,
+          "max_round_freed": 26,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
+          "pending_round": 0,
           "rounds": 11,
           "rules": {
             "growing": 7,
@@ -2483,10 +3013,15 @@
         },
         "sequential": {
           "final": 2,
+          "handed_back": 0,
           "interactions": 73,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 52,
-          "rounds": 73,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 36,
@@ -2497,10 +3032,15 @@
         },
         "shrink-first": {
           "final": 2,
+          "handed_back": 0,
           "interactions": 73,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 48,
-          "rounds": 73,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 7,
             "neutral": 36,
@@ -2515,22 +3055,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 12,
-        "handed_back": 0,
-        "kept": 12
+        "handed_back_worst_round": 0,
+        "kept": 12,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 0,
         "peaks": {
           "grow-first": 12,
-          "parallel": 12,
+          "parallel-round": 12,
           "sequential": 12,
           "shrink-first": 12
         },
         "transients": {
           "grow-first": 12,
-          "parallel": 12,
+          "parallel-round": 12,
           "sequential": 12,
           "shrink-first": 12
         }
@@ -2539,7 +3079,7 @@
       "net": "random-34-12",
       "peaks": {
         "grow-first": 12,
-        "parallel": 12,
+        "parallel-round": 12,
         "sequential": 12,
         "shrink-first": 12
       },
@@ -2548,9 +3088,14 @@
       "schedules": {
         "grow-first": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 0,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 12,
+          "pending_round": 0,
           "rounds": 0,
           "rules": {
             "growing": 0,
@@ -2560,11 +3105,16 @@
           "stopped": null,
           "transient_peak": 12
         },
-        "parallel": {
+        "parallel-round": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 0,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 12,
+          "pending_round": 0,
           "rounds": 0,
           "rules": {
             "growing": 0,
@@ -2576,9 +3126,14 @@
         },
         "sequential": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 0,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 12,
+          "pending_round": 0,
           "rounds": 0,
           "rules": {
             "growing": 0,
@@ -2590,9 +3145,14 @@
         },
         "shrink-first": {
           "final": 12,
+          "handed_back": 0,
           "interactions": 0,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": true,
+          "partial_rounds": 0,
           "peak": 12,
+          "pending_round": 0,
           "rounds": 0,
           "rules": {
             "growing": 0,
@@ -2608,22 +3168,22 @@
     },
     {
       "batch": {
-        "atp_per_round_is_3k": true,
         "envelope": 46898,
-        "handed_back": 5168,
-        "kept": 41730
+        "handed_back_worst_round": 5168,
+        "kept": 41730,
+        "refused_round": 0
       },
       "equal_work": {
         "interactions": 20016,
         "peaks": {
           "grow-first": 40002,
-          "parallel": 23774,
+          "parallel-round": 23774,
           "sequential": 25222,
           "shrink-first": 21066
         },
         "transients": {
           "grow-first": 40004,
-          "parallel": 25696,
+          "parallel-round": 25696,
           "sequential": 25224,
           "shrink-first": 21068
         }
@@ -2632,7 +3192,7 @@
       "net": "random-34-48",
       "peaks": {
         "grow-first": 40002,
-        "parallel": 41730,
+        "parallel-round": 41730,
         "sequential": 40002,
         "shrink-first": 40002
       },
@@ -2641,10 +3201,15 @@
       "schedules": {
         "grow-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 20016,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 20016,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 19985,
             "neutral": 23,
@@ -2653,11 +3218,16 @@
           "stopped": "size",
           "transient_peak": 40004
         },
-        "parallel": {
+        "parallel-round": {
           "final": 41730,
+          "handed_back": 5168,
           "interactions": 35567,
+          "max_round_freed": 5168,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 41730,
+          "pending_round": 0,
           "rounds": 87,
           "rules": {
             "growing": 25172,
@@ -2669,10 +3239,15 @@
         },
         "sequential": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 32044,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 32044,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 22167,
             "neutral": 7687,
@@ -2683,10 +3258,15 @@
         },
         "shrink-first": {
           "final": 40002,
+          "handed_back": 0,
           "interactions": 38188,
+          "max_round_freed": 0,
+          "model_errors": [],
           "normal": false,
+          "partial_rounds": 0,
           "peak": 40002,
-          "rounds": 38188,
+          "pending_round": 0,
+          "rounds": 0,
           "rules": {
             "growing": 24343,
             "neutral": 9479,
@@ -2700,6 +3280,6 @@
       "terminating": false
     }
   ],
-  "python": "3.14.7",
+  "python": "3.14",
   "size_cap": 40000
 }

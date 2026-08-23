@@ -19,11 +19,19 @@ control's complaint — a perturbation that breaks everything attributes nothing
                                        -> the model-predicts-the-measured-size check
   G  a starting net differs from the one that was frozen
                                        -> the corpus pin
+  H  the batch schedule truncates a round it cannot afford
+                                       -> the whole-round-or-refuse check
+  I  reserved-then-released is taken across rounds rather than per round
+                                       -> the identity with what a round destroys
 
-D, E and F guard defects this harness actually had. The parallel schedule really
-did cap on rounds, the record really did carry one schedule's interaction count
-for all four, and the transient really was computed from a formula that did not
-match its own description.
+D, E, F, H and I guard defects this harness actually had.
+
+The parallel schedule really did cap on rounds; the record really did carry one
+schedule's interaction count for all four; the transient really was computed from
+a formula that did not match its description; the allocation profile really was
+checked only through its difference, so `5` and `3` passed where the reducer does
+`4` and `2`; the batch schedule really did truncate its last round; and
+reserved-then-released really was assembled from maxima of different rounds.
 """
 
 from __future__ import annotations
@@ -107,21 +115,18 @@ def forgetful(net, order, budget=BUDGET):
     """Stops with a redex still on the table and reports having normalised. The
     count it gives is honest about what it did — the control has to notice the
     missing interaction, not a doctored number."""
-    peak = transient = size = net.size()
-    rules, done = measure.tally(), 0
-    while done < budget:
+    run = measure.Run(net)
+    size = net.size()
+    while run.interactions < budget:
         pairs = net.active_pairs()
-        if not pairs or (done > 3 and len(pairs) == 1):
+        if not pairs or (run.interactions > 3 and len(pairs) == 1):
             break
         a, b = min(pairs, key=lambda p: (order(net.delta(*p)), p))
-        shape = measure.kind(net.delta(a, b))
-        transient = max(transient, size + measure.ALLOCATES[shape])
-        rules[shape] += 1
-        net.interact(a, b)
+        allocated = run.fire(a, b)
+        run.transient = max(run.transient, size + allocated)
         size = net.size()
-        peak = max(peak, size)
-        done += 1
-    return measure.observation(net, peak, transient, rules, done, done, None)
+        run.peak = max(run.peak, size)
+    return run.close()
 
 
 def blind_delta(self, a, b):
@@ -133,12 +138,26 @@ def rounds_capped(net, budget=BUDGET):
     """The defect the first version of this harness shipped: `budget` counted
     rounds, so the parallel schedule did several times the work of the others and
     the comparison between them was meaningless."""
-    return measure.parallel(net, budget * 1000)
+    return measure.rounds(net, budget * 1000, True)
 
 
 def incomplete(net, budget=BUDGET):
-    result = measure.parallel(net, budget)
+    result = measure.rounds(net, budget, True)
     return {k: v for k, v in result.items() if k != "rounds"}
+
+
+def truncating_batch(net, budget=BUDGET):
+    """The prefix variant wearing the batch schedule's name."""
+    return measure.rounds(net, budget, False)
+
+
+def cross_round(net, budget=BUDGET):
+    """`max(envelope) - max(kept)` — literally the formula that was shipped, not
+    a doctored number: `transient_peak` is the largest envelope of any round and
+    `peak` the largest size after any round, and nothing says they are the same
+    round."""
+    result = measure.rounds(net, budget, True)
+    return dict(result, handed_back=result["transient_peak"] - result["peak"])
 
 
 def fatter_tree(depth: int):
@@ -173,17 +192,29 @@ def main() -> int:
                            "where reordering one fixed multiset allows at most",
                            independent)
 
-    with swapped(measure.SCHEDULES, "parallel", rounds_capped):
+    with swapped(measure.SCHEDULES, "parallel-round", rounds_capped):
         problems += expect("D  a schedule capped on rounds, not interactions",
                            "the cap is not being applied in interactions")
 
-    with swapped(measure.SCHEDULES, "parallel", incomplete):
+    with swapped(measure.SCHEDULES, "parallel-round", incomplete):
         problems += expect("E  an observation reaching the record incomplete",
                            "the record omits", (PER_RULE_BOUND,))
 
-    with swapped(measure.ALLOCATES, "growing", 2):
-        problems += expect("F  an allocation model understating a commutation",
-                           "ALLOCATES/FREES misstate a rule", independent)
+    # 5 and 3 describe the same net change as 4 and 2 and a different widest
+    # point, so a control that reads only the difference lets this through.
+    with swapped(measure.ALLOCATES, "growing", 5), \
+            swapped(measure.FREES, "growing", 3):
+        problems += expect("F  a profile with the right difference and the wrong "
+                           "widest point", "ALLOCATES/FREES misstate a rule",
+                           independent)
+
+    with swapped(measure.SCHEDULES, "parallel-round", truncating_batch):
+        problems += expect("H  a batch schedule truncating a round",
+                           "partial rounds", independent)
+
+    with swapped(measure.SCHEDULES, "parallel-round", cross_round):
+        problems += expect("I  reserved-then-released taken across rounds",
+                           "this figure spans different rounds", independent)
 
     corpus.CORPUS[:] = [(n, (lambda d=int(n[-1]): fatter_tree(d))
                          if n.startswith("dup-tree") else m)
