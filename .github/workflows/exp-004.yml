@@ -9,9 +9,16 @@ name: exp-004
 on:
   push:
     branches: [master]
-    paths: ['experiments/exp-004/**', '.github/workflows/exp-004.yml']
+    # Prose is excluded: the replay checks the reducer and the receipt, and a
+    # half-hour job that reruns because a sentence changed teaches nobody
+    # anything. RESULT.md's claims are checked by the numbers, not by its bytes.
+    # (The list is repeated rather than shared: GitHub Actions does not resolve
+    # YAML anchors.)
+    paths: ['experiments/exp-004/**', '!experiments/exp-004/**.md',
+            '.github/workflows/exp-004.yml']
   pull_request:
-    paths: ['experiments/exp-004/**', '.github/workflows/exp-004.yml']
+    paths: ['experiments/exp-004/**', '!experiments/exp-004/**.md',
+            '.github/workflows/exp-004.yml']
 
 permissions: {}
 

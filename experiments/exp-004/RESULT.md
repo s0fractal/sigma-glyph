@@ -108,6 +108,14 @@ across every net that normalised, the worst schedule's peak stayed within **1.5�
 the best. H2 predicted the gap would not stay within a small constant. On
 normalising nets, proportionally, it does.
 
+Two caveats that the hypothesis's own wording invites. **1.5× is a property of
+this corpus, not a proved bound** — 29 nets up to a few hundred agents, and
+nothing here rules out a family whose ratio grows. And H2 said "a factor that
+grows with net size" without saying whether the factor was absolute or relative,
+which is why it can be answered both ways at once. A preregistration should fix
+the metric of a gap as an expression, not as the word *factor*; that is a lesson
+about writing hypotheses, and the text above has not been edited to hide it.
+
 ## The finding neither hypothesis anticipated
 
 **The spread is exactly the reordering of a fixed multiset, and it is computable
@@ -187,6 +195,18 @@ against the reducer's free counter to keep it one. That quantity is nonzero on
 its own peak; the round-granular machine held up to **20,102**. Refusing per round
 is simple, and it is not free; this experiment does not say which is cheaper.
 
+**Those figures belong to an ordering, not to the model.** The round envelope
+assumes every allocation in a round precedes every free, which is one extreme. A
+machine that finishes each interaction before starting the next never exceeds the
+sequential transient, which is the other. Any real implementation sits somewhere
+between, so the pair — **2** and **20,102** — *brackets* the intra-round
+orderings rather than predicting the one a given machine will have. The per-rule
+profile is a declared choice too: `4` allocated before `2` freed is checked
+against this reducer on every interaction, but it is a statement about how this
+reducer builds a right-hand side, not something the rewrite rules force. A
+different intra-step discipline is a different envelope, and this experiment
+measures one.
+
 ## What this says about interaction counts as a cost model
 
 An interaction count cannot price memory. It is invariant across schedules whose
@@ -204,6 +224,11 @@ existing runtime.
   bound** on the true spread between the best and worst schedule.
 - Memory is counted in agents. Counting wires would scale the same quantity,
   since an interaction changes the wire count by a bounded amount as well.
+- The transient figures depend on an intra-step allocation discipline that was
+  chosen and declared, not derived. They bound the orderings; they do not
+  describe any particular machine.
+- The **1.5×** ceiling on normalising nets is an observation about 29 nets. It is
+  not a bound, and no argument here says one exists.
 - Normal forms are compared by colour-refinement signature. Equal nets give equal
   signatures, so a mismatch is real; the converse does not hold. The honest
   statement is **no signature mismatch was detected**, not that the normal forms
@@ -257,3 +282,4 @@ differs from what the replay derives.
 | 2026-08-23 | result recorded; no hypothesis, threshold or net was edited | — |
 | 2026-08-23 | four review defects corrected; conclusion narrowed, not widened | yes, and the corrections are listed above |
 | 2026-08-24 | five further defects corrected, three of them in the controls themselves; experiment wired into CI | yes, and the corrections are listed above |
+| 2026-08-24 | transient re-stated as a bracket over intra-step orderings; 1.5× marked as a sample property; H2's ambiguous wording named rather than repaired | yes |

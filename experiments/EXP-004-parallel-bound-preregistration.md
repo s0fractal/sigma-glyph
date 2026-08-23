@@ -82,3 +82,4 @@ the *shape* of the invariant, not about anyone's implementation.
 | 2026-08-23 | result recorded in exp-004/RESULT.md; nothing above was edited | — |
 | 2026-08-23 | four review defects corrected in the result; nothing above was edited | yes |
 | 2026-08-24 | five further defects corrected; corpus pinned by exact structure, not regenerated; nothing above was edited | yes |
+| 2026-08-24 | noted, not edited: H2 says "a factor that grows with net size" without fixing whether the factor is absolute or relative, so it can be answered both ways | yes |
