@@ -1,0 +1,274 @@
+[
+  {
+    "id": "pos-accept-under",
+    "verdict": "ACCEPT",
+    "fuel": 21591,
+    "seconds": 3.591692075133324e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "pos-accept-at-limit",
+    "verdict": "ACCEPT",
+    "fuel": 21591,
+    "seconds": 2.483278512954712e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "pos-accept-zero",
+    "verdict": "ACCEPT",
+    "fuel": 20759,
+    "seconds": 2.2042077034711838e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "pos-accept-extra-field",
+    "verdict": "ACCEPT",
+    "fuel": 23175,
+    "seconds": 2.3209024220705032e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "pos-accept-unicode",
+    "verdict": "ACCEPT",
+    "fuel": 23161,
+    "seconds": 2.008303999900818e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "pos-accept-sixteen-keys",
+    "verdict": "ACCEPT",
+    "fuel": 35596,
+    "seconds": 1.9832979887723923e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "pos-reject-over-by-one",
+    "verdict": "REJECT",
+    "fuel": 21563,
+    "seconds": 1.750001683831215e-05,
+    "pages": 17,
+    "expected": "REJECT"
+  },
+  {
+    "id": "pos-reject-far-over",
+    "verdict": "REJECT",
+    "fuel": 21747,
+    "seconds": 1.3000331819057465e-05,
+    "pages": 17,
+    "expected": "REJECT"
+  },
+  {
+    "id": "pos-reject-currency",
+    "verdict": "REJECT",
+    "fuel": 21403,
+    "seconds": 1.7541926354169846e-05,
+    "pages": 17,
+    "expected": "REJECT"
+  },
+  {
+    "id": "pos-reject-currency-case",
+    "verdict": "REJECT",
+    "fuel": 21403,
+    "seconds": 1.6333069652318954e-05,
+    "pages": 17,
+    "expected": "REJECT"
+  },
+  {
+    "id": "pos-reject-flagged",
+    "verdict": "REJECT",
+    "fuel": 21374,
+    "seconds": 1.6875099390745163e-05,
+    "pages": 17,
+    "expected": "REJECT"
+  },
+  {
+    "id": "pos-reject-over-and-flagged",
+    "verdict": "REJECT",
+    "fuel": 21624,
+    "seconds": 1.6875099390745163e-05,
+    "pages": 17,
+    "expected": "REJECT"
+  },
+  {
+    "id": "neg-duplicate-outer",
+    "verdict": "MALFORMED",
+    "fuel": 20074,
+    "seconds": 1.6250181943178177e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-duplicate-nested",
+    "verdict": "MALFORMED",
+    "fuel": 23194,
+    "seconds": 1.704227179288864e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-leading-zero",
+    "verdict": "MALFORMED",
+    "fuel": 18100,
+    "seconds": 1.579197123646736e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-trailing-content",
+    "verdict": "MALFORMED",
+    "fuel": 21364,
+    "seconds": 1.7208047211170197e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-trailing-comma",
+    "verdict": "MALFORMED",
+    "fuel": 21340,
+    "seconds": 1.5957746654748917e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-bom",
+    "verdict": "MALFORMED",
+    "fuel": 16491,
+    "seconds": 1.4082994312047958e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-space-after-colon",
+    "verdict": "MALFORMED",
+    "fuel": 17944,
+    "seconds": 1.8916092813014984e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-newline-between-members",
+    "verdict": "MALFORMED",
+    "fuel": 18922,
+    "seconds": 1.600012183189392e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-tab-indent",
+    "verdict": "MALFORMED",
+    "fuel": 16951,
+    "seconds": 1.5791039913892746e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-nonminimal-escape",
+    "verdict": "MALFORMED",
+    "fuel": 20178,
+    "seconds": 1.637497916817665e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-escaped-solidus",
+    "verdict": "MALFORMED",
+    "fuel": 22119,
+    "seconds": 1.6500242054462433e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-unsorted-keys",
+    "verdict": "MALFORMED",
+    "fuel": 19107,
+    "seconds": 1.3499986380338669e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-float-amount",
+    "verdict": "MALFORMED",
+    "fuel": 18597,
+    "seconds": 1.587485894560814e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-exponent",
+    "verdict": "MALFORMED",
+    "fuel": 18230,
+    "seconds": 1.550000160932541e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-nan",
+    "verdict": "MALFORMED",
+    "fuel": 17916,
+    "seconds": 1.5334226191043854e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-non-ascii-key",
+    "verdict": "MALFORMED",
+    "fuel": 22838,
+    "seconds": 1.7832964658737183e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-seventeen-keys",
+    "verdict": "MALFORMED",
+    "fuel": 35991,
+    "seconds": 1.8042046576738358e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "neg-depth-four",
+    "verdict": "MALFORMED",
+    "fuel": 18308,
+    "seconds": 1.637497916817665e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "adv-deepest-allowed",
+    "verdict": "ACCEPT",
+    "fuel": 22996,
+    "seconds": 2.3208092898130417e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "adv-largest-allowed",
+    "verdict": "ACCEPT",
+    "fuel": 247888,
+    "seconds": 2.4667009711265564e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  },
+  {
+    "id": "adv-duplicate-at-the-end",
+    "verdict": "MALFORMED",
+    "fuel": 236335,
+    "seconds": 3.204122185707092e-05,
+    "pages": 17,
+    "expected": "MALFORMED"
+  },
+  {
+    "id": "adv-int-boundary",
+    "verdict": "ACCEPT",
+    "fuel": 24616,
+    "seconds": 1.7083249986171722e-05,
+    "pages": 17,
+    "expected": "ACCEPT"
+  }
+]
