@@ -1,0 +1,277 @@
+//! EXP-002, WASM side: one verdict over raw bytes, with no imports at all.
+//!
+//! The contract is decided in a single pass. Canonicality is not checked by
+//! re-serialising — there is no allocator here — but by accepting only the
+//! canonical form in the first place: no whitespace, members strictly ordered,
+//! minimal escapes, no leading zeros. A document that would serialise
+//! differently simply does not parse.
+#![no_std]
+
+use core::panic::PanicInfo;
+
+#[panic_handler]
+fn panic(_: &PanicInfo) -> ! {
+    loop {}
+}
+
+const ACCEPT: i32 = 0;
+const REJECT: i32 = 1;
+const MALFORMED: i32 = 2;
+
+const MAX_BYTES: usize = 4096;
+const MAX_KEYS: usize = 16;
+const MAX_DEPTH: u32 = 3;
+const INT_BOUND: i64 = 1 << 53;
+const LIMIT_MINOR: i64 = 500_000;
+
+static mut BUFFER: [u8; MAX_BYTES] = [0; MAX_BYTES];
+
+#[no_mangle]
+pub extern "C" fn input_ptr() -> *mut u8 {
+    unsafe { core::ptr::addr_of_mut!(BUFFER) as *mut u8 }
+}
+
+#[no_mangle]
+pub extern "C" fn input_capacity() -> i32 {
+    MAX_BYTES as i32
+}
+
+struct Scanner<'a> {
+    bytes: &'a [u8],
+    at: usize,
+}
+
+/// What a value turned out to be, for the three policy fields.
+#[derive(Clone, Copy, PartialEq)]
+enum Seen {
+    Int(i64),
+    Str(usize, usize),
+    Bool(bool),
+    Other,
+}
+
+impl<'a> Scanner<'a> {
+    fn peek(&self) -> Option<u8> {
+        self.bytes.get(self.at).copied()
+    }
+
+    fn take(&mut self, byte: u8) -> bool {
+        if self.peek() == Some(byte) {
+            self.at += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// A canonical JSON string: minimal escapes only, no raw control characters.
+    /// Returns the byte range of the contents, for key ordering comparisons.
+    fn string(&mut self) -> Option<(usize, usize)> {
+        if !self.take(b'"') {
+            return None;
+        }
+        let start = self.at;
+        loop {
+            let byte = self.peek()?;
+            self.at += 1;
+            match byte {
+                b'"' => return Some((start, self.at - 1)),
+                b'\\' => {
+                    let escape = self.peek()?;
+                    self.at += 1;
+                    match escape {
+                        b'"' | b'\\' | b'b' | b'f' | b'n' | b'r' | b't' => {}
+                        b'u' => {
+                            // Only a control character without a short escape may
+                            // appear as \u00xx, in lower-case hex. Anything a
+                            // canonical document would write literally — U, a
+                            // newline, a quote — is refused here, because a
+                            // document that escapes it is not its own canonical
+                            // serialisation.
+                            let mut digits = [0u8; 4];
+                            for slot in digits.iter_mut() {
+                                *slot = self.peek()?;
+                                self.at += 1;
+                            }
+                            if digits[0] != b'0' || digits[1] != b'0' {
+                                return None;
+                            }
+                            let mut code = 0u8;
+                            for digit in &digits[2..] {
+                                let nibble = match digit {
+                                    b'0'..=b'9' => digit - b'0',
+                                    b'a'..=b'f' => digit - b'a' + 10,
+                                    _ => return None,
+                                };
+                                code = code * 16 + nibble;
+                            }
+                            if code >= 0x20 {
+                                return None; // printable: must be written literally
+                            }
+                            if matches!(code, 0x08 | 0x09 | 0x0a | 0x0c | 0x0d) {
+                                return None; // has a short escape, which is canonical
+                            }
+                        }
+                        _ => return None,
+                    }
+                }
+                0x00..=0x1f => return None,
+                _ => {}
+            }
+        }
+    }
+
+    fn integer(&mut self) -> Option<i64> {
+        let negative = self.take(b'-');
+        let first = self.peek()?;
+        if !first.is_ascii_digit() {
+            return None;
+        }
+        if first == b'0' {
+            self.at += 1;
+            if self.peek().map(|b| b.is_ascii_digit()).unwrap_or(false) {
+                return None; // leading zero
+            }
+            if negative {
+                return None; // -0 is not canonical
+            }
+            return Some(0);
+        }
+        let mut value: i64 = 0;
+        while let Some(digit) = self.peek() {
+            if !digit.is_ascii_digit() {
+                break;
+            }
+            value = value.checked_mul(10)?.checked_add((digit - b'0') as i64)?;
+            if value > INT_BOUND {
+                return None;
+            }
+            self.at += 1;
+        }
+        if matches!(self.peek(), Some(b'.') | Some(b'e') | Some(b'E')) {
+            return None; // fractions and exponents are not integers
+        }
+        Some(if negative { -value } else { value })
+    }
+
+    fn literal(&mut self, word: &[u8]) -> bool {
+        if self.bytes.len() - self.at >= word.len()
+            && &self.bytes[self.at..self.at + word.len()] == word
+        {
+            self.at += word.len();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn value(&mut self, depth: u32) -> Option<Seen> {
+        if depth > MAX_DEPTH {
+            return None;
+        }
+        match self.peek()? {
+            b'{' => {
+                self.object(depth)?;
+                Some(Seen::Other)
+            }
+            b'"' => {
+                let (from, to) = self.string()?;
+                Some(Seen::Str(from, to))
+            }
+            b't' => self.literal(b"true").then_some(Seen::Bool(true)),
+            b'f' => self.literal(b"false").then_some(Seen::Bool(false)),
+            b'n' => self.literal(b"null").then_some(Seen::Other),
+            b'-' | b'0'..=b'9' => self.integer().map(Seen::Int),
+            _ => None, // arrays and anything else are outside the value list
+        }
+    }
+
+    /// Returns (key count, the three policy fields if this is the top object).
+    fn object(&mut self, depth: u32) -> Option<[Option<Seen>; 3]> {
+        if depth > MAX_DEPTH || !self.take(b'{') {
+            return None;
+        }
+        let mut policy: [Option<Seen>; 3] = [None, None, None];
+        let mut keys = 0usize;
+        let mut previous: Option<(usize, usize)> = None;
+        if self.take(b'}') {
+            return Some(policy);
+        }
+        loop {
+            let key = self.string()?;
+            let text = &self.bytes[key.0..key.1];
+            if !text.is_ascii() {
+                return None;
+            }
+            if let Some(before) = previous {
+                let earlier = &self.bytes[before.0..before.1];
+                if earlier >= text {
+                    return None; // unordered, or a duplicate member name
+                }
+            }
+            previous = Some(key);
+            keys += 1;
+            if keys > MAX_KEYS {
+                return None;
+            }
+            if !self.take(b':') {
+                return None;
+            }
+            let seen = self.value(depth + 1)?;
+            if depth == 1 {
+                match text {
+                    b"amount_minor" => policy[0] = Some(seen),
+                    b"currency" => policy[1] = Some(seen),
+                    b"flagged" => policy[2] = Some(seen),
+                    _ => {}
+                }
+            }
+            if self.take(b',') {
+                continue;
+            }
+            if self.take(b'}') {
+                return Some(policy);
+            }
+            return None;
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn verdict(length: i32) -> i32 {
+    if length < 0 || length as usize > MAX_BYTES {
+        return MALFORMED;
+    }
+    let bytes = unsafe { &core::ptr::addr_of!(BUFFER).as_ref().unwrap()[..length as usize] };
+    if bytes.starts_with(&[0xef, 0xbb, 0xbf]) {
+        return MALFORMED;
+    }
+    if core::str::from_utf8(bytes).is_err() {
+        return MALFORMED;
+    }
+    let mut scanner = Scanner { bytes, at: 0 };
+    let policy = match scanner.object(1) {
+        Some(policy) => policy,
+        None => return MALFORMED,
+    };
+    if scanner.at != bytes.len() {
+        return MALFORMED; // trailing content
+    }
+    let amount = match policy[0] {
+        Some(Seen::Int(value)) => value,
+        _ => return MALFORMED,
+    };
+    let currency = match policy[1] {
+        Some(Seen::Str(from, to)) => &bytes[from..to],
+        _ => return MALFORMED,
+    };
+    let flagged = match policy[2] {
+        Some(Seen::Bool(value)) => value,
+        _ => return MALFORMED,
+    };
+    if amount <= LIMIT_MINOR && currency == b"UAH" && !flagged {
+        ACCEPT
+    } else {
+        REJECT
+    }
+}
