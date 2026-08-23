@@ -33,6 +33,8 @@ class Net:
     var: dict[tuple[int, int], int] = field(default_factory=dict)
     up: dict[int, int] = field(default_factory=dict)          # union-find over wires
     free: dict[str, int] = field(default_factory=dict)        # interface name -> wire
+    owner: dict[int, int] = field(default_factory=dict)       # wire -> agent whose principal is on it
+    mate: dict[int, int] = field(default_factory=dict)        # the active pairs, maintained as they arise
     _node: int = 0
     _var: int = 0
 
@@ -52,9 +54,29 @@ class Net:
         return root
 
     def union(self, u: int, v: int) -> None:
+        """Merging two wires can put two principal ports on the same wire, which
+        is how an annihilation hands the next active pair to its neighbours."""
         u, v = self.find(u), self.find(v)
-        if u != v:
-            self.up[v] = u
+        if u == v:
+            return
+        holder, other = self._holder(u), self._holder(v)
+        self.up[v] = u
+        if holder is not None and other is not None:
+            self.mate[holder], self.mate[other] = other, holder
+        chosen = holder if holder is not None else other
+        if chosen is not None:
+            self.owner[u] = chosen
+
+    def _holder(self, wire: int) -> int | None:
+        """The live agent whose principal port sits on `wire`, if any. Entries go
+        stale when agents are deleted, so they are validated on the way out."""
+        nid = self.owner.get(wire)
+        if nid is None:
+            return None
+        if nid in self.symbol and self.find(self.var[(nid, 0)]) == wire:
+            return nid
+        del self.owner[wire]
+        return None
 
     # -- agents --------------------------------------------------------------
 
@@ -64,9 +86,18 @@ class Net:
         self.symbol[nid] = symbol
         for slot in range(arity(symbol) + 1):
             self.var[(nid, slot)] = wires[slot] if slot in wires else self.new_var()
+        principal = self.find(self.var[(nid, 0)])
+        facing = self._holder(principal)
+        if facing is not None:
+            self.mate[facing], self.mate[nid] = nid, facing
+        else:
+            self.owner[principal] = nid
         return nid
 
     def delete(self, nid: int) -> None:
+        partner = self.mate.pop(nid, None)
+        if partner is not None:
+            self.mate.pop(partner, None)
         for slot in range(arity(self.symbol[nid]) + 1):
             del self.var[(nid, slot)]
         del self.symbol[nid]
@@ -82,11 +113,13 @@ class Net:
     def active_pairs(self) -> list[tuple[int, int]]:
         """Agents facing each other principal to principal. They are pairwise
         disjoint by construction — an agent has one principal port — which is
-        why a whole set of them can fire in one parallel step."""
-        by_wire: dict[int, list[int]] = {}
-        for nid in self.symbol:
-            by_wire.setdefault(self.find(self.var[(nid, 0)]), []).append(nid)
-        return sorted(tuple(sorted(ns)) for ns in by_wire.values() if len(ns) == 2)
+        why a whole set of them can fire in one parallel step.
+
+        Maintained as agents are created and wires merged rather than rescanned:
+        a rescan is linear in the whole net, which turns a non-terminating net
+        into a harness that never finishes rather than one that reports."""
+        return sorted({tuple(sorted((a, b))) for a, b in self.mate.items()
+                       if a in self.symbol and b in self.symbol})
 
     def delta(self, a: int, b: int) -> int:
         """Net-size change of the interaction, before performing it."""

@@ -79,3 +79,4 @@ the *shape* of the invariant, not about anyone's implementation.
 | Date | Change | Result already known? |
 | --- | --- | --- |
 | 2026-08-23 | initial preregistration | no |
+| 2026-08-23 | result recorded in exp-004/RESULT.md; nothing above was edited | — |

@@ -22,7 +22,8 @@ import random
 
 from nets import Net
 
-CAP = 200_000
+CAP = 200_000          # interactions before a net is declared non-normalising
+SIZE_CAP = 40_000      # agents; a net that keeps growing is recorded, not chased
 
 
 def constructor_tree(net: Net, depth: int) -> int:
