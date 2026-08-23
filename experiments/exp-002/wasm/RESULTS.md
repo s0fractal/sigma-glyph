@@ -32,16 +32,22 @@ preregistration pins 3.13.15` and exits 1.
 | --- | --- |
 | vectors agreeing with the frozen verdicts | **34 / 34** |
 | fuel | min 16,489 · median 21,401 · max 247,886 |
-| per-vector median wall time | 12.6 µs (slowest vector 30.7 µs) |
-| per-vector IQR | median 0.88 µs |
+| per-vector median wall time | 10.458 µs (slowest vector 23.208 µs) |
+| per-vector IQR | median 0.708 µs |
 | peak linear memory | 17 pages = 1,088 KiB, limiter at 2,048 KiB |
-| OS peak RSS, fresh process | 37,680 KiB — the Python and Wasmtime process, not the module |
-| cold start, fresh process | 16.6 ms, including importing the runtime |
+| OS peak RSS, fresh process | 37,440 KiB — the Python and Wasmtime process, not the module |
+| cold start, fresh process | 15.576 ms, including importing the runtime |
 | artifact | 4,190 bytes, `sha256 e16eaa31e4bb0670…` |
-| determinism | five runs per vector in-process, plus **all thirty-four replayed in a freshly started process**, every id and verdict compared |
+| determinism | five runs per vector, **all five compared** as (verdict, fuel, pages), plus all thirty-four replayed in a freshly started process with every id and verdict compared |
 
 Host, OS, Python, Wasmtime, rustc and the artifact digest are recorded in
 `results.json` beside every per-vector number.
+
+Every number above is read from `results.json` as frozen at `9e8e47d`, which is
+the authoritative receipt. This prose was corrected after that freeze — an
+earlier draft quoted a later timing run — and the machine receipt was not
+touched. `run.py` is check-only by default for that reason: rewriting evidence
+now takes an explicit `--record`.
 
 ## Controls, which are gates
 
@@ -52,6 +58,14 @@ Both refuse, and a failure exits non-zero:
   da76bd4e…, expected e16eaa31…`. Verified by flipping a byte of the committed
   file and observing exit status 1;
 - **a zero fuel budget** traps instead of answering;
+- **the five in-process runs must agree**, compared as (verdict, fuel, pages)
+  rather than by keeping the last one. An earlier version overwrote each run and
+  returned the fifth, so four could have disagreed under a green gate;
+  `selftest_gate.py` substitutes a `measure()` that returns every fixture's own
+  frozen verdict and makes exactly **one** vector's runs disagree, then requires
+  the run to fail with exactly that error — no verdict mismatches, no
+  fresh-process complaints, no control failures. Removing the check under test
+  makes the selftest fail, which is the only way to know it was testing it;
 - **a freshly started process** must reach the same verdict for every vector.
   Comparing one fixture and trusting the rest was the earlier version's mistake:
   a subprocess that failed produced zeros and a green run. Now a skipped vector,

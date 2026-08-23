@@ -11,47 +11,21 @@ the published Book I evaluator.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from probe_lib import (A, L, LIMITS, Store, V, church_booleans, compile_store,
+                       eval_hash, forced, node, put, sha)
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "impl"))
-from sigma_glyph import Store, c1, eval_hash, term_bytes, term_hash, sha  # noqa: E402
 
-LIMITS = {"max_node_depth": 500_000, "max_materialized_nodes": 200_000_000,
-          "max_store_fetches": 500_000_000}
+
 BUDGET = 60_000_000
 
-V = lambda n: ("var", n)                       # noqa: E731
-L = lambda n, b: ("lam", n, b)                 # noqa: E731
-A = lambda f, a: ("lapp", f, a)                # noqa: E731
 
 
-def put(store, term):
-    if term[0] == "thunk":
-        return term[1]
-    if term[0] == "app":
-        put(store, term[1])
-        put(store, term[2])
-    return store.put(term_bytes(term))
 
 
-def compile_store(store, lam):
-    return "thunk", put(store, c1(lam))
 
 
-def node(store, fn, *args):
-    term = fn
-    for arg in args:
-        term = ("app", term, arg)
-        put(store, term)
-        term = ("thunk", term_hash(term))
-    return term
 
 
-def church_booleans(store):
-    true = compile_store(store, L("a", L("b", V("a"))))
-    false = compile_store(store, L("a", L("b", V("b"))))
-    return true, false
 
 
 def encode_bytes(store, data: bytes, true, false):
@@ -62,13 +36,9 @@ def encode_bytes(store, data: bytes, true, false):
     tail = compile_store(store, L("c", L("n", V("n"))))
     for value in reversed(data):
         bits = [true if (value >> (7 - i)) & 1 else false for i in range(8)]
-        byte = bits[0]
-        selector = compile_store(store, L("s", V("s")))
-        packed = node(store, selector, *bits) if False else None
         # a byte as a function that hands its eight bits to a consumer
-        lam = L("s", V("s"))
-        term = compile_store(store, lam)
-        byte_term = node(store, term, *bits)
+        selector = compile_store(store, L("s", V("s")))
+        byte_term = node(store, selector, *bits)
         cons = compile_store(store, L("h", L("t", L("c", L("n",
                     A(A(V("c"), V("h")), A(A(V("t"), V("c")), V("n"))))))))
         tail = node(store, cons, byte_term, tail)
@@ -92,7 +62,7 @@ def main() -> int:
                     A(A(conj, V("acc")), A(top_bit, V("b"))))))
         folded = node(store, listed, step, true)
         forced = node(store, folded, ("lit", sha(b"I")), ("lit", sha(b"I")))
-        result, spent = eval_hash(forced[1], BUDGET, store, limits=LIMITS)
+        _, spent = eval_hash(forced[1], BUDGET, store, limits=LIMITS)
         print(f"  {size:4} bytes -> {spent:>10,} ATP  ({spent // max(size,1):>7,} per byte)")
     return 0
 

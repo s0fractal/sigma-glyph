@@ -21,9 +21,24 @@ one bit and ANDs it into a boolean:
 | 64 | 2,559,743 | 2,371,263 |
 
 Per-leaf cost grows with the length already consumed — 833 ATP at four, 39,995 at
-sixty-four. An earlier attempt with a Church-numeral accumulator was worse again
-(4.6M ATP at 32 leaves), because the accumulator's own term grows as it is built.
-Replacing it with a bounded accumulator changed the constant and not the shape.
+sixty-four.
+
+`probe_cost.py` is a third shape, an eight-bit byte encoding walked with a
+bounded accumulator, and reproduces from the committed file:
+
+| bytes | ATP | per byte |
+| --- | --- | --- |
+| 4 | 3,370 | 842 |
+| 16 | 52,710 | 3,294 |
+| 32 | 316,862 | 9,901 |
+
+Same shape again. **A disclosure about provenance**: an earlier variant of that
+same file used a Church-numeral accumulator and cost 4.6M ATP at 32 bytes,
+because the accumulator's own term grows as it is built. It was overwritten in
+place during exploration rather than kept as a separate file, so that figure is
+quoted from the run and is *not* reproducible from anything committed here. The
+lesson it carried survived: a fold's accumulator must be bounded, and even
+bounded it does not change the quadratic shape.
 
 ## 3. The shape was mine, not the evaluator's
 
@@ -115,6 +130,16 @@ sufficient to compare adjacent keys grows with key length, making the state spac
 astronomically large rather than mathematically infinite. The distinction did not
 end up mattering — the interface question stopped the attempt first — but the
 weaker claim is the true one.
+
+## One change made after the measurements
+
+The three probes carried identical copies of the same scaffolding — store, compile
+through C1, apply, force — which a duplication gate flagged. It is now
+`probe_lib.py`, imported by all three. The helpers are the same code they ran
+with, and every number in this file was re-produced from the factored versions
+before this was written: 316,862 ATP at 32 bytes for `probe_cost`, 2,371,263 at
+64 for the CPS chain, 86 ATP per leaf for the tree. Refactoring evidence is worth
+saying out loud rather than doing quietly.
 
 ## Clock
 

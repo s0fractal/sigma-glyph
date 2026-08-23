@@ -69,9 +69,14 @@ def cpu_model() -> str:
     return platform.processor() or "unknown"
 
 
-def measure(engine, module, raw: bytes) -> tuple[str, int, list[float], int]:
-    timings = []
-    verdict, fuel, pages = None, None, None
+def measure(engine, module, raw: bytes) -> tuple[str, int, list[float], int, int]:
+    """Five runs, and the point of five runs is that they are compared.
+
+    An earlier version overwrote the verdict each time and returned the last one,
+    so four of the five observations could have disagreed and the gate would still
+    have been green. A claim of determinism has to be able to fail.
+    """
+    timings, observations = [], []
     for _ in range(RUNS_PER_VECTOR):
         store = wasmtime.Store(engine)
         store.set_limits(memory_size=MEMORY_LIMIT)
@@ -82,8 +87,11 @@ def measure(engine, module, raw: bytes) -> tuple[str, int, list[float], int]:
         started = time.perf_counter()
         code = exports["verdict"](store, len(raw))
         timings.append(time.perf_counter() - started)
-        verdict, fuel, pages = VERDICTS.get(code, f"code {code}"), FUEL - store.get_fuel(), memory.size(store)
-    return verdict, fuel, sorted(timings), pages
+        observations.append((VERDICTS.get(code, f"code {code}"),
+                             FUEL - store.get_fuel(), memory.size(store)))
+    distinct = set(observations)
+    verdict, fuel, pages = observations[-1]
+    return verdict, fuel, sorted(timings), pages, len(distinct)
 
 
 def iqr(values: list[float]) -> float:
@@ -198,12 +206,16 @@ def main() -> int:
     vectors, disagreements = [], []
     for fixture in manifest["fixtures"]:
         raw = (FIXTURES / fixture["file"]).read_bytes()
-        verdict, fuel, timings, pages = measure(engine, module, raw)
+        verdict, fuel, timings, pages, distinct = measure(engine, module, raw)
         vectors.append({"id": fixture["id"], "expected": fixture["expected"],
                         "verdict": verdict, "fuel": fuel,
                         "median_seconds": statistics.median(timings),
                         "iqr_seconds": iqr(timings),
-                        "runs": RUNS_PER_VECTOR, "pages": pages})
+                        "runs": RUNS_PER_VECTOR, "pages": pages,
+                        "distinct_observations": distinct})
+        if distinct != 1:
+            disagreements.append(f"{fixture['id']}: {distinct} distinct "
+                                 f"(verdict, fuel, pages) across {RUNS_PER_VECTOR} runs")
         if verdict != fixture["expected"]:
             disagreements.append(f"{fixture['id']}: expected {fixture['expected']}, "
                                  f"got {verdict}")
@@ -231,7 +243,11 @@ def main() -> int:
         "controls": {"passed": not control_failures, "failures": control_failures},
         "mutation_survey": survey,
     }
-    (HERE / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+    if "--record" in sys.argv:
+        (HERE / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+        print("  recorded results.json")
+    else:
+        print("  check-only: results.json left as frozen (pass --record to rewrite)")
 
     fuel = [v["fuel"] for v in vectors]
     medians = [v["median_seconds"] for v in vectors]
