@@ -1,0 +1,23 @@
+{
+  "schema": "sigma-glyph.exp-002-wasm-artifact@v0",
+  "file": "exp002_verdict.wasm",
+  "sha256": "e16eaa31e4bb0670eab6afd7365835612130e31cc86b3b204edad9b5daf01ec2",
+  "bytes": 4190,
+  "build": {
+    "recipe": "cargo build --release --target wasm32-unknown-unknown",
+    "rustc": "rustc 1.88.0 (6b00bc388 2025-06-23)",
+    "target": "wasm32-unknown-unknown",
+    "profile": {
+      "opt-level": "z",
+      "lto": true,
+      "panic": "abort",
+      "strip": true
+    },
+    "lockfile": "Cargo.lock",
+    "note": "The committed .wasm is the artifact that was measured. Rebuilding may differ byte for byte across rustc versions; the digest below is what the runner requires."
+  },
+  "runtime": {
+    "wasmtime": "48.0.0",
+    "python_lock": "requirements.lock.txt"
+  }
+}

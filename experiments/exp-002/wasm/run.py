@@ -1,108 +1,142 @@
 #!/usr/bin/env python3
-"""EXP-002, WASM side: run every frozen fixture under a declared deterministic
-profile and report what it cost.
+"""EXP-002, WASM side: measure the profile against the frozen fixtures.
 
-The profile is the point, not the numbers: no imports at all, fuel metering with
-a fixed budget, a separate memory limiter, and no SIMD, threads or reference
-types. Fuel bounds work. Memory is bounded by the limiter, and the two are
-reported separately, because conflating them is the claim this experiment exists
-to check honestly.
+The load path is in `profile_load.py` and checks the artifact's pinned digest
+before Wasmtime sees it, so this side is judged on the same identity discipline
+Sigma-Glyph gets from Book I rather than on the absence of one.
+
+Every negative control here is a gate: a failure exits non-zero.
 """
 
 from __future__ import annotations
 
 import json
+import platform
 import statistics
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 import wasmtime
 
+from profile_load import ArtifactMismatch, configured_engine, load_verified
+
 HERE = Path(__file__).resolve().parent
-MODULE = HERE / "target/wasm32-unknown-unknown/release/exp002_verdict.wasm"
 FIXTURES = HERE.parent / "fixtures"
 MANIFEST = HERE.parent / "fixtures.json"
+PIN = json.loads((HERE / "artifact.json").read_text())
+REQUIRED_PYTHON = "3.13.15"
+REQUIRED_WASMTIME = "48.0.0"
 FUEL = 10_000_000
-MEMORY_LIMIT = 2 * 1024 * 1024          # 2 MiB, well over the module's one page
+MEMORY_LIMIT = 2 * 1024 * 1024
+RUNS_PER_VECTOR = 5
 VERDICTS = {0: "ACCEPT", 1: "REJECT", 2: "MALFORMED"}
 
 
-def configured() -> wasmtime.Engine:
-    config = wasmtime.Config()
-    config.consume_fuel = True
-    config.wasm_simd = False
-    config.wasm_relaxed_simd = False
-    config.wasm_threads = False
-    config.wasm_reference_types = False
-    config.wasm_bulk_memory = False
-    config.cranelift_opt_level = "speed"
-    return wasmtime.Engine(config)
+def enforce_pins() -> list[str]:
+    """The preregistration pins the runtime, so the runner refuses to produce a
+    result under anything else. A number measured on an unpinned interpreter is
+    not the measurement that was preregistered."""
+    from importlib.metadata import version
+
+    problems = []
+    running = platform.python_version()
+    if running != REQUIRED_PYTHON:
+        problems.append(f"python {running}, the preregistration pins {REQUIRED_PYTHON}")
+    installed = version("wasmtime")
+    if installed != REQUIRED_WASMTIME:
+        problems.append(f"wasmtime {installed}, the preregistration pins "
+                        f"{REQUIRED_WASMTIME}")
+    if installed != PIN["runtime"]["wasmtime"]:
+        problems.append(f"wasmtime {installed} does not match artifact.json's "
+                        f"{PIN['runtime']['wasmtime']}")
+    return problems
 
 
-def run_all(engine: wasmtime.Engine, module: wasmtime.Module) -> list[dict]:
-    manifest = json.loads(MANIFEST.read_text())
-    results = []
-    for fixture in manifest["fixtures"]:
-        raw = (FIXTURES / fixture["file"]).read_bytes()
+def cpu_model() -> str:
+    """The processor, by model name, with nothing that identifies the machine."""
+    try:
+        if platform.system() == "Darwin":
+            return subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"],
+                                  capture_output=True, text=True,
+                                  check=True).stdout.strip()
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("model name"):
+                return line.split(":", 1)[1].strip()
+    except Exception:
+        pass
+    return platform.processor() or "unknown"
+
+
+def measure(engine, module, raw: bytes) -> tuple[str, int, list[float], int]:
+    timings = []
+    verdict, fuel, pages = None, None, None
+    for _ in range(RUNS_PER_VECTOR):
         store = wasmtime.Store(engine)
         store.set_limits(memory_size=MEMORY_LIMIT)
         store.set_fuel(FUEL)
-        instance = wasmtime.Instance(store, module, [])
-        exports = instance.exports(store)
+        exports = wasmtime.Instance(store, module, []).exports(store)
         memory = exports["memory"]
-        pointer = exports["input_ptr"](store)
-        capacity = exports["input_capacity"](store)
-        if len(raw) > capacity:
-            results.append({"id": fixture["id"], "verdict": "MALFORMED",
-                            "fuel": 0, "seconds": 0.0,
-                            "note": "longer than the module's buffer"})
-            continue
-        memory.write(store, raw, pointer)
+        memory.write(store, raw, exports["input_ptr"](store))
         started = time.perf_counter()
         code = exports["verdict"](store, len(raw))
-        elapsed = time.perf_counter() - started
-        results.append({"id": fixture["id"],
-                        "verdict": VERDICTS.get(code, f"code {code}"),
-                        "fuel": FUEL - store.get_fuel(),
-                        "seconds": elapsed,
-                        "pages": memory.size(store),
-                        "expected": fixture["expected"]})
-    return results
+        timings.append(time.perf_counter() - started)
+        verdict, fuel, pages = VERDICTS.get(code, f"code {code}"), FUEL - store.get_fuel(), memory.size(store)
+    return verdict, fuel, sorted(timings), pages
 
 
-def controls(engine: wasmtime.Engine, module_bytes: bytes) -> list[str]:
-    """The two refusals the preregistration requires, and one it implies."""
-    findings = []
+def iqr(values: list[float]) -> float:
+    if len(values) < 4:
+        return max(values) - min(values)
+    quantiles = statistics.quantiles(values, n=4, method="inclusive")
+    return quantiles[2] - quantiles[0]
+
+
+def gates(engine) -> list[str]:
+    """Controls that must refuse. Each failure is returned and fails the run."""
+    failures = []
+    raw = (HERE / PIN["file"]).read_bytes()
     fixture = (FIXTURES / "pos-accept-under.json").read_bytes()
 
-    # Zero budget must refuse rather than answer.
-    module = wasmtime.Module(engine, module_bytes)
+    # 1. A corrupted artifact, checked against the digest the verifier was given.
+    corrupted = bytearray(raw)
+    corrupted[len(raw) // 2] ^= 0xFF
+    try:
+        load_verified(engine, bytes(corrupted))
+        failures.append("a corrupted artifact loaded under the pinned digest")
+    except ArtifactMismatch:
+        pass
+
+    # 2. Zero budget must refuse rather than answer.
+    module = load_verified(engine)
     store = wasmtime.Store(engine)
     store.set_limits(memory_size=MEMORY_LIMIT)
     store.set_fuel(0)
     try:
-        instance = wasmtime.Instance(store, module, [])
-        exports = instance.exports(store)
+        exports = wasmtime.Instance(store, module, []).exports(store)
         exports["memory"].write(store, fixture, exports["input_ptr"](store))
         answer = exports["verdict"](store, len(fixture))
-        findings.append(f"zero fuel answered {answer} instead of refusing")
+        failures.append(f"zero fuel answered {answer} instead of refusing")
     except Exception:
         pass
+    return failures
 
-    # A corrupted artifact: the preregistration asks that one must not produce a
-    # valid verdict. Measured rather than assumed, and the answer is that this
-    # format cannot make that promise — 6% of single-byte flips leave the verdict
-    # unchanged, because a module has slack the runtime never reads. Detection
-    # here is not a property of the runtime; it needs a digest carried out of
-    # band. So the control records the distribution instead of pretending to a
-    # refusal, and fails only if a flip silently changes the answer.
-    outcomes = {"rejected at load": 0, "trapped": 0, "same": 0, "changed": 0}
-    for offset in range(0, len(module_bytes), 37):
-        corrupted = bytearray(module_bytes)
+
+def mutation_survey(engine, step: int = 37) -> dict:
+    """An observation, not a control: what raw Wasmtime does with flipped bytes
+    when nobody checks the digest first. It says what the runtime alone catches,
+    which is a different question from what the profile catches."""
+    raw = (HERE / PIN["file"]).read_bytes()
+    fixture = (FIXTURES / "pos-accept-under.json").read_bytes()
+    outcomes = {"rejected at load": 0, "trapped": 0, "same verdict": 0,
+                "different verdict": 0}
+    offsets = list(range(0, len(raw), step))
+    for offset in offsets:
+        corrupted = bytearray(raw)
         corrupted[offset] ^= 0xFF
         try:
-            broken = wasmtime.Module(engine, bytes(corrupted))
+            module = wasmtime.Module(engine, bytes(corrupted))
         except Exception:
             outcomes["rejected at load"] += 1
             continue
@@ -110,53 +144,113 @@ def controls(engine: wasmtime.Engine, module_bytes: bytes) -> list[str]:
             store = wasmtime.Store(engine)
             store.set_limits(memory_size=MEMORY_LIMIT)
             store.set_fuel(FUEL)
-            exports = wasmtime.Instance(store, broken, []).exports(store)
+            exports = wasmtime.Instance(store, module, []).exports(store)
             exports["memory"].write(store, fixture, exports["input_ptr"](store))
             answer = exports["verdict"](store, len(fixture))
-            outcomes["same" if answer == 0 else "changed"] += 1
+            outcomes["same verdict" if answer == 0 else "different verdict"] += 1
         except Exception:
             outcomes["trapped"] += 1
-    findings.append("corruption survey (not a refusal): "
-                    + ", ".join(f"{v} {k}" for k, v in outcomes.items()))
-    if outcomes["changed"]:
-        findings.append(f"{outcomes['changed']} flips changed the verdict without "
-                        "the runtime objecting — detection needs an out-of-band digest")
-    return findings
+    return {"offsets_sampled": len(offsets), "step": step, "outcomes": outcomes}
+
+
+def fresh_process(expected: list[dict]) -> tuple[dict, list[str]]:
+    """A process that has just started must reach the same verdicts, and saying so
+    requires comparing all of them rather than trusting one."""
+    result = subprocess.run([sys.executable, str(HERE / "_one_shot.py")],
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+        return ({}, [f"fresh process exited {result.returncode}: "
+                     f"{result.stderr.strip()[:200]}"])
+    try:
+        report = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return ({}, ["fresh process produced no readable report"])
+
+    problems = []
+    if report.get("python") != REQUIRED_PYTHON:
+        problems.append(f"fresh process ran python {report.get('python')}")
+    seen = {row["id"]: row["verdict"] for row in report.get("vectors", [])}
+    for vector in expected:
+        if vector["id"] not in seen:
+            problems.append(f"fresh process skipped {vector['id']}")
+        elif seen[vector["id"]] != vector["verdict"]:
+            problems.append(f"fresh process says {vector['id']} is "
+                            f"{seen[vector['id']]}, in-process said {vector['verdict']}")
+    extra = set(seen) - {v["id"] for v in expected}
+    problems.extend(f"fresh process reported an unknown vector {name}" for name in extra)
+    return (report, problems)
 
 
 def main() -> int:
-    engine = configured()
-    module = wasmtime.Module(engine, MODULE.read_bytes())
-    if module.imports:
-        print("FAIL: the module declares imports", file=sys.stderr)
+    mismatched = enforce_pins()
+    if mismatched:
+        for problem in mismatched:
+            print("REFUSED:", problem, file=sys.stderr)
         return 1
-
-    rounds = [run_all(engine, module) for _ in range(3)]
-    signature = [[(r["id"], r["verdict"]) for r in round_] for round_ in rounds]
-    if signature[0] != signature[1] or signature[1] != signature[2]:
-        print("FAIL: three runs did not agree", file=sys.stderr)
+    engine = configured_engine()
+    try:
+        module = load_verified(engine)
+    except ArtifactMismatch as refused:
+        print(f"REFUSED before execution: {refused}", file=sys.stderr)
         return 1
+    manifest = json.loads(MANIFEST.read_text())
 
-    wrong = [r for r in rounds[0] if r["verdict"] != r.get("expected")]
-    for r in wrong:
-        print(f"FAIL {r['id']}: expected {r.get('expected')}, got {r['verdict']}",
-              file=sys.stderr)
+    vectors, disagreements = [], []
+    for fixture in manifest["fixtures"]:
+        raw = (FIXTURES / fixture["file"]).read_bytes()
+        verdict, fuel, timings, pages = measure(engine, module, raw)
+        vectors.append({"id": fixture["id"], "expected": fixture["expected"],
+                        "verdict": verdict, "fuel": fuel,
+                        "median_seconds": statistics.median(timings),
+                        "iqr_seconds": iqr(timings),
+                        "runs": RUNS_PER_VECTOR, "pages": pages})
+        if verdict != fixture["expected"]:
+            disagreements.append(f"{fixture['id']}: expected {fixture['expected']}, "
+                                 f"got {verdict}")
 
-    fuel = [r["fuel"] for r in rounds[0]]
-    seconds = sorted(r["seconds"] for r in rounds[0])
-    pages = max(r.get("pages", 0) for r in rounds[0])
-    print(f"WASM: {len(rounds[0])} fixtures, {len(wrong)} disagreements")
+    cold, fresh_problems = fresh_process(vectors)
+    control_failures = gates(engine) + fresh_problems
+    survey = mutation_survey(engine)
+
+    report = {
+        "schema": "sigma-glyph.exp-002-wasm-result@v0",
+        "measured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "host": {"machine": platform.machine(), "system": platform.system(),
+                 "release": platform.release(), "cpu": cpu_model(),
+                 "python": platform.python_version()},
+        "runtime": {"wasmtime": __import__("importlib.metadata", fromlist=["version"])
+                    .version("wasmtime"),
+                    "pins_enforced": {"python": REQUIRED_PYTHON,
+                                      "wasmtime": REQUIRED_WASMTIME}},
+        "artifact": {"file": PIN["file"], "sha256": PIN["sha256"],
+                     "bytes": PIN["bytes"], "rustc": PIN["build"]["rustc"]},
+        "protocol": {"runs_per_vector": RUNS_PER_VECTOR, "fuel_budget": FUEL,
+                     "memory_limit_bytes": MEMORY_LIMIT},
+        "vectors": vectors,
+        "cold_start": cold,
+        "controls": {"passed": not control_failures, "failures": control_failures},
+        "mutation_survey": survey,
+    }
+    (HERE / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+
+    fuel = [v["fuel"] for v in vectors]
+    medians = [v["median_seconds"] for v in vectors]
+    print(f"WASM: {len(vectors)} vectors x {RUNS_PER_VECTOR} runs, "
+          f"{len(disagreements)} disagreements")
     print(f"  fuel: min {min(fuel)}, median {int(statistics.median(fuel))}, max {max(fuel)}")
-    print(f"  wall: median {statistics.median(seconds) * 1e6:.1f} us, "
-          f"max {max(seconds) * 1e6:.1f} us")
-    print(f"  peak memory: {pages} page(s) = {pages * 64} KiB, limiter at "
-          f"{MEMORY_LIMIT // 1024} KiB")
-    print(f"  artifact: {MODULE.stat().st_size} bytes")
-    for note in controls(engine, MODULE.read_bytes()):
-        print("  " + note)
-    if len(sys.argv) > 1 and sys.argv[1] == "--json":
-        Path(HERE / "results.json").write_text(json.dumps(rounds[0], indent=2) + "\n")
-    return 1 if wrong else 0
+    print(f"  per-vector median wall: {statistics.median(medians) * 1e6:.1f} us "
+          f"(slowest vector {max(medians) * 1e6:.1f} us)")
+    print(f"  per-vector IQR: median {statistics.median([v['iqr_seconds'] for v in vectors]) * 1e6:.2f} us")
+    print(f"  peak memory: {max(v['pages'] for v in vectors)} pages, "
+          f"OS RSS in a fresh process {cold.get('os_peak_rss_bytes', 0) // 1024} KiB")
+    print(f"  cold start: {cold.get('cold_start_seconds', 0) * 1000:.1f} ms, "
+          f"fresh process replayed {len(cold.get('vectors', []))} vectors")
+    print(f"  artifact: {PIN['bytes']} bytes, sha256 {PIN['sha256'][:16]}…")
+    print(f"  controls: {'all refuse' if not control_failures else 'FAILED'}")
+    print(f"  mutation survey (no digest check): {survey['outcomes']}")
+    for line in disagreements + control_failures:
+        print("FAIL", line, file=sys.stderr)
+    return 1 if (disagreements or control_failures) else 0
 
 
 if __name__ == "__main__":

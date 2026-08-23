@@ -1,274 +1,529 @@
-[
-  {
-    "id": "pos-accept-under",
-    "verdict": "ACCEPT",
-    "fuel": 21591,
-    "seconds": 3.591692075133324e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
+{
+  "schema": "sigma-glyph.exp-002-wasm-result@v0",
+  "measured_at": "2026-08-23T13:16:32Z",
+  "host": {
+    "machine": "arm64",
+    "system": "Darwin",
+    "release": "25.5.0",
+    "cpu": "Apple M4 Pro",
+    "python": "3.13.15"
   },
-  {
-    "id": "pos-accept-at-limit",
-    "verdict": "ACCEPT",
-    "fuel": 21591,
-    "seconds": 2.483278512954712e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
+  "runtime": {
+    "wasmtime": "48.0.0",
+    "pins_enforced": {
+      "python": "3.13.15",
+      "wasmtime": "48.0.0"
+    }
   },
-  {
-    "id": "pos-accept-zero",
-    "verdict": "ACCEPT",
-    "fuel": 20759,
-    "seconds": 2.2042077034711838e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
+  "artifact": {
+    "file": "exp002_verdict.wasm",
+    "sha256": "e16eaa31e4bb0670eab6afd7365835612130e31cc86b3b204edad9b5daf01ec2",
+    "bytes": 4190,
+    "rustc": "rustc 1.88.0 (6b00bc388 2025-06-23)"
   },
-  {
-    "id": "pos-accept-extra-field",
-    "verdict": "ACCEPT",
-    "fuel": 23175,
-    "seconds": 2.3209024220705032e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
+  "protocol": {
+    "runs_per_vector": 5,
+    "fuel_budget": 10000000,
+    "memory_limit_bytes": 2097152
   },
-  {
-    "id": "pos-accept-unicode",
-    "verdict": "ACCEPT",
-    "fuel": 23161,
-    "seconds": 2.008303999900818e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
+  "vectors": [
+    {
+      "id": "pos-accept-under",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 21589,
+      "median_seconds": 1.3167038559913635e-05,
+      "iqr_seconds": 4.874076694250107e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-accept-at-limit",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 21589,
+      "median_seconds": 1.0999850928783417e-05,
+      "iqr_seconds": 2.541113644838333e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-accept-zero",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 20757,
+      "median_seconds": 1.0041985660791397e-05,
+      "iqr_seconds": 8.749775588512421e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-accept-extra-field",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 23173,
+      "median_seconds": 9.958632290363312e-06,
+      "iqr_seconds": 4.996545612812042e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-accept-unicode",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 23159,
+      "median_seconds": 9.541399776935577e-06,
+      "iqr_seconds": 3.3294782042503357e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-accept-sixteen-keys",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 35594,
+      "median_seconds": 1.1958181858062744e-05,
+      "iqr_seconds": 7.078051567077637e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-reject-over-by-one",
+      "expected": "REJECT",
+      "verdict": "REJECT",
+      "fuel": 21561,
+      "median_seconds": 9.417068213224411e-06,
+      "iqr_seconds": 1.2479722499847412e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-reject-far-over",
+      "expected": "REJECT",
+      "verdict": "REJECT",
+      "fuel": 21745,
+      "median_seconds": 1.0792165994644165e-05,
+      "iqr_seconds": 1.541338860988617e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-reject-currency",
+      "expected": "REJECT",
+      "verdict": "REJECT",
+      "fuel": 21401,
+      "median_seconds": 1.0458286851644516e-05,
+      "iqr_seconds": 5.420297384262085e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-reject-currency-case",
+      "expected": "REJECT",
+      "verdict": "REJECT",
+      "fuel": 21401,
+      "median_seconds": 1.0499730706214905e-05,
+      "iqr_seconds": 1.541338860988617e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-reject-flagged",
+      "expected": "REJECT",
+      "verdict": "REJECT",
+      "fuel": 21372,
+      "median_seconds": 1.037493348121643e-05,
+      "iqr_seconds": 6.239861249923706e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "pos-reject-over-and-flagged",
+      "expected": "REJECT",
+      "verdict": "REJECT",
+      "fuel": 21622,
+      "median_seconds": 1.091696321964264e-05,
+      "iqr_seconds": 1.541338860988617e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-duplicate-outer",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 20072,
+      "median_seconds": 1.0292045772075653e-05,
+      "iqr_seconds": 2.0815059542655945e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-duplicate-nested",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 23192,
+      "median_seconds": 1.0624993592500687e-05,
+      "iqr_seconds": 2.491287887096405e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-leading-zero",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 18098,
+      "median_seconds": 1.0124873369932175e-05,
+      "iqr_seconds": 1.2489035725593567e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-trailing-content",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 21362,
+      "median_seconds": 1.0666903108358383e-05,
+      "iqr_seconds": 2.9243528842926025e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-trailing-comma",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 21338,
+      "median_seconds": 9.624753147363663e-06,
+      "iqr_seconds": 1.0011717677116394e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-bom",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 16489,
+      "median_seconds": 9.58424061536789e-06,
+      "iqr_seconds": 6.668269634246826e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-space-after-colon",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 17942,
+      "median_seconds": 9.583309292793274e-06,
+      "iqr_seconds": 7.501803338527679e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-newline-between-members",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 18920,
+      "median_seconds": 1.0458286851644516e-05,
+      "iqr_seconds": 2.0908191800117493e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-tab-indent",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 16949,
+      "median_seconds": 9.667128324508667e-06,
+      "iqr_seconds": 7.501803338527679e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-nonminimal-escape",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 20176,
+      "median_seconds": 1.0500196367502213e-05,
+      "iqr_seconds": 2.50060111284256e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-escaped-solidus",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 22117,
+      "median_seconds": 1.0624993592500687e-05,
+      "iqr_seconds": 6.239861249923706e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-unsorted-keys",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 19105,
+      "median_seconds": 1.0209158062934875e-05,
+      "iqr_seconds": 2.0815059542655945e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-float-amount",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 18595,
+      "median_seconds": 1.0542105883359909e-05,
+      "iqr_seconds": 2.50060111284256e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-exponent",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 18228,
+      "median_seconds": 1.0624993592500687e-05,
+      "iqr_seconds": 4.915986210107803e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-nan",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 17914,
+      "median_seconds": 9.667128324508667e-06,
+      "iqr_seconds": 4.163011908531189e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-non-ascii-key",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 22836,
+      "median_seconds": 1.0083895176649094e-05,
+      "iqr_seconds": 7.087364792823792e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-seventeen-keys",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 35989,
+      "median_seconds": 1.0624993592500687e-05,
+      "iqr_seconds": 1.0421499609947205e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "neg-depth-four",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 18306,
+      "median_seconds": 9.541865438222885e-06,
+      "iqr_seconds": 6.658956408500671e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "adv-deepest-allowed",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 22994,
+      "median_seconds": 1.0207761079072952e-05,
+      "iqr_seconds": 7.078051567077637e-07,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "adv-largest-allowed",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 247886,
+      "median_seconds": 1.8333084881305695e-05,
+      "iqr_seconds": 3.1245872378349304e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "adv-duplicate-at-the-end",
+      "expected": "MALFORMED",
+      "verdict": "MALFORMED",
+      "fuel": 236333,
+      "median_seconds": 2.3208092898130417e-05,
+      "iqr_seconds": 2.500135451555252e-06,
+      "runs": 5,
+      "pages": 17
+    },
+    {
+      "id": "adv-int-boundary",
+      "expected": "ACCEPT",
+      "verdict": "ACCEPT",
+      "fuel": 24614,
+      "median_seconds": 1.3334210962057114e-05,
+      "iqr_seconds": 2.832617610692978e-06,
+      "runs": 5,
+      "pages": 17
+    }
+  ],
+  "cold_start": {
+    "cold_start_seconds": 0.015576167032122612,
+    "total_seconds": 0.01890587480738759,
+    "os_peak_rss_bytes": 38338560,
+    "python": "3.13.15",
+    "vectors": [
+      {
+        "id": "pos-accept-under",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "pos-accept-at-limit",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "pos-accept-zero",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "pos-accept-extra-field",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "pos-accept-unicode",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "pos-accept-sixteen-keys",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "pos-reject-over-by-one",
+        "verdict": "REJECT"
+      },
+      {
+        "id": "pos-reject-far-over",
+        "verdict": "REJECT"
+      },
+      {
+        "id": "pos-reject-currency",
+        "verdict": "REJECT"
+      },
+      {
+        "id": "pos-reject-currency-case",
+        "verdict": "REJECT"
+      },
+      {
+        "id": "pos-reject-flagged",
+        "verdict": "REJECT"
+      },
+      {
+        "id": "pos-reject-over-and-flagged",
+        "verdict": "REJECT"
+      },
+      {
+        "id": "neg-duplicate-outer",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-duplicate-nested",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-leading-zero",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-trailing-content",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-trailing-comma",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-bom",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-space-after-colon",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-newline-between-members",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-tab-indent",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-nonminimal-escape",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-escaped-solidus",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-unsorted-keys",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-float-amount",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-exponent",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-nan",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-non-ascii-key",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-seventeen-keys",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "neg-depth-four",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "adv-deepest-allowed",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "adv-largest-allowed",
+        "verdict": "ACCEPT"
+      },
+      {
+        "id": "adv-duplicate-at-the-end",
+        "verdict": "MALFORMED"
+      },
+      {
+        "id": "adv-int-boundary",
+        "verdict": "ACCEPT"
+      }
+    ]
   },
-  {
-    "id": "pos-accept-sixteen-keys",
-    "verdict": "ACCEPT",
-    "fuel": 35596,
-    "seconds": 1.9832979887723923e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
+  "controls": {
+    "passed": true,
+    "failures": []
   },
-  {
-    "id": "pos-reject-over-by-one",
-    "verdict": "REJECT",
-    "fuel": 21563,
-    "seconds": 1.750001683831215e-05,
-    "pages": 17,
-    "expected": "REJECT"
-  },
-  {
-    "id": "pos-reject-far-over",
-    "verdict": "REJECT",
-    "fuel": 21747,
-    "seconds": 1.3000331819057465e-05,
-    "pages": 17,
-    "expected": "REJECT"
-  },
-  {
-    "id": "pos-reject-currency",
-    "verdict": "REJECT",
-    "fuel": 21403,
-    "seconds": 1.7541926354169846e-05,
-    "pages": 17,
-    "expected": "REJECT"
-  },
-  {
-    "id": "pos-reject-currency-case",
-    "verdict": "REJECT",
-    "fuel": 21403,
-    "seconds": 1.6333069652318954e-05,
-    "pages": 17,
-    "expected": "REJECT"
-  },
-  {
-    "id": "pos-reject-flagged",
-    "verdict": "REJECT",
-    "fuel": 21374,
-    "seconds": 1.6875099390745163e-05,
-    "pages": 17,
-    "expected": "REJECT"
-  },
-  {
-    "id": "pos-reject-over-and-flagged",
-    "verdict": "REJECT",
-    "fuel": 21624,
-    "seconds": 1.6875099390745163e-05,
-    "pages": 17,
-    "expected": "REJECT"
-  },
-  {
-    "id": "neg-duplicate-outer",
-    "verdict": "MALFORMED",
-    "fuel": 20074,
-    "seconds": 1.6250181943178177e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-duplicate-nested",
-    "verdict": "MALFORMED",
-    "fuel": 23194,
-    "seconds": 1.704227179288864e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-leading-zero",
-    "verdict": "MALFORMED",
-    "fuel": 18100,
-    "seconds": 1.579197123646736e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-trailing-content",
-    "verdict": "MALFORMED",
-    "fuel": 21364,
-    "seconds": 1.7208047211170197e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-trailing-comma",
-    "verdict": "MALFORMED",
-    "fuel": 21340,
-    "seconds": 1.5957746654748917e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-bom",
-    "verdict": "MALFORMED",
-    "fuel": 16491,
-    "seconds": 1.4082994312047958e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-space-after-colon",
-    "verdict": "MALFORMED",
-    "fuel": 17944,
-    "seconds": 1.8916092813014984e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-newline-between-members",
-    "verdict": "MALFORMED",
-    "fuel": 18922,
-    "seconds": 1.600012183189392e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-tab-indent",
-    "verdict": "MALFORMED",
-    "fuel": 16951,
-    "seconds": 1.5791039913892746e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-nonminimal-escape",
-    "verdict": "MALFORMED",
-    "fuel": 20178,
-    "seconds": 1.637497916817665e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-escaped-solidus",
-    "verdict": "MALFORMED",
-    "fuel": 22119,
-    "seconds": 1.6500242054462433e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-unsorted-keys",
-    "verdict": "MALFORMED",
-    "fuel": 19107,
-    "seconds": 1.3499986380338669e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-float-amount",
-    "verdict": "MALFORMED",
-    "fuel": 18597,
-    "seconds": 1.587485894560814e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-exponent",
-    "verdict": "MALFORMED",
-    "fuel": 18230,
-    "seconds": 1.550000160932541e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-nan",
-    "verdict": "MALFORMED",
-    "fuel": 17916,
-    "seconds": 1.5334226191043854e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-non-ascii-key",
-    "verdict": "MALFORMED",
-    "fuel": 22838,
-    "seconds": 1.7832964658737183e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-seventeen-keys",
-    "verdict": "MALFORMED",
-    "fuel": 35991,
-    "seconds": 1.8042046576738358e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "neg-depth-four",
-    "verdict": "MALFORMED",
-    "fuel": 18308,
-    "seconds": 1.637497916817665e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "adv-deepest-allowed",
-    "verdict": "ACCEPT",
-    "fuel": 22996,
-    "seconds": 2.3208092898130417e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
-  },
-  {
-    "id": "adv-largest-allowed",
-    "verdict": "ACCEPT",
-    "fuel": 247888,
-    "seconds": 2.4667009711265564e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
-  },
-  {
-    "id": "adv-duplicate-at-the-end",
-    "verdict": "MALFORMED",
-    "fuel": 236335,
-    "seconds": 3.204122185707092e-05,
-    "pages": 17,
-    "expected": "MALFORMED"
-  },
-  {
-    "id": "adv-int-boundary",
-    "verdict": "ACCEPT",
-    "fuel": 24616,
-    "seconds": 1.7083249986171722e-05,
-    "pages": 17,
-    "expected": "ACCEPT"
+  "mutation_survey": {
+    "offsets_sampled": 114,
+    "step": 37,
+    "outcomes": {
+      "rejected at load": 98,
+      "trapped": 3,
+      "same verdict": 7,
+      "different verdict": 6
+    }
   }
-]
+}
