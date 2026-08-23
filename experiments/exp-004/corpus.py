@@ -18,9 +18,14 @@ Four families, chosen for what each one can show and not for what it will say:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import random
+from pathlib import Path
 
 from nets import Net
+
+HERE = Path(__file__).resolve().parent
 
 CAP = 200_000          # interactions before a net is declared non-normalising
 SIZE_CAP = 40_000      # agents; a net that keeps growing is recorded, not chased
@@ -69,13 +74,17 @@ def race(depth: int, pairs: int) -> Net:
 
 
 def random_net(seed: int, agents: int) -> Net:
-    rng = random.Random(seed)
+    # Not cryptography and not a source of unpredictability: a seeded generator
+    # that lays out fixture nets, whose output is pinned by `fingerprint` below
+    # and checked on every run. If Python ever lays them out differently the run
+    # fails rather than quietly measuring a different corpus.
+    rng = random.Random(seed)  # NOSONAR - fixture layout, pinned by digest
     net = Net()
     symbols = ["G", "D1", "D2", "E"]
     for _ in range(agents):
-        net.new_node(rng.choice(symbols), {})
+        net.new_node(rng.choice(symbols), {})  # NOSONAR - see above
     ports = list(net.var)
-    rng.shuffle(ports)
+    rng.shuffle(ports)  # NOSONAR - see above
     freed = 0
     while len(ports) >= 2:
         left, right = ports.pop(), ports.pop()
@@ -102,3 +111,38 @@ CORPUS = (
     + [(f"random-{s}-{n}", lambda s=s, n=n: random_net(s, n))
        for s in (1, 2, 3, 5, 8, 13, 21, 34) for n in (12, 48)]
 )
+
+
+def digest_of(net: Net) -> str:
+    """A net's identity for pinning purposes: its size and its signature."""
+    return hashlib.sha256(f"{net.size()}|{net.signature()}".encode()).hexdigest()[:16]
+
+
+def fingerprint(corpus) -> tuple[str, list[str]]:
+    """The corpus as bytes rather than as code.
+
+    `corpus.py` fixes which nets are measured, but the nets themselves come out of
+    a generator, so the file alone does not say what was measured. This pins each
+    starting net and fails if any of them changes — including through a change in
+    Python's own random layout, which no version pin in prose would catch.
+    """
+    pinned = json.loads((HERE / "fixtures.json").read_text()) \
+        if (HERE / "fixtures.json").exists() else {}
+    seen, drift = {}, []
+    for name, make in corpus:
+        seen[name] = digest_of(make())
+        if name in pinned and pinned[name] != seen[name]:
+            drift.append(f"{name}: starting net is {seen[name]}, pinned as "
+                         f"{pinned[name]} — the corpus is not the one that was frozen")
+        elif name not in pinned:
+            drift.append(f"{name}: no pinned digest; run `python3 corpus.py --pin`")
+    return hashlib.sha256(json.dumps(seen, sort_keys=True).encode()).hexdigest()[:16], drift
+
+
+if __name__ == "__main__":
+    import sys
+    if "--pin" in sys.argv:
+        (HERE / "fixtures.json").write_text(json.dumps(
+            {name: digest_of(make()) for name, make in CORPUS},
+            indent=2, sort_keys=True) + "\n")
+        print(f"pinned {len(CORPUS)} starting nets")

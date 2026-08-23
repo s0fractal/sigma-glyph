@@ -80,3 +80,4 @@ the *shape* of the invariant, not about anyone's implementation.
 | --- | --- | --- |
 | 2026-08-23 | initial preregistration | no |
 | 2026-08-23 | result recorded in exp-004/RESULT.md; nothing above was edited | — |
+| 2026-08-23 | four review defects corrected in the result; nothing above was edited | yes |

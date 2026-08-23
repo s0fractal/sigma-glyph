@@ -1,176 +1,297 @@
 #!/usr/bin/env python3
 """Reduce every net under four schedules and record what differs.
 
-The schedules are not attempts at optimality. `shrink-first` and `grow-first`
-are greedy, so they bracket the achievable peaks without reaching the true best
-and worst; the numbers are therefore a *lower bound* on the spread, which is the
-safe direction for the claim being tested.
+Every schedule is given the same budget **in interactions**. The first version of
+this harness capped the parallel schedule on *rounds* and wrote only the
+sequential schedule's count into the receipt, which made a comparison at "equal
+work" impossible to check and, as it turned out, false. Both are fixed here and
+both are now guarded by controls that fail rather than report.
 
-Two things are checked rather than reported, because interaction nets already
-settle them: the interaction count must be identical under every schedule
-(strong confluence gives uniform normalisation), and so must the normal form. A
-failure of either is a defect in this harness, not a discovery, and the run says
-so and exits non-zero.
+The schedules are not attempts at optimality. `shrink-first` and `grow-first` are
+greedy, so they bracket the achievable peaks without reaching the true best and
+worst; every spread reported is therefore a *lower* bound.
+
+Two properties are checked rather than reported, because interaction nets already
+settle them: on a net that reaches a normal form, every schedule performs the
+same multiset of interactions, and reaches the same normal form. A failure of
+either is a defect in this harness, not a discovery.
 """
 
 from __future__ import annotations
 
 import json
+import platform
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from corpus import CAP, CORPUS, SIZE_CAP  # noqa: E402
+from corpus import CAP, CORPUS, SIZE_CAP, fingerprint  # noqa: E402
+
+# The allocation model, stated once and then checked. Every rule builds its whole
+# right-hand side before any agent of its left-hand side is freed, so a
+# commutation holds six agents at its widest (four new beside the two it
+# replaces) and an erasure four. `FREES` is the left-hand side in every case.
+ALLOCATES = {"growing": 4, "neutral": 2, "shrinking": 0}
+FREES = {"growing": 2, "neutral": 2, "shrinking": 2}
+
+KINDS = ("growing", "neutral", "shrinking")
 
 
 def tally() -> dict[str, int]:
-    return {"growing": 0, "neutral": 0, "shrinking": 0}
+    return dict.fromkeys(KINDS, 0)
 
 
 def kind(change: int) -> str:
-    return "growing" if change > 0 else ("shrinking" if change < 0 else "neutral")
+    if change > 0:
+        return "growing"
+    return "shrinking" if change < 0 else "neutral"
 
 
-def sequential(net, order):
-    """`order` ranks an active pair by its size delta. Peak is observed after
-    every single interaction, which is what a sequential machine holds."""
-    peak = size = net.size()
-    rules = tally()
-    steps = 0
-    while steps < CAP:
+def observation(net, peak, transient, rules, interactions, rounds, stopped) -> dict:
+    return {"interactions": interactions, "rounds": rounds, "peak": peak,
+            "transient_peak": transient, "final": net.size(), "rules": rules,
+            "stopped": stopped, "normal": stopped is None}
+
+
+def sequential(net, order, budget=CAP):
+    """One interaction at a time. `order` ranks an active pair by its size delta.
+
+    The peak is read from the net after every interaction, never accumulated from
+    `delta()`: a rule that allocates more than its price claims has to show up
+    here rather than cancel out against its own accounting.
+    """
+    peak = transient = size = net.size()
+    rules, done, stopped = tally(), 0, None
+    while done < budget:
         pairs = net.active_pairs()
         if not pairs:
             break
         a, b = min(pairs, key=lambda p: (order(net.delta(*p)), p))
-        rules[kind(net.delta(a, b))] += 1
+        shape = kind(net.delta(a, b))
+        transient = max(transient, size + ALLOCATES[shape])
+        rules[shape] += 1
         net.interact(a, b)
-        # Read from the net, not accumulated from delta(): a rule that allocates
-        # more than its price claims must show up here rather than cancel out.
         size = net.size()
         peak = max(peak, size)
-        steps += 1
+        done += 1
         if size > SIZE_CAP:
-            return {"interactions": steps, "peak": peak, "final": size,
-                    "rules": rules, "normal": False, "stopped": "size"}
-    return {"interactions": steps, "peak": peak, "final": net.size(), "rules": rules,
-            "normal": steps < CAP, "stopped": None if steps < CAP else "steps"}
+            stopped = "size"
+            break
+    else:
+        stopped = "budget"
+    return observation(net, peak, transient, rules, done, done, stopped)
 
 
-def parallel(net):
-    """Every active pair fires in one step. Two peaks are recorded: at step
-    boundaries, and the worst an implementation could hold *inside* a step if it
-    allocates everything before freeing anything — which is the honest bound for
-    a machine that really runs the pairs at the same time."""
-    boundary = inside = size = net.size()
-    rules = tally()
-    steps = interactions = 0
-    while steps < CAP:
-        pairs = net.active_pairs()
+def parallel(net, budget=CAP):
+    """Every active pair in a round fires together.
+
+    A round is truncated when the budget runs out. That is a legitimate state
+    rather than a fudge: the pairs in a round are pairwise disjoint, so any
+    prefix of them is a set of interactions that could have been chosen.
+    """
+    peak = transient = size = net.size()
+    rules, done, rounds, stopped = tally(), 0, 0, None
+    while done < budget:
+        pairs = net.active_pairs()[: budget - done]
         if not pairs:
             break
-        inside = max(inside, size + 2 * sum(1 for p in pairs if net.delta(*p) > 0))
-        for a, b in pairs:
-            if a in net.symbol and b in net.symbol:
-                rules[kind(net.delta(a, b))] += 1
-                net.interact(a, b)
+        shapes = [kind(net.delta(a, b)) for a, b in pairs]
+        transient = max(transient, size + sum(ALLOCATES[s] for s in shapes))
+        for (a, b), shape in zip(pairs, shapes):
+            rules[shape] += 1
+            net.interact(a, b)
         size = net.size()
-        boundary = max(boundary, size)
-        interactions += len(pairs)
-        steps += 1
+        peak = max(peak, size)
+        done += len(pairs)
+        rounds += 1
         if size > SIZE_CAP:
-            return {"interactions": interactions, "peak": boundary,
-                    "peak_inside": inside, "final": size, "steps": steps,
-                    "rules": rules, "normal": False, "stopped": "size"}
-    return {"interactions": interactions, "peak": boundary, "peak_inside": inside,
-            "final": net.size(), "steps": steps, "rules": rules,
-            "normal": steps < CAP, "stopped": None if steps < CAP else "steps"}
+            stopped = "size"
+            break
+    else:
+        stopped = "budget"
+    return observation(net, peak, transient, rules, done, rounds, stopped)
 
 
 SCHEDULES = {
-    "sequential":   lambda net: sequential(net, lambda d: 0),
-    "shrink-first": lambda net: sequential(net, lambda d: d),
-    "grow-first":   lambda net: sequential(net, lambda d: -d),
+    "sequential":   lambda net, budget=CAP: sequential(net, lambda d: 0, budget),
+    "shrink-first": lambda net, budget=CAP: sequential(net, lambda d: d, budget),
+    "grow-first":   lambda net, budget=CAP: sequential(net, lambda d: -d, budget),
     "parallel":     parallel,
 }
+FIELDS = ("interactions", "rounds", "peak", "transient_peak", "final", "rules",
+          "stopped", "normal")
 
 
-def main(corpus=CORPUS) -> int:
+def check_receipt(name: str, runs: dict) -> list[str]:
+    """Every schedule's own observation must reach the record. The first version
+    of this file wrote one schedule's interaction count and let three others go
+    unrecorded, which is how a false claim about equal work survived review."""
+    problems = []
+    for schedule in SCHEDULES:
+        if schedule not in runs:
+            problems.append(f"{name}: no observation recorded for {schedule}")
+            continue
+        missing = [f for f in FIELDS if f not in runs[schedule]]
+        if missing:
+            problems.append(f"{name}/{schedule}: the record omits {missing}")
+    return problems
+
+
+def check_budget(name: str, runs: dict, budget: int) -> list[str]:
+    """A schedule that stops on the budget must have spent it exactly, in
+    interactions. Capping the parallel schedule on rounds instead was the defect
+    this control exists to catch."""
+    return [f"{name}/{schedule}: stopped on the budget after "
+            f"{result['interactions']} interactions, not {budget} — the cap is "
+            "not being applied in interactions"
+            for schedule, result in runs.items()
+            if result["stopped"] == "budget" and result["interactions"] != budget]
+
+
+def check_allocation_model(name: str, start: int, runs: dict) -> list[str]:
+    """Ties the transient model to something observable. If every rule allocates
+    `ALLOCATES` and frees `FREES`, the final size is forced; a transient formula
+    that misstates either number contradicts a size that was measured."""
+    problems = []
+    for schedule, result in runs.items():
+        predicted = start + sum((ALLOCATES[k] - FREES[k]) * result["rules"][k]
+                                for k in KINDS)
+        if predicted != result["final"]:
+            problems.append(f"{name}/{schedule}: the allocation model predicts a "
+                            f"final size of {predicted}, the net has "
+                            f"{result['final']} — ALLOCATES/FREES misstate a rule")
+        if result["transient_peak"] < result["peak"]:
+            problems.append(f"{name}/{schedule}: transient {result['transient_peak']} "
+                            f"below the peak {result['peak']}, which is impossible")
+    return problems
+
+
+def check_uniform(name: str, runs: dict, signatures: dict) -> list[str]:
+    """Interaction nets are strongly confluent, so on a net that normalises only
+    the *order* of interactions may differ between schedules."""
+    problems = []
+    counts = {s: r["interactions"] for s, r in runs.items()}
+    if len(set(counts.values())) != 1:
+        problems.append(f"{name}: interaction counts differ {counts} — uniform "
+                        "normalisation is a theorem, so this is a harness defect")
+    shapes = {s: tuple(sorted(r["rules"].items())) for s, r in runs.items()}
+    if len(set(shapes.values())) != 1:
+        problems.append(f"{name}: the multiset of interactions differs between "
+                        f"schedules {shapes} — only their order may differ")
+    if len(set(signatures.values())) != 1:
+        problems.append(f"{name}: normal-form signatures differ between schedules, "
+                        "and equal signatures are necessary for equal nets")
+    return problems
+
+
+def check_bound(name: str, start: int, runs: dict) -> list[str]:
+    """No rule adds more than two agents, so this cannot fail unless the reducer
+    is wrong."""
+    return [f"{name}/{schedule}: peak {result['peak']} exceeds initial + 2 x "
+            f"interactions — the per-rule bound is violated, which is impossible "
+            "for these rules"
+            for schedule, result in runs.items()
+            if result["peak"] > start + 2 * result["interactions"]]
+
+
+def equal_work(make, budget: int) -> dict:
+    """Every schedule stopped at the same number of interactions. Without this,
+    comparing peaks compares runs that did different amounts of work."""
+    return {schedule: run(make(), budget) for schedule, run in SCHEDULES.items()}
+
+
+def batch_reservation(runs: dict) -> dict:
+    """What a round-granular machine must reserve, against what the round keeps.
+
+    A parallel round of `k` pairs can be prepaid without arbitration: count `k`,
+    reserve `3k` ATP and the round's allocation envelope, then run the whole round
+    or refuse the whole round. The price of avoiding arbitration is the part of
+    that envelope handed back immediately, which is what this measures."""
+    result = runs["parallel"]
+    envelope = result["transient_peak"]
+    kept = result["peak"]
+    return {"envelope": envelope, "kept": kept, "handed_back": envelope - kept,
+            "atp_per_round_is_3k": True}
+
+
+def measure_net(name: str, make, budget: int) -> tuple[dict, list[str]]:
+    start = make().size()
+    runs, signatures = {}, {}
+    for schedule, run in SCHEDULES.items():
+        net = make()
+        runs[schedule] = run(net, budget)
+        if runs[schedule]["normal"]:
+            signatures[schedule] = net.signature()
+
+    problems = check_receipt(name, runs) + check_budget(name, runs, budget)
+    problems += check_allocation_model(name, start, runs) + check_bound(name, start, runs)
+    terminating = all(r["normal"] for r in runs.values())
+    if terminating:
+        problems += check_uniform(name, runs, signatures)
+
+    peaks = {s: r["peak"] for s, r in runs.items()}
+    spread = max(peaks.values()) - min(peaks.values())
+    rules = runs["sequential"]["rules"]
+    reordering_bound = 2 * min(rules["growing"], rules["shrinking"])
+    if terminating and spread > reordering_bound:
+        problems.append(f"{name}: schedules differ by {spread} where reordering one "
+                        f"fixed multiset allows at most {reordering_bound} — either "
+                        "the multiset is not fixed or the harness is wrong")
+
+    same_work = min(r["interactions"] for r in runs.values())
+    fair = equal_work(make, same_work)
+    row = {"net": name, "initial": start, "terminating": terminating,
+           "schedules": runs, "reordering_bound": reordering_bound,
+           "peaks": peaks, "spread": spread,
+           "ratio": round(max(peaks.values()) / max(min(peaks.values()), 1), 4),
+           "equal_work": {"interactions": same_work,
+                          "peaks": {s: r["peak"] for s, r in fair.items()},
+                          "transients": {s: r["transient_peak"] for s, r in fair.items()}},
+           "batch": batch_reservation(runs)}
+    problems += check_budget(f"{name} at equal work", fair, same_work)
+    return row, problems
+
+
+def report(row: dict) -> str:
+    peaks, fair = row["peaks"], row["equal_work"]
+    counts = {s: r["interactions"] for s, r in row["schedules"].items()}
+    return (f"{row['net']:16} start {row['initial']:5}  "
+            f"int {min(counts.values()):7}-{max(counts.values()):<9} "
+            f"peaks " + " ".join(f"{s[:4]} {peaks[s]:6}" for s in SCHEDULES) +
+            f"  spread {row['spread']:6}  bound {row['reordering_bound']:6}  "
+            f"| equal work {fair['interactions']:7}: " +
+            " ".join(f"{fair['peaks'][s]:6}" for s in SCHEDULES) +
+            ("" if row["terminating"] else "  (did not normalise)"))
+
+
+def main(corpus=CORPUS, budget=CAP) -> int:
     rows, problems = [], []
+    pinned, drift = fingerprint(corpus)
+    problems += drift
     for name, make in corpus:
-        start = make().size()
-        runs = {}
-        signatures = {}
-        for schedule, run in SCHEDULES.items():
-            net = make()
-            result = run(net)
-            result["initial"] = start
-            runs[schedule] = result
-            if result["normal"]:
-                signatures[schedule] = net.signature()
-
-        terminating = all(r["normal"] for r in runs.values())
-        if terminating:
-            counts = {s: r["interactions"] for s, r in runs.items()}
-            if len(set(counts.values())) != 1:
-                problems.append(f"{name}: interaction counts differ {counts} — "
-                                "uniform normalisation is a theorem, so this is a "
-                                "harness defect, not a result")
-            if len(set(signatures.values())) != 1:
-                problems.append(f"{name}: normal forms differ between schedules — "
-                                "confluence is a theorem, so this is a harness defect")
-            shapes = {s: tuple(sorted(r["rules"].items())) for s, r in runs.items()}
-            if len(set(shapes.values())) != 1:
-                problems.append(f"{name}: the multiset of interactions differs "
-                                f"between schedules {shapes} — uniform normalisation "
-                                "says only their order may differ")
-
-        # The bound itself, checked on every row rather than argued: no rule adds
-        # more than two agents, so this cannot fail unless the reducer is wrong.
-        for schedule, result in runs.items():
-            if result["peak"] > start + 2 * result["interactions"]:
-                problems.append(f"{name}/{schedule}: peak {result['peak']} exceeds "
-                                f"initial + 2 x interactions — the per-rule bound "
-                                "is violated, which is impossible for these rules")
-
-        peaks = {s: r["peak"] for s, r in runs.items()}
-        rules = runs["sequential"]["rules"]
-        spread = max(peaks.values()) - min(peaks.values())
-        # If only the order may differ, the reachable peaks are the prefix sums of
-        # one fixed multiset of +2/0/-2 steps, so no schedule can be further from
-        # another than twice the smaller of the two signed counts.
-        reordering_bound = 2 * min(rules["growing"], rules["shrinking"])
-        if terminating and spread > reordering_bound:
-            problems.append(f"{name}: schedules differ by {spread} where reordering "
-                            f"one fixed multiset allows at most {reordering_bound} — "
-                            "either the multiset is not fixed or the harness is wrong")
-        rows.append({"net": name, "initial": start, "terminating": terminating,
-                     "interactions": runs["sequential"]["interactions"],
-                     "rules": rules, "reordering_bound": reordering_bound,
-                     "peaks": peaks,
-                     "peak_inside_parallel": runs["parallel"]["peak_inside"],
-                     "parallel_steps": runs["parallel"]["steps"],
-                     "spread": spread,
-                     "ratio": round(max(peaks.values()) / max(min(peaks.values()), 1), 4)})
-        flag = "" if terminating else "  (did not normalise within the cap)"
-        print(f"{name:16} start {start:5}  int {runs['sequential']['interactions']:6}  "
-              f"peaks seq {peaks['sequential']:6} shrink {peaks['shrink-first']:6} "
-              f"grow {peaks['grow-first']:6} par {peaks['parallel']:6} "
-              f"(inside {runs['parallel']['peak_inside']:6})  "
-              f"spread {rows[-1]['spread']:6} x{rows[-1]['ratio']}  "
-              f"bound {reordering_bound:6}{flag}")
+        row, trouble = measure_net(name, make, budget)
+        rows.append(row)
+        problems += trouble
+        print(report(row))
 
     if corpus is CORPUS:
-        (HERE / "results.json").write_text(json.dumps(rows, indent=2, sort_keys=True) + "\n")
+        (HERE / "results.json").write_text(json.dumps(
+            {"python": platform.python_version(), "budget_interactions": budget,
+             "size_cap": SIZE_CAP, "corpus_digest": pinned, "nets": rows},
+            indent=2, sort_keys=True) + "\n")
+
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)
     if problems:
         return 1
-    print("\nCONTROLS PASS: on every net that normalised, all four schedules agreed on\n"
-          "  the interaction count, the multiset of rules and the normal form; no peak\n"
-          "  exceeded initial + 2 x interactions; and no spread exceeded what reordering\n"
-          "  that one fixed multiset permits.")
+    print("\nCONTROLS PASS: every schedule's own observation is recorded; each spent\n"
+          "  the budget in interactions; the allocation model predicts the sizes that\n"
+          "  were measured; no peak exceeds initial + 2 x interactions; and on every\n"
+          "  net that normalised the schedules agreed on the interaction count, the\n"
+          "  multiset of rules and the normal-form signature, with no spread beyond\n"
+          "  what reordering that one fixed multiset permits.")
     return 0
 
 

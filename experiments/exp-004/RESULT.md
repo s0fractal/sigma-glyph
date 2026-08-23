@@ -7,20 +7,40 @@ written before the reducer existed. The corpus was committed at `3040b57`, befor
 | | |
 | --- | --- |
 | reducer | Lafont's interaction combinators, `G`/`D<label>`/`E`, labelled duplicators as in HVM |
-| corpus | 29 nets in four families, 21 of which normalise |
+| corpus | 29 nets in four families, pinned by digest in `fixtures.json`, 21 of which normalise |
 | schedules | sequential, shrink-first, grow-first, maximal-parallel |
-| caps | 200,000 interactions or 40,000 agents, whichever comes first |
+| budget | 200,000 **interactions** for every schedule, or 40,000 agents |
+| host | Python 3.14.7; corpus digest `4e8b7adc1c20bc6d` |
+
+## Corrections to the first version of this document
+
+Four defects were found in review after the first result was written. The result
+survives all four, but two of its statements did not, and they are named here
+rather than quietly repaired.
+
+1. **"Equal work, 200,000 interactions" was false.** The receipt recorded only
+   the sequential schedule's interaction count and applied it to all four, and
+   the parallel schedule was capped on *rounds* rather than interactions. The
+   real counts on `random-3-12` were 200,000 / 200,000 / 19,995 / 1,199,988. The
+   comparison has been re-run at genuinely equal work and the conclusion holds —
+   see below — but the original receipt did not support it.
+2. **"The enforcement does not transfer" was too strong.** A round-granular
+   machine can prepay without arbitration. The corrected claim is narrower and
+   sharper; it is now the main architectural finding.
+3. **The transient figure did not match its own description.** It was computed as
+   `size + 2 × growing`, which is "all growth before all shrinking", not
+   "allocate everything before freeing anything". An explicit allocation model is
+   now defined, and a control fails if it misstates any rule.
+4. **The normal-form signature was not reproducible.** It used Python's `hash`,
+   which is seeded per process: stable within a run, so the comparisons between
+   schedules were sound, and different on the next run, so no result could be
+   checked from its own record. Found by the new corpus pin on its first
+   execution.
 
 ## The short version
 
-**The bound transfers. The number stops describing the run.**
-
-Peak memory is still bounded by one integer that also pays for work, under every
-schedule, and the measurement confirms it on all 29 nets. But the interaction
-count is schedule-invariant while the peak is not, so the single number is a
-bound over schedules rather than a description of any particular one. How much
-it loses is itself computable, which is the useful part — and there is one
-regime where it loses everything.
+**The bound transfers. Parallelism forces an explicit choice of refusal
+granularity — per redex or per round — and Book I only has the first.**
 
 ## What was settled on paper, and stayed settled
 
@@ -33,22 +53,23 @@ replaces two with two. So
 and priced at 3 ATP per interaction this is exactly Book I's per-step shape,
 `Δsize ≤ cost − 1`, telescoping to `size ≤ spent + initial`. The preregistration
 said in advance that publishing this as a finding would be dressing arithmetic as
-a result, and it is not published as one. It is *checked* on every row instead of
-argued, and it never failed.
+a result, and it is not published as one. It is *checked* on every row instead,
+and never failed.
 
-There is a structural reason it holds so easily, and it is worth more than the
-arithmetic: **a duplicator can never copy an active pair.** Both principal ports
-in an active pair are occupied by each other, so nothing can reach them to copy
-them. Pending work cannot be duplicated. That is exactly the property λ-calculus
-lacks, and it is why a single work-and-memory budget is more at home here than in
-the setting Book I proves it for.
+There is a structural reason it holds so easily. **A duplicator can never copy an
+active pair:** both principal ports in an active pair are occupied by each other,
+so nothing can reach them to copy them. Pending work cannot be duplicated. That
+is precisely what β-substitution lacks — a β-redex sits inside a term and is
+copied along with it, so the same work can be duplicated before it is done — and
+it is why a single work-and-memory budget is more at home here than in the
+setting Book I proves it for.
 
 ## H1 — confirmed. The peak is schedule-dependent
 
 13 of the 21 normalising nets reached different peaks under different schedules.
 The 8 that did not are the two control families plus one net already in normal
 form: `dup-tree` has no shrinking interaction, so every schedule *must* agree, and
-it did — a spread there would have meant the harness was inventing one.
+did. A spread there would have meant the harness was inventing one.
 
 ## H2 — half right, and the half that is wrong matters
 
@@ -63,97 +84,123 @@ normalising nets, proportionally, it does.
 **The spread is exactly the reordering of a fixed multiset, and it is computable
 in advance.**
 
-Strong confluence gives interaction nets uniform normalisation: every reduction
-path to normal form performs the same interactions, and only their order may
-differ. So the reachable peaks are the prefix sums of one fixed sequence of
-`+2`/`0`/`−2` steps, and no two schedules can differ by more than
+Interaction nets are strongly confluent, so computation is unique up to trivial
+commutations of independent steps: every path to a normal form performs the same
+interactions, and only their order may differ.¹ The reachable peaks are therefore
+the prefix sums of one fixed sequence of `+2`/`0`/`−2` steps, and no two schedules
+can differ by more than
 
     2 × min(growing interactions, shrinking interactions)
 
 That is a prediction, not an observation, and it holds on all 21 normalising nets
-— reached **exactly** on 19 of them. The two that fall short (`random-1-48`,
-`random-13-48`) fall short because the greedy schedules cannot reach the extreme
+— reached **exactly** on 19. The two that fall short (`random-1-48`,
+`random-13-48`) do so because the greedy schedules cannot reach the extreme
 order, not because the bound is loose.
 
-This is the answer to the question as asked. Σ-GLYPH's one integer survives the
-move to a confluent parallel setting, and the precision it loses is not unknown:
-it is bounded by a quantity computed from the same accounting that produced the
-budget.
+So the one integer survives the move to a confluent parallel setting, and the
+precision it loses is not unknown: it is bounded by a quantity computed from the
+same accounting that produced the budget.
 
-## Where it does break
+## Where it breaks: work that never finishes
 
-On nets that do not normalise, the multiset is no longer fixed, and the schedule
+On nets that do not normalise the multiset is no longer fixed, and the schedule
 decides whether memory is bounded at all.
 
-`random-3-12` — twelve agents. At **equal work**, 200,000 interactions:
+`random-3-12` — twelve agents — with every schedule stopped at exactly the same
+**19,995 interactions**, which is where the greediest schedule hit the size cap:
 
-| schedule | peak agents |
+| schedule | peak agents at 19,995 interactions |
 | --- | --- |
 | shrink-first | 14 |
 | sequential | 16 |
 | maximal-parallel | 20 |
-| grow-first | ≥ 40,002 (stopped at the size cap) |
+| grow-first | ≥ 40,002 (size cap) |
 
 A factor of **2,857** on the same net doing the same amount of work. The bound
 `size ≤ spent + initial` is still true here and still useless: it tracks what was
-spent, and what was spent is a property of the schedule, not of the computation.
-For a terminating computation that distinction collapses, which is why Book I
-never has to make it.
+spent, and what was spent is a property of the schedule rather than of the
+computation. For a terminating computation that distinction collapses, which is
+why Book I never has to make it.
 
-## The part that does not transfer at all
+## The architectural finding: parallelism chooses the granularity of refusal
 
-Book I does not merely *bound* memory. It **refuses** an action it cannot afford,
-checked before the action is taken. That discipline needs a total order on
-actions and a counter read before each one.
+Book I does not merely *bound* memory. It **refuses**: an action that cannot be
+afforded does not happen, and the check precedes the action. Applied per redex,
+that discipline needs a total order — with `k` pairs firing at once, deciding
+*which subset* to run when the budget covers only part of the round is
+arbitration, and arbitration is the serialisation interaction nets exist to
+avoid.
 
-With `k` interactions firing in one parallel step, deciding which are affordable
-requires a shared counter and an order among the `k` — precisely the
-serialisation interaction nets exist to avoid. And the transient is real, not
-bookkeeping: measured inside a parallel step, where an implementation allocates
-before it frees, the peak exceeded the step boundary on **14 of 29** nets, by up
-to **2,268 agents**. A parallel machine must therefore either prepay the
-worst-case transient or serialise the budget check. Neither is free, and this
-experiment does not know which is cheaper.
+But a round-granular machine does not need it. For a maximal-parallel round:
+count `k`, reserve `3k` ATP and the round's allocation envelope, then run the
+whole round or refuse the whole round. No order among the `k` is required. So the
+correct statement is not that enforcement fails to transfer, but that
 
-**So the honest split is: the theorem transfers, the enforcement does not.** That
-is a sharper statement than either outcome the preregistration anticipated.
+> **the bound transfers unchanged; Book I's per-redex partial-progress
+> enforcement does not.**
+
+The price of that trade is measurable. Under an explicit allocation model — every
+rule builds its entire right-hand side before any agent of its left-hand side is
+freed, so a commutation holds six agents at its widest and an erasure four — the
+envelope a round must reserve exceeds what the round keeps on **28 of 29** nets.
+A sequential machine's transient never exceeds its peak by more than 2 agents. A
+round-granular one exceeded it by up to **20,102**, and exceeded the sequential
+transient on the same net by up to **27,034**. Refusing per round is simple; it
+is not free, and this experiment does not say which is cheaper.
 
 ## What this says about interaction counts as a cost model
 
 An interaction count cannot price memory. It is invariant across schedules whose
 peaks differ by up to 1.5× when they terminate and by three orders of magnitude
-when they do not. Any cost model that reports interactions alone is reporting the
-half of the pair that does not vary.
+when they do not. A cost model reporting interactions alone reports the half of
+the pair that does not vary.
 
 That is a claim about counting, **not about HVM**, whose implementation was not
 measured, read, or run here. Nothing in this document is evidence about any
 existing runtime.
 
-## What else this cannot say
+## What this cannot say
 
 - The schedules are greedy, not optimal, so every spread reported is a **lower
   bound** on the true spread between the best and worst schedule.
-- Memory is counted in agents. Counting wires too would scale the same quantity,
+- Memory is counted in agents. Counting wires would scale the same quantity,
   since an interaction changes the wire count by a bounded amount as well.
+- Normal forms are compared by colour-refinement signature. Equal nets give equal
+  signatures, so a mismatch is real; the converse does not hold. The honest
+  statement is **no signature mismatch was detected**, not that the normal forms
+  were proved isomorphic.
 - No λ-calculus encoding was measured. Nothing here is about λ-terms, real
   programs, or sharing as an optimisation — only about nets.
-- Eight nets did not normalise within the caps. Whether they normalise at all was
-  not determined and is not claimed either way.
+- Eight nets did not normalise within the budget. Whether they normalise at all
+  was not determined and is not claimed either way.
+- The corpus is pinned by digest and the Python version recorded, because the
+  nets come out of a seeded generator and the file alone does not say what was
+  measured.
 
 ## Controls
 
-`measure.py` fails rather than reports if any schedule disagrees with another on
-the interaction count, the multiset of rules, or the normal form; if any peak
-exceeds `initial + 2 × interactions`; or if any spread exceeds what reordering
-permits. All pass.
+`measure.py` fails rather than reports if any schedule's observation is missing
+from the record; if a schedule stopping on the budget did not spend it in
+interactions; if the allocation model predicts a final size the net does not
+have; if any peak exceeds `initial + 2 × interactions`; if any starting net
+differs from its pinned digest; or, on a net that normalises, if the schedules
+disagree on the interaction count, the multiset of rules or the normal-form
+signature, or spread further than reordering permits.
 
-`selftest.py` breaks each of those controls in turn — a rule that allocates a
-fifth agent, a schedule that leaves a redex unreduced, a price that under-reports
-growth — and requires each one to fail **for its own reason**. A control that
-cannot be made to fail is not a control, and a perturbation that breaks
-everything attributes nothing.
+`selftest.py` breaks each of those seven controls in turn and requires each to
+fail **for its own reason** — a control that cannot be made to fail is not a
+control, and a perturbation that breaks everything attributes nothing. Three of
+the perturbations reproduce defects this harness actually shipped: the parallel
+schedule capped on rounds, the record carrying one schedule's count for all four,
+and a transient computed from a formula that did not match its description.
+
+---
+
+¹ Yves Lafont, *Interaction Combinators*, Information and Computation 137(1):69–101,
+1997. [doi:10.1006/inco.1997.2643](https://doi.org/10.1006/inco.1997.2643)
 
 | Date | Change | Result already known? |
 | --- | --- | --- |
 | 2026-08-23 | initial preregistration | no |
 | 2026-08-23 | result recorded; no hypothesis, threshold or net was edited | — |
+| 2026-08-23 | four review defects corrected; conclusion narrowed, not widened | yes, and the corrections are listed above |

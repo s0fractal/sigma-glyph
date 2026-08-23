@@ -1,640 +1,2705 @@
-[
-  {
-    "initial": 8,
-    "interactions": 7,
-    "net": "dup-tree-3",
-    "parallel_steps": 3,
-    "peak_inside_parallel": 22,
-    "peaks": {
-      "grow-first": 22,
-      "parallel": 22,
-      "sequential": 22,
-      "shrink-first": 22
+{
+  "budget_interactions": 200000,
+  "corpus_digest": "4e8b7adc1c20bc6d",
+  "nets": [
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 30,
+        "handed_back": 8,
+        "kept": 22
+      },
+      "equal_work": {
+        "interactions": 7,
+        "peaks": {
+          "grow-first": 22,
+          "parallel": 22,
+          "sequential": 22,
+          "shrink-first": 22
+        },
+        "transients": {
+          "grow-first": 24,
+          "parallel": 30,
+          "sequential": 24,
+          "shrink-first": 24
+        }
+      },
+      "initial": 8,
+      "net": "dup-tree-3",
+      "peaks": {
+        "grow-first": 22,
+        "parallel": 22,
+        "sequential": 22,
+        "shrink-first": 22
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 22,
+          "interactions": 7,
+          "normal": true,
+          "peak": 22,
+          "rounds": 7,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 24
+        },
+        "parallel": {
+          "final": 22,
+          "interactions": 7,
+          "normal": true,
+          "peak": 22,
+          "rounds": 3,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 30
+        },
+        "sequential": {
+          "final": 22,
+          "interactions": 7,
+          "normal": true,
+          "peak": 22,
+          "rounds": 7,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 24
+        },
+        "shrink-first": {
+          "final": 22,
+          "interactions": 7,
+          "normal": true,
+          "peak": 22,
+          "rounds": 7,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 24
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 7,
-      "neutral": 0,
-      "shrinking": 0
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 126,
+        "handed_back": 32,
+        "kept": 94
+      },
+      "equal_work": {
+        "interactions": 31,
+        "peaks": {
+          "grow-first": 94,
+          "parallel": 94,
+          "sequential": 94,
+          "shrink-first": 94
+        },
+        "transients": {
+          "grow-first": 96,
+          "parallel": 126,
+          "sequential": 96,
+          "shrink-first": 96
+        }
+      },
+      "initial": 32,
+      "net": "dup-tree-5",
+      "peaks": {
+        "grow-first": 94,
+        "parallel": 94,
+        "sequential": 94,
+        "shrink-first": 94
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 94,
+          "interactions": 31,
+          "normal": true,
+          "peak": 94,
+          "rounds": 31,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 96
+        },
+        "parallel": {
+          "final": 94,
+          "interactions": 31,
+          "normal": true,
+          "peak": 94,
+          "rounds": 5,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 126
+        },
+        "sequential": {
+          "final": 94,
+          "interactions": 31,
+          "normal": true,
+          "peak": 94,
+          "rounds": 31,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 96
+        },
+        "shrink-first": {
+          "final": 94,
+          "interactions": 31,
+          "normal": true,
+          "peak": 94,
+          "rounds": 31,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 96
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 32,
-    "interactions": 31,
-    "net": "dup-tree-5",
-    "parallel_steps": 5,
-    "peak_inside_parallel": 94,
-    "peaks": {
-      "grow-first": 94,
-      "parallel": 94,
-      "sequential": 94,
-      "shrink-first": 94
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 510,
+        "handed_back": 128,
+        "kept": 382
+      },
+      "equal_work": {
+        "interactions": 127,
+        "peaks": {
+          "grow-first": 382,
+          "parallel": 382,
+          "sequential": 382,
+          "shrink-first": 382
+        },
+        "transients": {
+          "grow-first": 384,
+          "parallel": 510,
+          "sequential": 384,
+          "shrink-first": 384
+        }
+      },
+      "initial": 128,
+      "net": "dup-tree-7",
+      "peaks": {
+        "grow-first": 382,
+        "parallel": 382,
+        "sequential": 382,
+        "shrink-first": 382
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 382,
+          "interactions": 127,
+          "normal": true,
+          "peak": 382,
+          "rounds": 127,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 384
+        },
+        "parallel": {
+          "final": 382,
+          "interactions": 127,
+          "normal": true,
+          "peak": 382,
+          "rounds": 7,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 510
+        },
+        "sequential": {
+          "final": 382,
+          "interactions": 127,
+          "normal": true,
+          "peak": 382,
+          "rounds": 127,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 384
+        },
+        "shrink-first": {
+          "final": 382,
+          "interactions": 127,
+          "normal": true,
+          "peak": 382,
+          "rounds": 127,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 384
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 31,
-      "neutral": 0,
-      "shrinking": 0
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 2046,
+        "handed_back": 512,
+        "kept": 1534
+      },
+      "equal_work": {
+        "interactions": 511,
+        "peaks": {
+          "grow-first": 1534,
+          "parallel": 1534,
+          "sequential": 1534,
+          "shrink-first": 1534
+        },
+        "transients": {
+          "grow-first": 1536,
+          "parallel": 2046,
+          "sequential": 1536,
+          "shrink-first": 1536
+        }
+      },
+      "initial": 512,
+      "net": "dup-tree-9",
+      "peaks": {
+        "grow-first": 1534,
+        "parallel": 1534,
+        "sequential": 1534,
+        "shrink-first": 1534
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 1534,
+          "interactions": 511,
+          "normal": true,
+          "peak": 1534,
+          "rounds": 511,
+          "rules": {
+            "growing": 511,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 1536
+        },
+        "parallel": {
+          "final": 1534,
+          "interactions": 511,
+          "normal": true,
+          "peak": 1534,
+          "rounds": 9,
+          "rules": {
+            "growing": 511,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 2046
+        },
+        "sequential": {
+          "final": 1534,
+          "interactions": 511,
+          "normal": true,
+          "peak": 1534,
+          "rounds": 511,
+          "rules": {
+            "growing": 511,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 1536
+        },
+        "shrink-first": {
+          "final": 1534,
+          "interactions": 511,
+          "normal": true,
+          "peak": 1534,
+          "rounds": 511,
+          "rules": {
+            "growing": 511,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 1536
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 128,
-    "interactions": 127,
-    "net": "dup-tree-7",
-    "parallel_steps": 7,
-    "peak_inside_parallel": 382,
-    "peaks": {
-      "grow-first": 382,
-      "parallel": 382,
-      "sequential": 382,
-      "shrink-first": 382
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 16,
+        "handed_back": 8,
+        "kept": 8
+      },
+      "equal_work": {
+        "interactions": 7,
+        "peaks": {
+          "grow-first": 8,
+          "parallel": 8,
+          "sequential": 8,
+          "shrink-first": 8
+        },
+        "transients": {
+          "grow-first": 10,
+          "parallel": 16,
+          "sequential": 10,
+          "shrink-first": 10
+        }
+      },
+      "initial": 8,
+      "net": "erase-tree-3",
+      "peaks": {
+        "grow-first": 8,
+        "parallel": 8,
+        "sequential": 8,
+        "shrink-first": 8
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 8,
+          "interactions": 7,
+          "normal": true,
+          "peak": 8,
+          "rounds": 7,
+          "rules": {
+            "growing": 0,
+            "neutral": 7,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 10
+        },
+        "parallel": {
+          "final": 8,
+          "interactions": 7,
+          "normal": true,
+          "peak": 8,
+          "rounds": 3,
+          "rules": {
+            "growing": 0,
+            "neutral": 7,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 16
+        },
+        "sequential": {
+          "final": 8,
+          "interactions": 7,
+          "normal": true,
+          "peak": 8,
+          "rounds": 7,
+          "rules": {
+            "growing": 0,
+            "neutral": 7,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 10
+        },
+        "shrink-first": {
+          "final": 8,
+          "interactions": 7,
+          "normal": true,
+          "peak": 8,
+          "rounds": 7,
+          "rules": {
+            "growing": 0,
+            "neutral": 7,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 10
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 127,
-      "neutral": 0,
-      "shrinking": 0
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 128,
+        "handed_back": 64,
+        "kept": 64
+      },
+      "equal_work": {
+        "interactions": 63,
+        "peaks": {
+          "grow-first": 64,
+          "parallel": 64,
+          "sequential": 64,
+          "shrink-first": 64
+        },
+        "transients": {
+          "grow-first": 66,
+          "parallel": 128,
+          "sequential": 66,
+          "shrink-first": 66
+        }
+      },
+      "initial": 64,
+      "net": "erase-tree-6",
+      "peaks": {
+        "grow-first": 64,
+        "parallel": 64,
+        "sequential": 64,
+        "shrink-first": 64
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 64,
+          "interactions": 63,
+          "normal": true,
+          "peak": 64,
+          "rounds": 63,
+          "rules": {
+            "growing": 0,
+            "neutral": 63,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 66
+        },
+        "parallel": {
+          "final": 64,
+          "interactions": 63,
+          "normal": true,
+          "peak": 64,
+          "rounds": 6,
+          "rules": {
+            "growing": 0,
+            "neutral": 63,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 128
+        },
+        "sequential": {
+          "final": 64,
+          "interactions": 63,
+          "normal": true,
+          "peak": 64,
+          "rounds": 63,
+          "rules": {
+            "growing": 0,
+            "neutral": 63,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 66
+        },
+        "shrink-first": {
+          "final": 64,
+          "interactions": 63,
+          "normal": true,
+          "peak": 64,
+          "rounds": 63,
+          "rules": {
+            "growing": 0,
+            "neutral": 63,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 66
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 512,
-    "interactions": 511,
-    "net": "dup-tree-9",
-    "parallel_steps": 9,
-    "peak_inside_parallel": 1534,
-    "peaks": {
-      "grow-first": 1534,
-      "parallel": 1534,
-      "sequential": 1534,
-      "shrink-first": 1534
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 1024,
+        "handed_back": 512,
+        "kept": 512
+      },
+      "equal_work": {
+        "interactions": 511,
+        "peaks": {
+          "grow-first": 512,
+          "parallel": 512,
+          "sequential": 512,
+          "shrink-first": 512
+        },
+        "transients": {
+          "grow-first": 514,
+          "parallel": 1024,
+          "sequential": 514,
+          "shrink-first": 514
+        }
+      },
+      "initial": 512,
+      "net": "erase-tree-9",
+      "peaks": {
+        "grow-first": 512,
+        "parallel": 512,
+        "sequential": 512,
+        "shrink-first": 512
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 512,
+          "interactions": 511,
+          "normal": true,
+          "peak": 512,
+          "rounds": 511,
+          "rules": {
+            "growing": 0,
+            "neutral": 511,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 514
+        },
+        "parallel": {
+          "final": 512,
+          "interactions": 511,
+          "normal": true,
+          "peak": 512,
+          "rounds": 9,
+          "rules": {
+            "growing": 0,
+            "neutral": 511,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 1024
+        },
+        "sequential": {
+          "final": 512,
+          "interactions": 511,
+          "normal": true,
+          "peak": 512,
+          "rounds": 511,
+          "rules": {
+            "growing": 0,
+            "neutral": 511,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 514
+        },
+        "shrink-first": {
+          "final": 512,
+          "interactions": 511,
+          "normal": true,
+          "peak": 512,
+          "rounds": 511,
+          "rules": {
+            "growing": 0,
+            "neutral": 511,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 514
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 511,
-      "neutral": 0,
-      "shrinking": 0
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 30,
+        "handed_back": 8,
+        "kept": 22
+      },
+      "equal_work": {
+        "interactions": 11,
+        "peaks": {
+          "grow-first": 30,
+          "parallel": 22,
+          "sequential": 30,
+          "shrink-first": 22
+        },
+        "transients": {
+          "grow-first": 32,
+          "parallel": 30,
+          "sequential": 32,
+          "shrink-first": 24
+        }
+      },
+      "initial": 16,
+      "net": "race-3-4",
+      "peaks": {
+        "grow-first": 30,
+        "parallel": 22,
+        "sequential": 30,
+        "shrink-first": 22
+      },
+      "ratio": 1.3636,
+      "reordering_bound": 8,
+      "schedules": {
+        "grow-first": {
+          "final": 22,
+          "interactions": 11,
+          "normal": true,
+          "peak": 30,
+          "rounds": 11,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 32
+        },
+        "parallel": {
+          "final": 22,
+          "interactions": 11,
+          "normal": true,
+          "peak": 22,
+          "rounds": 3,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 30
+        },
+        "sequential": {
+          "final": 22,
+          "interactions": 11,
+          "normal": true,
+          "peak": 30,
+          "rounds": 11,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 32
+        },
+        "shrink-first": {
+          "final": 22,
+          "interactions": 11,
+          "normal": true,
+          "peak": 22,
+          "rounds": 11,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 24
+        }
+      },
+      "spread": 8,
+      "terminating": true
     },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 8,
-    "interactions": 7,
-    "net": "erase-tree-3",
-    "parallel_steps": 3,
-    "peak_inside_parallel": 8,
-    "peaks": {
-      "grow-first": 8,
-      "parallel": 8,
-      "sequential": 8,
-      "shrink-first": 8
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 44,
+        "handed_back": 4,
+        "kept": 40
+      },
+      "equal_work": {
+        "interactions": 23,
+        "peaks": {
+          "grow-first": 54,
+          "parallel": 40,
+          "sequential": 54,
+          "shrink-first": 40
+        },
+        "transients": {
+          "grow-first": 56,
+          "parallel": 44,
+          "sequential": 56,
+          "shrink-first": 40
+        }
+      },
+      "initial": 40,
+      "net": "race-3-16",
+      "peaks": {
+        "grow-first": 54,
+        "parallel": 40,
+        "sequential": 54,
+        "shrink-first": 40
+      },
+      "ratio": 1.35,
+      "reordering_bound": 14,
+      "schedules": {
+        "grow-first": {
+          "final": 22,
+          "interactions": 23,
+          "normal": true,
+          "peak": 54,
+          "rounds": 23,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 56
+        },
+        "parallel": {
+          "final": 22,
+          "interactions": 23,
+          "normal": true,
+          "peak": 40,
+          "rounds": 3,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 44
+        },
+        "sequential": {
+          "final": 22,
+          "interactions": 23,
+          "normal": true,
+          "peak": 54,
+          "rounds": 23,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 56
+        },
+        "shrink-first": {
+          "final": 22,
+          "interactions": 23,
+          "normal": true,
+          "peak": 40,
+          "rounds": 23,
+          "rules": {
+            "growing": 7,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 40
+        }
+      },
+      "spread": 14,
+      "terminating": true
     },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 0,
-      "neutral": 7,
-      "shrinking": 0
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 126,
+        "handed_back": 32,
+        "kept": 94
+      },
+      "equal_work": {
+        "interactions": 47,
+        "peaks": {
+          "grow-first": 126,
+          "parallel": 94,
+          "sequential": 126,
+          "shrink-first": 94
+        },
+        "transients": {
+          "grow-first": 128,
+          "parallel": 126,
+          "sequential": 128,
+          "shrink-first": 96
+        }
+      },
+      "initial": 64,
+      "net": "race-5-16",
+      "peaks": {
+        "grow-first": 126,
+        "parallel": 94,
+        "sequential": 126,
+        "shrink-first": 94
+      },
+      "ratio": 1.3404,
+      "reordering_bound": 32,
+      "schedules": {
+        "grow-first": {
+          "final": 94,
+          "interactions": 47,
+          "normal": true,
+          "peak": 126,
+          "rounds": 47,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 128
+        },
+        "parallel": {
+          "final": 94,
+          "interactions": 47,
+          "normal": true,
+          "peak": 94,
+          "rounds": 5,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 126
+        },
+        "sequential": {
+          "final": 94,
+          "interactions": 47,
+          "normal": true,
+          "peak": 126,
+          "rounds": 47,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 128
+        },
+        "shrink-first": {
+          "final": 94,
+          "interactions": 47,
+          "normal": true,
+          "peak": 94,
+          "rounds": 47,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 16
+          },
+          "stopped": null,
+          "transient_peak": 96
+        }
+      },
+      "spread": 32,
+      "terminating": true
     },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 64,
-    "interactions": 63,
-    "net": "erase-tree-6",
-    "parallel_steps": 6,
-    "peak_inside_parallel": 64,
-    "peaks": {
-      "grow-first": 64,
-      "parallel": 64,
-      "sequential": 64,
-      "shrink-first": 64
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 164,
+        "handed_back": 4,
+        "kept": 160
+      },
+      "equal_work": {
+        "interactions": 95,
+        "peaks": {
+          "grow-first": 222,
+          "parallel": 160,
+          "sequential": 222,
+          "shrink-first": 160
+        },
+        "transients": {
+          "grow-first": 224,
+          "parallel": 164,
+          "sequential": 224,
+          "shrink-first": 160
+        }
+      },
+      "initial": 160,
+      "net": "race-5-64",
+      "peaks": {
+        "grow-first": 222,
+        "parallel": 160,
+        "sequential": 222,
+        "shrink-first": 160
+      },
+      "ratio": 1.3875,
+      "reordering_bound": 62,
+      "schedules": {
+        "grow-first": {
+          "final": 94,
+          "interactions": 95,
+          "normal": true,
+          "peak": 222,
+          "rounds": 95,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 224
+        },
+        "parallel": {
+          "final": 94,
+          "interactions": 95,
+          "normal": true,
+          "peak": 160,
+          "rounds": 5,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 164
+        },
+        "sequential": {
+          "final": 94,
+          "interactions": 95,
+          "normal": true,
+          "peak": 222,
+          "rounds": 95,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 224
+        },
+        "shrink-first": {
+          "final": 94,
+          "interactions": 95,
+          "normal": true,
+          "peak": 160,
+          "rounds": 95,
+          "rules": {
+            "growing": 31,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 160
+        }
+      },
+      "spread": 62,
+      "terminating": true
     },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 0,
-      "neutral": 63,
-      "shrinking": 0
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 510,
+        "handed_back": 128,
+        "kept": 382
+      },
+      "equal_work": {
+        "interactions": 191,
+        "peaks": {
+          "grow-first": 510,
+          "parallel": 382,
+          "sequential": 510,
+          "shrink-first": 382
+        },
+        "transients": {
+          "grow-first": 512,
+          "parallel": 510,
+          "sequential": 512,
+          "shrink-first": 384
+        }
+      },
+      "initial": 256,
+      "net": "race-7-64",
+      "peaks": {
+        "grow-first": 510,
+        "parallel": 382,
+        "sequential": 510,
+        "shrink-first": 382
+      },
+      "ratio": 1.3351,
+      "reordering_bound": 128,
+      "schedules": {
+        "grow-first": {
+          "final": 382,
+          "interactions": 191,
+          "normal": true,
+          "peak": 510,
+          "rounds": 191,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 512
+        },
+        "parallel": {
+          "final": 382,
+          "interactions": 191,
+          "normal": true,
+          "peak": 382,
+          "rounds": 7,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 510
+        },
+        "sequential": {
+          "final": 382,
+          "interactions": 191,
+          "normal": true,
+          "peak": 510,
+          "rounds": 191,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 512
+        },
+        "shrink-first": {
+          "final": 382,
+          "interactions": 191,
+          "normal": true,
+          "peak": 382,
+          "rounds": 191,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 64
+          },
+          "stopped": null,
+          "transient_peak": 384
+        }
+      },
+      "spread": 128,
+      "terminating": true
     },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 512,
-    "interactions": 511,
-    "net": "erase-tree-9",
-    "parallel_steps": 9,
-    "peak_inside_parallel": 512,
-    "peaks": {
-      "grow-first": 512,
-      "parallel": 512,
-      "sequential": 512,
-      "shrink-first": 512
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 644,
+        "handed_back": 4,
+        "kept": 640
+      },
+      "equal_work": {
+        "interactions": 383,
+        "peaks": {
+          "grow-first": 894,
+          "parallel": 640,
+          "sequential": 894,
+          "shrink-first": 640
+        },
+        "transients": {
+          "grow-first": 896,
+          "parallel": 644,
+          "sequential": 896,
+          "shrink-first": 640
+        }
+      },
+      "initial": 640,
+      "net": "race-7-256",
+      "peaks": {
+        "grow-first": 894,
+        "parallel": 640,
+        "sequential": 894,
+        "shrink-first": 640
+      },
+      "ratio": 1.3969,
+      "reordering_bound": 254,
+      "schedules": {
+        "grow-first": {
+          "final": 382,
+          "interactions": 383,
+          "normal": true,
+          "peak": 894,
+          "rounds": 383,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 256
+          },
+          "stopped": null,
+          "transient_peak": 896
+        },
+        "parallel": {
+          "final": 382,
+          "interactions": 383,
+          "normal": true,
+          "peak": 640,
+          "rounds": 7,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 256
+          },
+          "stopped": null,
+          "transient_peak": 644
+        },
+        "sequential": {
+          "final": 382,
+          "interactions": 383,
+          "normal": true,
+          "peak": 894,
+          "rounds": 383,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 256
+          },
+          "stopped": null,
+          "transient_peak": 896
+        },
+        "shrink-first": {
+          "final": 382,
+          "interactions": 383,
+          "normal": true,
+          "peak": 640,
+          "rounds": 383,
+          "rules": {
+            "growing": 127,
+            "neutral": 0,
+            "shrinking": 256
+          },
+          "stopped": null,
+          "transient_peak": 640
+        }
+      },
+      "spread": 254,
+      "terminating": true
     },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 0,
-      "neutral": 511,
-      "shrinking": 0
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 16,
+        "handed_back": 4,
+        "kept": 12
+      },
+      "equal_work": {
+        "interactions": 5,
+        "peaks": {
+          "grow-first": 14,
+          "parallel": 12,
+          "sequential": 14,
+          "shrink-first": 12
+        },
+        "transients": {
+          "grow-first": 16,
+          "parallel": 16,
+          "sequential": 16,
+          "shrink-first": 12
+        }
+      },
+      "initial": 12,
+      "net": "random-1-12",
+      "peaks": {
+        "grow-first": 14,
+        "parallel": 12,
+        "sequential": 14,
+        "shrink-first": 12
+      },
+      "ratio": 1.1667,
+      "reordering_bound": 2,
+      "schedules": {
+        "grow-first": {
+          "final": 6,
+          "interactions": 5,
+          "normal": true,
+          "peak": 14,
+          "rounds": 5,
+          "rules": {
+            "growing": 1,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 16
+        },
+        "parallel": {
+          "final": 6,
+          "interactions": 5,
+          "normal": true,
+          "peak": 12,
+          "rounds": 2,
+          "rules": {
+            "growing": 1,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 16
+        },
+        "sequential": {
+          "final": 6,
+          "interactions": 5,
+          "normal": true,
+          "peak": 14,
+          "rounds": 5,
+          "rules": {
+            "growing": 1,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 16
+        },
+        "shrink-first": {
+          "final": 6,
+          "interactions": 5,
+          "normal": true,
+          "peak": 12,
+          "rounds": 5,
+          "rules": {
+            "growing": 1,
+            "neutral": 0,
+            "shrinking": 4
+          },
+          "stopped": null,
+          "transient_peak": 12
+        }
+      },
+      "spread": 2,
+      "terminating": true
     },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 16,
-    "interactions": 11,
-    "net": "race-3-4",
-    "parallel_steps": 3,
-    "peak_inside_parallel": 22,
-    "peaks": {
-      "grow-first": 30,
-      "parallel": 22,
-      "sequential": 30,
-      "shrink-first": 22
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 72,
+        "handed_back": 24,
+        "kept": 48
+      },
+      "equal_work": {
+        "interactions": 67,
+        "peaks": {
+          "grow-first": 60,
+          "parallel": 48,
+          "sequential": 50,
+          "shrink-first": 48
+        },
+        "transients": {
+          "grow-first": 62,
+          "parallel": 72,
+          "sequential": 52,
+          "shrink-first": 48
+        }
+      },
+      "initial": 48,
+      "net": "random-1-48",
+      "peaks": {
+        "grow-first": 60,
+        "parallel": 48,
+        "sequential": 50,
+        "shrink-first": 48
+      },
+      "ratio": 1.25,
+      "reordering_bound": 16,
+      "schedules": {
+        "grow-first": {
+          "final": 12,
+          "interactions": 67,
+          "normal": true,
+          "peak": 60,
+          "rounds": 67,
+          "rules": {
+            "growing": 8,
+            "neutral": 33,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 62
+        },
+        "parallel": {
+          "final": 12,
+          "interactions": 67,
+          "normal": true,
+          "peak": 48,
+          "rounds": 10,
+          "rules": {
+            "growing": 8,
+            "neutral": 33,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 72
+        },
+        "sequential": {
+          "final": 12,
+          "interactions": 67,
+          "normal": true,
+          "peak": 50,
+          "rounds": 67,
+          "rules": {
+            "growing": 8,
+            "neutral": 33,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 52
+        },
+        "shrink-first": {
+          "final": 12,
+          "interactions": 67,
+          "normal": true,
+          "peak": 48,
+          "rounds": 67,
+          "rules": {
+            "growing": 8,
+            "neutral": 33,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 48
+        }
+      },
+      "spread": 12,
+      "terminating": true
     },
-    "ratio": 1.3636,
-    "reordering_bound": 8,
-    "rules": {
-      "growing": 7,
-      "neutral": 0,
-      "shrinking": 4
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 40010,
+        "handed_back": 8,
+        "kept": 40002
+      },
+      "equal_work": {
+        "interactions": 19995,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 20010,
+          "sequential": 20008,
+          "shrink-first": 20008
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 20018,
+          "sequential": 20010,
+          "shrink-first": 20010
+        }
+      },
+      "initial": 12,
+      "net": "random-2-12",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 40002,
+        "sequential": 40002,
+        "shrink-first": 40002
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 19995,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 19995,
+          "rules": {
+            "growing": 19995,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 40002,
+          "interactions": 39987,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 9998,
+          "rules": {
+            "growing": 19995,
+            "neutral": 19992,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40010
+        },
+        "sequential": {
+          "final": 40002,
+          "interactions": 39989,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 39989,
+          "rules": {
+            "growing": 19995,
+            "neutral": 19994,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "shrink-first": {
+          "final": 40002,
+          "interactions": 39989,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 39989,
+          "rules": {
+            "growing": 19995,
+            "neutral": 19994,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        }
+      },
+      "spread": 0,
+      "terminating": false
     },
-    "spread": 8,
-    "terminating": true
-  },
-  {
-    "initial": 40,
-    "interactions": 23,
-    "net": "race-3-16",
-    "parallel_steps": 3,
-    "peak_inside_parallel": 42,
-    "peaks": {
-      "grow-first": 54,
-      "parallel": 40,
-      "sequential": 54,
-      "shrink-first": 40
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 72,
+        "handed_back": 22,
+        "kept": 50
+      },
+      "equal_work": {
+        "interactions": 70,
+        "peaks": {
+          "grow-first": 58,
+          "parallel": 50,
+          "sequential": 52,
+          "shrink-first": 48
+        },
+        "transients": {
+          "grow-first": 60,
+          "parallel": 72,
+          "sequential": 54,
+          "shrink-first": 48
+        }
+      },
+      "initial": 48,
+      "net": "random-2-48",
+      "peaks": {
+        "grow-first": 58,
+        "parallel": 50,
+        "sequential": 52,
+        "shrink-first": 48
+      },
+      "ratio": 1.2083,
+      "reordering_bound": 10,
+      "schedules": {
+        "grow-first": {
+          "final": 4,
+          "interactions": 70,
+          "normal": true,
+          "peak": 58,
+          "rounds": 70,
+          "rules": {
+            "growing": 5,
+            "neutral": 38,
+            "shrinking": 27
+          },
+          "stopped": null,
+          "transient_peak": 60
+        },
+        "parallel": {
+          "final": 4,
+          "interactions": 70,
+          "normal": true,
+          "peak": 50,
+          "rounds": 8,
+          "rules": {
+            "growing": 5,
+            "neutral": 38,
+            "shrinking": 27
+          },
+          "stopped": null,
+          "transient_peak": 72
+        },
+        "sequential": {
+          "final": 4,
+          "interactions": 70,
+          "normal": true,
+          "peak": 52,
+          "rounds": 70,
+          "rules": {
+            "growing": 5,
+            "neutral": 38,
+            "shrinking": 27
+          },
+          "stopped": null,
+          "transient_peak": 54
+        },
+        "shrink-first": {
+          "final": 4,
+          "interactions": 70,
+          "normal": true,
+          "peak": 48,
+          "rounds": 70,
+          "rules": {
+            "growing": 5,
+            "neutral": 38,
+            "shrinking": 27
+          },
+          "stopped": null,
+          "transient_peak": 48
+        }
+      },
+      "spread": 10,
+      "terminating": true
     },
-    "ratio": 1.35,
-    "reordering_bound": 14,
-    "rules": {
-      "growing": 7,
-      "neutral": 0,
-      "shrinking": 16
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 32,
+        "handed_back": 12,
+        "kept": 20
+      },
+      "equal_work": {
+        "interactions": 19995,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 20,
+          "sequential": 16,
+          "shrink-first": 14
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 32,
+          "sequential": 18,
+          "shrink-first": 16
+        }
+      },
+      "initial": 12,
+      "net": "random-3-12",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 20,
+        "sequential": 16,
+        "shrink-first": 14
+      },
+      "ratio": 2857.2857,
+      "reordering_bound": 133334,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 19995,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 19995,
+          "rules": {
+            "growing": 19995,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 18,
+          "interactions": 200000,
+          "normal": false,
+          "peak": 20,
+          "rounds": 33336,
+          "rules": {
+            "growing": 66669,
+            "neutral": 66665,
+            "shrinking": 66666
+          },
+          "stopped": "budget",
+          "transient_peak": 32
+        },
+        "sequential": {
+          "final": 12,
+          "interactions": 200000,
+          "normal": false,
+          "peak": 16,
+          "rounds": 200000,
+          "rules": {
+            "growing": 66667,
+            "neutral": 66666,
+            "shrinking": 66667
+          },
+          "stopped": "budget",
+          "transient_peak": 18
+        },
+        "shrink-first": {
+          "final": 14,
+          "interactions": 200000,
+          "normal": false,
+          "peak": 14,
+          "rounds": 200000,
+          "rules": {
+            "growing": 66667,
+            "neutral": 66667,
+            "shrinking": 66666
+          },
+          "stopped": "budget",
+          "transient_peak": 16
+        }
+      },
+      "spread": 39988,
+      "terminating": false
     },
-    "spread": 14,
-    "terminating": true
-  },
-  {
-    "initial": 64,
-    "interactions": 47,
-    "net": "race-5-16",
-    "parallel_steps": 5,
-    "peak_inside_parallel": 94,
-    "peaks": {
-      "grow-first": 126,
-      "parallel": 94,
-      "sequential": 126,
-      "shrink-first": 94
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 74,
+        "handed_back": 24,
+        "kept": 50
+      },
+      "equal_work": {
+        "interactions": 60,
+        "peaks": {
+          "grow-first": 58,
+          "parallel": 50,
+          "sequential": 50,
+          "shrink-first": 48
+        },
+        "transients": {
+          "grow-first": 60,
+          "parallel": 74,
+          "sequential": 52,
+          "shrink-first": 48
+        }
+      },
+      "initial": 48,
+      "net": "random-3-48",
+      "peaks": {
+        "grow-first": 58,
+        "parallel": 50,
+        "sequential": 50,
+        "shrink-first": 48
+      },
+      "ratio": 1.2083,
+      "reordering_bound": 10,
+      "schedules": {
+        "grow-first": {
+          "final": 8,
+          "interactions": 60,
+          "normal": true,
+          "peak": 58,
+          "rounds": 60,
+          "rules": {
+            "growing": 5,
+            "neutral": 30,
+            "shrinking": 25
+          },
+          "stopped": null,
+          "transient_peak": 60
+        },
+        "parallel": {
+          "final": 8,
+          "interactions": 60,
+          "normal": true,
+          "peak": 50,
+          "rounds": 6,
+          "rules": {
+            "growing": 5,
+            "neutral": 30,
+            "shrinking": 25
+          },
+          "stopped": null,
+          "transient_peak": 74
+        },
+        "sequential": {
+          "final": 8,
+          "interactions": 60,
+          "normal": true,
+          "peak": 50,
+          "rounds": 60,
+          "rules": {
+            "growing": 5,
+            "neutral": 30,
+            "shrinking": 25
+          },
+          "stopped": null,
+          "transient_peak": 52
+        },
+        "shrink-first": {
+          "final": 8,
+          "interactions": 60,
+          "normal": true,
+          "peak": 48,
+          "rounds": 60,
+          "rules": {
+            "growing": 5,
+            "neutral": 30,
+            "shrinking": 25
+          },
+          "stopped": null,
+          "transient_peak": 48
+        }
+      },
+      "spread": 10,
+      "terminating": true
     },
-    "ratio": 1.3404,
-    "reordering_bound": 32,
-    "rules": {
-      "growing": 31,
-      "neutral": 0,
-      "shrinking": 16
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 40008,
+        "handed_back": 6,
+        "kept": 40002
+      },
+      "equal_work": {
+        "interactions": 19997,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 6676,
+          "sequential": 6678,
+          "shrink-first": 6674
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 6682,
+          "sequential": 6680,
+          "shrink-first": 6676
+        }
+      },
+      "initial": 12,
+      "net": "random-5-12",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 40002,
+        "sequential": 40002,
+        "shrink-first": 40002
+      },
+      "ratio": 1.0,
+      "reordering_bound": 39992,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 19997,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 19997,
+          "rules": {
+            "growing": 19996,
+            "neutral": 0,
+            "shrinking": 1
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 40002,
+          "interactions": 119975,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 39992,
+          "rules": {
+            "growing": 39993,
+            "neutral": 59984,
+            "shrinking": 19998
+          },
+          "stopped": "size",
+          "transient_peak": 40008
+        },
+        "sequential": {
+          "final": 40002,
+          "interactions": 119966,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 119966,
+          "rules": {
+            "growing": 39991,
+            "neutral": 59979,
+            "shrinking": 19996
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "shrink-first": {
+          "final": 40002,
+          "interactions": 119978,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 119978,
+          "rules": {
+            "growing": 39994,
+            "neutral": 59985,
+            "shrinking": 19999
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        }
+      },
+      "spread": 0,
+      "terminating": false
     },
-    "spread": 32,
-    "terminating": true
-  },
-  {
-    "initial": 160,
-    "interactions": 95,
-    "net": "race-5-64",
-    "parallel_steps": 5,
-    "peak_inside_parallel": 162,
-    "peaks": {
-      "grow-first": 222,
-      "parallel": 160,
-      "sequential": 222,
-      "shrink-first": 160
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 26708,
+        "handed_back": 12,
+        "kept": 26696
+      },
+      "equal_work": {
+        "interactions": 19977,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 2688,
+          "sequential": 2702,
+          "shrink-first": 2680
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 2704,
+          "sequential": 2704,
+          "shrink-first": 2682
+        }
+      },
+      "initial": 48,
+      "net": "random-5-48",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 26696,
+        "sequential": 26706,
+        "shrink-first": 26684
+      },
+      "ratio": 1.4991,
+      "reordering_bound": 93352,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 19977,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 19977,
+          "rules": {
+            "growing": 19977,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 26696,
+          "interactions": 200000,
+          "normal": false,
+          "peak": 26696,
+          "rounds": 26660,
+          "rules": {
+            "growing": 60002,
+            "neutral": 93320,
+            "shrinking": 46678
+          },
+          "stopped": "budget",
+          "transient_peak": 26708
+        },
+        "sequential": {
+          "final": 26706,
+          "interactions": 200000,
+          "normal": false,
+          "peak": 26706,
+          "rounds": 200000,
+          "rules": {
+            "growing": 60005,
+            "neutral": 93319,
+            "shrinking": 46676
+          },
+          "stopped": "budget",
+          "transient_peak": 26708
+        },
+        "shrink-first": {
+          "final": 26682,
+          "interactions": 200000,
+          "normal": false,
+          "peak": 26684,
+          "rounds": 200000,
+          "rules": {
+            "growing": 59999,
+            "neutral": 93319,
+            "shrinking": 46682
+          },
+          "stopped": "budget",
+          "transient_peak": 26686
+        }
+      },
+      "spread": 13318,
+      "terminating": false
     },
-    "ratio": 1.3875,
-    "reordering_bound": 62,
-    "rules": {
-      "growing": 31,
-      "neutral": 0,
-      "shrinking": 64
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 56490,
+        "handed_back": 12614,
+        "kept": 43876
+      },
+      "equal_work": {
+        "interactions": 19995,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 33122,
+          "sequential": 31794,
+          "shrink-first": 31794
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 42644,
+          "sequential": 31796,
+          "shrink-first": 31796
+        }
+      },
+      "initial": 12,
+      "net": "random-8-12",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 43876,
+        "sequential": 40002,
+        "shrink-first": 40002
+      },
+      "ratio": 1.0968,
+      "reordering_bound": 4104,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 19995,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 19995,
+          "rules": {
+            "growing": 19995,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 43876,
+          "interactions": 25734,
+          "normal": false,
+          "peak": 43876,
+          "rounds": 33,
+          "rules": {
+            "growing": 23833,
+            "neutral": 0,
+            "shrinking": 1901
+          },
+          "stopped": "size",
+          "transient_peak": 56490
+        },
+        "sequential": {
+          "final": 40002,
+          "interactions": 24099,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 24099,
+          "rules": {
+            "growing": 22047,
+            "neutral": 0,
+            "shrinking": 2052
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "shrink-first": {
+          "final": 40002,
+          "interactions": 24099,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 24099,
+          "rules": {
+            "growing": 22047,
+            "neutral": 0,
+            "shrinking": 2052
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        }
+      },
+      "spread": 3874,
+      "terminating": false
     },
-    "spread": 62,
-    "terminating": true
-  },
-  {
-    "initial": 256,
-    "interactions": 191,
-    "net": "race-7-64",
-    "parallel_steps": 7,
-    "peak_inside_parallel": 382,
-    "peaks": {
-      "grow-first": 510,
-      "parallel": 382,
-      "sequential": 510,
-      "shrink-first": 382
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 72,
+        "handed_back": 24,
+        "kept": 48
+      },
+      "equal_work": {
+        "interactions": 56,
+        "peaks": {
+          "grow-first": 54,
+          "parallel": 48,
+          "sequential": 48,
+          "shrink-first": 48
+        },
+        "transients": {
+          "grow-first": 56,
+          "parallel": 72,
+          "sequential": 50,
+          "shrink-first": 48
+        }
+      },
+      "initial": 48,
+      "net": "random-8-48",
+      "peaks": {
+        "grow-first": 54,
+        "parallel": 48,
+        "sequential": 48,
+        "shrink-first": 48
+      },
+      "ratio": 1.125,
+      "reordering_bound": 6,
+      "schedules": {
+        "grow-first": {
+          "final": 2,
+          "interactions": 56,
+          "normal": true,
+          "peak": 54,
+          "rounds": 56,
+          "rules": {
+            "growing": 3,
+            "neutral": 27,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 56
+        },
+        "parallel": {
+          "final": 2,
+          "interactions": 56,
+          "normal": true,
+          "peak": 48,
+          "rounds": 7,
+          "rules": {
+            "growing": 3,
+            "neutral": 27,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 72
+        },
+        "sequential": {
+          "final": 2,
+          "interactions": 56,
+          "normal": true,
+          "peak": 48,
+          "rounds": 56,
+          "rules": {
+            "growing": 3,
+            "neutral": 27,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 50
+        },
+        "shrink-first": {
+          "final": 2,
+          "interactions": 56,
+          "normal": true,
+          "peak": 48,
+          "rounds": 56,
+          "rules": {
+            "growing": 3,
+            "neutral": 27,
+            "shrinking": 26
+          },
+          "stopped": null,
+          "transient_peak": 48
+        }
+      },
+      "spread": 6,
+      "terminating": true
     },
-    "ratio": 1.3351,
-    "reordering_bound": 128,
-    "rules": {
-      "growing": 127,
-      "neutral": 0,
-      "shrinking": 64
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 67038,
+        "handed_back": 20102,
+        "kept": 46936
+      },
+      "equal_work": {
+        "interactions": 19995,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 31358,
+          "sequential": 28354,
+          "shrink-first": 23622
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 44262,
+          "sequential": 28356,
+          "shrink-first": 23624
+        }
+      },
+      "initial": 12,
+      "net": "random-13-12",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 46936,
+        "sequential": 40002,
+        "shrink-first": 40002
+      },
+      "ratio": 1.1733,
+      "reordering_bound": 8190,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 19995,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 19995,
+          "rules": {
+            "growing": 19995,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 46936,
+          "interactions": 30314,
+          "normal": false,
+          "peak": 46936,
+          "rounds": 22,
+          "rules": {
+            "growing": 26888,
+            "neutral": 0,
+            "shrinking": 3426
+          },
+          "stopped": "size",
+          "transient_peak": 67038
+        },
+        "sequential": {
+          "final": 40002,
+          "interactions": 28185,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 28185,
+          "rules": {
+            "growing": 24090,
+            "neutral": 0,
+            "shrinking": 4095
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "shrink-first": {
+          "final": 40002,
+          "interactions": 36377,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 36377,
+          "rules": {
+            "growing": 28186,
+            "neutral": 0,
+            "shrinking": 8191
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        }
+      },
+      "spread": 6934,
+      "terminating": false
     },
-    "spread": 128,
-    "terminating": true
-  },
-  {
-    "initial": 640,
-    "interactions": 383,
-    "net": "race-7-256",
-    "parallel_steps": 7,
-    "peak_inside_parallel": 642,
-    "peaks": {
-      "grow-first": 894,
-      "parallel": 640,
-      "sequential": 894,
-      "shrink-first": 640
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 76,
+        "handed_back": 26,
+        "kept": 50
+      },
+      "equal_work": {
+        "interactions": 89,
+        "peaks": {
+          "grow-first": 72,
+          "parallel": 50,
+          "sequential": 54,
+          "shrink-first": 48
+        },
+        "transients": {
+          "grow-first": 74,
+          "parallel": 76,
+          "sequential": 56,
+          "shrink-first": 48
+        }
+      },
+      "initial": 48,
+      "net": "random-13-48",
+      "peaks": {
+        "grow-first": 72,
+        "parallel": 50,
+        "sequential": 54,
+        "shrink-first": 48
+      },
+      "ratio": 1.5,
+      "reordering_bound": 28,
+      "schedules": {
+        "grow-first": {
+          "final": 0,
+          "interactions": 89,
+          "normal": true,
+          "peak": 72,
+          "rounds": 89,
+          "rules": {
+            "growing": 14,
+            "neutral": 37,
+            "shrinking": 38
+          },
+          "stopped": null,
+          "transient_peak": 74
+        },
+        "parallel": {
+          "final": 0,
+          "interactions": 89,
+          "normal": true,
+          "peak": 50,
+          "rounds": 10,
+          "rules": {
+            "growing": 14,
+            "neutral": 37,
+            "shrinking": 38
+          },
+          "stopped": null,
+          "transient_peak": 76
+        },
+        "sequential": {
+          "final": 0,
+          "interactions": 89,
+          "normal": true,
+          "peak": 54,
+          "rounds": 89,
+          "rules": {
+            "growing": 14,
+            "neutral": 37,
+            "shrinking": 38
+          },
+          "stopped": null,
+          "transient_peak": 56
+        },
+        "shrink-first": {
+          "final": 0,
+          "interactions": 89,
+          "normal": true,
+          "peak": 48,
+          "rounds": 89,
+          "rules": {
+            "growing": 14,
+            "neutral": 37,
+            "shrinking": 38
+          },
+          "stopped": null,
+          "transient_peak": 48
+        }
+      },
+      "spread": 24,
+      "terminating": true
     },
-    "ratio": 1.3969,
-    "reordering_bound": 254,
-    "rules": {
-      "growing": 127,
-      "neutral": 0,
-      "shrinking": 256
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 55294,
+        "handed_back": 14336,
+        "kept": 40958
+      },
+      "equal_work": {
+        "interactions": 19995,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 31798,
+          "sequential": 31798,
+          "shrink-first": 30960
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 38910,
+          "sequential": 31800,
+          "shrink-first": 30962
+        }
+      },
+      "initial": 12,
+      "net": "random-21-12",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 40958,
+        "sequential": 40002,
+        "shrink-first": 40002
+      },
+      "ratio": 1.0239,
+      "reordering_bound": 6,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 19995,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 19995,
+          "rules": {
+            "growing": 19995,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 40958,
+          "interactions": 24575,
+          "normal": false,
+          "peak": 40958,
+          "rounds": 24,
+          "rules": {
+            "growing": 20476,
+            "neutral": 4096,
+            "shrinking": 3
+          },
+          "stopped": "size",
+          "transient_peak": 55294
+        },
+        "sequential": {
+          "final": 40002,
+          "interactions": 24097,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 24097,
+          "rules": {
+            "growing": 19998,
+            "neutral": 4096,
+            "shrinking": 3
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "shrink-first": {
+          "final": 40002,
+          "interactions": 26030,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 26030,
+          "rules": {
+            "growing": 19998,
+            "neutral": 6029,
+            "shrinking": 3
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        }
+      },
+      "spread": 956,
+      "terminating": false
     },
-    "spread": 254,
-    "terminating": true
-  },
-  {
-    "initial": 12,
-    "interactions": 5,
-    "net": "random-1-12",
-    "parallel_steps": 2,
-    "peak_inside_parallel": 14,
-    "peaks": {
-      "grow-first": 14,
-      "parallel": 12,
-      "sequential": 14,
-      "shrink-first": 12
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 70,
+        "handed_back": 22,
+        "kept": 48
+      },
+      "equal_work": {
+        "interactions": 73,
+        "peaks": {
+          "grow-first": 62,
+          "parallel": 48,
+          "sequential": 52,
+          "shrink-first": 48
+        },
+        "transients": {
+          "grow-first": 64,
+          "parallel": 70,
+          "sequential": 54,
+          "shrink-first": 48
+        }
+      },
+      "initial": 48,
+      "net": "random-21-48",
+      "peaks": {
+        "grow-first": 62,
+        "parallel": 48,
+        "sequential": 52,
+        "shrink-first": 48
+      },
+      "ratio": 1.2917,
+      "reordering_bound": 14,
+      "schedules": {
+        "grow-first": {
+          "final": 2,
+          "interactions": 73,
+          "normal": true,
+          "peak": 62,
+          "rounds": 73,
+          "rules": {
+            "growing": 7,
+            "neutral": 36,
+            "shrinking": 30
+          },
+          "stopped": null,
+          "transient_peak": 64
+        },
+        "parallel": {
+          "final": 2,
+          "interactions": 73,
+          "normal": true,
+          "peak": 48,
+          "rounds": 11,
+          "rules": {
+            "growing": 7,
+            "neutral": 36,
+            "shrinking": 30
+          },
+          "stopped": null,
+          "transient_peak": 70
+        },
+        "sequential": {
+          "final": 2,
+          "interactions": 73,
+          "normal": true,
+          "peak": 52,
+          "rounds": 73,
+          "rules": {
+            "growing": 7,
+            "neutral": 36,
+            "shrinking": 30
+          },
+          "stopped": null,
+          "transient_peak": 54
+        },
+        "shrink-first": {
+          "final": 2,
+          "interactions": 73,
+          "normal": true,
+          "peak": 48,
+          "rounds": 73,
+          "rules": {
+            "growing": 7,
+            "neutral": 36,
+            "shrinking": 30
+          },
+          "stopped": null,
+          "transient_peak": 48
+        }
+      },
+      "spread": 14,
+      "terminating": true
     },
-    "ratio": 1.1667,
-    "reordering_bound": 2,
-    "rules": {
-      "growing": 1,
-      "neutral": 0,
-      "shrinking": 4
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 12,
+        "handed_back": 0,
+        "kept": 12
+      },
+      "equal_work": {
+        "interactions": 0,
+        "peaks": {
+          "grow-first": 12,
+          "parallel": 12,
+          "sequential": 12,
+          "shrink-first": 12
+        },
+        "transients": {
+          "grow-first": 12,
+          "parallel": 12,
+          "sequential": 12,
+          "shrink-first": 12
+        }
+      },
+      "initial": 12,
+      "net": "random-34-12",
+      "peaks": {
+        "grow-first": 12,
+        "parallel": 12,
+        "sequential": 12,
+        "shrink-first": 12
+      },
+      "ratio": 1.0,
+      "reordering_bound": 0,
+      "schedules": {
+        "grow-first": {
+          "final": 12,
+          "interactions": 0,
+          "normal": true,
+          "peak": 12,
+          "rounds": 0,
+          "rules": {
+            "growing": 0,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 12
+        },
+        "parallel": {
+          "final": 12,
+          "interactions": 0,
+          "normal": true,
+          "peak": 12,
+          "rounds": 0,
+          "rules": {
+            "growing": 0,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 12
+        },
+        "sequential": {
+          "final": 12,
+          "interactions": 0,
+          "normal": true,
+          "peak": 12,
+          "rounds": 0,
+          "rules": {
+            "growing": 0,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 12
+        },
+        "shrink-first": {
+          "final": 12,
+          "interactions": 0,
+          "normal": true,
+          "peak": 12,
+          "rounds": 0,
+          "rules": {
+            "growing": 0,
+            "neutral": 0,
+            "shrinking": 0
+          },
+          "stopped": null,
+          "transient_peak": 12
+        }
+      },
+      "spread": 0,
+      "terminating": true
     },
-    "spread": 2,
-    "terminating": true
-  },
-  {
-    "initial": 48,
-    "interactions": 67,
-    "net": "random-1-48",
-    "parallel_steps": 10,
-    "peak_inside_parallel": 52,
-    "peaks": {
-      "grow-first": 60,
-      "parallel": 48,
-      "sequential": 50,
-      "shrink-first": 48
-    },
-    "ratio": 1.25,
-    "reordering_bound": 16,
-    "rules": {
-      "growing": 8,
-      "neutral": 33,
-      "shrinking": 26
-    },
-    "spread": 12,
-    "terminating": true
-  },
-  {
-    "initial": 12,
-    "interactions": 39989,
-    "net": "random-2-12",
-    "parallel_steps": 9998,
-    "peak_inside_parallel": 40002,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 40002,
-      "sequential": 40002,
-      "shrink-first": 40002
-    },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 19995,
-      "neutral": 19994,
-      "shrinking": 0
-    },
-    "spread": 0,
-    "terminating": false
-  },
-  {
-    "initial": 48,
-    "interactions": 70,
-    "net": "random-2-48",
-    "parallel_steps": 8,
-    "peak_inside_parallel": 54,
-    "peaks": {
-      "grow-first": 58,
-      "parallel": 50,
-      "sequential": 52,
-      "shrink-first": 48
-    },
-    "ratio": 1.2083,
-    "reordering_bound": 10,
-    "rules": {
-      "growing": 5,
-      "neutral": 38,
-      "shrinking": 27
-    },
-    "spread": 10,
-    "terminating": true
-  },
-  {
-    "initial": 12,
-    "interactions": 200000,
-    "net": "random-3-12",
-    "parallel_steps": 200000,
-    "peak_inside_parallel": 24,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 20,
-      "sequential": 16,
-      "shrink-first": 14
-    },
-    "ratio": 2857.2857,
-    "reordering_bound": 133334,
-    "rules": {
-      "growing": 66667,
-      "neutral": 66666,
-      "shrinking": 66667
-    },
-    "spread": 39988,
-    "terminating": false
-  },
-  {
-    "initial": 48,
-    "interactions": 60,
-    "net": "random-3-48",
-    "parallel_steps": 6,
-    "peak_inside_parallel": 54,
-    "peaks": {
-      "grow-first": 58,
-      "parallel": 50,
-      "sequential": 50,
-      "shrink-first": 48
-    },
-    "ratio": 1.2083,
-    "reordering_bound": 10,
-    "rules": {
-      "growing": 5,
-      "neutral": 30,
-      "shrinking": 25
-    },
-    "spread": 10,
-    "terminating": true
-  },
-  {
-    "initial": 12,
-    "interactions": 119966,
-    "net": "random-5-12",
-    "parallel_steps": 39992,
-    "peak_inside_parallel": 40002,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 40002,
-      "sequential": 40002,
-      "shrink-first": 40002
-    },
-    "ratio": 1.0,
-    "reordering_bound": 39992,
-    "rules": {
-      "growing": 39991,
-      "neutral": 59979,
-      "shrinking": 19996
-    },
-    "spread": 0,
-    "terminating": false
-  },
-  {
-    "initial": 48,
-    "interactions": 200000,
-    "net": "random-5-48",
-    "parallel_steps": 39971,
-    "peak_inside_parallel": 40004,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 40004,
-      "sequential": 26706,
-      "shrink-first": 26684
-    },
-    "ratio": 1.4992,
-    "reordering_bound": 93352,
-    "rules": {
-      "growing": 60005,
-      "neutral": 93319,
-      "shrinking": 46676
-    },
-    "spread": 13320,
-    "terminating": false
-  },
-  {
-    "initial": 12,
-    "interactions": 24099,
-    "net": "random-8-12",
-    "parallel_steps": 33,
-    "peak_inside_parallel": 44806,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 43876,
-      "sequential": 40002,
-      "shrink-first": 40002
-    },
-    "ratio": 1.0968,
-    "reordering_bound": 4104,
-    "rules": {
-      "growing": 22047,
-      "neutral": 0,
-      "shrinking": 2052
-    },
-    "spread": 3874,
-    "terminating": false
-  },
-  {
-    "initial": 48,
-    "interactions": 56,
-    "net": "random-8-48",
-    "parallel_steps": 7,
-    "peak_inside_parallel": 54,
-    "peaks": {
-      "grow-first": 54,
-      "parallel": 48,
-      "sequential": 48,
-      "shrink-first": 48
-    },
-    "ratio": 1.125,
-    "reordering_bound": 6,
-    "rules": {
-      "growing": 3,
-      "neutral": 27,
-      "shrinking": 26
-    },
-    "spread": 6,
-    "terminating": true
-  },
-  {
-    "initial": 12,
-    "interactions": 28185,
-    "net": "random-13-12",
-    "parallel_steps": 22,
-    "peak_inside_parallel": 49204,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 46936,
-      "sequential": 40002,
-      "shrink-first": 40002
-    },
-    "ratio": 1.1733,
-    "reordering_bound": 8190,
-    "rules": {
-      "growing": 24090,
-      "neutral": 0,
-      "shrinking": 4095
-    },
-    "spread": 6934,
-    "terminating": false
-  },
-  {
-    "initial": 48,
-    "interactions": 89,
-    "net": "random-13-48",
-    "parallel_steps": 10,
-    "peak_inside_parallel": 56,
-    "peaks": {
-      "grow-first": 72,
-      "parallel": 50,
-      "sequential": 54,
-      "shrink-first": 48
-    },
-    "ratio": 1.5,
-    "reordering_bound": 28,
-    "rules": {
-      "growing": 14,
-      "neutral": 37,
-      "shrinking": 38
-    },
-    "spread": 24,
-    "terminating": true
-  },
-  {
-    "initial": 12,
-    "interactions": 24097,
-    "net": "random-21-12",
-    "parallel_steps": 24,
-    "peak_inside_parallel": 40958,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 40958,
-      "sequential": 40002,
-      "shrink-first": 40002
-    },
-    "ratio": 1.0239,
-    "reordering_bound": 6,
-    "rules": {
-      "growing": 19998,
-      "neutral": 4096,
-      "shrinking": 3
-    },
-    "spread": 956,
-    "terminating": false
-  },
-  {
-    "initial": 48,
-    "interactions": 73,
-    "net": "random-21-48",
-    "parallel_steps": 11,
-    "peak_inside_parallel": 52,
-    "peaks": {
-      "grow-first": 62,
-      "parallel": 48,
-      "sequential": 52,
-      "shrink-first": 48
-    },
-    "ratio": 1.2917,
-    "reordering_bound": 14,
-    "rules": {
-      "growing": 7,
-      "neutral": 36,
-      "shrinking": 30
-    },
-    "spread": 14,
-    "terminating": true
-  },
-  {
-    "initial": 12,
-    "interactions": 0,
-    "net": "random-34-12",
-    "parallel_steps": 0,
-    "peak_inside_parallel": 12,
-    "peaks": {
-      "grow-first": 12,
-      "parallel": 12,
-      "sequential": 12,
-      "shrink-first": 12
-    },
-    "ratio": 1.0,
-    "reordering_bound": 0,
-    "rules": {
-      "growing": 0,
-      "neutral": 0,
-      "shrinking": 0
-    },
-    "spread": 0,
-    "terminating": true
-  },
-  {
-    "initial": 48,
-    "interactions": 32044,
-    "net": "random-34-48",
-    "parallel_steps": 87,
-    "peak_inside_parallel": 42308,
-    "peaks": {
-      "grow-first": 40002,
-      "parallel": 41730,
-      "sequential": 40002,
-      "shrink-first": 40002
-    },
-    "ratio": 1.0432,
-    "reordering_bound": 4380,
-    "rules": {
-      "growing": 22167,
-      "neutral": 7687,
-      "shrinking": 2190
-    },
-    "spread": 1728,
-    "terminating": false
-  }
-]
+    {
+      "batch": {
+        "atp_per_round_is_3k": true,
+        "envelope": 46898,
+        "handed_back": 5168,
+        "kept": 41730
+      },
+      "equal_work": {
+        "interactions": 20016,
+        "peaks": {
+          "grow-first": 40002,
+          "parallel": 23774,
+          "sequential": 25222,
+          "shrink-first": 21066
+        },
+        "transients": {
+          "grow-first": 40004,
+          "parallel": 25696,
+          "sequential": 25224,
+          "shrink-first": 21068
+        }
+      },
+      "initial": 48,
+      "net": "random-34-48",
+      "peaks": {
+        "grow-first": 40002,
+        "parallel": 41730,
+        "sequential": 40002,
+        "shrink-first": 40002
+      },
+      "ratio": 1.0432,
+      "reordering_bound": 4380,
+      "schedules": {
+        "grow-first": {
+          "final": 40002,
+          "interactions": 20016,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 20016,
+          "rules": {
+            "growing": 19985,
+            "neutral": 23,
+            "shrinking": 8
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "parallel": {
+          "final": 41730,
+          "interactions": 35567,
+          "normal": false,
+          "peak": 41730,
+          "rounds": 87,
+          "rules": {
+            "growing": 25172,
+            "neutral": 6064,
+            "shrinking": 4331
+          },
+          "stopped": "size",
+          "transient_peak": 46898
+        },
+        "sequential": {
+          "final": 40002,
+          "interactions": 32044,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 32044,
+          "rules": {
+            "growing": 22167,
+            "neutral": 7687,
+            "shrinking": 2190
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        },
+        "shrink-first": {
+          "final": 40002,
+          "interactions": 38188,
+          "normal": false,
+          "peak": 40002,
+          "rounds": 38188,
+          "rules": {
+            "growing": 24343,
+            "neutral": 9479,
+            "shrinking": 4366
+          },
+          "stopped": "size",
+          "transient_peak": 40004
+        }
+      },
+      "spread": 1728,
+      "terminating": false
+    }
+  ],
+  "python": "3.14.7",
+  "size_cap": 40000
+}

@@ -15,6 +15,7 @@ instead of needing four special cases each.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 
 
@@ -164,10 +165,18 @@ class Net:
     # -- identity ------------------------------------------------------------
 
     def signature(self) -> str:
-        """A sound invariant: equal nets give equal signatures, so a mismatch is
-        a real difference and never a false alarm. Colour refinement over the
-        port structure, which is what a normal-form comparison needs here — not
-        a proof of isomorphism, and not used as one."""
+        """Colour refinement over the port structure.
+
+        Equal nets give equal signatures, so a mismatch is a real difference and
+        never a false alarm. The converse does not hold: this is a necessary
+        condition for two nets to be the same and not a proof of isomorphism, and
+        nothing here treats it as one.
+
+        The colours are `blake2b` rather than Python's `hash`, which is seeded
+        per process. With `hash` the signature was stable inside one run — so the
+        comparisons between schedules were still sound — and different on the
+        next run, which made every result unreproducible from its own record.
+        """
         colour = {nid: self.symbol[nid] for nid in self.symbol}
         ends: dict[int, list[tuple[int, int]]] = {}
         for port, wire in self.var.items():
@@ -183,7 +192,8 @@ class Net:
                     other = sorted(colour.get(p[0], "?") + f".{p[1]}"
                                    for p in ends[wire] if p != (nid, slot))
                     around.append(f"{slot}[{names.get(wire, '')}|{','.join(other)}]")
-                fresh[nid] = str(hash((colour[nid], tuple(around))) % (1 << 61))
+                blob = repr((colour[nid], tuple(around))).encode()
+                fresh[nid] = hashlib.blake2b(blob, digest_size=8).hexdigest()
             if fresh == colour:
                 break
             colour = fresh
