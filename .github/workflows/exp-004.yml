@@ -4,8 +4,11 @@ name: exp-004
 # The cheap half — the controls proving they can fail — runs on every push, in
 # `conformance`. A green pull request that never executes the artifact it is
 # green about is the shape of problem this repository keeps finding.
+# Push is limited to master: on a branch the pull request already replays the
+# same commit, and the replay is a half-hour job on a hosted runner.
 on:
   push:
+    branches: [master]
     paths: ['experiments/exp-004/**', '.github/workflows/exp-004.yml']
   pull_request:
     paths: ['experiments/exp-004/**', '.github/workflows/exp-004.yml']
@@ -15,6 +18,7 @@ permissions: {}
 jobs:
   replay:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
