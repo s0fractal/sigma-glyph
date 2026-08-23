@@ -1,0 +1,320 @@
+{
+  "schema": "sigma-glyph.exp-002-fixtures@v0",
+  "frozen_at": "2026-08-23",
+  "limit_minor": 500000,
+  "note": "Raw bytes and the verdict each deserves. Frozen before either implementation exists; a fixture may be added to both sides with a change-log entry, and none may be removed.",
+  "fixtures": [
+    {
+      "id": "pos-accept-under",
+      "file": "pos-accept-under.json",
+      "bytes": 56,
+      "sha256": "2c2bcd8b31167918d36552e71ae2d687d75cd26a6810609606c5737aa5318a3e",
+      "expected": "ACCEPT",
+      "why": "one minor unit under the limit",
+      "group": "positive"
+    },
+    {
+      "id": "pos-accept-at-limit",
+      "file": "pos-accept-at-limit.json",
+      "bytes": 56,
+      "sha256": "ca3938f15d9dcac7338cd52519863c23c119d3b83a30c6e081c6678f4c33f5a5",
+      "expected": "ACCEPT",
+      "why": "exactly at the limit, which the policy allows",
+      "group": "positive"
+    },
+    {
+      "id": "pos-accept-zero",
+      "file": "pos-accept-zero.json",
+      "bytes": 51,
+      "sha256": "719e1118cd711716c1d40e43516251c94f49463bbc207adc73e85adf9ff9c653",
+      "expected": "ACCEPT",
+      "why": "zero is within the limit",
+      "group": "positive"
+    },
+    {
+      "id": "pos-accept-extra-field",
+      "file": "pos-accept-extra-field.json",
+      "bytes": 77,
+      "sha256": "c47c89c75bddaf46f12fe15b464af71c03167ef2ea75bfa121ae8e6df989c7dc",
+      "expected": "ACCEPT",
+      "why": "an unrelated field the policy ignores",
+      "group": "positive"
+    },
+    {
+      "id": "pos-accept-unicode",
+      "file": "pos-accept-unicode.json",
+      "bytes": 74,
+      "sha256": "661c4295f7f3d097121e2acf5c31432fadeb115c685ca331bcf7bdef751d4e7c",
+      "expected": "ACCEPT",
+      "why": "non-ASCII value, canonical UTF-8",
+      "group": "positive"
+    },
+    {
+      "id": "pos-accept-sixteen-keys",
+      "file": "pos-accept-sixteen-keys.json",
+      "bytes": 161,
+      "sha256": "aa282e332bda77b03bd0f67b763edbf0d33dc3ae6523f33c4e1d3c4402f90da5",
+      "expected": "ACCEPT",
+      "why": "exactly 16 keys, the maximum",
+      "group": "positive"
+    },
+    {
+      "id": "pos-reject-over-by-one",
+      "file": "pos-reject-over-by-one.json",
+      "bytes": 56,
+      "sha256": "5a85f97dc386e32e6b3de54a62499dff55b55ec4adbb4ad9ce09d4fcafc1a011",
+      "expected": "REJECT",
+      "why": "one minor unit over the limit",
+      "group": "positive"
+    },
+    {
+      "id": "pos-reject-far-over",
+      "file": "pos-reject-far-over.json",
+      "bytes": 57,
+      "sha256": "38664058fc7e58da877892f20071439cf08b56741141d7adf6af15d32af0016b",
+      "expected": "REJECT",
+      "why": "far over the limit",
+      "group": "positive"
+    },
+    {
+      "id": "pos-reject-currency",
+      "file": "pos-reject-currency.json",
+      "bytes": 54,
+      "sha256": "1735d495cef83e1329b281d07be8980895f460e0e08d52cda339355f1f9c9cda",
+      "expected": "REJECT",
+      "why": "policy names UAH",
+      "group": "positive"
+    },
+    {
+      "id": "pos-reject-currency-case",
+      "file": "pos-reject-currency-case.json",
+      "bytes": 54,
+      "sha256": "660f570b1861b058d7f83d8094d3508d8b3b936e3a84b2276b8fd56837bb668d",
+      "expected": "REJECT",
+      "why": "comparison is on bytes, not case-folded",
+      "group": "positive"
+    },
+    {
+      "id": "pos-reject-flagged",
+      "file": "pos-reject-flagged.json",
+      "bytes": 53,
+      "sha256": "492d3ff95aa113089a7319e8fa5372ac66cb2533947286e0481850c604634a7c",
+      "expected": "REJECT",
+      "why": "flagged records are refused",
+      "group": "positive"
+    },
+    {
+      "id": "pos-reject-over-and-flagged",
+      "file": "pos-reject-over-and-flagged.json",
+      "bytes": 55,
+      "sha256": "5b1b19175aa1e274292f5ab52c0d2ce7c9244a836613dc694bf5409620a1f4cb",
+      "expected": "REJECT",
+      "why": "two reasons at once",
+      "group": "positive"
+    },
+    {
+      "id": "neg-duplicate-outer",
+      "file": "neg-duplicate-outer.json",
+      "bytes": 74,
+      "sha256": "9d262143cc8be6a4f22b50fe815584f57b0b7307c0802ca5e18f8e8248f6ea98",
+      "expected": "MALFORMED",
+      "why": "duplicate member name at the top level",
+      "group": "negative"
+    },
+    {
+      "id": "neg-duplicate-nested",
+      "file": "neg-duplicate-nested.json",
+      "bytes": 75,
+      "sha256": "8b22233fa972b8d477d6bd272facf3f83c71617da0dfbf8b5903132a1a5f11dc",
+      "expected": "MALFORMED",
+      "why": "duplicate member name inside a nested object",
+      "group": "negative"
+    },
+    {
+      "id": "neg-leading-zero",
+      "file": "neg-leading-zero.json",
+      "bytes": 55,
+      "sha256": "28eb9c385a257ec4ee3e8f3a6d0585a9df9936e7175adb6d2328785fd9427663",
+      "expected": "MALFORMED",
+      "why": "leading zero in an integer",
+      "group": "negative"
+    },
+    {
+      "id": "neg-trailing-content",
+      "file": "neg-trailing-content.json",
+      "bytes": 69,
+      "sha256": "cd036643b8bc026f1fdaf3bcc251501251e37e57decefd1fa01a903757eca657",
+      "expected": "MALFORMED",
+      "why": "a second value after the record",
+      "group": "negative"
+    },
+    {
+      "id": "neg-trailing-comma",
+      "file": "neg-trailing-comma.json",
+      "bytes": 55,
+      "sha256": "4040a83ae4b9611fbbca11552e4827006775bf1aa51fc0d0aece9069eecca38d",
+      "expected": "MALFORMED",
+      "why": "trailing comma",
+      "group": "negative"
+    },
+    {
+      "id": "neg-bom",
+      "file": "neg-bom.json",
+      "bytes": 57,
+      "sha256": "54222f65095baa0c662e3628ec0fc4a8ece3d4b914970f5624d38e95046a0f7c",
+      "expected": "MALFORMED",
+      "why": "leading byte order mark",
+      "group": "negative"
+    },
+    {
+      "id": "neg-space-after-colon",
+      "file": "neg-space-after-colon.json",
+      "bytes": 55,
+      "sha256": "9d441c02e3298a01ec51d31a5ee0935aa42b232825170fdd7d76179473d5e058",
+      "expected": "MALFORMED",
+      "why": "whitespace outside the minimal form",
+      "group": "negative"
+    },
+    {
+      "id": "neg-newline-between-members",
+      "file": "neg-newline-between-members.json",
+      "bytes": 55,
+      "sha256": "443e6b818805856b3203b4fb170c038311f996796db8d93e04bc7e82fc425e5c",
+      "expected": "MALFORMED",
+      "why": "a newline between members",
+      "group": "negative"
+    },
+    {
+      "id": "neg-tab-indent",
+      "file": "neg-tab-indent.json",
+      "bytes": 55,
+      "sha256": "5e92c3f148d6b30c769d589c9a0f61cae2cc99976cc4450a0ea06fa8210a8a1a",
+      "expected": "MALFORMED",
+      "why": "a tab inside the record",
+      "group": "negative"
+    },
+    {
+      "id": "neg-nonminimal-escape",
+      "file": "neg-nonminimal-escape.json",
+      "bytes": 59,
+      "sha256": "4e530e62a062d0fe21ac4aecc854e1a6a9b08ebcdac4c48bca69ca08cdd57c5a",
+      "expected": "MALFORMED",
+      "why": "an escape where the literal character is required",
+      "group": "negative"
+    },
+    {
+      "id": "neg-escaped-solidus",
+      "file": "neg-escaped-solidus.json",
+      "bytes": 68,
+      "sha256": "407f86ec3a1b01bca0e2c267d77ffa7810e7b5efe2a6f39c9317ad84fa9e00ce",
+      "expected": "MALFORMED",
+      "why": "an unnecessary escaped solidus",
+      "group": "negative"
+    },
+    {
+      "id": "neg-unsorted-keys",
+      "file": "neg-unsorted-keys.json",
+      "bytes": 54,
+      "sha256": "1e03b9987bdd25731c0d27c6ffbbb255ff870354fc6c619a53e9c4ced2d93c36",
+      "expected": "MALFORMED",
+      "why": "members not in canonical order",
+      "group": "negative"
+    },
+    {
+      "id": "neg-float-amount",
+      "file": "neg-float-amount.json",
+      "bytes": 56,
+      "sha256": "881bd2db356a280ede75a39b60be813b9e6fff987bd0e14e486aa80482eaa839",
+      "expected": "MALFORMED",
+      "why": "a non-integer number",
+      "group": "negative"
+    },
+    {
+      "id": "neg-exponent",
+      "file": "neg-exponent.json",
+      "bytes": 53,
+      "sha256": "b0db7d96b39b34ea8b6eba53a905c4a8937360283d30fb2c71b8784e7376d601",
+      "expected": "MALFORMED",
+      "why": "exponent notation",
+      "group": "negative"
+    },
+    {
+      "id": "neg-nan",
+      "file": "neg-nan.json",
+      "bytes": 53,
+      "sha256": "d46780b63daa1eda6d2c2fd56b919cf34a3346ee773652f13e2f1a1ab5f7ef75",
+      "expected": "MALFORMED",
+      "why": "a non-JSON constant",
+      "group": "negative"
+    },
+    {
+      "id": "neg-non-ascii-key",
+      "file": "neg-non-ascii-key.json",
+      "bytes": 77,
+      "sha256": "a836f28b9d38b534910b0a57647b0711c46583c92bcdca9783c9b752408261de",
+      "expected": "MALFORMED",
+      "why": "a non-ASCII member name",
+      "group": "negative"
+    },
+    {
+      "id": "neg-seventeen-keys",
+      "file": "neg-seventeen-keys.json",
+      "bytes": 170,
+      "sha256": "19ac71fe05947b970b355d99a6fd6345b47155e4f6471ac25d7bfdba54d74938",
+      "expected": "MALFORMED",
+      "why": "17 keys, one over",
+      "group": "negative"
+    },
+    {
+      "id": "neg-depth-four",
+      "file": "neg-depth-four.json",
+      "bytes": 72,
+      "sha256": "66b7a43743f68e7e62e6aba9cfb88d3712eb54e047327651a9464db444f05c50",
+      "expected": "MALFORMED",
+      "why": "nesting depth 4",
+      "group": "negative"
+    },
+    {
+      "id": "adv-deepest-allowed",
+      "file": "adv-deepest-allowed.json",
+      "bytes": 66,
+      "sha256": "e6d3ff759a17c0b3f36640a901ebcf2c2e1e761ec7491235a924e9f51d18bd9c",
+      "expected": "ACCEPT",
+      "why": "the deepest nesting the contract allows",
+      "group": "adversarial"
+    },
+    {
+      "id": "adv-largest-allowed",
+      "file": "adv-largest-allowed.json",
+      "bytes": 3863,
+      "sha256": "fce01b54e9b51186770830922374bd8c6670b5624b2ec4425cd28e2508776ca6",
+      "expected": "ACCEPT",
+      "why": "just under the 4 KiB ceiling",
+      "group": "adversarial"
+    },
+    {
+      "id": "adv-duplicate-at-the-end",
+      "file": "adv-duplicate-at-the-end.json",
+      "bytes": 3673,
+      "sha256": "60d7f9a4e25006640d3d1d06b4af9c9966ad764760a979bd0422792021e132e8",
+      "expected": "MALFORMED",
+      "why": "a duplicate member after a long record",
+      "group": "adversarial"
+    },
+    {
+      "id": "adv-int-boundary",
+      "file": "adv-int-boundary.json",
+      "bytes": 78,
+      "sha256": "3d9a8d2856f8ddae7c104c0a8db7a5301e5f467cf1ff83379b1b628ef466e73b",
+      "expected": "ACCEPT",
+      "why": "an integer exactly at +2^53",
+      "group": "adversarial"
+    }
+  ],
+  "composition": {
+    "positive": 12,
+    "negative": 18,
+    "adversarial": 4,
+    "note": "the composition promised by the preregistration; verdict counts cut across these groups"
+  }
+}
