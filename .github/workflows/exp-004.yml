@@ -12,13 +12,15 @@ on:
     # Prose is excluded: the replay checks the reducer and the receipt, and a
     # half-hour job that reruns because a sentence changed teaches nobody
     # anything. RESULT.md's claims are checked by the numbers, not by its bytes.
+    # The deposit directory is excluded for the same reason: it holds a rendered
+    # PDF and its build script, none of which the replay tests.
     # (The list is repeated rather than shared: GitHub Actions does not resolve
     # YAML anchors.)
     paths: ['experiments/exp-004/**', '!experiments/exp-004/**.md',
-            '.github/workflows/exp-004.yml']
+            '!experiments/exp-004/deposit/**', '.github/workflows/exp-004.yml']
   pull_request:
     paths: ['experiments/exp-004/**', '!experiments/exp-004/**.md',
-            '.github/workflows/exp-004.yml']
+            '!experiments/exp-004/deposit/**', '.github/workflows/exp-004.yml']
 
 permissions: {}
 
