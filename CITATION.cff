@@ -9,6 +9,19 @@ abstract: >-
   implementations agree on every conformance vector. A wave/coordinate layer sits
   above as a view over identity and never as part of it.
 message: "If you use or evaluate this work, please cite it."
+doi: "10.5281/zenodo.22069650"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.22069650"
+    description: "Concept DOI — always resolves to the latest deposited version"
+  - type: doi
+    value: "10.5281/zenodo.22069651"
+    description: >-
+      Version DOI for the paper \"One Integer for Work and Memory\" as deposited
+      2026-08-23, archived at commit 7ecba6a
+  - type: url
+    value: "https://github.com/s0fractal/sigma-glyph/tree/7ecba6ab283c89111a76a3a1edeba57339b4443c"
+    description: "The exact tree the deposit archives"
 type: software
 license: MIT
 repository-code: "https://github.com/s0fractal/sigma-glyph"
@@ -28,6 +41,10 @@ keywords:
 references:
   - type: software
     title: "Warrant: signed, hash-addressed decision records for AI agents"
+    authors:
+      - given-names: Serhii
+        family-names: Glova
+        alias: s0fractal
     repository-code: "https://github.com/s0fractal/warrant"
     notes: >-
       Consumes Book I as the ski@v1 check runtime, and supplies the Warrant v0.3

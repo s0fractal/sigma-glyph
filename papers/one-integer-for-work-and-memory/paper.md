@@ -1074,3 +1074,19 @@ through ADR-007 — in particular the hash-leaf size model, whose proof and
 independent re-derivation are cited in Book I §3.4 — came out of a multi-model
 review protocol documented in `reviews/`. Neither process constitutes an
 independent audit, and §7 says so.
+
+The Lean formalizations, the reference implementations, and much of this prose
+were written by AI models — OpenAI Codex and GPT, Anthropic Claude, Moonshot
+Kimi, Google Gemini and Antigravity, DeepSeek, Alibaba Qwen, and Zhipu GLM —
+working under the direction of the author, who specified the system, stated the
+theorems to be proven, and curated the adversarial review process. The
+per-model review ledger, with dates and dispositions, is preserved in the
+repository under `reviews/`; the counts there are the honest record of which
+model found what, including the rounds that found nothing.
+
+That authorship claim is deliberately explicit rather than buried, because the
+paper's own argument is about not taking a producer's word for its output. Every
+theorem is checked by the Lean 4 kernel, which does not care who wrote the
+tactic script; the trusted-base caveats, `native_decide` among them, are stated
+in `proofs/README.md` and in §7. What a model wrote and what a kernel accepted
+are two different claims, and only the second one carries weight here.

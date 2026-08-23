@@ -15,3 +15,9 @@ dist/
 .venv*/
 experiments/exp-002/wasm/target/
 !experiments/exp-002/wasm/exp002_verdict.wasm
+
+# Secrets: never committed. A token in git history is a token that must be revoked.
+.env
+.env.*
+!.env.example
+papers/*/paper.pdf
