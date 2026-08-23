@@ -48,6 +48,12 @@ How this repo relates to its siblings — which links are CI-gated contracts and
 which are only proposals — is indexed in the
 [ecosystem relationship map](https://github.com/s0fractal/protocol-ecosystem).
 
+**Paper:** *One Integer for Work and Memory* — Zenodo DOI
+[10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651), archived with a snapshot of this
+repository at commit [`7ecba6a`](https://github.com/s0fractal/sigma-glyph/tree/7ecba6ab283c89111a76a3a1edeba57339b4443c).
+Deposited, not peer reviewed: see [`papers/`](papers/) for what that does and does
+not mean.
+
 **Where the failures have actually been.** Not in the mathematics. Every vector
 `tests/proof_guard_test.py` now rejects is an attack on the *guard* rather than on
 the kernel — a theorem hidden from the registry by a one-line `namespace`, a scope
