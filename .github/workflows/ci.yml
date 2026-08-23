@@ -65,6 +65,13 @@ jobs:
           ./impl-rs/target/release/book1 selftest | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
           ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
             | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"
+      # Cheap half of EXP-004: nine controls, each required to fail for its own
+      # reason. The full corpus replay is path-filtered into its own workflow.
+      - name: EXP-004 controls can fail (interaction-net harness)
+        run: |
+          cd experiments/exp-004
+          python3 selftest.py | tee /dev/stderr \
+            | grep -q "every control failed for its own reason"
       - name: Wave reference (Book II, LUT arbiter + interfere coupling)
         run: python3 impl/sigma_wave.py | tee /dev/stderr | grep -q "WAVE. ALL PASS"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0

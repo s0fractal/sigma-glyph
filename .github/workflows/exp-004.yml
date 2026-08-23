@@ -1,0 +1,43 @@
+name: exp-004
+
+# The full replay takes minutes, so it runs only when the experiment changes.
+# The cheap half — the controls proving they can fail — runs on every push, in
+# `conformance`. A green pull request that never executes the artifact it is
+# green about is the shape of problem this repository keeps finding.
+# Push is limited to master: on a branch the pull request already replays the
+# same commit, and the replay is a half-hour job on a hosted runner.
+on:
+  push:
+    branches: [master]
+    # Prose is excluded: the replay checks the reducer and the receipt, and a
+    # half-hour job that reruns because a sentence changed teaches nobody
+    # anything. RESULT.md's claims are checked by the numbers, not by its bytes.
+    # (The list is repeated rather than shared: GitHub Actions does not resolve
+    # YAML anchors.)
+    paths: ['experiments/exp-004/**', '!experiments/exp-004/**.md',
+            '.github/workflows/exp-004.yml']
+  pull_request:
+    paths: ['experiments/exp-004/**', '!experiments/exp-004/**.md',
+            '.github/workflows/exp-004.yml']
+
+permissions: {}
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: { python-version: '3.14' }   # the version the receipt was recorded on
+      # The replay re-derives the receipt and git compares it. Running check-only
+      # and then diffing would compare nothing at all: check-only does not write
+      # the file, so the diff would be clean whatever the replay found.
+      #
+      # `--record` writes only after every control has passed, so a failure stops
+      # before the file is touched and this step fails on the exit code instead.
+      - name: Replay the corpus; the committed receipt must be what it derives
+        run: |
+          cd experiments/exp-004
+          python3 measure.py --record | tail -5
+          git diff --exit-code results.json
