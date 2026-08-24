@@ -39,6 +39,23 @@ keywords:
   - Lean 4
   - formal verification
 references:
+  - type: report
+    title: >-
+      Does One Integer Still Price Work and Memory in Parallel? A Preregistered
+      Experiment on Interaction Combinators
+    authors:
+      - given-names: Serhii
+        family-names: Glova
+        alias: s0fractal
+    doi: "10.5281/zenodo.22073568"
+    year: 2026
+    notes: >-
+      EXP-004. A separate record rather than a section of the paper: the paper
+      proves a theorem about a sequential machine, and this measures a setting the
+      paper does not claim. It reports that the work-and-memory bound transfers to
+      confluent parallel reduction while Book I's per-redex partial-progress
+      enforcement does not, so a parallel machine must choose the granularity of
+      refusal explicitly. Preregistered before the reducer existed.
   - type: software
     title: "Warrant: signed, hash-addressed decision records for AI agents"
     authors:

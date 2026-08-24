@@ -12,6 +12,7 @@ written before the reducer existed. The corpus was committed at `3040b57`, befor
 | budget | 200,000 **interactions** for every schedule, or 40,000 agents |
 | host | Python 3.14.7; corpus digest `9d3b8844ce0b3a66`, each net pinned by exact structure |
 | gate | nine controls; `selftest.py` in CI on every push, full replay path-filtered |
+| deposited | [10.5281/zenodo.22073568](https://doi.org/10.5281/zenodo.22073568), archived at [`3b1dcab`](https://github.com/s0fractal/sigma-glyph/tree/3b1dcab18e28088edf1ab8f9f0881fba6b655dc6) |
 
 ## Corrections
 
@@ -283,3 +284,4 @@ differs from what the replay derives.
 | 2026-08-23 | four review defects corrected; conclusion narrowed, not widened | yes, and the corrections are listed above |
 | 2026-08-24 | five further defects corrected, three of them in the controls themselves; experiment wired into CI | yes, and the corrections are listed above |
 | 2026-08-24 | transient re-stated as a bracket over intra-step orderings; 1.5× marked as a sample property; H2's ambiguous wording named rather than repaired | yes |
+| 2026-08-24 | deposited at 10.5281/zenodo.22073568; this row and the DOI in the table above are the only edits since | yes |
