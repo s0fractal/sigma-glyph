@@ -202,6 +202,18 @@ CLAUSES = (
 )
 
 
+class Report(NamedTuple):
+    """What one pass over a text found. A NamedTuple rather than a dict so the
+    fields carry their types to the caller instead of arriving as `object`."""
+    bound: set
+    decided: int
+    declared: list
+    unresolved: list
+    uncovered: list
+    seen: set
+    signatures: dict
+
+
 class Claim(NamedTuple):
     """One statement of §7, projected onto the five predicates above.
 
@@ -404,7 +416,7 @@ def parse_claim(test: str, raw: str, glyphs: dict[str, str],
         else:
             variable = True
     else:
-        arrow = re.search(r'^(.*?)(?:→|=)', statement)
+        arrow = re.search(r'^(.*?)[→=]', statement)
         if arrow and arrow.group(1).strip():
             subject = arrow.group(1).strip()
 
@@ -489,9 +501,69 @@ def decide(claim: Claim, records: list[dict], glyphs: dict[str, str]) -> str | N
                 f"spend {claim.spend}" if claim.spend is not None else ""])))
 
 
+def account_for_digests(name: str, digests: set[str], mine: list[dict],
+                        owner: dict[str, str], proved: set[str],
+                        derived: set[str], problems: list[str]) -> set[str]:
+    """A digest belongs to the test that prints it, or it is reported."""
+    found = set()
+    for digest in sorted(digests):
+        elsewhere = owner.get(digest)
+        here = any(digest in vector_digests(v) for v in mine)
+        if not here and elsewhere is not None:
+            problems.append(
+                f"§7 {name} names {digest[:12]}…, which the suite files as the "
+                f"subject of TV-{elsewhere}. Presence in the suite is not the "
+                "same claim as belonging to this test")
+        elif here or (digest in proved and mine):
+            found.add(digest)
+        elif digest not in derived:
+            problems.append(
+                f"§7 {name} names {digest[:12]}…, which is in no record filed "
+                f"under {name} and is not proved by the suite's store")
+    return found
+
+
+def review_exception(name: str, claim: Claim, mine: list[dict], by_id: dict,
+                     glyphs: dict[str, str], problems: list[str]) -> str | None:
+    """An exception must still be needed, still have its witness, and still be
+    about the statement it was written for. Returns its reason, or nothing when
+    it has failed."""
+    exception = EXCEPTIONS[claim.text]
+    # A variable budget makes `decide` refuse on sight, so "still needed" ignores
+    # the budget and asks only whether a record already satisfies the rest.
+    if any(satisfies(record, claim, glyphs) for record in mine):
+        problems.append(
+            f"§7 {name}: the exception for “{claim.text[:48]}…” is no longer "
+            "needed — a record filed under this test now decides the claim. "
+            "Delete the entry")
+        return None
+    witness = by_id.get(exception["witness"])
+    if witness is None:
+        problems.append(
+            f"§7 {name}: the exception for “{claim.text[:48]}…” names "
+            f"{exception['witness']} and the suite has no such record — the "
+            "exception is resting on nothing")
+        return None
+    for field, wanted in exception["expects"].items():
+        if witness["expected"].get(field) != wanted:
+            problems.append(f"§7 {name}: {exception['witness']} was to show "
+                            f"{field}={wanted} and shows "
+                            f"{witness['expected'].get(field)}")
+    if witness["expected"].get("result_hash") != glyphs.get(exception["result_glyph"]):
+        problems.append(f"§7 {name}: {exception['witness']} no longer produces "
+                        f"⟨{exception['result_glyph']}⟩")
+    if claim.result != f"⟨{exception['result_glyph']}⟩" or \
+            claim.spend != exception["expects"]["atp_spent"]:
+        problems.append(
+            f"§7 {name}: the statement the exception covers now claims result "
+            f"{claim.result} at {claim.spend} ATP, which is not what its witness "
+            "records")
+    return exception["why"]
+
+
 def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
                           derived: set[str],
-                          problems: list[str]) -> tuple[set[str], int, list[str]]:
+                          problems: list[str]) -> Report:
     suite = json.loads(VECTORS.read_text())
     grouped = vectors_by_test(suite)
     owner = subjects_by_test(suite)
@@ -532,64 +604,17 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
                     "suite is filed under, so nothing checks them")
                 continue
 
-        for digest in digests:
-            elsewhere = owner.get(digest)
-            if any(digest in vector_digests(v) for v in mine):
-                bound.add(digest)
-                checked += 1
-            elif elsewhere is not None:
-                problems.append(
-                    f"§7 {name} names {digest[:12]}…, which the suite files as the "
-                    f"subject of TV-{elsewhere}. Presence in the suite is not the "
-                    "same claim as belonging to this test")
-            elif digest in proved and mine:
-                bound.add(digest)
-                checked += 1
-            elif digest not in derived:
-                problems.append(
-                    f"§7 {name} names {digest[:12]}…, which is in no record filed "
-                    f"under {name} and is not proved by the suite's store")
+        found = account_for_digests(name, digests, mine, owner, proved, derived,
+                                    problems)
+        bound |= found
+        checked += len(found)
 
         for claim in claims:
             if claim.text in EXCEPTIONS:
                 seen_declarations.add(claim.text)
-                exception = EXCEPTIONS[claim.text]
-                # Still needed? If the suite has since filed a record that decides
-                # this claim, the exception is spent and must go, or it becomes a
-                # permanent licence to skip a claim that is now checkable.
-                # A variable budget makes `decide` refuse on sight, so the test
-                # for "still needed" ignores the budget and asks only whether some
-                # record filed here already satisfies the claim's other fields.
-                if any(satisfies(record, claim, glyphs) for record in mine):
-                    problems.append(
-                        f"§7 {name}: the exception for “{claim.text[:48]}…” is no "
-                        "longer needed — a record filed under this test now "
-                        "decides the claim. Delete the entry")
-                    continue
-                witness = by_id.get(exception["witness"])
-                if witness is None:
-                    problems.append(
-                        f"§7 {name}: the exception for “{claim.text[:48]}…” names "
-                        f"{exception['witness']} and the suite has no such record — "
-                        "the exception is resting on nothing")
-                    continue
-                for field, wanted in exception["expects"].items():
-                    if witness["expected"].get(field) != wanted:
-                        problems.append(
-                            f"§7 {name}: {exception['witness']} was to show "
-                            f"{field}={wanted} and shows "
-                            f"{witness['expected'].get(field)}")
-                if witness["expected"].get("result_hash") != \
-                        glyphs.get(exception["result_glyph"]):
-                    problems.append(f"§7 {name}: {exception['witness']} no longer "
-                                    f"produces ⟨{exception['result_glyph']}⟩")
-                if claim.result != f"⟨{exception['result_glyph']}⟩" or \
-                        claim.spend != exception["expects"]["atp_spent"]:
-                    problems.append(
-                        f"§7 {name}: the statement the exception covers now claims "
-                        f"result {claim.result} at {claim.spend} ATP, which is not "
-                        "what its witness records")
-                unchecked.append(f"{name}: {claim.text[:60]} — {exception['why']}")
+                why = review_exception(name, claim, mine, by_id, glyphs, problems)
+                if why:
+                    unchecked.append(f"{name}: {claim.text[:60]} — {why}")
                 continue
             if claim.text in DECLARED:
                 seen_declarations.add(claim.text)
@@ -607,9 +632,8 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
                 unresolved.append(f"{name}: budget in “{claim.text[:40]}…” is a "
                                   "variable rather than a value")
 
-    return {"bound": bound, "decided": checked, "declared": unchecked,
-            "unresolved": unresolved, "uncovered": uncovered,
-            "seen": seen_declarations, "signatures": signatures}
+    return Report(bound, checked, unchecked, unresolved, uncovered,
+                  seen_declarations, signatures)
 
 
 def texts_state_the_same_claims(left: dict[str, list], right: dict[str, list],
@@ -736,8 +760,8 @@ def main() -> int:
     anchor_matches(problems)
     suite_pins_this_spec(problems)
     report_uk = prose_matches_vectors(uk, glyphs, proved, derived, problems)
-    bound, checked, unchecked = (report_uk["bound"], report_uk["decided"],
-                                 report_uk["declared"])
+    bound, checked, unchecked = (report_uk.bound, report_uk.decided,
+                                 report_uk.declared)
     printed = inventory(uk, derived, bound, problems)
     english = translation_parity(uk, en, problems)
 
@@ -745,9 +769,9 @@ def main() -> int:
     # cannot read the normative language must still reach every constant.
     english_derived = derivable_constants(en, problems)
     report_en = prose_matches_vectors(en, glyphs, proved, english_derived, problems)
-    english_bound = report_en["bound"]
-    declarations_still_apply(report_uk["seen"] | report_en["seen"], problems)
-    texts_state_the_same_claims(report_uk["signatures"], report_en["signatures"],
+    english_bound = report_en.bound
+    declarations_still_apply(report_uk.seen | report_en.seen, problems)
+    texts_state_the_same_claims(report_uk.signatures, report_en.signatures,
                                 problems)
     inventory(en, english_derived, english_bound, problems)
 
@@ -765,16 +789,16 @@ def main() -> int:
           f"{len(set(re.findall(r'[0-9a-f]{{64}}', en)) - english_derived - english_bound)}"
           " unaccounted")
     print(f"§7 mechanical predicates decided               : {checked}")
-    print(f"  the five it decides: subject identity, budget, canonical outcome,")
-    print(f"  result hash, ATP spend — and nothing else")
+    print("  the five it decides: subject identity, budget, canonical outcome,")
+    print("  result hash, ATP spend — and nothing else")
     print(f"§7 predicates the text does not resolve        : "
-          f"{len(report_uk['unresolved'])}")
-    for item in report_uk["unresolved"]:
+          f"{len(report_uk.unresolved)}")
+    for item in report_uk.unresolved:
         print(f"    unresolved {item}")
     print(f"§7 statements declared undecided               : {len(unchecked)}")
     for claim in unchecked:
         print(f"    declared   {claim}")
-    clauses = sorted(set(report_uk["uncovered"]))
+    clauses = sorted(set(report_uk.uncovered))
     print(f"§7 clauses outside those predicates entirely   : {len(clauses)}")
     for clause in clauses:
         print(f"    uncovered  {clause}")
@@ -791,7 +815,7 @@ def main() -> int:
           f"  named exception whose witness is verified, and the two texts state the\n"
           f"  same predicates test by test. The suite is pinned to these exact bytes.\n"
           f"\n  WHAT THIS IS NOT. It decides five mechanical predicates and no more.\n"
-          f"  {len(report_uk['unresolved'])} predicate(s) name something the text gives no identity to,\n"
+          f"  {len(report_uk.unresolved)} predicate(s) name something the text gives no identity to,\n"
           f"  {len(unchecked)} statement(s) are declared undecided, and {len(clauses)} clause(s) — storage\n"
           f"  access, forcing discipline, the memory invariant, the behaviour of a\n"
           f"  superseded version — lie outside those predicates entirely and are\n"
