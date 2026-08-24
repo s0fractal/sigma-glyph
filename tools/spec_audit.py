@@ -7,11 +7,12 @@ sends an implementer to `impl/sigma_glyph.py`. This checks that claim instead of
 repeating it, in three parts.
 
 A. **Every constant the Book prints is accounted for without an implementation.**
-   Each is either recomputed from a construction the text states, or proved by
-   recomputation from the normative suite's own store, or bound to the record of
-   the test that names it. A printed constant accounted for by none of the three
-   is reported — that, not a missing digit, is what would force a reader into the
-   reference implementation.
+   By one of three routes, counted apart: recomputed from a construction the text
+   states; bound to a record filed under the very test that prints it; or held as
+   a *named* store-only proof, one entry giving the digest, its test and the
+   reason no record can carry it. A printed constant accounted for by none of the
+   three is reported — that, not a missing digit, is what would force a reader
+   into the reference implementation.
 
 B. **The prose and the machine-readable vectors agree.** §7 says the oracle wins
    in a discrepancy. A precedence rule is only ever exercised when there *is* a
