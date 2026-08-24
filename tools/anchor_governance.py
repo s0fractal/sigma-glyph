@@ -608,8 +608,16 @@ def cmd_status(trust_path, enforce):
     if trust is None:
         for rel, _ in reversed(live):
             print(f"{rel:10s} UNGOVERNED (no out-of-band trust config)")
-        print("\nGOVERNANCE: not active (ADR-007 is PROPOSED; no adoption "
-              "warrants may be filed before its gate closes)")
+        # This line used to say governance was not active because "ADR-007 is
+        # PROPOSED". ADR-007 has been SUPERSEDED since it was adopted as
+        # GOV-anchors 1.0.x (STANDARD), and the store holds adoption warrants, so
+        # the sentence was false and it told a reader no warrant could be filed.
+        # Whether a release is authorised is a fact of the trust anchor, which is
+        # deliberately out of band; without it this command cannot say.
+        print("\nGOVERNANCE: undetermined here — authority is a fact of the "
+              "out-of-band trust anchor, not of this tree. Pass --trust-config "
+              "to evaluate it. This is not a statement that no release is "
+              "governed, and not a statement that a warrant cannot be filed.")
         return 1 if enforce else 0
     recs, blobs, bdir = load_store(STORE)
     prior, all_ok = None, True

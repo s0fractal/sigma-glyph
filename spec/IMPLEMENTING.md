@@ -130,10 +130,14 @@ The two texts must state the same **predicates** test by test, so a statement
 altered in one rendering alone is caught. That is a check on predicates, not on
 prose: inverting a clause of the fifth kind in one language only passes, because
 those clauses are not predicates and the audit says so rather than pretending
-otherwise. One claim does not yet have a machine-readable filing — TV-12's second
-half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, is recorded by `EV-GENESIS-BARE`, whose note
-does not name TV-12. The audit carries that as a named exception which fails the
-run if it ever stops reproducing, so the exception cannot outlive the defect.
+otherwise. Every §7 paragraph has records filed under it. The one that did not — TV-12's
+second half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, recorded by `EV-GENESIS-BARE` whose
+note did not name TV-12 — is filed by the candidate in
+[`proposals/ADR-009-the-specification-is-its-own-arbiter.md`](../proposals/ADR-009-the-specification-is-its-own-arbiter.md),
+through the generator rather than by editing the generated file. With it filed,
+the audit's waiver is gone and so is the exception mechanism that existed for it:
+a statement whose budget is a variable has that predicate reported unresolved
+while its remaining predicates are decided against the records.
 
 §7 remains a sentence telling an implementer their disagreement with the
 specification is settled by code they cannot see, and changing it — like filing
@@ -160,7 +164,7 @@ python3 tools/spec_audit.py            # the Book is self-contained
 python3 tests/spec_audit_selftest.py   # and the audit fails when it is not
 ```
 
-The second command matters more than the first. It breaks the Book in **thirty**
+The second command matters more than the first. It breaks the Book in **twenty-eight**
 ways — a genesis hash its construction does not produce, an axiom whose
 construction is replaced by "see the reference implementation", a prose hash no
 record of its own test carries, two tests' hashes swapped while both remain in the
@@ -169,7 +173,7 @@ printed that nothing accounts for, a rule changed in translation, a suite
 generated against different bytes, and a recorded exception that has stopped
 reproducing — and requires the audit to fail for each, with its own reason.
 
-Twenty-one of those thirty exist because external review reproduced the gap
+Nineteen of those twenty-eight exist because external review reproduced the gap
 first, across five rounds. The audit's first version was described in wider terms than it
 checked; its second still let a whole test's filing vanish, ignored budgets no
 record used, read a note about a superseded version as a claim about this one, and

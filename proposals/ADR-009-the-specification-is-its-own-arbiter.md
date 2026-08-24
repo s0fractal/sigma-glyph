@@ -1,10 +1,11 @@
 # ADR-009: the specification is its own arbiter
 
 **Status:** CANDIDATE — prepared, not adopted. The bytes below are frozen and the
-anchors computed; adoption needs a fresh multi-family blind gate over *these*
-bytes and a threshold-adoption warrant under
-[`spec/GOV-anchors.md`](../spec/GOV-anchors.md) §3. Merging this branch is the
-adoption; nothing here is adopted by being written.
+anchors computed. **Adoption is a threshold-authorised warrant over the
+`v0.6.8` anchor-set blob**, under [`spec/GOV-anchors.md`](../spec/GOV-anchors.md)
+§3, preceded by a fresh multi-family blind gate over these bytes. Merging this
+branch does not adopt anything; it records already-authorised bytes on `master`.
+Neither writing this document nor merging it is adoption.
 **Numbered 009, not 008.** `proposals/ADR-008-*` and the remote branch
 `adr-008-rev15-candidate` already carry the Resonant Precedent work, which
 [`AGENTS.md`](../AGENTS.md) names. Two different ADR-008s is a provenance
@@ -133,14 +134,48 @@ model assistance. Agreement is evidence about coding slips and ambiguity, not
 about specification error — three implementations of a wrong sentence agree
 perfectly.
 
+## What is frozen, and what is not
+
+A git SHA cannot be the governance subject: after the gate this ADR's status
+changes, the ANCHORS section loses its CANDIDATE label, `MAP.md` moves, and a
+warrant appears. What is frozen now is the **normative anchor set**, and its
+canonical unsigned blob:
+
+| | |
+| --- | --- |
+| Book I anchor | `480752b7cf1a8c843e3e561216da117df11d8426ed20c82a862ed7fef3a205af` |
+| suite anchor | `c94f1664bafc17e286d66a2927654ecd2dadab81f34fa3c63715766c67fa7b02` |
+| jurisdiction | `a30bd202…`, the governance genesis root named in GOV-anchors §5 |
+| ancestor | `d985e8b811e29c4e11142acde79a7f330211310205b7b49d8fff5c8a9e1b61b5`, the adopted `v0.6.7` anchor-set blob |
+| **unsigned `v0.6.8` anchor-set blob** | **`d993116bb4e2bd8738a2c45c6c7a962669078227a325731efd3aa63648b2a008`** |
+
+The blob is committed at
+[`adr-009-v0.6.8-anchor-set.unsigned.json`](adr-009-v0.6.8-anchor-set.unsigned.json)
+and is what a threshold warrant would sign. **It carries no trailing newline** —
+its hash is over the canonical JSON exactly as `tools/anchor_governance.py
+make-blob` emits it, and a newline changes the identity.
+
+Reproducing it requires promoting the ANCHORS header from
+`== v0.6.8 (CANDIDATE …) ==` to `== v0.6.8 ==` first: `make-blob` does not see a
+labelled candidate section, which is why a candidate cannot be blobbed or adopted
+by accident. Promoting that header is part of adoption, not of this document.
+
+The candidate commit SHA is the provenance of the *package* — this prose, the
+tests, the tooling — and not the identity of the adoption.
+
 ## What adoption still requires, and this ADR does not do
 
 1. A fresh **blind multi-family gate over these exact bytes**. Five review rounds
    have examined the *audit*; none has examined this candidate, which did not
    exist. Reviews of the enforcement are not reviews of the norm.
 2. The gate to confirm the version arithmetic: Book I `0.5.3`, bundle `v0.6.8`.
-3. A threshold-adoption warrant under GOV-anchors §3, and the candidate ANCHORS
-   section promoted from CANDIDATE to a release section.
+3. A threshold-adoption warrant over the blob above, under GOV-anchors §3, and
+   the ANCHORS header promoted from CANDIDATE to a release section. The chain it
+   extends is real and unbroken — `v0.6.2` through `v0.6.7` each have an adopted
+   anchor-set blob in `.warrants/blobs` — and the trust config that decides
+   authority is deliberately out of band: `anchor_governance.py status` refuses a
+   path inside the verified tree, so no one can evaluate authority from these
+   bytes alone.
 4. Merge and release as separate authorisations.
 5. A Zenodo v2 of the paper **after** adoption, so it cites an anchor that was
    actually adopted rather than one that was proposed.

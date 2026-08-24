@@ -174,14 +174,6 @@ def store_verified(problems: list[str]) -> set[str]:
 # Claims the §7 prose makes that no record is *filed under* their test. Each entry
 # must keep reproducing: a waiver that outlives its defect is how an exception
 # becomes permanent, so this fails when an item is fixed as loudly as when a new
-# one appears.
-UNFILED = {
-    ("TV-12", 0): "EV-GENESIS-BARE records exactly this — eval(H(I)) is a normal "
-                  "form at 0 ATP — but its note does not name TV-12, so nothing "
-                  "machine-readable connects the paragraph to the record that "
-                  "proves it. Filing it means editing an anchored file; it joins "
-                  "the governed change in ADR-008.",
-}
 
 
 def anchor_matches(problems: list[str]) -> None:
@@ -857,7 +849,7 @@ def main() -> int:
           f"  or named as one of {len(STORE_ONLY)} store-only proof(s) the store settles by\n"
           f"  recomputation and no record carries, in\n"
           f"  either language. Every §7 paragraph has records filed under it or a\n"
-          f"  named exception whose witness is verified, and the two texts state the\n"
+          f"  records filed under it, and the two texts state the\n"
           f"  same predicates test by test. The suite is pinned to these exact bytes.\n"
           f"\n  WHAT THIS IS NOT. It decides five mechanical predicates and no more.\n"
           f"  {len(report_uk.unresolved)} predicate(s) name something the text gives no identity to,\n"
