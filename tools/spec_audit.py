@@ -595,6 +595,23 @@ def review_exception(name: str, claim: Claim, mine: list[dict], by_id: dict,
     return exception["why"]
 
 
+def unfiled(name: str, claims: list[Claim], digests: set[str], derived: set[str],
+            problems: list[str]) -> bool:
+    """Nothing is filed under this paragraph. Does it need anything to be?
+
+    An aggregate count of filed tests says nothing about *this* paragraph: every
+    tag for one test can vanish and leave the total intact."""
+    outstanding = [claim for claim in claims
+                   if claim.text not in DECLARED and claim.text not in EXCEPTIONS]
+    if not outstanding and not digests - derived:
+        return False
+    problems.append(
+        f"§7 {name} states {len(outstanding)} claim(s) and "
+        f"{len(digests - derived)} constant(s) that no record in the suite is "
+        "filed under, so nothing checks them")
+    return True
+
+
 def review_claim(name: str, claim: Claim, mine: list[dict], by_id: dict,
                  glyphs: dict[str, str], seen: set[str], unresolved: list[str],
                  problems: list[str]) -> tuple[int, str | None]:
@@ -653,15 +670,8 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
                 uncovered.append(f"{name}: {label}")
         signatures[name] = sorted(claim.signature() for claim in claims)
 
-        if not mine:
-            outstanding = [c for c in claims
-                           if c.text not in DECLARED and c.text not in EXCEPTIONS]
-            if outstanding or (digests - derived):
-                problems.append(
-                    f"§7 {name} states {len(outstanding)} claim(s) and "
-                    f"{len(digests - derived)} constant(s) that no record in the "
-                    "suite is filed under, so nothing checks them")
-                continue
+        if not mine and unfiled(name, claims, digests, derived, problems):
+            continue
 
         found = account_for_digests(name, digests, mine, owner, proved, derived,
                                     problems)
