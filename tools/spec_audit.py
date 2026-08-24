@@ -68,68 +68,85 @@ def enough(found, least: int, what: str, problems: list[str]) -> bool:
 
 # ---------------------------------------------------------------- A. constants
 
+def derive_axioms(text: str, problems: list[str]) -> tuple[set[str], dict[str, str]]:
+    """§5.1. The CanonicalBytes cell IS the construction; it is read from the
+    table rather than hardcoded, so deleting it fails this check."""
+    derived, table = set(), {}
+    axioms = re.findall(r'\|\s*(\w)\s*\|\s*`0001`\+SHA-256\("(\w)"\)\s*\|\s*'
+                        r'`([0-9a-f]{64})`\s*\|', text)
+    if not enough(axioms, 3, "genesis axioms in §5.1", problems):
+        return derived, table
+    for glyph, hashed, printed in axioms:
+        if glyph != hashed:
+            problems.append(f"§5.1 row {glyph} hashes {hashed!r}")
+        got = node_hash(0x00, 0x01, hashlib.sha256(glyph.encode()).digest())
+        if got != printed:
+            problems.append(f"§5.1 {glyph}: the stated construction gives {got}, "
+                            f"the table prints {printed}")
+        derived.add(printed)
+        table[glyph] = printed
+    return derived, table
+
+
+def derive_reasons(text: str, problems: list[str]) -> set[str]:
+    """§5.3. These also pin what SHA-256("...") means for §5.1: a reader who
+    reproduces them has confirmed the convention is the ASCII bytes with no
+    terminator, which is the only thing §5.1 leaves to inference."""
+    derived = set()
+    reasons = re.findall(r'SHA-256\("([^"]+)"\)\s*=\s*([0-9a-f]{64})', text)
+    if not enough(reasons, 4, "reason hashes in §5.3", problems):
+        return derived
+    for name, printed in reasons:
+        if sha(name.encode()) != printed:
+            problems.append(f"§5.3 SHA-256({name!r}) is {sha(name.encode())}, "
+                            f"printed as {printed}")
+        derived.add(printed)
+    return derived
+
+
+def derive_first_theorem(text: str, axioms: dict[str, str],
+                         problems: list[str]) -> set[str]:
+    """§5.2 / TV-2, built from the axioms with no store."""
+    found = re.search(r'`FALSE ≡ APPLY\(K,I\)`;\s*Bytes\s*`0206‖H\(K\)‖H\(I\)`;'
+                      r'\s*Hash\s*`([0-9a-f]{64})`', text)
+    if found is None:
+        problems.append("§5.2 no longer states FALSE's construction and hash in "
+                        "the form this check reads")
+        return set()
+    if "K" not in axioms or "I" not in axioms:
+        return set()
+    built = node_hash(0x02, 0x06, bytes.fromhex(axioms["K"]) + bytes.fromhex(axioms["I"]))
+    if built != found.group(1):
+        problems.append(f"§5.2 FALSE: construction gives {built}, printed "
+                        f"{found.group(1)}")
+    return {found.group(1)}
+
+
+def derive_printed_bytes(text: str, problems: list[str]) -> set[str]:
+    """Both forms the Book uses: inline in §7 and on separate lines in §4.2.
+    A pattern matching only one silently left the Canonical Invalid Object out."""
+    derived = set()
+    printed = re.findall(r'Bytes:?\s*`?([0-9a-f]{4,})`?;?\s*Hash:?\s+`?'
+                         r'([0-9a-f]{64})`?', text)
+    if not enough(printed, 2, "constants printed as bytes and hash", problems):
+        return derived
+    for raw, stated in printed:
+        if sha(bytes.fromhex(raw)) != stated:
+            problems.append(f"bytes {raw[:12]}… hash to {sha(bytes.fromhex(raw))}, "
+                            f"printed {stated}")
+        derived.add(stated)
+    return derived
+
+
 def derivable_constants(text: str, problems: list[str]) -> set[str]:
     """Recompute each printed hash from the construction the Book states.
 
     Returns the digests actually re-derived, so `inventory` can name the printed
     constants that nothing here accounts for."""
-    derived: set[str] = set()
-
-    # §5.1 — the axioms. The CanonicalBytes cell IS the construction; it is read
-    # from the table rather than hardcoded, so deleting it fails this check.
-    axioms = re.findall(r'\|\s*(\w)\s*\|\s*`0001`\+SHA-256\("(\w)"\)\s*\|\s*'
-                        r'`([0-9a-f]{64})`\s*\|', text)
-    if enough(axioms, 3, "genesis axioms in §5.1", problems):
-        for glyph, hashed, printed in axioms:
-            if glyph != hashed:
-                problems.append(f"§5.1 row {glyph} hashes {hashed!r}")
-            got = node_hash(0x00, 0x01, hashlib.sha256(glyph.encode()).digest())
-            if got != printed:
-                problems.append(f"§5.1 {glyph}: the stated construction gives "
-                                f"{got}, the table prints {printed}")
-            derived.add(printed)
-
-    # §5.3 — reason hashes. These also pin what SHA-256("...") means for §5.1:
-    # a reader who reproduces these has confirmed the convention is the ASCII
-    # bytes with no terminator, which is the only thing §5.1 leaves to inference.
-    reasons = re.findall(r'SHA-256\("([^"]+)"\)\s*=\s*([0-9a-f]{64})', text)
-    if enough(reasons, 4, "reason hashes in §5.3", problems):
-        for name, printed in reasons:
-            if sha(name.encode()) != printed:
-                problems.append(f"§5.3 SHA-256({name!r}) is {sha(name.encode())}, "
-                                f"printed as {printed}")
-            derived.add(printed)
-
-    # §5.2 / TV-2 — the first theorem, built from the axioms with no store.
-    axiom_hash = {g: p for g, _, p in axioms}
-    # Whitespace-tolerant: the two texts wrap their lines differently, and a
-    # pattern that only matches one of them would quietly check only one.
-    false_hash = re.search(r'`FALSE ≡ APPLY\(K,I\)`;\s*Bytes\s*`0206‖H\(K\)‖H\(I\)`;'
-                           r'\s*Hash\s*`([0-9a-f]{64})`', text)
-    if false_hash is None:
-        problems.append("§5.2 no longer states FALSE's construction and hash in "
-                        "the form this check reads")
-    else:
-        built = node_hash(0x02, 0x06, bytes.fromhex(axiom_hash["K"])
-                          + bytes.fromhex(axiom_hash["I"]))
-        if built != false_hash.group(1):
-            problems.append(f"§5.2 FALSE: construction gives {built}, printed "
-                            f"{false_hash.group(1)}")
-        derived.add(false_hash.group(1))
-
-    # §7 — every test vector that prints whole bytes must hash to its printed hash.
-    # Both forms the Book uses: inline in §7 (`Bytes ...; Hash ...`) and on
-    # separate lines in §4.2's code block. A pattern matching only one of them
-    # silently leaves the Canonical Invalid Object out of the inventory, which is
-    # exactly what the first version of this file did.
-    printed_bytes = re.findall(r'Bytes:?\s*`?([0-9a-f]{4,})`?;?\s*Hash:?\s+`?'
-                               r'([0-9a-f]{64})`?', text)
-    if enough(printed_bytes, 2, "constants printed as bytes and hash", problems):
-        for raw, printed in printed_bytes:
-            if sha(bytes.fromhex(raw)) != printed:
-                problems.append(f"bytes {raw[:12]}… hash to "
-                                f"{sha(bytes.fromhex(raw))}, printed {printed}")
-            derived.add(printed)
+    derived, axioms = derive_axioms(text, problems)
+    derived |= derive_reasons(text, problems)
+    derived |= derive_first_theorem(text, axioms, problems)
+    derived |= derive_printed_bytes(text, problems)
     return derived
 
 
@@ -578,6 +595,31 @@ def review_exception(name: str, claim: Claim, mine: list[dict], by_id: dict,
     return exception["why"]
 
 
+def review_claim(name: str, claim: Claim, mine: list[dict], by_id: dict,
+                 glyphs: dict[str, str], seen: set[str], unresolved: list[str],
+                 problems: list[str]) -> tuple[int, str | None]:
+    """One statement: excused with a reason, or decided predicate by predicate."""
+    if claim.text in EXCEPTIONS:
+        seen.add(claim.text)
+        why = review_exception(name, claim, mine, by_id, glyphs, problems)
+        return 0, f"{name}: {claim.text[:60]} — {why}" if why else None
+    if claim.text in DECLARED:
+        seen.add(claim.text)
+        return 0, f"{name}: {claim.text[:60]} — {DECLARED[claim.text]}"
+
+    if claim.subject is not None and claim.subject_hash is None:
+        unresolved.append(f"{name}: subject “{claim.subject[:40]}” names nothing "
+                          "this text gives an identity to")
+    if claim.variable_budget:
+        unresolved.append(f"{name}: budget in “{claim.text[:40]}…” is a variable "
+                          "rather than a value")
+    failure = decide(claim, mine, glyphs)
+    if failure:
+        problems.append(f"§7 {name}: “{claim.text[:70]}” — {failure}")
+        return 0, None
+    return len(claim.resolved()), None
+
+
 def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
                           derived: set[str],
                           problems: list[str]) -> Report:
@@ -627,27 +669,11 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
         checked += len(found)
 
         for claim in claims:
-            if claim.text in EXCEPTIONS:
-                seen_declarations.add(claim.text)
-                why = review_exception(name, claim, mine, by_id, glyphs, problems)
-                if why:
-                    unchecked.append(f"{name}: {claim.text[:60]} — {why}")
-                continue
-            if claim.text in DECLARED:
-                seen_declarations.add(claim.text)
-                unchecked.append(f"{name}: {claim.text[:60]} — {DECLARED[claim.text]}")
-                continue
-            failure = decide(claim, mine, glyphs)
-            if failure:
-                problems.append(f"§7 {name}: “{claim.text[:70]}” — {failure}")
-            else:
-                checked += len(claim.resolved())
-            if claim.subject is not None and claim.subject_hash is None:
-                unresolved.append(f"{name}: subject “{claim.subject[:40]}” names "
-                                  "nothing this text gives an identity to")
-            if claim.variable_budget:
-                unresolved.append(f"{name}: budget in “{claim.text[:40]}…” is a "
-                                  "variable rather than a value")
+            decided, note = review_claim(name, claim, mine, by_id, glyphs,
+                                         seen_declarations, unresolved, problems)
+            checked += decided
+            if note:
+                unchecked.append(note)
 
     return Report(bound, checked, unchecked, unresolved, uncovered,
                   seen_declarations, signatures)
