@@ -182,7 +182,11 @@ def check_rows_resolve(text):
     as evidence of where anything lives, which is the only thing it is for.
     """
     wrong = unverifiable = absent = 0
-    for line in text.splitlines():
+    # Only the citation table. The refs table below it lists branches rather than
+    # documents, and counting its rows as sibling citations reported nineteen
+    # unverifiable rows where there is one — a true check with a false scope.
+    table = text.split("## Refs that exist", 1)[0]
+    for line in table.splitlines():
         cells = [cell.strip() for cell in line.split("|")]
         if len(cells) < 5 or not cells[1].startswith("`") or cells[2] == "Lives in":
             continue

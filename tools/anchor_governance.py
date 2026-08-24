@@ -632,8 +632,15 @@ def cmd_make_blob(jurisdiction, ancestor):
     sections = parse_anchors(ANCHORS)
     release, _, entries = next(s for s in sections if not s[1])
     blob = anchor_set_blob(release, entries, jurisdiction, ancestor)
-    sys.stdout.buffer.write(canon(blob) + b"\n")
-    print(f"# sha256 {sha256(canon(blob))}", file=sys.stderr)
+    body = canon(blob)
+    # EXACTLY the canonical bytes, with nothing appended. This used to write a
+    # trailing newline while reporting the digest of the bytes without it, so
+    # `make-blob > set.json` produced a file whose hash was not the hash the same
+    # command had just printed -- the documented way to reproduce an anchor set
+    # could not reproduce it. The digest goes to stderr so redirection keeps
+    # giving the artifact and nothing else.
+    sys.stdout.buffer.write(body)
+    print(f"# sha256 {sha256(body)}", file=sys.stderr)
     return 0
 
 

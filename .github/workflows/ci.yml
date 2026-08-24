@@ -66,6 +66,12 @@ jobs:
       # rendering to carry the same hashes, keywords and code. The selftest
       # breaks all of that nine ways and requires each to fail for its own
       # reason -- an audit that cannot be made to fail is not an audit.
+      # An anchor-set blob's identity is its digest, and a warrant signs that
+      # digest. The command that produces the blob must therefore emit the bytes
+      # it hashed -- it once appended a newline the digest did not cover.
+      - name: An anchor-set blob is the bytes its own command hashed
+        run: python3 tests/anchor_blob_roundtrip.py | tee /dev/stderr \
+               | grep -q "ANCHOR-BLOB ROUNDTRIP:"
       - name: The specification is self-contained (and the audit can fail)
         run: |
           python3 tools/spec_audit.py | tee /dev/stderr | grep -q "SPEC-AUDIT:"
