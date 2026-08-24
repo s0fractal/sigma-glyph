@@ -1,9 +1,9 @@
 {
   "format": "sigma-glyph-conformance",
   "format_version": 2,
-  "spec_version": "0.5.3",
+  "spec_version": "0.6.0",
   "suite_version": "0.5.0",
-  "book1_anchor": "480752b7cf1a8c843e3e561216da117df11d8426ed20c82a862ed7fef3a205af",
+  "book1_anchor": "629e86f0951e67346915a36328864d0ac9b091b06aad1af55af26700ac547d70",
   "oracle": "impl/sigma_glyph.py",
   "notes": [
     "objects: hex canonical bytes to preload into the CAS, keyed by their SHA-256 NodeHash.",

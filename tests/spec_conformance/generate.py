@@ -8,7 +8,10 @@ Two kinds of expected value live in vectors.json, and the difference matters:
     hand-computed from its rules. If the oracle disagrees with any declaration
     this script REFUSES to write vectors.json. These vectors constrain the
     oracle: an oracle that was wrong from the start cannot launder its own
-    answer into the suite. Same discipline as the governance suite
+    answer into the suite. Since Book I 0.6.0 the suite is a normative part of
+    the edition and no implementation outranks it: a disagreement between the
+    prose and a record makes the edition non-conformant rather than being settled
+    in the oracle's favour. Same discipline as the governance suite
     (tools/anchor_governance.py cmd_gen, which has refused since v0.6.x).
 
   * ORACLE-GENERATED (regression-only). Everything without a declaration is
@@ -16,11 +19,14 @@ Two kinds of expected value live in vectors.json, and the difference matters:
     oracle can only detect a CHANGE, never an original error. They are honest
     regression vectors and nothing more.
 
-Note on authority: Book I §7 still says the oracle wins over the prose. This
-script does not overturn that — it refuses to *silently* let the oracle win on
-a value the spec states outright, so a divergence has to be resolved by a human
-as either an implementation bug or a spec erratum. Changing the normative
-"oracle wins" rule itself is a spec edit, not a generator edit.
+Note on authority: since Book I 0.6.0 the suite is a normative part of the
+edition and no implementation outranks it — a disagreement between the prose and
+a record makes the edition non-conformant rather than being settled in the
+oracle's favour. This script already worked that way in miniature: it refuses to
+let the oracle quietly win on a value the spec states outright, so a divergence
+has to be resolved by a human as an implementation bug or a spec erratum. Books
+II and III still carry their own oracle-precedence clauses; harmonising them is
+separate work.
 
 tests/spec_conformance/README.md carries the per-vector ledger of which is
 which. Regenerate after any oracle change:
@@ -38,9 +44,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.5.3"   # Book I document version these vectors conform to
+SPEC_VERSION = "0.6.0"   # Book I document version these vectors conform to
 SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "480752b7cf1a8c843e3e561216da117df11d8426ed20c82a862ed7fef3a205af"
+BOOK1_ANCHOR = "629e86f0951e67346915a36328864d0ac9b091b06aad1af55af26700ac547d70"
 
 # ============================================================================
 # Spec-declared expectations — hand-written from spec/book-1-truth.md v0.5.2

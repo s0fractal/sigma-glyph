@@ -1,32 +1,53 @@
 #!/usr/bin/env python3
-"""Does `make-blob` emit the bytes whose hash it reports?
+"""Does the documented command reproduce the blob ADR-009 froze?
 
 An anchor-set blob's identity is its SHA-256, and a threshold warrant signs that
-digest. So the documented way to obtain the blob — redirect the command's output —
-must produce exactly the bytes the command hashed. It did not: stdout carried a
-trailing newline that the digest did not cover, so `make-blob > set.json` wrote a
-file whose hash was not the hash the same run had just printed.
+digest. Two things therefore have to hold, and the first version of this file
+checked them separately and never joined them: the command must emit the bytes
+whose hash it prints, and those bytes must be the committed candidate. Checking
+each alone let a green run print the CLI's digest for one release beside the
+frozen digest of another and call that agreement.
 
-That is a defect nobody notices by reading, because both numbers look right on
-their own. This runs the real CLI, hashes what came out of it, and requires the
-two to agree.
+The reproduction runs in a copied tree — `make-blob` refuses to see a section
+whose header is labelled a candidate, so the header is promoted in the copy and
+never in the repository.
 """
 
 from __future__ import annotations
 
 import hashlib
+import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+CANDIDATE = ROOT / "proposals/adr-009-v0.7.0-anchor-set.unsigned.json"
 JURISDICTION = "a30bd20205cb482588e436d8a4eb6fa72cdfefe2f4b35572e292d3814d198a0a"
+ANCESTOR = "d985e8b811e29c4e11142acde79a7f330211310205b7b49d8fff5c8a9e1b61b5"
+FROZEN = "1a4ebb99c56945d21ab0cef76e212b29205878d59e5b542724df8685f98d8111"
+
+
+def reproduce(into: Path) -> subprocess.CompletedProcess:
+    # The whole tools directory: anchor_governance imports its sibling
+    # warrant_sig for the one signing-message construction.
+    shutil.copytree(ROOT / "tools", into / "tools",
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    (into / "spec").mkdir()
+    anchors = (ROOT / "spec/ANCHORS.txt").read_text()
+    (into / "spec/ANCHORS.txt").write_text(
+        re.sub(r'== (v[\d.]+) \(CANDIDATE[^)]*\) ==', r'== \1 ==', anchors))
+    return subprocess.run(
+        [sys.executable, str(into / "tools/anchor_governance.py"), "make-blob",
+         "--jurisdiction", JURISDICTION, "--ancestor", ANCESTOR],
+        capture_output=True, cwd=into)
 
 
 def main() -> int:
-    run = subprocess.run(
-        [sys.executable, "tools/anchor_governance.py", "make-blob",
-         "--jurisdiction", JURISDICTION], capture_output=True, cwd=ROOT)
+    with tempfile.TemporaryDirectory() as temporary:
+        run = reproduce(Path(temporary))
     if run.returncode != 0:
         print(f"FAIL make-blob exited {run.returncode}: "
               f"{run.stderr.decode()[:300]}", file=sys.stderr)
@@ -34,6 +55,8 @@ def main() -> int:
 
     emitted = hashlib.sha256(run.stdout).hexdigest()
     reported = run.stderr.decode().split()[-1].strip()
+    committed = CANDIDATE.read_bytes() if CANDIDATE.exists() else None
+
     problems = []
     if emitted != reported:
         problems.append(f"the command reported {reported[:16]}… and emitted bytes "
@@ -42,25 +65,23 @@ def main() -> int:
     if run.stdout.endswith(b"\n"):
         problems.append("stdout ends with a newline; canonical bytes do not, and "
                         "appending one changes the identity a warrant signs")
-
-    # And the candidate the ADR froze, when it is present in this tree.
-    candidate = ROOT / "proposals/adr-009-v0.6.8-anchor-set.unsigned.json"
-    if candidate.exists():
-        digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
-        expected = "d993116bb4e2bd8738a2c45c6c7a962669078227a325731efd3aa63648b2a008"
-        if digest != expected:
-            problems.append(f"the committed candidate blob hashes to {digest[:16]}…, "
-                            f"and ADR-009 froze {expected[:16]}…")
-        if candidate.read_bytes().endswith(b"\n"):
-            problems.append("the committed candidate blob ends with a newline")
+    if committed is None:
+        problems.append(f"{CANDIDATE.name} is missing, so there is nothing to "
+                        "reproduce and this check has no subject")
+    elif committed != run.stdout:
+        problems.append(f"the reproduction is not byte-identical to the committed "
+                        f"blob: {hashlib.sha256(committed).hexdigest()[:16]}… "
+                        f"committed, {emitted[:16]}… reproduced")
+    elif emitted != FROZEN:
+        problems.append(f"both agree on {emitted[:16]}…, and ADR-009 froze "
+                        f"{FROZEN[:16]}…")
 
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)
     if problems:
         return 1
-    print(f"ANCHOR-BLOB ROUNDTRIP: the CLI's own output hashes to the digest it "
-          f"reports ({reported[:12]}…), and the frozen candidate blob still "
-          "hashes to what ADR-009 recorded")
+    print(f"ANCHOR-BLOB ROUNDTRIP: the documented command reproduces the committed "
+          f"blob byte for byte, and all three digests are {FROZEN[:12]}…")
     return 0
 
 

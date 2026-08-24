@@ -1,11 +1,11 @@
 # Σ-GLYPH — Book I: TRUTH
 
-**Version:** 0.5.3
+**Version:** 0.6.0
 **Type:** Bit-Exact Computational Core
 **Status:** DRAFT STANDARD
 
 > **Informative English translation.** This is an English rendering of the
-> normative Σ-GLYPH Book I v0.5.3. The canonical, anchored source of record is
+> normative Σ-GLYPH Book I v0.6.0. The canonical, anchored source of record is
 > [`book-1-truth.md`](book-1-truth.md) (Ukrainian). In any discrepancy the
 > anchored source governs, until the maintainer roster adjudicates and re-anchors
 > an English normative edition (§8). All hashes, byte strings, code, tables, ADR
@@ -21,8 +21,8 @@
 > not this rendering, so these bytes carry no integrity guarantee of their own —
 > only the checked relationship above. If you are implementing from this text, read
 > [`IMPLEMENTING.md`](IMPLEMENTING.md) first: it shows that every constant is
-> derivable without our code, and states the two places where the Book still
-> points at an implementation.
+> derivable without our code, and states what this edition settled about where
+> authority lives.
 
 **Scope:** This document defines everything — and only what — two independent
 nodes need in order to reach consensus on the hash of a computation's result.
@@ -335,6 +335,16 @@ consistent. An edition in which they disagree is non-conformant and MUST NOT be
 used as a source of consensus until it is corrected and re-anchored. No
 implementation, the reference one included, takes precedence over the normative
 artifacts of the edition.
+
+**What exactly must agree (MUST).** For each §7 test vector, the normative
+representation of the prose's statement in the set is the record's fields: the
+subject of the evaluation (`term` or `bytes`), the budget (`atp`), the canonical
+failure or normal form (`expected.outcome`), the result hash
+(`expected.result_hash`) and the ATP spent (`expected.atp_spent`). A disagreement
+between the prose and any of these fields makes the edition non-conformant. The
+remainder of §7's prose explains rules established in §3–§5 — store access, lazy
+materialization, the memory bound — and is not an independent normative statement
+of this section; those rules remain normative where they are established.
 
 **TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash
 `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`;

@@ -29,11 +29,12 @@ digest no record carries is not a record binding however well the store proves i
 An earlier version of this audit asked only whether a digest appeared
 anywhere in the suite, and stayed green when two tests' hashes were swapped.
 
-## The one convention the text leaves to inference, and how to settle it
+## The hashing convention, and how to confirm you have it
 
 `SHA-256("I")` means the hash of the ASCII bytes of `I` — one byte, `0x49`, no
-quotes, no terminator. The Book does not spell that out, and it does not have to:
-§5.3 prints three hashes of longer strings, so you can confirm your reading
+quotes, no terminator. Since Book I 0.6.0 §5.1 states this outright; in earlier
+editions it was left to inference. Either way §5.3 prints three hashes of longer
+strings, so you can confirm your reading
 before you rely on it.
 
 ```python
@@ -91,58 +92,20 @@ keywords in the same order, and the same code blocks once translated words are
 set aside. If they ever drift, CI fails. That is weaker than an anchor and much
 stronger than a promise.
 
-**§7 says the oracle wins.** In a discrepancy between the prose and
-`tests/spec_conformance/vectors.json`, the Book designates `impl/sigma_glyph.py`
-as the arbiter. `proposals/ADR-009-the-specification-is-its-own-arbiter.md` is a
-prepared candidate that removes this; it is **not adopted**, and on `master` the
-clause still stands. A precedence rule is only ever exercised when a discrepancy
-exists, and `spec_audit.py` checks whether one does: every hash the §7 prose
-claims must appear in the vector suite, and the suite must be pinned to the exact
-bytes of the Book that ships. At the anchored revision, and within the claims the audit decides, no
-contradiction was found — and it reports the four it does not decide rather than
-passing over them. That is not a proof that the prose and the suite say the same
-thing, and no earlier revision was audited.
+**§7 no longer lets an implementation outrank the Book.** Since 0.6.0 the suite is
+a normative part of the edition, prose and records MUST be mutually consistent, and
+an edition where they disagree is non-conformant until corrected and re-anchored —
+no implementation, the reference one included, takes precedence. §7 also names
+which record fields carry a prose statement: the subject (`term`/`bytes`), the
+budget (`atp`), the outcome, the result hash and the ATP spent. That is what makes
+"mutually consistent" decidable, and it is why the ledgers above matter: the
+clauses this audit leaves outside those five are explanations of §3.3, §3.4 and
+§3.5, which remain normative where they are established.
 
-The audit also compares what §7 *says* against what the suite recorded, and it is
-worth being exact about how far that goes. It decides **five mechanical
-predicates** and no more — subject identity, budget, canonical outcome, result
-hash, ATP spend — and a statement must have all of its *resolved* predicates
-satisfied by one record filed under that test. The run prints these ledgers:
-
-- **43 instances of the five predicates decided**, and separately the constants:
-  **10 derived** from constructions the Book states, **4 bound** to a record filed
-  under the very test that prints them, and **1 named store-only proof** — the
-  compiled term whose hash the suite's store settles by recomputation and which no
-  record carries. A digest no record carries is not a record binding, however well
-  the store proves it, so it is counted where a reader can see it;
-- **7 predicates it cannot resolve**, because the text names something it gives
-  no identity to — `ghost`, a store shape — or writes a budget as a variable. An
-  unresolved predicate is reported, not skipped: the statement's remaining
-  predicates are still decided against the records filed under its test;
-- **3 statements declared undecided**, each keyed to its exact sentence, so
-  editing or deleting one invalidates the declaration;
-- **5 clauses outside those predicates entirely** — that an evaluation touched no
-  store, that a branch was never forced, that `size − 1 ≤ spent` held throughout,
-  and what v0.4.x used to do. Inverting any of those would not fail this audit,
-  which is why the run names them.
-
-The two texts must state the same **predicates** test by test, so a statement
-altered in one rendering alone is caught. That is a check on predicates, not on
-prose: inverting a clause of the fifth kind in one language only passes, because
-those clauses are not predicates and the audit says so rather than pretending
-otherwise. Every §7 paragraph has records filed under it. The one that did not — TV-12's
-second half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, recorded by `EV-GENESIS-BARE` whose
-note did not name TV-12 — is filed by the candidate in
-[`proposals/ADR-009-the-specification-is-its-own-arbiter.md`](../proposals/ADR-009-the-specification-is-its-own-arbiter.md),
-through the generator rather than by editing the generated file. With it filed,
-the audit's waiver is gone and so is the exception mechanism that existed for it:
-a statement whose budget is a variable has that predicate reported unresolved
-while its remaining predicates are decided against the records.
-
-§7 remains a sentence telling an implementer their disagreement with the
-specification is settled by code they cannot see, and changing it — like filing
-that vector — is an edit to anchored bytes. See
-[`proposals/ADR-009-the-specification-is-its-own-arbiter.md`](../proposals/ADR-009-the-specification-is-its-own-arbiter.md).
+Before 0.6.0 the clause read the other way — on any discrepancy the oracle
+`impl/sigma_glyph.py` won — which told a stranger that their disagreement with the
+specification was settled by code they had to read to consult. That change is what
+`proposals/ADR-009-the-specification-is-its-own-arbiter.md` records.
 
 **Three implementations already agree, and that is weaker evidence than it
 looks.** The Python oracle, `warrant-go` and the Rust implementation were written
