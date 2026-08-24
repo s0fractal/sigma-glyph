@@ -8,10 +8,21 @@ datum is an implementation of Book I by someone who has not read the reference
 code. It also gave a reason — that §5.1 sends you to `impl/sigma_glyph.py` for
 the genesis atoms, so you would have to read it.
 
-**That reason is wrong, and this page is the demonstration.** Every constant the
-Book prints is re-derivable from the Book, in either language, and
-[`tools/spec_audit.py`](../tools/spec_audit.py) re-derives all of them on every
-CI run.
+**That reason is wrong, and this page is the demonstration.**
+[`tools/spec_audit.py`](../tools/spec_audit.py) accounts for all fifteen 64-hex
+constants the Book prints, on every CI run and in either language, by one of two
+routes that need no implementation:
+
+- **ten** are re-derived from a construction the Book itself states — the genesis
+  axioms, the reason hashes, `FALSE`, the Canonical Invalid Object, and every
+  vector that prints its bytes;
+- the rest are **proved by recomputation from the normative suite's own store**,
+  which maps a hash to the bytes that produce it, and **bound to the record of
+  the test that names them** — not merely found somewhere in the file.
+
+Nothing printed is unaccounted for. The distinction in that last line is not
+pedantry: an earlier version of this audit asked only whether a digest appeared
+anywhere in the suite, and stayed green when two tests' hashes were swapped.
 
 ## The one convention the text leaves to inference, and how to settle it
 
@@ -82,9 +93,17 @@ exists, and `spec_audit.py` checks whether one does: every hash the §7 prose
 claims must appear in the vector suite, and the suite must be pinned to the exact
 bytes of the Book that ships. Today no discrepancy exists.
 
-It remains a sentence that tells an implementer their disagreement with the
-specification is settled by code they cannot see, and changing it is a normative
-edit — see [`proposals/ADR-008-specification-is-the-arbiter.md`](../proposals/ADR-008-specification-is-the-arbiter.md).
+The audit also compares what §7 *says* against what the suite recorded: every
+stated budget, spend, outcome and normal form must match the records filed under
+that test. One claim does not yet have a machine-readable filing — TV-12's second
+half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, is recorded by `EV-GENESIS-BARE`, whose note
+does not name TV-12. The audit carries that as a named exception which fails the
+run if it ever stops reproducing, so the exception cannot outlive the defect.
+
+§7 remains a sentence telling an implementer their disagreement with the
+specification is settled by code they cannot see, and changing it — like filing
+that vector — is an edit to anchored bytes. See
+[`proposals/ADR-008-specification-is-the-arbiter.md`](../proposals/ADR-008-specification-is-the-arbiter.md).
 
 **Three implementations already agree, and that is weaker evidence than it
 looks.** The Python oracle, `warrant-go` and the Rust implementation were written
@@ -106,9 +125,14 @@ python3 tools/spec_audit.py            # the Book is self-contained
 python3 tests/spec_audit_selftest.py   # and the audit fails when it is not
 ```
 
-The second command matters more than the first. It breaks the Book in nine ways —
-a genesis hash its construction does not produce, an axiom whose construction is
-replaced by "see the reference implementation", a prose hash no vector carries, a
-rule changed in translation, a suite generated against different bytes — and
-requires the audit to fail for each, with its own reason. An audit that cannot be
-made to fail is not an audit.
+The second command matters more than the first. It breaks the Book in **thirteen**
+ways — a genesis hash its construction does not produce, an axiom whose
+construction is replaced by "see the reference implementation", a prose hash no
+record of its own test carries, two tests' hashes swapped while both remain in the
+suite, a price restated in prose while the record keeps the old one, a constant
+printed that nothing accounts for, a rule changed in translation, a suite
+generated against different bytes, and a recorded exception that has stopped
+reproducing — and requires the audit to fail for each, with its own reason.
+
+Four of those thirteen exist because external review reproduced the gap first:
+the first version of this audit was described in wider terms than it checked.

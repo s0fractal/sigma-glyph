@@ -7,10 +7,18 @@ project uses for Book text. This ADR does the work and stops before the gate.
 who has not read this code" as the single most valuable missing datum, and gives
 a reason for its absence. The reason turned out to be wrong; two other sentences
 turned out to be right.
-**Evidence:** [`tools/spec_audit.py`](../tools/spec_audit.py) re-derives every
-constant the Book prints from the Book alone, in both languages, and
-[`tests/spec_audit_selftest.py`](../tests/spec_audit_selftest.py) breaks that
-property nine ways and requires the audit to fail for each.
+**Evidence:** [`tools/spec_audit.py`](../tools/spec_audit.py) accounts for all
+fifteen constants the Book prints, in both languages — ten re-derived from
+constructions the Book states, the rest proved by recomputation from the normative
+suite's store and bound to the record of the test that names them — and compares
+every budget, spend, outcome and normal form §7 states against those records.
+[`tests/spec_audit_selftest.py`](../tests/spec_audit_selftest.py) breaks all of it
+thirteen ways and requires the audit to fail for each.
+**Revision:** the first version of this ADR said the audit "re-derives every
+constant". It did not: it derived nine of fifteen, matched prose digests against
+the whole suite rather than against the test that named them, and compared no
+numbers at all. External review reproduced all three gaps; the sentences above
+state what is now checked.
 
 ## Problem
 
@@ -45,10 +53,18 @@ audit without reading. A specification that appoints an implementation as its ow
 arbiter is not the source of truth for its own semantics.
 
 A precedence rule is exercised only when a discrepancy exists. `spec_audit.py`
-now checks whether one does: every hash the §7 prose claims must appear in the
-normative suite, and the suite must be pinned to the exact bytes of the Book that
-ships. **Today no discrepancy exists**, so the clause has never decided anything —
-it only tells a stranger where authority lives, and it puts it in the wrong place.
+now checks whether one does, over the classes it can decide mechanically: every
+digest §7 quotes must belong to the record of the test that quotes it; every
+budget, spend, outcome and normal form the prose states must match those records;
+and the suite must be pinned to the exact bytes of the Book that ships.
+
+**Across those classes, one discrepancy exists**, and it is a filing gap rather
+than a contradiction: TV-12 claims `eval(H(I), n) = ⟨I⟩` at 0 ATP, `EV-GENESIS-BARE`
+records exactly that, and nothing machine-readable connects them. The audit
+carries it as a named exception that fails the run if it stops reproducing.
+
+The clause itself has therefore never decided anything. It only tells a stranger
+where authority lives, and it puts it in the wrong place.
 
 ## Proposal
 
@@ -90,6 +106,7 @@ becomes the Book.
 | anchor after this edit | `d73740534d1d52e90fc7252b5065198800ca6b99fc702f42a77e51c8386d8ff7` |
 | document bytes | 23,749 → 24,590 |
 | behavioural change | none — no rule, price, constant or vector moves |
+| also in scope | `EV-GENESIS-BARE`'s note gains `TV-12:`, which files the one prose claim the suite proves but does not connect. That edits `tests/spec_conformance/vectors.json`, which is anchored, so it belongs to the same governed step |
 | version | a PATCH to Book I: prose only, oracle and suite unchanged |
 
 Adopting it therefore requires a new ANCHORS bundle section, the `book1_anchor`
