@@ -185,22 +185,57 @@ OUTCOME_WORDS = {"ATP Exhausted": "atp_exhausted",
                  "Invalid Object": "invalid_object"}
 
 
-class Claim(NamedTuple):
-    """One statement of §7, as a whole rather than as loose properties.
+# What this file decides, exhaustively. Everything a §7 statement says beyond
+# these five is outside its reach, and is reported rather than absorbed.
+PREDICATES = ("subject", "budget", "outcome", "result", "spend")
 
-    Comparing spends, outcomes and results as three sets let their associations
-    dissolve: TV-4's `spent 0` and `spent 3` could change places between budgets
-    0 and 3, and TV-11's two evaluations could exchange results, with every set
-    unchanged and the audit green. A claim is matched against **one** record that
-    satisfies all of its stated fields at once, or against one named rule."""
+# Clauses §7 states that are not any of the five. They are recognised so they can
+# be *counted and named*, not decided: this audit has no way to check that an
+# evaluation touched no store, that a branch was never forced, that a memory
+# invariant held along the way, or what a superseded version once did.
+CLAUSES = (
+    (r'звернення до сховища|store access|сховище не потрібне|no store|'
+     r'порожнь\w* сховищ|empty store', "storage access"),
+    (r'форсу\w*|forcing|ліниво|lazily|НЕ форсу', "forcing discipline"),
+    (r'size\s*[−-]\s*1\s*≤\s*spent|size\s*[+]?\s*\d*\s*≤\s*spent', "memory invariant"),
+    (r'0\.4\.x', "behaviour of a superseded version"),
+)
+
+
+class Claim(NamedTuple):
+    """One statement of §7, projected onto the five predicates above.
+
+    The projection is the point and the limit. A statement is matched against
+    **one** record that satisfies all of its *resolved* predicates at once — which
+    is what keeps a spend from drifting to another budget or a result to another
+    term — and everything the projection drops is reported as unresolved or as an
+    uncovered clause. This file decides predicates. It does not decide statements,
+    and it does not claim that an unmatched sentence is an error."""
     test: str
     text: str                  # normalised, and the identity used by declarations
     subject: str | None
+    subject_hash: str | None
+    formula: str | None
     budget: int | None
     variable_budget: bool
     outcome: str | None
     result: str | None
     spend: int | None
+
+    def resolved(self) -> dict[str, object]:
+        return {kind: value for kind, value in
+                (("subject", self.subject_hash), ("budget", self.budget),
+                 ("outcome", self.outcome), ("result", self.result),
+                 ("spend", self.spend)) if value is not None}
+
+    def signature(self) -> tuple:
+        """Language-neutral where it can be, and the raw text where it cannot —
+        so a subject changed in one rendering only still shows up as a difference."""
+        # Every field rendered as text: a signature holding None beside a string
+        # cannot be sorted, and sorting is what makes the comparison order-free.
+        return tuple(str(field) for field in
+                     (self.subject_hash or self.formula or "", self.budget,
+                      self.variable_budget, self.outcome, self.result, self.spend))
 
 
 # Statements §7 makes that no record decides. Keyed by the statement itself, so
@@ -285,14 +320,17 @@ def split_statements(body: str) -> list[str]:
             continue
         current.append(character)
     pieces.append("".join(current))
-    out = []
+    out: list[str] = []
     for piece in pieces:
         # A sentence stop, unless it is inside a version number. The earlier
         # look-behind demanded the character before the stop be a bracket or a
         # digit, so a stop after a closing backtick — which is how §7 writes most
         # of them — never split, and whole paragraphs stayed one statement.
         out.extend(re.split(r'(?<!\d)\.\s+(?=[«"`A-ZА-ЯҐЄІЇ])', piece))
-    return [normalise(part) for part in out if normalise(part)]
+    # Raw, not normalised: the backticks mark which part of a sentence is formula
+    # and which is prose, and that distinction is what lets the two translations
+    # be compared without comparing their languages.
+    return [part for part in out if normalise(part)]
 
 
 def term_hash(expression: str, glyphs: dict[str, str]) -> str | None:
@@ -319,9 +357,43 @@ def term_hash(expression: str, glyphs: dict[str, str]) -> str | None:
     return node_hash(0x02, 0x06, bytes.fromhex(left) + bytes.fromhex(right))
 
 
-def parse_claim(test: str, statement: str) -> Claim | None:
+def resolve_subject(subject: str | None, glyphs: dict[str, str],
+                    fallback: str | None) -> str | None:
+    """The subject as an identity, when the text determines one.
+
+    `·` refers back to the term the paragraph named; `H(X)` and glyph expressions
+    build directly. A subject naming something the Book does not define — `ghost`,
+    a store shape, a variable — has no identity here and is reported as such."""
+    if subject is None:
+        return None
+    subject = subject.strip().strip("`")
+    if subject in {"·", "·)"}:
+        return fallback
+    named = re.fullmatch(r'H\((\w+)\)', subject)
+    if named:
+        return glyphs.get(named.group(1))
+    reference = re.fullmatch(r'REF\(H\((\w+)\)\)', subject)
+    if reference and reference.group(1) in glyphs:
+        return node_hash(0x01, 0x01, bytes.fromhex(glyphs[reference.group(1)]))
+    return term_hash(subject, glyphs)
+
+
+def uncovered_clauses(statement: str) -> list[str]:
+    return [label for pattern, label in CLAUSES
+            if re.search(pattern, statement, re.I)]
+
+
+def parse_claim(test: str, raw: str, glyphs: dict[str, str],
+                fallback: str | None) -> Claim | None:
     """A statement becomes a claim when it says what something evaluates to,
     costs, or normalises to. Commentary stays commentary."""
+    # Whitespace-normalised: the two renderings wrap their lines differently, and
+    # a formula carrying a line break compares unequal to the same formula on one
+    # line, which reads as the texts disagreeing when they do not.
+    formula = next(iter(re.findall(r'`([^`]+)`', raw)), None)
+    if formula:
+        formula = re.sub(r'\s+', ' ', formula).strip()
+    statement = normalise(raw)
     budget, variable = None, False
     evaluation = re.search(r'eval\((.*),\s*([0-9]+|n)\s*\)', statement)
     subject = None
@@ -355,12 +427,24 @@ def parse_claim(test: str, statement: str) -> Claim | None:
 
     if outcome is None and result is None and spend is None:
         return None
-    return Claim(test, normalise(statement), subject, budget, variable,
-                 outcome, result, spend)
+    # The formula is tried first: a subject often carries trailing prose — "REF(H(K))
+    # on an empty store" — whose identity is determined by the formula alone.
+    # Only when the statement actually has a subject. "нормальна форма `APPLY(…)`"
+    # has none, and its single backticked span is the *result* — reading that as
+    # an identity made the audit demand the record be the thing it produced.
+    identity = None
+    if subject is not None:
+        identity = resolve_subject(formula, glyphs, fallback) \
+            or resolve_subject(subject, glyphs, fallback)
+    return Claim(test, statement, subject, identity, formula, budget,
+                 variable, outcome, result, spend)
 
 
 def satisfies(record: dict, claim: Claim, glyphs: dict[str, str]) -> bool:
     expected = record["expected"]
+    if claim.subject_hash is not None and \
+            claim.subject_hash not in {record.get("term"), record.get("bytes")}:
+        return False
     if claim.outcome is not None and expected.get("outcome") != claim.outcome:
         return False
     if claim.spend is not None and expected.get("atp_spent") != claim.spend:
@@ -399,6 +483,7 @@ def decide(claim: Claim, records: list[dict], glyphs: dict[str, str]) -> str | N
     return (f"no single record{rule} among "
             f"{', '.join(r['id'] for r in candidates) or 'none'} has "
             + ", ".join(filter(None, [
+                f"subject {claim.subject_hash[:12]}…" if claim.subject_hash else "",
                 f"outcome {claim.outcome}" if claim.outcome else "",
                 f"result {claim.result}" if claim.result else "",
                 f"spend {claim.spend}" if claim.spend is not None else ""])))
@@ -418,18 +503,25 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
     bound: set[str] = set()
     checked = 0
     unchecked: list[str] = []
+    unresolved: list[str] = []
+    uncovered: list[str] = []
     seen_declarations: set[str] = set()
-    tally_per_test: dict[str, int] = {}
+    signatures: dict[str, list] = {}
 
     for name, body in blocks:
         number = name.split("-")[1]
         mine = grouped.get(number, [])
         digests = set(re.findall(r'`([0-9a-f]{64})`', body))
+        statements = split_statements(body)
+        first_digest = next(iter(re.findall(r'`([0-9a-f]{64})`', body)), None)
         claims = [claim for claim in
-                  (parse_claim(name, statement) for statement in split_statements(body))
-                  if claim is not None]
+                  (parse_claim(name, statement, glyphs, first_digest)
+                   for statement in statements) if claim is not None]
+        for statement in statements:
+            for label in uncovered_clauses(normalise(statement)):
+                uncovered.append(f"{name}: {label}")
+        signatures[name] = sorted(claim.signature() for claim in claims)
 
-        tally_per_test[name] = len(claims)
         if not mine:
             outstanding = [c for c in claims
                            if c.text not in DECLARED and c.text not in EXCEPTIONS]
@@ -507,24 +599,35 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
             if failure:
                 problems.append(f"§7 {name}: “{claim.text[:70]}” — {failure}")
             else:
-                checked += 1
+                checked += len(claim.resolved())
+            if claim.subject is not None and claim.subject_hash is None:
+                unresolved.append(f"{name}: subject “{claim.subject[:40]}” names "
+                                  "nothing this text gives an identity to")
+            if claim.variable_budget:
+                unresolved.append(f"{name}: budget in “{claim.text[:40]}…” is a "
+                                  "variable rather than a value")
 
-    return bound, checked, unchecked, seen_declarations, tally_per_test
+    return {"bound": bound, "decided": checked, "declared": unchecked,
+            "unresolved": unresolved, "uncovered": uncovered,
+            "seen": seen_declarations, "signatures": signatures}
 
 
-def texts_state_the_same_claims(left: dict[str, int], right: dict[str, int],
+def texts_state_the_same_claims(left: dict[str, list], right: dict[str, list],
                                 problems: list[str]) -> None:
     """The two texts must make the same statements, test by test.
 
-    Otherwise a claim can be deleted from one language and its declaration stays
-    satisfied by the other — which is how deleting TV-10's compiler statement
-    from the normative text left this file green."""
+    Compared as structured signatures rather than as counts: equal counts are not
+    equal claims, and a subject changed in one rendering only kept the count
+    intact while the sentence said something else."""
     for test in sorted(set(left) | set(right)):
-        if left.get(test, 0) != right.get(test, 0):
+        here, there = left.get(test, []), right.get(test, [])
+        if here != there:
+            differing = [a for a, b in zip(here + [None] * len(there),
+                                           there + [None] * len(here)) if a != b]
             problems.append(
-                f"§7 {test} states {left.get(test, 0)} claim(s) in the normative "
-                f"text and {right.get(test, 0)} in the English rendering; the two "
-                "are supposed to say the same thing")
+                f"§7 {test} does not state the same predicates in both texts: "
+                f"{len(here)} and {len(there)} statement(s), first difference "
+                f"{str(differing[:1])[:90]}")
 
 
 def declarations_still_apply(seen: set[str], problems: list[str]) -> None:
@@ -632,18 +735,20 @@ def main() -> int:
         glyphs["FALSE"] = false_hash.group(1)
     anchor_matches(problems)
     suite_pins_this_spec(problems)
-    bound, checked, unchecked, seen, claims_uk = prose_matches_vectors(
-        uk, glyphs, proved, derived, problems)
+    report_uk = prose_matches_vectors(uk, glyphs, proved, derived, problems)
+    bound, checked, unchecked = (report_uk["bound"], report_uk["decided"],
+                                 report_uk["declared"])
     printed = inventory(uk, derived, bound, problems)
     english = translation_parity(uk, en, problems)
 
     # The same derivation, driven by the English text alone: an implementer who
     # cannot read the normative language must still reach every constant.
     english_derived = derivable_constants(en, problems)
-    english_bound, _, _, seen_en, claims_en = prose_matches_vectors(
-        en, glyphs, proved, english_derived, problems)
-    declarations_still_apply(seen | seen_en, problems)
-    texts_state_the_same_claims(claims_uk, claims_en, problems)
+    report_en = prose_matches_vectors(en, glyphs, proved, english_derived, problems)
+    english_bound = report_en["bound"]
+    declarations_still_apply(report_uk["seen"] | report_en["seen"], problems)
+    texts_state_the_same_claims(report_uk["signatures"], report_en["signatures"],
+                                problems)
     inventory(en, english_derived, english_bound, problems)
 
     # Counted against what the Book prints, not against everything the tools
@@ -659,10 +764,20 @@ def main() -> int:
     print(f"same inventory from the English text alone     : "
           f"{len(set(re.findall(r'[0-9a-f]{{64}}', en)) - english_derived - english_bound)}"
           " unaccounted")
-    print(f"§7 claims decided                              : {checked}")
-    print(f"§7 claims explicitly left undecided            : {len(unchecked)}")
+    print(f"§7 mechanical predicates decided               : {checked}")
+    print(f"  the five it decides: subject identity, budget, canonical outcome,")
+    print(f"  result hash, ATP spend — and nothing else")
+    print(f"§7 predicates the text does not resolve        : "
+          f"{len(report_uk['unresolved'])}")
+    for item in report_uk["unresolved"]:
+        print(f"    unresolved {item}")
+    print(f"§7 statements declared undecided               : {len(unchecked)}")
     for claim in unchecked:
-        print(f"    unchecked  {claim}")
+        print(f"    declared   {claim}")
+    clauses = sorted(set(report_uk["uncovered"]))
+    print(f"§7 clauses outside those predicates entirely   : {len(clauses)}")
+    for clause in clauses:
+        print(f"    uncovered  {clause}")
     print(f"elements compared across the two texts         : {english}")
 
     for problem in problems:
@@ -673,14 +788,16 @@ def main() -> int:
           f"  reading an implementation — re-derived from a construction the Book\n"
           f"  states, or bound to the record of the very test that names it, in\n"
           f"  either language. Every §7 paragraph has records filed under it or a\n"
-          f"  named exception whose witness is verified. Of its claims, {checked}\n"
-          f"  were decided against those records and {len(unchecked)} are listed\n"
-          f"  above as undecided, each with the reason it cannot be. The suite is\n"
-          f"  pinned to these exact bytes, and the English rendering carries the\n"
-          f"  same hashes, keywords and code.\n"
-          f"\n  This is a statement about the anchored revision and the predicates\n"
-          f"  named here. It is not a proof that the prose and the suite say the\n"
-          f"  same thing, and no earlier revision was audited.")
+          f"  named exception whose witness is verified, and the two texts state the\n"
+          f"  same predicates test by test. The suite is pinned to these exact bytes.\n"
+          f"\n  WHAT THIS IS NOT. It decides five mechanical predicates and no more.\n"
+          f"  {len(report_uk['unresolved'])} predicate(s) name something the text gives no identity to,\n"
+          f"  {len(unchecked)} statement(s) are declared undecided, and {len(clauses)} clause(s) — storage\n"
+          f"  access, forcing discipline, the memory invariant, the behaviour of a\n"
+          f"  superseded version — lie outside those predicates entirely and are\n"
+          f"  listed above rather than absorbed. This is not a proof that §7 and the\n"
+          f"  suite say the same thing, it does not claim an unmatched sentence is an\n"
+          f"  error, and no earlier revision was audited.")
     return 0
 
 

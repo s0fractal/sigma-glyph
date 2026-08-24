@@ -41,7 +41,11 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 import spec_audit  # noqa: E402
 
-EXPECTED_COLLATERAL = ("anchor", "vector suite pins")
+# Editing one rendering is, mechanically, the two texts stating different things.
+# That is a consequence of the edit rather than a separate finding, so it is
+# expected everywhere — except where a control is aimed at it.
+EXPECTED_COLLATERAL = ("anchor", "vector suite pins",
+                       "does not state the same predicates in both texts")
 
 
 def run(root: Path) -> tuple[int, str]:
@@ -123,8 +127,8 @@ def main() -> int:
         # FALSE is built from H(K); TV-4's stated normal form *is* ⟨K⟩. A wrong
         # K must take both with it, or the Book is not linked as this assumes.
         cascade=("§5.2 FALSE", "does not carry the same hashes",
-                 "has result ⟨K⟩",
-                 "has result APPLY(⟨K⟩,⟨K⟩)"))
+                 "result ⟨K⟩",
+                 "result APPLY(⟨K⟩,⟨K⟩)"))
 
     problems += expect(
         "B  an axiom whose construction is removed from the table",
@@ -135,7 +139,7 @@ def main() -> int:
                        '| S | `0001`+SHA-256("S") |',
                        '| S | see the reference implementation |'),
         cascade=("neither re-derived from a stated construction nor bound",
-                 "has result ⟨S⟩"))
+                 "result ⟨S⟩"))
 
     problems += expect(
         "C  the first theorem's construction deleted",
@@ -211,7 +215,12 @@ def main() -> int:
     problems += expect(
         "J  two tests' hashes swapped, both still present in the suite",
         "files as the subject of TV-", swap_subjects,
-        cascade=("neither re-derived from a stated construction nor bound",))
+        # The paragraph's own term changes, so every statement whose subject is
+        # written `·` stops resolving to the record it belongs to.
+        # Every statement written `eval(·, …)` loses the term it referred to, so
+        # the cascade is "the subject no longer matches", not one line of it.
+        cascade=("neither re-derived from a stated construction nor bound",
+                 "has subject"))
 
     def restate_price(root: Path) -> None:
         edit(root / "spec/book-1-truth.md", "**4 ATP** (force кореня 3 + R-I 1)",
@@ -220,7 +229,7 @@ def main() -> int:
 
     problems += expect(
         "K  a price restated in prose while the record keeps the old one",
-        "has result ⟨K⟩, spend 5", restate_price)
+        "result ⟨K⟩, spend 5", restate_price)
 
     problems += expect(
         "L  a constant printed that nothing derives, proves or binds",
@@ -267,14 +276,14 @@ def main() -> int:
 
     problems += expect(
         "P  an outcome swapped for one the records do not produce",
-        "has outcome atp_exhausted",
+        "outcome atp_exhausted",
         lambda r: edit(r / "spec/book-1-truth.md",
                        "DISSONANCE(Unresolved Reference)`, spent 4",
                        "DISSONANCE(ATP Exhausted)`, spent 4"))
 
     problems += expect(
         "Q  a compound normal form changed",
-        "has result APPLY(⟨I⟩,⟨I⟩)",
+        "result APPLY(⟨I⟩,⟨I⟩)",
         lambda r: edit(r / "spec/book-1-truth.md",
                        "нормальна форма `APPLY(⟨K⟩,⟨K⟩)`",
                        "нормальна форма `APPLY(⟨I⟩,⟨I⟩)`"))
@@ -322,7 +331,7 @@ def main() -> int:
 
     problems += expect(
         "U  two budgets' spends exchanged inside one test",
-        "has outcome atp_exhausted, spend 3",
+        "outcome atp_exhausted, spend 3",
         lambda r: edit(
             r / "spec/book-1-truth.md",
             "`eval(·,0)` = ATP Exhausted, spent 0 — без жодного звернення до "
@@ -333,15 +342,15 @@ def main() -> int:
             "відкинуті (force коштує 3 > 2); `eval(·,3)` = ATP Exhausted, spent 0"),
         # A swap breaks both statements, not one: each now describes the other's
         # budget. Requiring both is what distinguishes a swap from a typo.
-        cascade=("has outcome atp_exhausted, spend 0",))
+        cascade=("outcome atp_exhausted, spend 0",))
 
     problems += expect(
         "V  two evaluations' results exchanged inside one test",
-        "has result ⟨K⟩, spend 7",
+        "result ⟨K⟩, spend 7",
         lambda r: edit(r / "spec/book-1-truth.md",
                        "→ ⟨I⟩, 7 ATP; `APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP",
                        "→ ⟨K⟩, 7 ATP; `APPLY(S (K I) (K K), ghost)` → ⟨I⟩, 20 ATP"),
-        cascade=("has result ⟨I⟩, spend 20",))
+        cascade=("result ⟨I⟩, spend 20",))
 
     problems += expect(
         "W  the excepted statement's subject changed",
@@ -359,14 +368,57 @@ def main() -> int:
 
     problems += expect(
         "Y  a declared compiler statement changed",
-        "has result ⟨K⟩",
+        "result ⟨K⟩",
         lambda r: edit(r / "spec/book-1-truth.md", "`C1[λx.x] = ⟨I⟩`",
                        "`C1[λx.x] = ⟨K⟩`"))
 
     problems += expect(
         "Z  a declared statement deleted from one language only",
-        "claim(s) in the normative text and",
+        "does not state the same predicates in both texts",
         lambda r: edit(r / "spec/book-1-truth.md", "`C1[λx.x] = ⟨I⟩`. ", ""))
+
+    # --- the contract as it now stands, in both directions.
+
+    problems += expect(
+        "AA a resolvable subject changed to another term",
+        "has subject",
+        lambda r: [edit(r / f, was, now) for f, was, now in (
+            ("spec/book-1-truth.md", "`REF(H(K))` на **порожньому** сховищі",
+             "`REF(H(I))` на **порожньому** сховищі"),
+            ("spec/book-1-truth.en.md", "`REF(H(K))` on an **empty** store",
+             "`REF(H(I))` on an **empty** store"))])
+
+    problems += expect(
+        "AB a subject changed in one rendering only",
+        "does not state the same predicates in both texts",
+        lambda r: edit(r / "spec/book-1-truth.en.md", "APPLY(⟨I⟩, ghost)",
+                       "APPLY(⟨K⟩, ghost)"))
+
+    # And the other direction: a clause outside the five predicates must appear in
+    # the report rather than be absorbed by a passing run. This control asserts
+    # what the audit *says*, not that it fails — inverting such a clause is
+    # something this file cannot detect, and saying so is the honest contract.
+    with tempfile.TemporaryDirectory() as temporary:
+        root = copy_spec(Path(temporary))
+        edit(root / "spec/book-1-truth.md", "без жодного звернення до сховища",
+             "після звернення до сховища")
+        spoken = io.StringIO()
+        spec_audit.UK = root / "spec/book-1-truth.md"
+        spec_audit.EN = root / "spec/book-1-truth.en.md"
+        spec_audit.ANCHORS = root / "spec/ANCHORS.txt"
+        spec_audit.VECTORS = root / "tests/spec_conformance/vectors.json"
+        with contextlib.redirect_stdout(spoken), contextlib.redirect_stderr(io.StringIO()):
+            spec_audit.main()
+        said = spoken.getvalue()
+        # Only the ledger line: the closing summary is not printed when the run
+        # fails, and editing the Book always fails it on the anchor.
+        if "uncovered  TV-4: storage access" not in said:
+            problems.append("AC a clause outside the five predicates is not named "
+                            "in the report, so a passing run would look like a "
+                            "statement about it")
+        else:
+            print("OK   AC an inverted clause outside the predicates is reported, "
+                  "not absorbed")
 
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)

@@ -11,21 +11,29 @@ turned out to be right.
 fifteen constants the Book prints, in both languages — ten re-derived from
 constructions the Book states, the rest proved by recomputation from the normative
 suite's store and bound to the record of the test that names them. It then reads
-§7 as **statements** rather than as properties: each is parsed into one claim —
-subject, budget, outcome, result, spend — and must be satisfied by a single record
-filed under that test, or by one named rule, or be declared undecided with the
-reason. Nineteen claims are decided that way and four are declared, each keyed to
-its exact sentence so that editing or deleting it invalidates the declaration.
+§7 statement by statement and decides **five mechanical predicates** — subject
+identity, budget, canonical outcome, result hash, ATP spend — each statement
+having to satisfy all of its resolved predicates against one record filed under
+that test. Forty-five predicates are decided that way. Six it cannot resolve, four
+statements are declared undecided keyed to their exact sentences, and five clauses
+— storage access, forcing discipline, the memory invariant, the behaviour of a
+superseded version — lie outside the five entirely and are named rather than
+absorbed.
 [`tests/spec_audit_selftest.py`](../tests/spec_audit_selftest.py) breaks all of it
-twenty-six ways and requires the audit to fail for each.
+twenty-eight ways and requires the audit to fail for each, including one
+control in the other direction: an inverted clause outside the five predicates
+must appear in the report, since a passing run must not read as a statement
+about it.
 **Revisions.** The first version of this ADR said the audit "re-derives every
 constant": it derived nine of fifteen, matched digests against the whole suite
 rather than the test that named them, and compared no numbers. The second said it
 compared "every budget, spend, outcome and normal form": it compared them as
 independent sets, so a spend could move between budgets and a result between
-terms with nothing changed. Three rounds of external review reproduced all seven
-gaps. Each sentence above states only what is now checked, and the audit reports
-what it leaves undecided rather than passing over it.
+terms with nothing changed. The third read statements but never compared the subject it had
+parsed, and counted a statement as decided while its remaining clauses went
+unread. Four rounds of external review reproduced thirteen gaps. The contract
+above is deliberately narrow: this file decides predicates, not statements, and
+does not claim that an unmatched sentence is an error.
 
 ## Problem
 

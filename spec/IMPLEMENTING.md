@@ -96,12 +96,24 @@ contradiction was found — and it reports the four it does not decide rather th
 passing over them. That is not a proof that the prose and the suite say the same
 thing, and no earlier revision was audited.
 
-The audit also compares what §7 *says* against what the suite recorded: every
-stated budget, spend, outcome and normal form must match the records filed under
-that test. Four claims are declared undecided — a statement quantified over every
-budget, a claim about what the compiler emits rather than about an evaluation, and
-a note recording how v0.4.x behaved — and the run fails if an undeclared one
-appears, or if a declaration stops applying. One claim does not yet have a machine-readable filing — TV-12's second
+The audit also compares what §7 *says* against what the suite recorded, and it is
+worth being exact about how far that goes. It decides **five mechanical
+predicates** and no more — subject identity, budget, canonical outcome, result
+hash, ATP spend — and a statement must have all of its *resolved* predicates
+satisfied by one record filed under that test. Everything else it reports rather
+than absorbs:
+
+- **6 predicates it cannot resolve**, because the text names something it gives no
+  identity to: `ghost`, a store shape, a budget written as a variable;
+- **4 statements declared undecided**, each keyed to its exact sentence, so
+  editing or deleting one invalidates the declaration;
+- **5 clauses outside those predicates entirely** — that an evaluation touched no
+  store, that a branch was never forced, that `size − 1 ≤ spent` held throughout,
+  and what v0.4.x used to do. Inverting any of those would not fail this audit,
+  which is why the run names them.
+
+The two texts must state the same predicates test by test, so a sentence altered
+in one rendering alone is caught even where its content is not decidable. One claim does not yet have a machine-readable filing — TV-12's second
 half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, is recorded by `EV-GENESIS-BARE`, whose note
 does not name TV-12. The audit carries that as a named exception which fails the
 run if it ever stops reproducing, so the exception cannot outlive the defect.
