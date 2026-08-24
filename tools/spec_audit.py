@@ -226,6 +226,7 @@ class Report(NamedTuple):
     bound: set
     decided: int
     bindings: int
+    proofs: int
     declared: list
     unresolved: list
     uncovered: list
@@ -550,15 +551,21 @@ STORE_ONLY = {
 
 def account_for_digests(name: str, digests: set[str], mine: list[dict],
                         owner: dict[str, str], proved: set[str],
-                        derived: set[str], problems: list[str]) -> set[str]:
-    """A digest belongs to the test that prints it, or it is reported."""
-    found = set()
+                        derived: set[str],
+                        problems: list[str]) -> tuple[set[str], set[str]]:
+    """A digest belongs to the test that prints it, or it is reported.
+
+    Returns the two routes separately. A digest no record carries is not a record
+    binding, however well the store proves it, and adding the two together made
+    the report say five were bound to records and then that one of them was not.
+    """
+    carried, store_only = set(), set()
     for digest in sorted(digests):
         elsewhere = owner.get(digest)
         here = any(digest in vector_digests(v) for v in mine)
         exception = STORE_ONLY.get(digest)
         if here:
-            found.add(digest)
+            carried.add(digest)
             if exception and exception[0] == name:
                 problems.append(
                     f"§7 {name}: the store-only entry for {digest[:12]}… is no "
@@ -570,14 +577,14 @@ def account_for_digests(name: str, digests: set[str], mine: list[dict],
                 f"subject of TV-{elsewhere}. Presence in the suite is not the "
                 "same claim as belonging to this test")
         elif exception and exception[0] == name and digest in proved:
-            found.add(digest)
+            store_only.add(digest)
         elif digest not in derived:
             problems.append(
                 f"§7 {name} names {digest[:12]}…, which is in no record filed "
                 f"under {name}. Being present in the suite's store is not the "
                 "same as belonging to this test; if it genuinely cannot be "
                 "carried by a record, name it in STORE_ONLY with the reason")
-    return found
+    return carried, store_only
 
 
 def review_exception(name: str, claim: Claim, mine: list[dict], by_id: dict,
@@ -674,6 +681,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
     bound: set[str] = set()
     checked = 0
     bindings = 0
+    proofs = 0
     unchecked: list[str] = []
     unresolved: list[str] = []
     uncovered: list[str] = []
@@ -697,10 +705,11 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
         if not mine and unfiled(name, claims, digests, derived, problems):
             continue
 
-        found = account_for_digests(name, digests, mine, owner, proved, derived,
-                                    problems)
-        bound |= found
-        bindings += len(found)
+        carried, store_only = account_for_digests(name, digests, mine, owner,
+                                                  proved, derived, problems)
+        bound |= carried | store_only
+        bindings += len(carried)
+        proofs += len(store_only)
 
         for claim in claims:
             decided, note = review_claim(name, claim, mine, by_id, glyphs,
@@ -709,8 +718,8 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
             if note:
                 unchecked.append(note)
 
-    return Report(bound, checked, bindings, unchecked, unresolved, uncovered,
-                  seen_declarations, signatures)
+    return Report(bound, checked, bindings, proofs, unchecked, unresolved,
+                  uncovered, seen_declarations, signatures)
 
 
 def texts_state_the_same_claims(left: dict[str, list], right: dict[str, list],
@@ -870,10 +879,10 @@ def main() -> int:
     # touched: a figure larger than its own subject is the defect this file spent
     # two rounds learning to state precisely.
     printed_set = set(re.findall(DIGEST, uk))
-    print(f"constants printed in the normative text        : {printed}")
+    print(f"constants accounted for                        : {printed}")
     print(f"  derived from a construction the Book states  : {len(printed_set & derived)}")
-    print(f"  bound to the record of the test that names it : {len(bound)}")
-    print(f"    of those, also proved by the suite's store  : {len(bound & proved)}")
+    print(f"  bound to a record filed under the same test  : {report_uk.bindings}")
+    print(f"  named store-only proofs, carried by no record: {report_uk.proofs}")
     print(f"  unaccounted for                              : "
           f"{len(printed_set - derived - bound)}")
     print(f"same inventory from the English text alone     : "
@@ -882,8 +891,7 @@ def main() -> int:
     print(f"§7 instances of the five predicates decided    : {checked}")
     print("  the five: subject identity, budget, canonical outcome, result hash,")
     print("  ATP spend — and nothing else")
-    print(f"§7 digest bindings verified                    : {report_uk.bindings}")
-    print(f"  of which store-proved but carried by no record: {len(STORE_ONLY)}")
+
     print(f"§7 predicates the text does not resolve        : "
           f"{len(report_uk.unresolved)}")
     for item in report_uk.unresolved:
@@ -903,7 +911,9 @@ def main() -> int:
         return 1
     print(f"\nSPEC-AUDIT: every constant the Book prints is accounted for without\n"
           f"  reading an implementation — re-derived from a construction the Book\n"
-          f"  states, or bound to the record of the very test that names it, in\n"
+          f"  states, bound to a record filed under the very test that names it,\n"
+          f"  or named as one of {len(STORE_ONLY)} store-only proof(s) the store settles by\n"
+          f"  recomputation and no record carries, in\n"
           f"  either language. Every §7 paragraph has records filed under it or a\n"
           f"  named exception whose witness is verified, and the two texts state the\n"
           f"  same predicates test by test. The suite is pinned to these exact bytes.\n"

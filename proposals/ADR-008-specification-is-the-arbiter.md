@@ -8,14 +8,16 @@ who has not read this code" as the single most valuable missing datum, and gives
 a reason for its absence. The reason turned out to be wrong; two other sentences
 turned out to be right.
 **Evidence:** [`tools/spec_audit.py`](../tools/spec_audit.py) accounts for all
-fifteen constants the Book prints, in both languages — ten re-derived from
-constructions the Book states, the rest proved by recomputation from the normative
-suite's store and bound to the record of the test that names them. It then reads
+fifteen constants the Book prints, in both languages, by three routes counted
+apart: **ten** re-derived from constructions the Book states, **four** bound to a
+record filed under the very test that prints them, and **one** named store-only
+proof the suite's store settles by recomputation and no record carries. It then reads
 §7 statement by statement and decides **five mechanical predicates** — subject
 identity, budget, canonical outcome, result hash, ATP spend — each statement
 having to satisfy all of its resolved predicates against one record filed under
-that test. Forty instances of those predicates are decided that way, and five digest
-bindings verified separately. Six predicates it cannot resolve, four
+that test. Forty instances of those predicates are decided that way; the constants are
+counted separately and by route, since a digest no record carries is not a record
+binding. Six predicates it cannot resolve, four
 statements are declared undecided keyed to their exact sentences, and five clauses
 — storage access, forcing discipline, the memory invariant, the behaviour of a
 superseded version — lie outside the five entirely and are named rather than

@@ -100,12 +100,14 @@ The audit also compares what §7 *says* against what the suite recorded, and it 
 worth being exact about how far that goes. It decides **five mechanical
 predicates** and no more — subject identity, budget, canonical outcome, result
 hash, ATP spend — and a statement must have all of its *resolved* predicates
-satisfied by one record filed under that test. The run prints four ledgers:
+satisfied by one record filed under that test. The run prints these ledgers:
 
-- **40 instances of the five predicates decided**, and separately **5 digest
-  bindings verified** — a digest belongs to the test that prints it, and one of
-  the five is a named exception, the compiled term whose hash the store proves
-  and no record carries;
+- **40 instances of the five predicates decided**, and separately the constants:
+  **10 derived** from constructions the Book states, **4 bound** to a record filed
+  under the very test that prints them, and **1 named store-only proof** — the
+  compiled term whose hash the suite's store settles by recomputation and which no
+  record carries. A digest no record carries is not a record binding, however well
+  the store proves it, so it is counted where a reader can see it;
 - **6 predicates it cannot resolve**, because the text names something it gives no
   identity to: `ghost`, a store shape, a budget written as a variable;
 - **4 statements declared undecided**, each keyed to its exact sentence, so
@@ -167,8 +169,9 @@ outcomes and results as separate sets, so TV-4's two budgets could exchange thei
 costs and TV-11's two evaluations their results with every set intact. §7 is now
 read one statement at a time, and a statement must be satisfied whole.
 
-The audit therefore reports four ledgers rather than one verdict: predicate
-instances **decided**, digest bindings **verified**, predicates it cannot
+The audit therefore reports several ledgers rather than one verdict: predicate
+instances **decided**, constants **derived**, **bound** or held as a named
+**store-only proof**, predicates it cannot
 **resolve**, statements **declared** undecided, and clauses **outside** its reach
 entirely. It does not claim that an unmatched sentence is an error — that cannot
 be guaranteed for arbitrary prose by this parser. That accounting, rather than a
