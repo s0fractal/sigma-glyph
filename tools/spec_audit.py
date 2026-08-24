@@ -45,6 +45,7 @@ ANCHORS = ROOT / "spec/ANCHORS.txt"
 VECTORS = ROOT / "tests/spec_conformance/vectors.json"
 
 RFC = r'\b(MUST NOT|MUST|SHOULD NOT|SHOULD|MAY)\b'
+DIGEST = r'\b[0-9a-f]{64}\b'
 
 
 def sha(data: bytes) -> str:
@@ -289,7 +290,7 @@ EXCEPTIONS = {
 
 
 def vector_digests(vector: dict) -> set[str]:
-    return set(re.findall(r'\b[0-9a-f]{64}\b', json.dumps(vector)))
+    return set(re.findall(DIGEST, json.dumps(vector)))
 
 
 def vectors_by_test(suite: dict) -> dict[str, list[dict]]:
@@ -312,8 +313,18 @@ def subjects_by_test(suite: dict) -> dict[str, str]:
 
 
 def test_vector_blocks(text: str) -> list[tuple[str, str]]:
+    """Split on the bold headings rather than matching across them.
+
+    The single expression this replaces nested a lazy `.*?` inside a lookahead
+    and scanned super-linearly; splitting first is linear and says what it means.
+    """
     section = text[text.index("## 7. Test Vectors"):text.index("## 8. Specification")]
-    return re.findall(r'\*\*(TV-\d+)[^*]*\*\*:?(.*?)(?=\n\*\*|\Z)', section, re.S)
+    blocks = []
+    for chunk in re.split(r'\n(?=\*\*)', section):
+        heading = re.match(r'\*\*(TV-\d+)[^*]{0,40}\*\*:?', chunk)
+        if heading:
+            blocks.append((heading.group(1), chunk[heading.end():]))
+    return blocks
 
 
 def normalise(statement: str) -> str:
@@ -395,6 +406,25 @@ def uncovered_clauses(statement: str) -> list[str]:
             if re.search(pattern, statement, re.I)]
 
 
+def stated_outcome(statement: str) -> str | None:
+    for words, value in OUTCOME_WORDS.items():
+        if re.search(r'[=→]\s*(?:DISSONANCE\()?' + words, statement):
+            return value
+    return None
+
+
+def stated_result(statement: str) -> str | None:
+    tail = re.search(r'(?:[=→]|нормальна форма|normal form)\s*'
+                     r'(APPLY\(.{0,120}?\)(?=,|$)|⟨\w+⟩)', statement)
+    return tail.group(1).strip() if tail else None
+
+
+def stated_spend(statement: str) -> int | None:
+    spends = [int(n) for n in re.findall(r'\b(\d+) ATP\b', statement)] \
+        + [int(n) for n in re.findall(r'spent (\d+)', statement)]
+    return spends[0] if spends else None
+
+
 def parse_claim(test: str, raw: str, glyphs: dict[str, str],
                 fallback: str | None) -> Claim | None:
     """A statement becomes a claim when it says what something evaluates to,
@@ -407,7 +437,7 @@ def parse_claim(test: str, raw: str, glyphs: dict[str, str],
         formula = re.sub(r'\s+', ' ', formula).strip()
     statement = normalise(raw)
     budget, variable = None, False
-    evaluation = re.search(r'eval\((.*),\s*([0-9]+|n)\s*\)', statement)
+    evaluation = re.search(r'eval\((.*),\s*(\d+|n)\s*\)', statement)
     subject = None
     if evaluation:
         subject = evaluation.group(1).strip()
@@ -420,22 +450,9 @@ def parse_claim(test: str, raw: str, glyphs: dict[str, str],
         if arrow and arrow.group(1).strip():
             subject = arrow.group(1).strip()
 
-    outcome = None
-    for words, value in OUTCOME_WORDS.items():
-        if re.search(r'(?:=|→)\s*(?:DISSONANCE\()?' + words, statement):
-            outcome = value
-
-    result = None
-    tail = re.search(r'(?:=|→|нормальна форма|normal form)\s*'
-                     r'(APPLY\(.*?\)(?=,|$)|⟨\w+⟩)', statement)
-    if tail:
-        result = tail.group(1).strip()
-
-    spend = None
-    spends = [int(n) for n in re.findall(r'\b(\d+) ATP\b', statement)] \
-        + [int(n) for n in re.findall(r'spent (\d+)', statement)]
-    if spends:
-        spend = spends[0]
+    outcome = stated_outcome(statement)
+    result = stated_result(statement)
+    spend = stated_spend(statement)
 
     if outcome is None and result is None and spend is None:
         return None
@@ -678,7 +695,7 @@ def inventory(text: str, derived: set[str], bound: set[str],
     route on its own — a digest the store happens to contain can be quoted under a
     paragraph it has nothing to do with, so store proof only ever strengthens a
     binding that already exists."""
-    printed = set(re.findall(r'\b[0-9a-f]{64}\b', text))
+    printed = set(re.findall(DIGEST, text))
     if not enough(printed, 12, "constants printed in the text", problems):
         return 0
     unaccounted = sorted(printed - derived - bound)
@@ -778,7 +795,7 @@ def main() -> int:
     # Counted against what the Book prints, not against everything the tools
     # touched: a figure larger than its own subject is the defect this file spent
     # two rounds learning to state precisely.
-    printed_set = set(re.findall(r'\b[0-9a-f]{64}\b', uk))
+    printed_set = set(re.findall(DIGEST, uk))
     print(f"constants printed in the normative text        : {printed}")
     print(f"  derived from a construction the Book states  : {len(printed_set & derived)}")
     print(f"  bound to the record of the test that names it : {len(bound)}")
