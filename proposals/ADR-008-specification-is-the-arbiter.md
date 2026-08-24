@@ -7,10 +7,36 @@ project uses for Book text. This ADR does the work and stops before the gate.
 who has not read this code" as the single most valuable missing datum, and gives
 a reason for its absence. The reason turned out to be wrong; two other sentences
 turned out to be right.
-**Evidence:** [`tools/spec_audit.py`](../tools/spec_audit.py) re-derives every
-constant the Book prints from the Book alone, in both languages, and
-[`tests/spec_audit_selftest.py`](../tests/spec_audit_selftest.py) breaks that
-property nine ways and requires the audit to fail for each.
+**Evidence:** [`tools/spec_audit.py`](../tools/spec_audit.py) accounts for all
+fifteen constants the Book prints, in both languages, by three routes counted
+apart: **ten** re-derived from constructions the Book states, **four** bound to a
+record filed under the very test that prints them, and **one** named store-only
+proof the suite's store settles by recomputation and no record carries. It then reads
+§7 statement by statement and decides **five mechanical predicates** — subject
+identity, budget, canonical outcome, result hash, ATP spend — each statement
+having to satisfy all of its resolved predicates against one record filed under
+that test. Forty instances of those predicates are decided that way; the constants are
+counted separately and by route, since a digest no record carries is not a record
+binding. Six predicates it cannot resolve, four
+statements are declared undecided keyed to their exact sentences, and five clauses
+— storage access, forcing discipline, the memory invariant, the behaviour of a
+superseded version — lie outside the five entirely and are named rather than
+absorbed.
+[`tests/spec_audit_selftest.py`](../tests/spec_audit_selftest.py) breaks all of it
+thirty ways and requires the audit to fail for each, including one
+control in the other direction: an inverted clause outside the five predicates
+must appear in the report, since a passing run must not read as a statement
+about it.
+**Revisions.** The first version of this ADR said the audit "re-derives every
+constant": it derived nine of fifteen, matched digests against the whole suite
+rather than the test that named them, and compared no numbers. The second said it
+compared "every budget, spend, outcome and normal form": it compared them as
+independent sets, so a spend could move between budgets and a result between
+terms with nothing changed. The third read statements but never compared the subject it had
+parsed, and counted a statement as decided while its remaining clauses went
+unread. Four rounds of external review reproduced thirteen gaps. The contract
+above is deliberately narrow: this file decides predicates, not statements, and
+does not claim that an unmatched sentence is an error.
 
 ## Problem
 
@@ -45,10 +71,24 @@ audit without reading. A specification that appoints an implementation as its ow
 arbiter is not the source of truth for its own semantics.
 
 A precedence rule is exercised only when a discrepancy exists. `spec_audit.py`
-now checks whether one does: every hash the §7 prose claims must appear in the
-normative suite, and the suite must be pinned to the exact bytes of the Book that
-ships. **Today no discrepancy exists**, so the clause has never decided anything —
-it only tells a stranger where authority lives, and it puts it in the wrong place.
+now checks whether one does, over the classes it can decide mechanically: every
+digest §7 quotes must belong to the record of the test that quotes it; every
+budget, spend, outcome and normal form the prose states must match those records;
+and the suite must be pinned to the exact bytes of the Book that ships.
+
+**Across those classes, one discrepancy exists**, and it is a filing gap rather
+than a contradiction: TV-12 claims `eval(H(I), n) = ⟨I⟩` at 0 ATP, `EV-GENESIS-BARE`
+records exactly that, and nothing machine-readable connects them. The audit
+carries it as a named exception that fails the run if it stops reproducing.
+
+At the current anchored revision, no contradiction was detected within the
+predicates the audit checks explicitly — and it now reports what it leaves
+undecided rather than passing over it. Whether the clause ever decided anything
+historically was not audited, and this ADR does not claim it did not.
+
+What can be said without any of that: the clause tells a stranger their
+disagreement with the specification is settled by code, and that is the wrong
+place for the authority regardless of whether it has ever been exercised.
 
 ## Proposal
 
@@ -90,7 +130,8 @@ becomes the Book.
 | anchor after this edit | `d73740534d1d52e90fc7252b5065198800ca6b99fc702f42a77e51c8386d8ff7` |
 | document bytes | 23,749 → 24,590 |
 | behavioural change | none — no rule, price, constant or vector moves |
-| version | a PATCH to Book I: prose only, oracle and suite unchanged |
+| also in scope | `EV-GENESIS-BARE`'s note gains `TV-12:`, which files the one prose claim the suite proves but does not connect. That edits `tests/spec_conformance/vectors.json`, which is anchored, so it belongs to the same governed step |
+| version | a PATCH to Book I: its semantics are unchanged — no rule, price, constant or vector moves. The suite's **metadata** does change (one note gains `TV-12:`) and is re-anchored with it, so "suite unchanged" would be false |
 
 Adopting it therefore requires a new ANCHORS bundle section, the `book1_anchor`
 field of the vector suite re-pinned, and the English rendering updated in step —
