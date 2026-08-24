@@ -21,3 +21,12 @@ this code.
 | source | [`paper.md`](paper.md), bibliography in [`references.bib`](references.bib) |
 | build | [`build.sh`](build.sh) — pandoc 3.10.2 with `--citeproc`, tectonic 0.17.0 |
 | licence | CC BY 4.0, as recorded in the deposit |
+
+`paper.pdf` as committed **is** the deposited artifact, built from `paper.md` as
+it stood at `7ecba6a`. `paper.md` has since gained a correction: §7's reason for
+the missing independent implementation was wrong, and the marked note says so.
+A rebuild therefore no longer reproduces the deposited PDF, which is the normal
+state of a frozen deposit and not a defect — the commit is named above. What must
+not happen is rebuilding the PDF and committing it as though it carried the DOI.
+A correction worth depositing is a new version under the same concept DOI, with
+its own archived commit, and that is the author's decision.

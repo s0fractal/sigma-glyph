@@ -10,6 +10,19 @@
 > anchored source governs, until the maintainer roster adjudicates and re-anchors
 > an English normative edition (§8). All hashes, byte strings, code, tables, ADR
 > references, and RFC 2119 keywords are reproduced verbatim.
+>
+> **That last sentence is checked, not promised.** `tools/spec_audit.py` requires
+> this file and the normative one to carry the same 64-hex hashes in the same
+> order, the same RFC 2119 keywords in the same order, and the same code blocks
+> once translated words are set aside; it also re-derives every constant printed
+> here from the constructions printed here. CI fails if the two texts drift.
+>
+> **This file is not anchored.** `spec/ANCHORS.txt` anchors the normative Book,
+> not this rendering, so these bytes carry no integrity guarantee of their own —
+> only the checked relationship above. If you are implementing from this text, read
+> [`IMPLEMENTING.md`](IMPLEMENTING.md) first: it shows that every constant is
+> derivable without our code, and states the two places where the Book still
+> points at an implementation.
 
 **Scope:** This document defines everything — and only what — two independent
 nodes need in order to reach consensus on the hash of a computation's result.

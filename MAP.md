@@ -23,6 +23,7 @@ present on a ref the reviewer was not looking at.
 | `ADR-005` | this repo, `master` | `proposals/ADR-005-wave-totality.md` | `proposals/ADR-005-wave-totality.md` |
 | `ADR-006` | this repo, `master` | `proposals/ADR-006-annotation-federation.md` | `ROADMAP.md` |
 | `ADR-007` | this repo, `master` | `proposals/ADR-007-governed-anchors.md` | `README.md` |
+| `ADR-008` | this repo, `master` | `proposals/ADR-008-specification-is-the-arbiter.md` | `spec/IMPLEMENTING.md`, `papers/one-integer-for-work-and-memory/paper.md` |
 | `Book I` | this repo, `master` | `spec/book-1-truth.md` | `ARCHITECT.md` |
 | `Book II` | this repo, `master` | `spec/book-2-navigation.md` | `ARCHITECT.md` |
 | `Book III` | this repo, `master` | `spec/book-3-federation.md` | `ARCHITECT.md` |

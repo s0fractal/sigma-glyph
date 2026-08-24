@@ -811,11 +811,26 @@ evidence about specification ambiguity and about coding slips, and it is weak
 evidence about *specification* error: three implementations of a wrong sentence
 agree perfectly. Nor is the specification yet in a state that makes an
 independent implementation easy: the normative Book I is Ukrainian, the English
-rendering is explicitly informative, and §5.1 defers the three 32-byte genesis
-atom values to `impl/sigma_glyph.py` rather than printing them — so an
-implementer must currently read the reference code. No external party has
+rendering is explicitly informative and is not itself anchored, and §7 designates
+the reference oracle as the arbiter where the prose and the normative vector suite
+disagree — which tells an implementer that their disagreement with the
+specification is settled by code they must read to consult. No external party has
 implemented Book I. That is the single most valuable missing datum in this
 paper.
+
+> **Correction (2026-08-24), after the version deposited at
+> [10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651).** The
+> deposited text gave a different reason: that §5.1 defers the three 32-byte
+> genesis atom values to `impl/sigma_glyph.py` "so an implementer must currently
+> read the reference code". The premise is true and the inference is not. §5.1
+> states the construction, §2 states the hash, §5.3 pins what `SHA-256("…")`
+> means, and §7's TV-1 prints `SHA-256("I")` in full; three lines of arithmetic
+> derive all three atoms with no store and no reference implementation.
+> `tools/spec_audit.py` now re-derives every constant the Book prints from the
+> Book alone, in both languages, on every CI run, and
+> `tests/spec_audit_selftest.py` breaks that property nine ways and requires the
+> audit to fail for each. The sentence above states what the audit found instead.
+> See `spec/IMPLEMENTING.md` and `proposals/ADR-008-specification-is-the-arbiter.md`.
 
 **The model–code gap is empirical and finite.** No theorem relates
 `EvalMachine.lean` to `impl/sigma_glyph.py`. What relates them is 33 evaluation
