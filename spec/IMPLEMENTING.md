@@ -10,18 +10,23 @@ the genesis atoms, so you would have to read it.
 
 **That reason is wrong, and this page is the demonstration.**
 [`tools/spec_audit.py`](../tools/spec_audit.py) accounts for all fifteen 64-hex
-constants the Book prints, on every CI run and in either language, by one of two
-routes that need no implementation:
+constants the Book prints, on every CI run and in either language, by three routes
+that need no implementation, counted apart:
 
 - **ten** are re-derived from a construction the Book itself states — the genesis
   axioms, the reason hashes, `FALSE`, the Canonical Invalid Object, and every
   vector that prints its bytes;
-- the rest are **proved by recomputation from the normative suite's own store**,
-  which maps a hash to the bytes that produce it, and **bound to the record of
-  the test that names them** — not merely found somewhere in the file.
+- **four** are **bound to a record filed under the very test that prints them** —
+  not merely found somewhere in the suite;
+- **one** is a **named store-only proof**: the compiled term of TV-10, whose hash
+  the suite's store settles by recomputation and which the record filed under
+  TV-10 does not carry, because that record evaluates an application of it. It is
+  named individually, with its test and its reason, and the run fails if its test
+  stops quoting it or if a record starts carrying it.
 
-Nothing printed is unaccounted for. The distinction in that last line is not
-pedantry: an earlier version of this audit asked only whether a digest appeared
+Nothing printed is unaccounted for, and the three are not interchangeable: a
+digest no record carries is not a record binding however well the store proves it.
+An earlier version of this audit asked only whether a digest appeared
 anywhere in the suite, and stayed green when two tests' hashes were swapped.
 
 ## The one convention the text leaves to inference, and how to settle it

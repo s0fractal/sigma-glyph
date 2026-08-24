@@ -223,7 +223,7 @@ CLAUSES = (
 class Report(NamedTuple):
     """What one pass over a text found. A NamedTuple rather than a dict so the
     fields carry their types to the caller instead of arriving as `object`."""
-    bound: set
+    accounted: set
     decided: int
     bindings: int
     proofs: int
@@ -678,7 +678,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
     if not enough(blocks, 10, "test-vector paragraphs in §7", problems):
         return set(), 0, []
 
-    bound: set[str] = set()
+    accounted: set[str] = set()
     checked = 0
     bindings = 0
     proofs = 0
@@ -707,7 +707,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
 
         carried, store_only = account_for_digests(name, digests, mine, owner,
                                                   proved, derived, problems)
-        bound |= carried | store_only
+        accounted |= carried | store_only
         bindings += len(carried)
         proofs += len(store_only)
 
@@ -718,7 +718,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
             if note:
                 unchecked.append(note)
 
-    return Report(bound, checked, bindings, proofs, unchecked, unresolved,
+    return Report(accounted, checked, bindings, proofs, unchecked, unresolved,
                   uncovered, seen_declarations, signatures)
 
 
@@ -768,19 +768,20 @@ def declarations_still_apply(seen: set[str], problems: list[str]) -> None:
                 "excuses nothing")
 
 
-def inventory(text: str, derived: set[str], bound: set[str],
+def inventory(text: str, derived: set[str], accounted: set[str],
               problems: list[str]) -> int:
     """Every constant the Book prints must be accounted for.
 
-    Two routes, and only two: re-derived from a construction the text states, or
-    bound to the record of the test that names it. Store proof is *not* a third
-    route on its own — a digest the store happens to contain can be quoted under a
-    paragraph it has nothing to do with, so store proof only ever strengthens a
-    binding that already exists."""
+    Three routes, and only three: re-derived from a construction the text states;
+    bound to a record filed under the very test that prints it; or held as a
+    **named** `STORE_ONLY` proof, which is not "the store happens to contain it"
+    — that let any stored key satisfy any paragraph with records — but one entry
+    naming the digest, its test and its reason, failing when the test stops
+    quoting it and when a record starts carrying it."""
     printed = set(re.findall(DIGEST, text))
     if not enough(printed, 12, "constants printed in the text", problems):
         return 0
-    unaccounted = sorted(printed - derived - bound)
+    unaccounted = sorted(printed - derived - accounted)
     for digest in unaccounted:
         where = re.findall(r'\*\*(TV-\d+|[^*]{0,30})\*\*',
                            text[max(0, text.find(digest) - 300):text.find(digest)])
@@ -859,21 +860,21 @@ def main() -> int:
     anchor_matches(problems)
     suite_pins_this_spec(problems)
     report_uk = prose_matches_vectors(uk, glyphs, proved, derived, problems)
-    bound, checked, unchecked = (report_uk.bound, report_uk.decided,
-                                 report_uk.declared)
-    printed = inventory(uk, derived, bound, problems)
+    accounted, checked, unchecked = (report_uk.accounted, report_uk.decided,
+                                     report_uk.declared)
+    printed = inventory(uk, derived, accounted, problems)
     english = translation_parity(uk, en, problems)
 
     # The same derivation, driven by the English text alone: an implementer who
     # cannot read the normative language must still reach every constant.
     english_derived = derivable_constants(en, problems)
     report_en = prose_matches_vectors(en, glyphs, proved, english_derived, problems)
-    english_bound = report_en.bound
+    english_accounted = report_en.accounted
     declarations_still_apply(report_uk.seen | report_en.seen, problems)
     store_only_entries_still_apply(uk, problems)
     texts_state_the_same_claims(report_uk.signatures, report_en.signatures,
                                 problems)
-    inventory(en, english_derived, english_bound, problems)
+    inventory(en, english_derived, english_accounted, problems)
 
     # Counted against what the Book prints, not against everything the tools
     # touched: a figure larger than its own subject is the defect this file spent
@@ -884,9 +885,9 @@ def main() -> int:
     print(f"  bound to a record filed under the same test  : {report_uk.bindings}")
     print(f"  named store-only proofs, carried by no record: {report_uk.proofs}")
     print(f"  unaccounted for                              : "
-          f"{len(printed_set - derived - bound)}")
+          f"{len(printed_set - derived - accounted)}")
     print(f"same inventory from the English text alone     : "
-          f"{len(set(re.findall(r'[0-9a-f]{{64}}', en)) - english_derived - english_bound)}"
+          f"{len(set(re.findall(r'[0-9a-f]{{64}}', en)) - english_derived - english_accounted)}"
           " unaccounted")
     print(f"§7 instances of the five predicates decided    : {checked}")
     print("  the five: subject identity, budget, canonical outcome, result hash,")
