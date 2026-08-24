@@ -123,18 +123,19 @@ def main() -> int:
         # FALSE is built from H(K); TV-4's stated normal form *is* ⟨K⟩. A wrong
         # K must take both with it, or the Book is not linked as this assumes.
         cascade=("§5.2 FALSE", "does not carry the same hashes",
-                 "says the result is ⟨K⟩",
-                 "says the result is APPLY(⟨K⟩,⟨K⟩)"))
+                 "has result ⟨K⟩",
+                 "has result APPLY(⟨K⟩,⟨K⟩)"))
 
     problems += expect(
         "B  an axiom whose construction is removed from the table",
         "no subject",
-        # The digest it used to derive becomes unaccounted, which is the same
-        # requirement seen from the inventory's side.
+        # The digest it used to derive becomes unaccounted, and every claim whose
+        # result is built from that glyph stops being decidable.
         lambda r: edit(r / "spec/book-1-truth.md",
                        '| S | `0001`+SHA-256("S") |',
                        '| S | see the reference implementation |'),
-        cascade=("neither re-derived from a stated construction nor bound",))
+        cascade=("neither re-derived from a stated construction nor bound",
+                 "has result ⟨S⟩"))
 
     problems += expect(
         "C  the first theorem's construction deleted",
@@ -219,7 +220,7 @@ def main() -> int:
 
     problems += expect(
         "K  a price restated in prose while the record keeps the old one",
-        "which is not the spend of any record filed under", restate_price)
+        "has result ⟨K⟩, spend 5", restate_price)
 
     problems += expect(
         "L  a constant printed that nothing derives, proves or binds",
@@ -231,7 +232,7 @@ def main() -> int:
         # A constant present in one language and not the other is a parity
         # failure; a fabricated paragraph is also a paragraph with no records.
         cascade=("does not carry the same hashes",
-                 "TV-13 states claims and no record in the suite is filed under it"))
+                 "TV-13 states 0 claim(s) and 1 constant(s)"))
 
     def file_the_waived_claim(root: Path) -> None:
         path = root / "tests/spec_conformance/vectors.json"
@@ -243,8 +244,8 @@ def main() -> int:
     # than the suite, so this one has no cascade here. The suite's own bytes are
     # anchored too, and `tools/verify_anchors.py` is what catches that.
     problems += expect(
-        "M  a recorded exception that has stopped reproducing",
-        "no longer reproduces", file_the_waived_claim)
+        "M  a recorded exception that is no longer needed",
+        "is no\nlonger needed".replace("\n", " "), file_the_waived_claim)
 
     # --- the four paths a second independent audit reproduced against 9494a03.
     # Every one of them was a green run over a claim nothing decided.
@@ -256,24 +257,24 @@ def main() -> int:
 
     problems += expect(
         "N  every record's tag for one test removed",
-        "no record in the suite is filed under it", untag)
+        "TV-8 states 1 claim(s) and 0 constant(s)", untag)
 
     problems += expect(
         "O  a budget stated that no record uses and no rule implies",
-        "the claim is undecided and undeclared",
+        "no record uses budget 7",
         lambda r: [edit(r / f, "eval(·,4)", "eval(·,7)")
                    for f in ("spec/book-1-truth.md", "spec/book-1-truth.en.md")])
 
     problems += expect(
         "P  an outcome swapped for one the records do not produce",
-        "states the outcome atp_exhausted",
+        "has outcome atp_exhausted",
         lambda r: edit(r / "spec/book-1-truth.md",
                        "DISSONANCE(Unresolved Reference)`, spent 4",
                        "DISSONANCE(ATP Exhausted)`, spent 4"))
 
     problems += expect(
         "Q  a compound normal form changed",
-        "says the result is APPLY(⟨I⟩,⟨I⟩)",
+        "has result APPLY(⟨I⟩,⟨I⟩)",
         lambda r: edit(r / "spec/book-1-truth.md",
                        "нормальна форма `APPLY(⟨K⟩,⟨K⟩)`",
                        "нормальна форма `APPLY(⟨I⟩,⟨I⟩)`"))
@@ -298,7 +299,7 @@ def main() -> int:
 
     problems += expect(
         "S  the recorded exception's evidence altered",
-        "the exception's evidence has moved", move_witness)
+        "was to show atp_spent=0 and shows", move_witness)
 
     def fabricate(root: Path) -> None:
         """A paragraph with no records, quoting a digest the store happens to
@@ -312,8 +313,60 @@ def main() -> int:
 
     problems += expect(
         "T  a fabricated test quoting an unrelated stored digest",
-        "TV-13 states claims and no record in the suite is filed under it",
+        "TV-13 states 0 claim(s) and 1 constant(s)",
         fabricate, cascade=("neither re-derived from a stated construction nor bound",))
+
+    # --- the six a third independent audit reproduced against e000628. Each is a
+    # field that was correct *somewhere* in its paragraph and attached to the
+    # wrong thing: what the audit compared were sets of properties, not claims.
+
+    problems += expect(
+        "U  two budgets' spends exchanged inside one test",
+        "has outcome atp_exhausted, spend 3",
+        lambda r: edit(
+            r / "spec/book-1-truth.md",
+            "`eval(·,0)` = ATP Exhausted, spent 0 — без жодного звернення до "
+            "сховища; `eval(·,2)` = ATP Exhausted, spent 0 — байти кореня "
+            "відкинуті (force коштує 3 > 2); `eval(·,3)` = ATP Exhausted, spent 3",
+            "`eval(·,0)` = ATP Exhausted, spent 3 — без жодного звернення до "
+            "сховища; `eval(·,2)` = ATP Exhausted, spent 0 — байти кореня "
+            "відкинуті (force коштує 3 > 2); `eval(·,3)` = ATP Exhausted, spent 0"),
+        # A swap breaks both statements, not one: each now describes the other's
+        # budget. Requiring both is what distinguishes a swap from a typo.
+        cascade=("has outcome atp_exhausted, spend 0",))
+
+    problems += expect(
+        "V  two evaluations' results exchanged inside one test",
+        "has result ⟨K⟩, spend 7",
+        lambda r: edit(r / "spec/book-1-truth.md",
+                       "→ ⟨I⟩, 7 ATP; `APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP",
+                       "→ ⟨K⟩, 7 ATP; `APPLY(S (K I) (K K), ghost)` → ⟨I⟩, 20 ATP"),
+        cascade=("has result ⟨I⟩, spend 20",))
+
+    problems += expect(
+        "W  the excepted statement's subject changed",
+        "matches no statement in §7 in either language",
+        lambda r: edit(r / "spec/book-1-truth.md", "`eval(H(I), n)` = ⟨I⟩, 0 ATP",
+                       "`eval(H(K), n)` = ⟨I⟩, 0 ATP"),
+        cascade=("the budget is a variable",))
+
+    problems += expect(
+        "X  the excepted statement's result changed",
+        "matches no statement in §7 in either language",
+        lambda r: edit(r / "spec/book-1-truth.md", "`eval(H(I), n)` = ⟨I⟩, 0 ATP",
+                       "`eval(H(I), n)` = ⟨K⟩, 0 ATP"),
+        cascade=("the budget is a variable",))
+
+    problems += expect(
+        "Y  a declared compiler statement changed",
+        "has result ⟨K⟩",
+        lambda r: edit(r / "spec/book-1-truth.md", "`C1[λx.x] = ⟨I⟩`",
+                       "`C1[λx.x] = ⟨K⟩`"))
+
+    problems += expect(
+        "Z  a declared statement deleted from one language only",
+        "claim(s) in the normative text and",
+        lambda r: edit(r / "spec/book-1-truth.md", "`C1[λx.x] = ⟨I⟩`. ", ""))
 
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)

@@ -36,6 +36,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[1]
 UK = ROOT / "spec/book-1-truth.md"
@@ -183,46 +184,64 @@ OUTCOME_WORDS = {"ATP Exhausted": "atp_exhausted",
                  "Unresolved Reference": "unresolved_reference",
                  "Invalid Object": "invalid_object"}
 
-# A §7 claim this audit does not decide, each with the reason it cannot. An
-# undeclared unchecked claim is an error, and a declaration that stops applying is
-# an error too: the point of the ledger is that "not checked" is a recorded
-# quantity rather than a silent gap.
-UNCHECKED = {
-    ("TV-7", "universal", "∀n"):
-        "a claim over every budget; the suite records two instances, and this "
+
+class Claim(NamedTuple):
+    """One statement of §7, as a whole rather than as loose properties.
+
+    Comparing spends, outcomes and results as three sets let their associations
+    dissolve: TV-4's `spent 0` and `spent 3` could change places between budgets
+    0 and 3, and TV-11's two evaluations could exchange results, with every set
+    unchanged and the audit green. A claim is matched against **one** record that
+    satisfies all of its stated fields at once, or against one named rule."""
+    test: str
+    text: str                  # normalised, and the identity used by declarations
+    subject: str | None
+    budget: int | None
+    variable_budget: bool
+    outcome: str | None
+    result: str | None
+    spend: int | None
+
+
+# Statements §7 makes that no record decides. Keyed by the statement itself, so
+# editing or deleting one invalidates its declaration and forces a fresh look —
+# a marker like "C1[" covered several statements at once and stayed satisfied
+# when one of them changed.
+DECLARED = {
+    "∀n: eval(Ω,n) = DISSONANCE(ATP Exhausted)":
+        "quantified over every budget; the suite records two instances and this "
         "audit does not decide quantified statements",
-    ("TV-10", "compiler", "C1"):
-        "a claim about what the compiler emits, not about an evaluation. The "
-        "suite records how C1's output behaves; it does not record the "
-        "compilation, so nothing here decides it",
-    ("TV-11", "historical", "0.4.x"):
-        "a statement about a superseded version's behaviour (ADR-003). It is "
-        "history, not a claim about this Book, and no record contradicts or "
-        "confirms it",
-    ("TV-12", "universal", "∀n"):
-        "`eval(H(I), n)` quantifies over the budget; the exception below carries "
-        "the instance the suite records",
+    "C1[λx.x] = ⟨I⟩":
+        "what the compiler emits, not what an evaluation produces. The suite "
+        "records how C1's output behaves and not the compilation",
+    "C1[λx.λy.x] = APPLY(APPLY(⟨S⟩,APPLY(⟨K⟩,⟨K⟩)),⟨I⟩), hash "
+    "bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d":
+        "same: a compilation, whose output hash the suite's store proves but "
+        "whose production it does not record",
 }
 
-# The one prose claim the suite proves but does not file under its test. The
-# exception names its witness and the exact fields that must hold, so it fails
-# both when the defect is fixed and when the evidence it rests on moves.
+# The one statement the suite proves without filing. It binds the whole claim —
+# subject, result and spend — to one witness, so changing any part of the
+# sentence or any part of the evidence breaks it.
 EXCEPTIONS = {
-    ("TV-12", "spend", 0): {
+    "Голий intrinsic-товк: eval(H(I), n) = ⟨I⟩, 0 ATP, сховище не потрібне": {
         "witness": "EV-GENESIS-BARE",
-        "expects": {"outcome": "normal_form", "atp_spent": 0},
         "result_glyph": "I",
-        "covers_result": "⟨I⟩",
-        "why": "eval(H(I)) is a normal form at 0 ATP and EV-GENESIS-BARE records "
-               "exactly that, but its note does not name TV-12, so nothing "
-               "machine-readable connects the paragraph to its evidence. Filing it "
-               "edits an anchored file; it joins the governed change in ADR-008.",
+        "expects": {"outcome": "normal_form", "atp_spent": 0},
+        "why": "EV-GENESIS-BARE records exactly this, and its note does not name "
+               "TV-12, so nothing machine-readable connects the paragraph to its "
+               "evidence. Filing it edits an anchored file; ADR-008.",
+    },
+    "A bare intrinsic thunk: eval(H(I), n) = ⟨I⟩, 0 ATP, no store needed": {
+        "witness": "EV-GENESIS-BARE",
+        "result_glyph": "I",
+        "expects": {"outcome": "normal_form", "atp_spent": 0},
+        "why": "the same statement in the English rendering",
     },
 }
 
 
 def vector_digests(vector: dict) -> set[str]:
-    """Every 64-hex value this one record carries, in any field."""
     return set(re.findall(r'\b[0-9a-f]{64}\b', json.dumps(vector)))
 
 
@@ -235,11 +254,7 @@ def vectors_by_test(suite: dict) -> dict[str, list[dict]]:
 
 
 def subjects_by_test(suite: dict) -> dict[str, str]:
-    """Which test each evaluated term or serialized object belongs to.
-
-    A digest can be proved by the store and still be quoted under the wrong
-    paragraph — that is precisely the swap this check exists to catch — so the
-    subject of a test is tracked separately from the values it merely contains."""
+    """Which test each evaluated term or serialized object belongs to."""
     owner: dict[str, str] = {}
     for vector in suite["vectors"]:
         for number in re.findall(r'\bTV-(\d+)\b', vector.get("note", "")):
@@ -254,20 +269,35 @@ def test_vector_blocks(text: str) -> list[tuple[str, str]]:
     return re.findall(r'\*\*(TV-\d+)[^*]*\*\*:?(.*?)(?=\n\*\*|\Z)', section, re.S)
 
 
-def claimed_spends(body: str) -> set[int]:
-    """Totals the prose states, in either of the two forms it uses."""
-    return {int(n) for n in re.findall(r'\*\*(\d+) ATP\*\*', body)} \
-        | {int(n) for n in re.findall(r'(?<!\*)\b(\d+) ATP\b', body)} \
-        | {int(n) for n in re.findall(r'spent (\d+)', body)}
+def normalise(statement: str) -> str:
+    return re.sub(r'\s+', ' ', statement.replace("`", "").replace("**", "")).strip(" .;—")
+
+
+def split_statements(body: str) -> list[str]:
+    """Semicolons and sentence stops, but never inside a backticked span."""
+    pieces, current, quoted = [], [], False
+    for character in body:
+        if character == "`":
+            quoted = not quoted
+        if character == ";" and not quoted:
+            pieces.append("".join(current))
+            current = []
+            continue
+        current.append(character)
+    pieces.append("".join(current))
+    out = []
+    for piece in pieces:
+        # A sentence stop, unless it is inside a version number. The earlier
+        # look-behind demanded the character before the stop be a bracket or a
+        # digit, so a stop after a closing backtick — which is how §7 writes most
+        # of them — never split, and whole paragraphs stayed one statement.
+        out.extend(re.split(r'(?<!\d)\.\s+(?=[«"`A-ZА-ЯҐЄІЇ])', piece))
+    return [normalise(part) for part in out if normalise(part)]
 
 
 def term_hash(expression: str, glyphs: dict[str, str]) -> str | None:
-    """Build a term's hash from the way the prose writes it.
-
-    Grammar is exactly what §7 uses for a stated result: a glyph, or APPLY of two
-    such. Anything else — a name the text does not define, a variable — returns
-    None and becomes a declared unchecked claim rather than a silent pass."""
-    expression = expression.strip().strip('`')
+    """A glyph, or APPLY of two such. Anything else is not decidable from text."""
+    expression = expression.strip().strip("`")
     glyph = re.fullmatch(r'⟨(\w+)⟩', expression)
     if glyph:
         return glyphs.get(glyph.group(1))
@@ -289,52 +319,94 @@ def term_hash(expression: str, glyphs: dict[str, str]) -> str | None:
     return node_hash(0x02, 0x06, bytes.fromhex(left) + bytes.fromhex(right))
 
 
-def stated_results(body: str) -> list[str]:
-    """What the prose says an *evaluation* produces.
+def parse_claim(test: str, statement: str) -> Claim | None:
+    """A statement becomes a claim when it says what something evaluates to,
+    costs, or normalises to. Commentary stays commentary."""
+    budget, variable = None, False
+    evaluation = re.search(r'eval\((.*),\s*([0-9]+|n)\s*\)', statement)
+    subject = None
+    if evaluation:
+        subject = evaluation.group(1).strip()
+        if evaluation.group(2).isdigit():
+            budget = int(evaluation.group(2))
+        else:
+            variable = True
+    else:
+        arrow = re.search(r'^(.*?)(?:→|=)', statement)
+        if arrow and arrow.group(1).strip():
+            subject = arrow.group(1).strip()
 
-    A compilation is a different claim: `C1[λx.x] = ⟨I⟩` says what the compiler
-    emits, and the suite records how that output behaves rather than the
-    compilation itself. Treating the two alike made the audit demand that TV-10's
-    evaluation produce ⟨I⟩, which it never claimed."""
-    # The look-behind spans whitespace: `C1[λx.x] = ⟨I⟩` puts a space before the
-    # sign, so a non-space window sees nothing and lets the compilation through.
-    # Compound expressions are read to their closing backtick rather than to the
-    # first `)`, which truncated `APPLY(APPLY(...),⟨I⟩)` into something unparsable.
-    found = []
-    for before, backticked, bare in re.findall(
-            r'([^\n]{0,18})(?:=|→|нормальна форма|normal form)\s*'
-            r'(?:`(APPLY\([^`]*)`|(⟨\w+⟩))', body):
-        if "C1[" in before:
-            continue
-        found.append(backticked or bare)
-    return found
+    outcome = None
+    for words, value in OUTCOME_WORDS.items():
+        if re.search(r'(?:=|→)\s*(?:DISSONANCE\()?' + words, statement):
+            outcome = value
+
+    result = None
+    tail = re.search(r'(?:=|→|нормальна форма|normal form)\s*'
+                     r'(APPLY\(.*?\)(?=,|$)|⟨\w+⟩)', statement)
+    if tail:
+        result = tail.group(1).strip()
+
+    spend = None
+    spends = [int(n) for n in re.findall(r'\b(\d+) ATP\b', statement)] \
+        + [int(n) for n in re.findall(r'spent (\d+)', statement)]
+    if spends:
+        spend = spends[0]
+
+    if outcome is None and result is None and spend is None:
+        return None
+    return Claim(test, normalise(statement), subject, budget, variable,
+                 outcome, result, spend)
 
 
-def stated_outcomes(body: str) -> set[str]:
-    """Outcomes in result position only.
+def satisfies(record: dict, claim: Claim, glyphs: dict[str, str]) -> bool:
+    expected = record["expected"]
+    if claim.outcome is not None and expected.get("outcome") != claim.outcome:
+        return False
+    if claim.spend is not None and expected.get("atp_spent") != claim.spend:
+        return False
+    if claim.result is not None:
+        wanted = term_hash(claim.result, glyphs)
+        if wanted is None or expected.get("result_hash") != wanted:
+            return False
+    return True
 
-    TV-11 records that v0.4.x gave Unresolved Reference for terms this Book
-    normalises. That is history and not a claim about this Book, and reading every
-    mention of an outcome word as a claim turned it into a contradiction."""
-    named = set()
-    # `[A-Z][a-z]+` misses "ATP Exhausted", whose first word is an initialism —
-    # so the outcome the Book uses most often was the one this never saw.
-    for tail in re.findall(r'(?:=|→)\s*`?(?:DISSONANCE\()?([A-Z][A-Za-z]* [A-Za-z]+)',
-                           body):
-        if tail in OUTCOME_WORDS:
-            named.add(OUTCOME_WORDS[tail])
-    return named
+
+def decide(claim: Claim, records: list[dict], glyphs: dict[str, str]) -> str | None:
+    """One record must satisfy the whole claim. Returns why it could not."""
+    if claim.variable_budget:
+        return "the budget is a variable"
+    candidates = records
+    rule = ""
+    if claim.budget is not None:
+        exact = [r for r in records if r.get("atp") == claim.budget]
+        if exact:
+            candidates = exact
+        else:
+            # Deterministic evaluation: a run given more than it needed and
+            # spending exactly N would have finished on N (§3.3, §3.4). This is
+            # the audit's assumption, stated, not the Book's sentence.
+            candidates = [r for r in records
+                          if r.get("atp", 0) > claim.budget
+                          and r["expected"].get("outcome") == "normal_form"
+                          and r["expected"].get("atp_spent") == claim.budget]
+            rule = " (via the larger-budget rule)"
+            if not candidates:
+                return f"no record uses budget {claim.budget}, and none normalises "\
+                       f"spending exactly that much"
+    if any(satisfies(record, claim, glyphs) for record in candidates):
+        return None
+    return (f"no single record{rule} among "
+            f"{', '.join(r['id'] for r in candidates) or 'none'} has "
+            + ", ".join(filter(None, [
+                f"outcome {claim.outcome}" if claim.outcome else "",
+                f"result {claim.result}" if claim.result else "",
+                f"spend {claim.spend}" if claim.spend is not None else ""])))
 
 
 def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
                           derived: set[str],
                           problems: list[str]) -> tuple[set[str], int, list[str]]:
-    """Bind each §7 paragraph to *its own* records, and account for every claim.
-
-    Returns the digests bound, how many claims were decided, and the claims
-    deliberately left undecided. Nothing is skipped silently: a paragraph with no
-    records is an error, and a claim this audit cannot decide must be declared.
-    """
     suite = json.loads(VECTORS.read_text())
     grouped = vectors_by_test(suite)
     owner = subjects_by_test(suite)
@@ -346,44 +418,31 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
     bound: set[str] = set()
     checked = 0
     unchecked: list[str] = []
-    exercised: set[tuple] = set()
+    seen_declarations: set[str] = set()
+    tally_per_test: dict[str, int] = {}
 
     for name, body in blocks:
         number = name.split("-")[1]
         mine = grouped.get(number, [])
         digests = set(re.findall(r'`([0-9a-f]{64})`', body))
-        spends = claimed_spends(body)
-        results = stated_results(body)
-        outcomes = stated_outcomes(body)
-        historical = {w for w in OUTCOME_WORDS if w in body} - {
-            w for w in OUTCOME_WORDS if OUTCOME_WORDS[w] in outcomes}
-        exceptions = {key: value for key, value in EXCEPTIONS.items()
-                      if key[0] == name}
+        claims = [claim for claim in
+                  (parse_claim(name, statement) for statement in split_statements(body))
+                  if claim is not None]
 
-        # Coverage. An aggregate count of filed tests says nothing about *this*
-        # paragraph: every tag for one test can vanish and leave the total intact.
-        undecided = (digests - derived) or spends or results or outcomes
+        tally_per_test[name] = len(claims)
         if not mine:
-            if undecided and not exceptions:
+            outstanding = [c for c in claims
+                           if c.text not in DECLARED and c.text not in EXCEPTIONS]
+            if outstanding or (digests - derived):
                 problems.append(
-                    f"§7 {name} states claims and no record in the suite is "
-                    "filed under it, so nothing checks them")
-            if not exceptions:
-                checked += len(digests & derived)
+                    f"§7 {name} states {len(outstanding)} claim(s) and "
+                    f"{len(digests - derived)} constant(s) that no record in the "
+                    "suite is filed under, so nothing checks them")
                 continue
 
-        recorded_spends = {v["expected"].get("atp_spent") for v in mine}
-        recorded_spends.discard(None)
-        recorded_outcomes = {v["expected"].get("outcome") for v in mine}
-        recorded_results = {v["expected"].get("result_hash") for v in mine}
-        theirs: set[str] = set()
-        for vector in mine:
-            theirs |= vector_digests(vector)
-
-        # --- digests: this test's own, or store-proved *and* quoted here
         for digest in digests:
             elsewhere = owner.get(digest)
-            if digest in theirs:
+            if any(digest in vector_digests(v) for v in mine):
                 bound.add(digest)
                 checked += 1
             elif elsewhere is not None:
@@ -392,121 +451,95 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
                     f"subject of TV-{elsewhere}. Presence in the suite is not the "
                     "same claim as belonging to this test")
             elif digest in proved and mine:
-                # Proved by one SHA-256 from the suite's store, and quoted in a
-                # paragraph that does have records. Store proof alone is not
-                # enough: an unrelated stored key must not satisfy a fabricated
-                # paragraph.
                 bound.add(digest)
                 checked += 1
-            else:
+            elif digest not in derived:
                 problems.append(
                     f"§7 {name} names {digest[:12]}…, which is in no record filed "
                     f"under {name} and is not proved by the suite's store")
 
-        # --- outcomes named anywhere in the paragraph
-        for outcome in outcomes - recorded_outcomes:
-            problems.append(
-                f"§7 {name} states the outcome {outcome}, which no record filed "
-                f"under it produces: {sorted(recorded_outcomes)}")
-        checked += len(outcomes & recorded_outcomes)
-
-        # --- stated results, built from the text and hashed
-        # An exception is *needed* only while the claim it excuses is still
-        # unmatched. Deciding that up front matters: the result branch used to
-        # mark the exception exercised on its own, so filing the spend left the
-        # waiver looking alive and the staleness check silent.
-        needed = {key for key in exceptions if key[1] == "spend"
-                  and key[2] not in recorded_spends}
-        covered = {exceptions[key].get("covers_result") for key in needed}
-        for expression in results:
-            if expression in covered:
+        for claim in claims:
+            if claim.text in EXCEPTIONS:
+                seen_declarations.add(claim.text)
+                exception = EXCEPTIONS[claim.text]
+                # Still needed? If the suite has since filed a record that decides
+                # this claim, the exception is spent and must go, or it becomes a
+                # permanent licence to skip a claim that is now checkable.
+                # A variable budget makes `decide` refuse on sight, so the test
+                # for "still needed" ignores the budget and asks only whether some
+                # record filed here already satisfies the claim's other fields.
+                if any(satisfies(record, claim, glyphs) for record in mine):
+                    problems.append(
+                        f"§7 {name}: the exception for “{claim.text[:48]}…” is no "
+                        "longer needed — a record filed under this test now "
+                        "decides the claim. Delete the entry")
+                    continue
+                witness = by_id.get(exception["witness"])
+                if witness is None:
+                    problems.append(
+                        f"§7 {name}: the exception for “{claim.text[:48]}…” names "
+                        f"{exception['witness']} and the suite has no such record — "
+                        "the exception is resting on nothing")
+                    continue
+                for field, wanted in exception["expects"].items():
+                    if witness["expected"].get(field) != wanted:
+                        problems.append(
+                            f"§7 {name}: {exception['witness']} was to show "
+                            f"{field}={wanted} and shows "
+                            f"{witness['expected'].get(field)}")
+                if witness["expected"].get("result_hash") != \
+                        glyphs.get(exception["result_glyph"]):
+                    problems.append(f"§7 {name}: {exception['witness']} no longer "
+                                    f"produces ⟨{exception['result_glyph']}⟩")
+                if claim.result != f"⟨{exception['result_glyph']}⟩" or \
+                        claim.spend != exception["expects"]["atp_spent"]:
+                    problems.append(
+                        f"§7 {name}: the statement the exception covers now claims "
+                        f"result {claim.result} at {claim.spend} ATP, which is not "
+                        "what its witness records")
+                unchecked.append(f"{name}: {claim.text[:60]} — {exception['why']}")
                 continue
-            built = term_hash(expression, glyphs)
-            if built is None:
-                unchecked.append(f"{name}: result {expression!r} is not built from "
-                                 "glyphs this text defines")
+            if claim.text in DECLARED:
+                seen_declarations.add(claim.text)
+                unchecked.append(f"{name}: {claim.text[:60]} — {DECLARED[claim.text]}")
                 continue
-            if built not in recorded_results:
-                problems.append(
-                    f"§7 {name} says the result is {expression} ({built[:12]}…); "
-                    f"no record filed under it produces that: "
-                    f"{sorted(str(r)[:12] for r in recorded_results if r)}")
+            failure = decide(claim, mine, glyphs)
+            if failure:
+                problems.append(f"§7 {name}: “{claim.text[:70]}” — {failure}")
             else:
                 checked += 1
 
-        # --- spends
-        for spend in sorted(spends - recorded_spends):
-            key = (name, "spend", spend)
-            if key in needed:
-                exercised.add(key)
-                continue
+    return bound, checked, unchecked, seen_declarations, tally_per_test
+
+
+def texts_state_the_same_claims(left: dict[str, int], right: dict[str, int],
+                                problems: list[str]) -> None:
+    """The two texts must make the same statements, test by test.
+
+    Otherwise a claim can be deleted from one language and its declaration stays
+    satisfied by the other — which is how deleting TV-10's compiler statement
+    from the normative text left this file green."""
+    for test in sorted(set(left) | set(right)):
+        if left.get(test, 0) != right.get(test, 0):
             problems.append(
-                f"§7 {name} states {spend} ATP, which is not the spend of any "
-                f"record filed under {name}: {sorted(recorded_spends)}")
-        checked += len(spends & recorded_spends)
+                f"§7 {test} states {left.get(test, 0)} claim(s) in the normative "
+                f"text and {right.get(test, 0)} in the English rendering; the two "
+                "are supposed to say the same thing")
 
-        for key, why in ((k, v) for k, v in UNCHECKED.items() if k[0] == name):
-            marker = {"compiler": "C1[", "historical": "0.4.x",
-                      "universal": ","}.get(key[1], key[2])
-            # `eval(H(I), n)` carries a nested `)`, so a pattern that cannot
-            # cross one never sees it and the declaration reads as stale.
-            present = ("∀n" in body or re.search(r'eval\(.*?,\s*n\)', body)) \
-                if key[1] == "universal" else marker in body
-            if present:
-                exercised.add(key)
-                unchecked.append(f"{name}: {why}")
 
-        # --- exact budgets. A record at that exact budget decides it directly.
-        # Otherwise a record of the same term at a larger budget that normalises
-        # spending exactly N decides it too: evaluation is deterministic and a
-        # budget only stops it early (§3.3, §3.4), so a run that needed N and was
-        # given more would have finished on N. That rule is named here because it
-        # is this audit's own assumption, not the Book's sentence.
-        for budget in {int(n) for n in re.findall(r'eval\([^)]*?,\s*(\d+)\)', body)}:
-            exact = [v for v in mine if v.get("atp") == budget]
-            implied = [v for v in mine
-                       if v.get("atp", 0) > budget
-                       and v["expected"].get("outcome") == "normal_form"
-                       and v["expected"].get("atp_spent") == budget]
-            if exact or implied:
-                checked += 1
-                continue
+def declarations_still_apply(seen: set[str], problems: list[str]) -> None:
+    """Judged once, after both texts.
+
+    A declaration written for the English rendering is absent from the normative
+    one and vice versa; checking per pass reported each as stale in the other's
+    run, which would have taught a reader to ignore the message."""
+    for statement in list(DECLARED) + list(EXCEPTIONS):
+        if statement not in seen:
             problems.append(
-                f"§7 {name} states an evaluation at budget {budget}; no record "
-                f"filed under it uses that budget, and none normalises spending "
-                "exactly that much, so the claim is undecided and undeclared")
-
-        # --- declared exceptions must still hold, and must still be needed
-        for key, exception in exceptions.items():
-            witness = by_id.get(exception["witness"])
-            if witness is None:
-                problems.append(
-                    f"§7 {name}: the recorded exception names {exception['witness']} "
-                    "as its evidence and the suite has no such record — the "
-                    "exception is resting on nothing")
-                continue
-            for field, wanted in exception["expects"].items():
-                if witness["expected"].get(field) != wanted:
-                    problems.append(
-                        f"§7 {name}: {exception['witness']} was to show "
-                        f"{field}={wanted} and shows "
-                        f"{witness['expected'].get(field)} — the exception's "
-                        "evidence has moved")
-            glyph = exception.get("result_glyph")
-            if glyph and witness["expected"].get("result_hash") != glyphs.get(glyph):
-                problems.append(
-                    f"§7 {name}: {exception['witness']} no longer produces ⟨{glyph}⟩")
-            if key not in exercised:
-                problems.append(
-                    f"§7 {name}: the recorded exception for {key[2]} no longer "
-                    "reproduces. If it was fixed, delete the entry; a waiver that "
-                    "outlives its defect is a permanent exception")
-
-    for key in UNCHECKED:
-        if key not in exercised:
-            problems.append(f"the declaration for {key} matches nothing in §7 any "
-                            "more; a stale declaration hides what it once excused")
-    return bound, checked, unchecked
+                f"the declaration for “{statement[:60]}…” matches no statement in "
+                "§7 in either language any more. If the statement changed it must "
+                "be looked at again; a declaration that outlives its claim "
+                "excuses nothing")
 
 
 def inventory(text: str, derived: set[str], bound: set[str],
@@ -599,16 +632,18 @@ def main() -> int:
         glyphs["FALSE"] = false_hash.group(1)
     anchor_matches(problems)
     suite_pins_this_spec(problems)
-    bound, checked, unchecked = prose_matches_vectors(uk, glyphs, proved, derived,
-                                                     problems)
+    bound, checked, unchecked, seen, claims_uk = prose_matches_vectors(
+        uk, glyphs, proved, derived, problems)
     printed = inventory(uk, derived, bound, problems)
     english = translation_parity(uk, en, problems)
 
     # The same derivation, driven by the English text alone: an implementer who
     # cannot read the normative language must still reach every constant.
     english_derived = derivable_constants(en, problems)
-    english_bound, _, _ = prose_matches_vectors(en, glyphs, proved, english_derived,
-                                                problems)
+    english_bound, _, _, seen_en, claims_en = prose_matches_vectors(
+        en, glyphs, proved, english_derived, problems)
+    declarations_still_apply(seen | seen_en, problems)
+    texts_state_the_same_claims(claims_uk, claims_en, problems)
     inventory(en, english_derived, english_bound, problems)
 
     # Counted against what the Book prints, not against everything the tools

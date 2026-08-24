@@ -91,7 +91,10 @@ stronger than a promise.
 as the arbiter. A precedence rule is only ever exercised when a discrepancy
 exists, and `spec_audit.py` checks whether one does: every hash the §7 prose
 claims must appear in the vector suite, and the suite must be pinned to the exact
-bytes of the Book that ships. Today no discrepancy exists.
+bytes of the Book that ships. At the anchored revision, and within the claims the audit decides, no
+contradiction was found — and it reports the four it does not decide rather than
+passing over them. That is not a proof that the prose and the suite say the same
+thing, and no earlier revision was audited.
 
 The audit also compares what §7 *says* against what the suite recorded: every
 stated budget, spend, outcome and normal form must match the records filed under
@@ -128,8 +131,8 @@ python3 tools/spec_audit.py            # the Book is self-contained
 python3 tests/spec_audit_selftest.py   # and the audit fails when it is not
 ```
 
-The second command matters more than the first. It breaks the Book in **twenty**
-ways — a genesis hash its construction does not produce, an axiom whose
+The second command matters more than the first. It breaks the Book in
+**twenty-six** ways — a genesis hash its construction does not produce, an axiom whose
 construction is replaced by "see the reference implementation", a prose hash no
 record of its own test carries, two tests' hashes swapped while both remain in the
 suite, a price restated in prose while the record keeps the old one, a constant
@@ -137,11 +140,14 @@ printed that nothing accounts for, a rule changed in translation, a suite
 generated against different bytes, and a recorded exception that has stopped
 reproducing — and requires the audit to fail for each, with its own reason.
 
-Eleven of those twenty exist because external review reproduced the gap first, in
-two rounds. The audit's first version was described in wider terms than it
+Seventeen of those twenty-six exist because external review reproduced the gap
+first, across three rounds. The audit's first version was described in wider terms than it
 checked; its second still let a whole test's filing vanish, ignored budgets no
 record used, read a note about a superseded version as a claim about this one, and
-let an exception outlive the evidence it named.
+let an exception outlive the evidence it named. Its third compared spends,
+outcomes and results as separate sets, so TV-4's two budgets could exchange their
+costs and TV-11's two evaluations their results with every set intact. §7 is now
+read one statement at a time, and a statement must be satisfied whole.
 
 The audit therefore reports two numbers rather than one: claims **decided**, and
 claims **explicitly left undecided**, each with the reason. A claim that is

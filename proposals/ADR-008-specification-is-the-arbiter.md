@@ -10,15 +10,22 @@ turned out to be right.
 **Evidence:** [`tools/spec_audit.py`](../tools/spec_audit.py) accounts for all
 fifteen constants the Book prints, in both languages — ten re-derived from
 constructions the Book states, the rest proved by recomputation from the normative
-suite's store and bound to the record of the test that names them — and compares
-every budget, spend, outcome and normal form §7 states against those records.
+suite's store and bound to the record of the test that names them. It then reads
+§7 as **statements** rather than as properties: each is parsed into one claim —
+subject, budget, outcome, result, spend — and must be satisfied by a single record
+filed under that test, or by one named rule, or be declared undecided with the
+reason. Nineteen claims are decided that way and four are declared, each keyed to
+its exact sentence so that editing or deleting it invalidates the declaration.
 [`tests/spec_audit_selftest.py`](../tests/spec_audit_selftest.py) breaks all of it
-thirteen ways and requires the audit to fail for each.
-**Revision:** the first version of this ADR said the audit "re-derives every
-constant". It did not: it derived nine of fifteen, matched prose digests against
-the whole suite rather than against the test that named them, and compared no
-numbers at all. External review reproduced all three gaps; the sentences above
-state what is now checked.
+twenty-six ways and requires the audit to fail for each.
+**Revisions.** The first version of this ADR said the audit "re-derives every
+constant": it derived nine of fifteen, matched digests against the whole suite
+rather than the test that named them, and compared no numbers. The second said it
+compared "every budget, spend, outcome and normal form": it compared them as
+independent sets, so a spend could move between budgets and a result between
+terms with nothing changed. Three rounds of external review reproduced all seven
+gaps. Each sentence above states only what is now checked, and the audit reports
+what it leaves undecided rather than passing over it.
 
 ## Problem
 
