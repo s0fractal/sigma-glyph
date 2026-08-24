@@ -54,6 +54,14 @@ repository at commit [`7ecba6a`](https://github.com/s0fractal/sigma-glyph/tree/7
 Deposited, not peer reviewed: see [`papers/`](papers/) for what that does and does
 not mean.
 
+**Experiment:** *Does One Integer Still Price Work and Memory in Parallel?* — Zenodo
+DOI [10.5281/zenodo.22073568](https://doi.org/10.5281/zenodo.22073568). A
+preregistered measurement of whether the paper's bound survives confluent parallel
+reduction: it does, while Book I's per-redex refusal discipline does not, so a
+parallel machine must choose the granularity of refusal explicitly. The
+preregistration was committed before the reducer existed and is deposited unedited
+alongside the result. See [`experiments/exp-004/`](experiments/exp-004/).
+
 **Where the failures have actually been.** Not in the mathematics. Every vector
 `tests/proof_guard_test.py` now rejects is an attack on the *guard* rather than on
 the kernel — a theorem hidden from the registry by a one-line `namespace`, a scope
