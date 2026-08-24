@@ -38,9 +38,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.5.2"   # Book I document version these vectors conform to
+SPEC_VERSION = "0.5.3"   # Book I document version these vectors conform to
 SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b"
+BOOK1_ANCHOR = "480752b7cf1a8c843e3e561216da117df11d8426ed20c82a862ed7fef3a205af"
 
 # ============================================================================
 # Spec-declared expectations — hand-written from spec/book-1-truth.md v0.5.2
@@ -385,7 +385,7 @@ deser_vector("INV-LEN-LONG", "APPLY with one extra byte", bytes([0x02, 0x06]) + 
 deser_vector("INV-LEN-SHORT", "APPLY truncated to one child", bytes([0x02, 0x06]) + b"\x00" * 32)
 
 # ---------- eval: v0.5 hash-thunk machine, size-priced ATP ----------
-eval_vector("EV-GENESIS-BARE", "bare intrinsic thunk: eval(H(I)) is NF by hash; 0 ATP, no store access", sg.I_H, 10)
+eval_vector("EV-GENESIS-BARE", "TV-12: bare intrinsic thunk: eval(H(I)) is NF by hash; 0 ATP, no store access", sg.I_H, 10)
 
 lit_dummy = put(sg.ser(sg.LITERAL, sg.F_ATOM, atom=sg.sha(b"dummy blob")))
 eval_vector("EV-LIT-FORCE", "non-genesis LITERAL: one force (1 ATP), then NF. No blob material is supplied; Book I eval MUST depend only on the LITERAL node bytes and MUST NOT fetch or validate the committed blob (ADR-004, s1.1)", lit_dummy, 10)

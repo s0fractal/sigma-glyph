@@ -1,11 +1,11 @@
 # Σ-GLYPH — Book I: TRUTH
 
-**Version:** 0.5.2
+**Version:** 0.5.3
 **Type:** Bit-Exact Computational Core
 **Status:** DRAFT STANDARD
 
 > **Informative English translation.** This is an English rendering of the
-> normative Σ-GLYPH Book I v0.5.2. The canonical, anchored source of record is
+> normative Σ-GLYPH Book I v0.5.3. The canonical, anchored source of record is
 > [`book-1-truth.md`](book-1-truth.md) (Ukrainian). In any discrepancy the
 > anchored source governs, until the maintainer roster adjudicates and re-anchors
 > an English normative edition (§8). All hashes, byte strings, code, tables, ADR
@@ -249,9 +249,11 @@ Hash:  af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507
 | K | `0001`+SHA-256("K") | `bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c` |
 | S | `0001`+SHA-256("S") | `887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6` |
 
-The full 32-byte values of SHA-256("I"/"K"/"S") are in `impl/sigma_glyph.py`
-(TV-1); they are deliberately not duplicated here, to avoid creating a second
-source of truth.
+For `X ∈ {I,K,S}`, `SHA-256("X")` denotes SHA-256 of exactly one ASCII byte `X`,
+with no quotation marks and no terminator. The values are fully determined by
+this construction and are deliberately not duplicated here, to avoid creating a
+second source of truth; the reference implementation is not a normative source
+for them.
 
 **Genesis intrinsic (MUST, since v0.5).** The three axioms I, K, S are intrinsic
 constants: a conforming implementation MUST serve `resolve/force` of their
@@ -327,8 +329,12 @@ A(x, (M N))  = APPLY(APPLY(⟨S⟩, A(x,M)), A(x,N))
 `8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176`.
 
 The prices below are v0.5 (size-priced, hash-leaf, §3.4). The exhaustive
-machine-checkable set is `tests/spec_conformance/vectors.json` (normative; on any
-discrepancy with the prose, the oracle `impl/sigma_glyph.py` wins).
+machine-checkable set `tests/spec_conformance/vectors.json` is a normative part of
+this edition. The prose of §7 and the records of the set MUST be mutually
+consistent. An edition in which they disagree is non-conformant and MUST NOT be
+used as a source of consensus until it is corrected and re-anchored. No
+implementation, the reference one included, takes precedence over the normative
+artifacts of the edition.
 
 **TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash
 `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`;

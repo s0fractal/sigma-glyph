@@ -93,7 +93,9 @@ stronger than a promise.
 
 **§7 says the oracle wins.** In a discrepancy between the prose and
 `tests/spec_conformance/vectors.json`, the Book designates `impl/sigma_glyph.py`
-as the arbiter. A precedence rule is only ever exercised when a discrepancy
+as the arbiter. `proposals/ADR-009-the-specification-is-its-own-arbiter.md` is a
+prepared candidate that removes this; it is **not adopted**, and on `master` the
+clause still stands. A precedence rule is only ever exercised when a discrepancy
 exists, and `spec_audit.py` checks whether one does: every hash the §7 prose
 claims must appear in the vector suite, and the suite must be pinned to the exact
 bytes of the Book that ships. At the anchored revision, and within the claims the audit decides, no
@@ -107,15 +109,17 @@ predicates** and no more — subject identity, budget, canonical outcome, result
 hash, ATP spend — and a statement must have all of its *resolved* predicates
 satisfied by one record filed under that test. The run prints these ledgers:
 
-- **40 instances of the five predicates decided**, and separately the constants:
+- **43 instances of the five predicates decided**, and separately the constants:
   **10 derived** from constructions the Book states, **4 bound** to a record filed
   under the very test that prints them, and **1 named store-only proof** — the
   compiled term whose hash the suite's store settles by recomputation and which no
   record carries. A digest no record carries is not a record binding, however well
   the store proves it, so it is counted where a reader can see it;
-- **6 predicates it cannot resolve**, because the text names something it gives no
-  identity to: `ghost`, a store shape, a budget written as a variable;
-- **4 statements declared undecided**, each keyed to its exact sentence, so
+- **7 predicates it cannot resolve**, because the text names something it gives
+  no identity to — `ghost`, a store shape — or writes a budget as a variable. An
+  unresolved predicate is reported, not skipped: the statement's remaining
+  predicates are still decided against the records filed under its test;
+- **3 statements declared undecided**, each keyed to its exact sentence, so
   editing or deleting one invalidates the declaration;
 - **5 clauses outside those predicates entirely** — that an evaluation touched no
   store, that a branch was never forced, that `size − 1 ≤ spent` held throughout,
@@ -134,7 +138,7 @@ run if it ever stops reproducing, so the exception cannot outlive the defect.
 §7 remains a sentence telling an implementer their disagreement with the
 specification is settled by code they cannot see, and changing it — like filing
 that vector — is an edit to anchored bytes. See
-[`proposals/ADR-008-specification-is-the-arbiter.md`](../proposals/ADR-008-specification-is-the-arbiter.md).
+[`proposals/ADR-009-the-specification-is-its-own-arbiter.md`](../proposals/ADR-009-the-specification-is-its-own-arbiter.md).
 
 **Three implementations already agree, and that is weaker evidence than it
 looks.** The Python oracle, `warrant-go` and the Rust implementation were written

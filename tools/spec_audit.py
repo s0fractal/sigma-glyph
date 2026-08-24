@@ -288,27 +288,6 @@ DECLARED = {
         "whose production it does not record",
 }
 
-# The one statement the suite proves without filing. It binds the whole claim —
-# subject, result and spend — to one witness, so changing any part of the
-# sentence or any part of the evidence breaks it.
-EXCEPTIONS = {
-    "Голий intrinsic-товк: eval(H(I), n) = ⟨I⟩, 0 ATP, сховище не потрібне": {
-        "witness": "EV-GENESIS-BARE",
-        "result_glyph": "I",
-        "expects": {"outcome": "normal_form", "atp_spent": 0},
-        "why": "EV-GENESIS-BARE records exactly this, and its note does not name "
-               "TV-12, so nothing machine-readable connects the paragraph to its "
-               "evidence. Filing it edits an anchored file; ADR-008.",
-    },
-    "A bare intrinsic thunk: eval(H(I), n) = ⟨I⟩, 0 ATP, no store needed": {
-        "witness": "EV-GENESIS-BARE",
-        "result_glyph": "I",
-        "expects": {"outcome": "normal_form", "atp_spent": 0},
-        "why": "the same statement in the English rendering",
-    },
-}
-
-
 def vector_digests(vector: dict) -> set[str]:
     return set(re.findall(DIGEST, json.dumps(vector)))
 
@@ -507,9 +486,14 @@ def satisfies(record: dict, claim: Claim, glyphs: dict[str, str]) -> bool:
 
 def decide(claim: Claim, records: list[dict], glyphs: dict[str, str]) -> str | None:
     """One record must satisfy the whole claim. Returns why it could not."""
-    if claim.variable_budget:
-        return "the budget is a variable"
     candidates = records
+    if claim.variable_budget:
+        # The budget is unresolved and reported as such; the remaining predicates
+        # are still decidable against the records filed under this test. Refusing
+        # the whole statement on sight is what made an exception necessary.
+        if any(satisfies(record, claim, glyphs) for record in records):
+            return None
+        return "no record filed under it satisfies the rest of the statement"
     rule = ""
     if claim.budget is not None:
         exact = [r for r in records if r.get("atp") == claim.budget]
@@ -588,52 +572,13 @@ def account_for_digests(name: str, digests: set[str], mine: list[dict],
     return carried, store_only
 
 
-def review_exception(name: str, claim: Claim, mine: list[dict], by_id: dict,
-                     glyphs: dict[str, str], problems: list[str]) -> str | None:
-    """An exception must still be needed, still have its witness, and still be
-    about the statement it was written for. Returns its reason, or nothing when
-    it has failed."""
-    exception = EXCEPTIONS[claim.text]
-    # A variable budget makes `decide` refuse on sight, so "still needed" ignores
-    # the budget and asks only whether a record already satisfies the rest.
-    if any(satisfies(record, claim, glyphs) for record in mine):
-        problems.append(
-            f"§7 {name}: the exception for “{claim.text[:48]}…” is no longer "
-            "needed — a record filed under this test now decides the claim. "
-            "Delete the entry")
-        return None
-    witness = by_id.get(exception["witness"])
-    if witness is None:
-        problems.append(
-            f"§7 {name}: the exception for “{claim.text[:48]}…” names "
-            f"{exception['witness']} and the suite has no such record — the "
-            "exception is resting on nothing")
-        return None
-    for field, wanted in exception["expects"].items():
-        if witness["expected"].get(field) != wanted:
-            problems.append(f"§7 {name}: {exception['witness']} was to show "
-                            f"{field}={wanted} and shows "
-                            f"{witness['expected'].get(field)}")
-    if witness["expected"].get("result_hash") != glyphs.get(exception["result_glyph"]):
-        problems.append(f"§7 {name}: {exception['witness']} no longer produces "
-                        f"⟨{exception['result_glyph']}⟩")
-    if claim.result != f"⟨{exception['result_glyph']}⟩" or \
-            claim.spend != exception["expects"]["atp_spent"]:
-        problems.append(
-            f"§7 {name}: the statement the exception covers now claims result "
-            f"{claim.result} at {claim.spend} ATP, which is not what its witness "
-            "records")
-    return exception["why"]
-
-
 def unfiled(name: str, claims: list[Claim], digests: set[str], derived: set[str],
             problems: list[str]) -> bool:
     """Nothing is filed under this paragraph. Does it need anything to be?
 
     An aggregate count of filed tests says nothing about *this* paragraph: every
     tag for one test can vanish and leave the total intact."""
-    outstanding = [claim for claim in claims
-                   if claim.text not in DECLARED and claim.text not in EXCEPTIONS]
+    outstanding = [claim for claim in claims if claim.text not in DECLARED]
     if not outstanding and not digests - derived:
         return False
     problems.append(
@@ -643,14 +588,10 @@ def unfiled(name: str, claims: list[Claim], digests: set[str], derived: set[str]
     return True
 
 
-def review_claim(name: str, claim: Claim, mine: list[dict], by_id: dict,
+def review_claim(name: str, claim: Claim, mine: list[dict],
                  glyphs: dict[str, str], seen: set[str], unresolved: list[str],
                  problems: list[str]) -> tuple[int, str | None]:
-    """One statement: excused with a reason, or decided predicate by predicate."""
-    if claim.text in EXCEPTIONS:
-        seen.add(claim.text)
-        why = review_exception(name, claim, mine, by_id, glyphs, problems)
-        return 0, f"{name}: {claim.text[:60]} — {why}" if why else None
+    """One statement: declared with a reason, or decided predicate by predicate."""
     if claim.text in DECLARED:
         seen.add(claim.text)
         return 0, f"{name}: {claim.text[:60]} — {DECLARED[claim.text]}"
@@ -674,7 +615,6 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
     suite = json.loads(VECTORS.read_text())
     grouped = vectors_by_test(suite)
     owner = subjects_by_test(suite)
-    by_id = {v["id"]: v for v in suite["vectors"]}
     blocks = test_vector_blocks(text)
     if not enough(blocks, 10, "test-vector paragraphs in §7", problems):
         return set(), 0, []
@@ -713,7 +653,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
         proofs += len(store_only)
 
         for claim in claims:
-            decided, note = review_claim(name, claim, mine, by_id, glyphs,
+            decided, note = review_claim(name, claim, mine, glyphs,
                                          seen_declarations, unresolved, problems)
             checked += decided
             if note:
@@ -760,7 +700,7 @@ def declarations_still_apply(seen: set[str], problems: list[str]) -> None:
     A declaration written for the English rendering is absent from the normative
     one and vice versa; checking per pass reported each as stale in the other's
     run, which would have taught a reader to ignore the message."""
-    for statement in list(DECLARED) + list(EXCEPTIONS):
+    for statement in DECLARED:
         if statement not in seen:
             problems.append(
                 f"the declaration for “{statement[:60]}…” matches no statement in "

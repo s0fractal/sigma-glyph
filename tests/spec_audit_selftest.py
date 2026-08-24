@@ -243,22 +243,6 @@ def main() -> int:
         cascade=("does not carry the same hashes",
                  "TV-13 states 0 claim(s) and 1 constant(s)"))
 
-    def file_the_waived_claim(root: Path) -> None:
-        path = root / "tests/spec_conformance/vectors.json"
-        path.write_text(path.read_text().replace(
-            "bare intrinsic thunk: eval(H(I))",
-            "TV-12: bare intrinsic thunk: eval(H(I))"))
-
-    # Editing a note does not move `book1_anchor`, which pins the Book rather
-    # than the suite, so this one has no cascade here. The suite's own bytes are
-    # anchored too, and `tools/verify_anchors.py` is what catches that.
-    problems += expect(
-        "M  a recorded exception that is no longer needed",
-        "is no\nlonger needed".replace("\n", " "), file_the_waived_claim)
-
-    # --- the four paths a second independent audit reproduced against 9494a03.
-    # Every one of them was a green run over a claim nothing decided.
-
     def untag(root: Path) -> None:
         """One test's filing disappears while the aggregate count stays fine."""
         path = root / "tests/spec_conformance/vectors.json"
@@ -287,28 +271,6 @@ def main() -> int:
         lambda r: edit(r / "spec/book-1-truth.md",
                        "нормальна форма `APPLY(⟨K⟩,⟨K⟩)`",
                        "нормальна форма `APPLY(⟨I⟩,⟨I⟩)`"))
-
-    def delete_witness(root: Path) -> None:
-        path = root / "tests/spec_conformance/vectors.json"
-        suite = json.loads(path.read_text())
-        suite["vectors"] = [v for v in suite["vectors"] if v["id"] != "EV-GENESIS-BARE"]
-        path.write_text(json.dumps(suite))
-
-    problems += expect(
-        "R  the recorded exception's witness deleted",
-        "the exception is resting on nothing", delete_witness)
-
-    def move_witness(root: Path) -> None:
-        path = root / "tests/spec_conformance/vectors.json"
-        suite = json.loads(path.read_text())
-        for vector in suite["vectors"]:
-            if vector["id"] == "EV-GENESIS-BARE":
-                vector["expected"]["atp_spent"] = 9
-        path.write_text(json.dumps(suite))
-
-    problems += expect(
-        "S  the recorded exception's evidence altered",
-        "was to show atp_spent=0 and shows", move_witness)
 
     def fabricate(root: Path) -> None:
         """A paragraph with no records, quoting a digest the store happens to
@@ -353,18 +315,21 @@ def main() -> int:
         cascade=("result ⟨I⟩, spend 20",))
 
     problems += expect(
-        "W  the excepted statement's subject changed",
-        "matches no statement in §7 in either language",
+        "W  a variable-budget statement's subject changed",
+        # Now caught on its own merits: the subject resolves to H(K) and the
+        # record filed under TV-12 evaluates H(I).
+        "no record filed under it satisfies the rest of the statement",
         lambda r: edit(r / "spec/book-1-truth.md", "`eval(H(I), n)` = ⟨I⟩, 0 ATP",
-                       "`eval(H(K), n)` = ⟨I⟩, 0 ATP"),
-        cascade=("the budget is a variable",))
+                       "`eval(H(K), n)` = ⟨I⟩, 0 ATP"))
 
     problems += expect(
-        "X  the excepted statement's result changed",
-        "matches no statement in §7 in either language",
-        lambda r: edit(r / "spec/book-1-truth.md", "`eval(H(I), n)` = ⟨I⟩, 0 ATP",
-                       "`eval(H(I), n)` = ⟨K⟩, 0 ATP"),
-        cascade=("the budget is a variable",))
+        "X  a variable-budget statement's result changed",
+        "no record filed under it satisfies the rest of the statement",
+        lambda r: [edit(r / f, was, now) for f, was, now in (
+            ("spec/book-1-truth.md", "`eval(H(I), n)` = ⟨I⟩, 0 ATP",
+             "`eval(H(I), n)` = ⟨K⟩, 0 ATP"),
+            ("spec/book-1-truth.en.md", "`eval(H(I), n)` = ⟨I⟩, 0 ATP",
+             "`eval(H(I), n)` = ⟨K⟩, 0 ATP"))])
 
     problems += expect(
         "Y  a declared compiler statement changed",
@@ -442,6 +407,17 @@ def main() -> int:
                  "neither re-derived from a stated construction nor bound",
                  "no single record among EV-TV10-C1-K",
                  "matches no statement in §7 in either language"))
+
+    def unfile_tv12(root: Path) -> None:
+        """Undo the filing ADR-009 introduced. Before it, this passed."""
+        path = root / "tests/spec_conformance/vectors.json"
+        path.write_text(path.read_text().replace(
+            "TV-12: bare intrinsic thunk", "bare intrinsic thunk"))
+
+    problems += expect(
+        "AF the record filed under TV-12 unfiled again",
+        "no record filed under it satisfies the rest of the statement",
+        unfile_tv12)
 
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)

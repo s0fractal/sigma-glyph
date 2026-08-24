@@ -830,7 +830,7 @@ paper.
 > Book alone, in both languages, on every CI run, and
 > `tests/spec_audit_selftest.py` breaks that property nine ways and requires the
 > audit to fail for each. The sentence above states what the audit found instead.
-> See `spec/IMPLEMENTING.md` and `proposals/ADR-008-specification-is-the-arbiter.md`.
+> See `spec/IMPLEMENTING.md` and `proposals/ADR-009-the-specification-is-its-own-arbiter.md`.
 
 **The model–code gap is empirical and finite.** No theorem relates
 `EvalMachine.lean` to `impl/sigma_glyph.py`. What relates them is 33 evaluation
