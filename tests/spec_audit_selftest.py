@@ -420,6 +420,29 @@ def main() -> int:
             print("OK   AC an inverted clause outside the predicates is reported, "
                   "not absorbed")
 
+    problems += expect(
+        "AD a subject replaced with an unrelated key from the store",
+        "Being present in the suite's store is not the same as belonging",
+        lambda r: [edit(r / f,
+                        "0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198",
+                        "01efe8732fb51149864e215ef8924437768c9b720c1335bd3f59d4f292c78466")
+                   for f in ("spec/book-1-truth.md", "spec/book-1-truth.en.md")],
+        cascade=("neither re-derived from a stated construction nor bound",))
+
+    problems += expect(
+        "AE a store-only entry whose test stops quoting it",
+        "outlives its subject",
+        lambda r: [edit(r / f,
+                        "bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d",
+                        "0000000000000000000000000000000000000000000000000000000000000000")
+                   for f in ("spec/book-1-truth.md", "spec/book-1-truth.en.md")],
+        # The declared statement carries the digest, so changing it also puts the
+        # statement outside its declaration and back among the decided.
+        cascade=("is in no record filed under TV-10",
+                 "neither re-derived from a stated construction nor bound",
+                 "no single record among EV-TV10-C1-K",
+                 "matches no statement in §7 in either language"))
+
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)
     if problems:

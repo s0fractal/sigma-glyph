@@ -225,6 +225,7 @@ class Report(NamedTuple):
     fields carry their types to the caller instead of arriving as `object`."""
     bound: set
     decided: int
+    bindings: int
     declared: list
     unresolved: list
     uncovered: list
@@ -535,6 +536,18 @@ def decide(claim: Claim, records: list[dict], glyphs: dict[str, str]) -> str | N
                 f"spend {claim.spend}" if claim.spend is not None else ""])))
 
 
+# Digests §7 quotes that the suite's store proves but no record carries. Named
+# one by one, with the test they belong to: membership in the global store is not
+# membership in a test, and letting it stand in for one meant any unrelated
+# stored key satisfied any paragraph that happened to have records.
+STORE_ONLY = {
+    "bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d": (
+        "TV-10", "the compiled term C1[λx.λy.x]. The suite's store proves its "
+                 "hash by recomputation; the evaluation filed under TV-10 uses "
+                 "the application of that term, so no record carries it"),
+}
+
+
 def account_for_digests(name: str, digests: set[str], mine: list[dict],
                         owner: dict[str, str], proved: set[str],
                         derived: set[str], problems: list[str]) -> set[str]:
@@ -543,17 +556,27 @@ def account_for_digests(name: str, digests: set[str], mine: list[dict],
     for digest in sorted(digests):
         elsewhere = owner.get(digest)
         here = any(digest in vector_digests(v) for v in mine)
-        if not here and elsewhere is not None:
+        exception = STORE_ONLY.get(digest)
+        if here:
+            found.add(digest)
+            if exception and exception[0] == name:
+                problems.append(
+                    f"§7 {name}: the store-only entry for {digest[:12]}… is no "
+                    "longer needed — a record filed under this test now carries "
+                    "it. Delete the entry")
+        elif elsewhere is not None:
             problems.append(
                 f"§7 {name} names {digest[:12]}…, which the suite files as the "
                 f"subject of TV-{elsewhere}. Presence in the suite is not the "
                 "same claim as belonging to this test")
-        elif here or (digest in proved and mine):
+        elif exception and exception[0] == name and digest in proved:
             found.add(digest)
         elif digest not in derived:
             problems.append(
                 f"§7 {name} names {digest[:12]}…, which is in no record filed "
-                f"under {name} and is not proved by the suite's store")
+                f"under {name}. Being present in the suite's store is not the "
+                "same as belonging to this test; if it genuinely cannot be "
+                "carried by a record, name it in STORE_ONLY with the reason")
     return found
 
 
@@ -650,6 +673,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
 
     bound: set[str] = set()
     checked = 0
+    bindings = 0
     unchecked: list[str] = []
     unresolved: list[str] = []
     uncovered: list[str] = []
@@ -676,7 +700,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
         found = account_for_digests(name, digests, mine, owner, proved, derived,
                                     problems)
         bound |= found
-        checked += len(found)
+        bindings += len(found)
 
         for claim in claims:
             decided, note = review_claim(name, claim, mine, by_id, glyphs,
@@ -685,7 +709,7 @@ def prose_matches_vectors(text: str, glyphs: dict[str, str], proved: set[str],
             if note:
                 unchecked.append(note)
 
-    return Report(bound, checked, unchecked, unresolved, uncovered,
+    return Report(bound, checked, bindings, unchecked, unresolved, uncovered,
                   seen_declarations, signatures)
 
 
@@ -705,6 +729,19 @@ def texts_state_the_same_claims(left: dict[str, list], right: dict[str, list],
                 f"§7 {test} does not state the same predicates in both texts: "
                 f"{len(here)} and {len(there)} statement(s), first difference "
                 f"{str(differing[:1])[:90]}")
+
+
+def store_only_entries_still_apply(text: str, problems: list[str]) -> None:
+    """A named store-only digest must still be quoted where it was named."""
+    for digest, (test, _) in STORE_ONLY.items():
+        for name, body in test_vector_blocks(text):
+            if name == test and digest in body:
+                break
+        else:
+            problems.append(
+                f"the store-only entry for {digest[:12]}… says it belongs to "
+                f"{test}, which no longer quotes it. A named exception that "
+                "outlives its subject excuses nothing")
 
 
 def declarations_still_apply(seen: set[str], problems: list[str]) -> None:
@@ -824,6 +861,7 @@ def main() -> int:
     report_en = prose_matches_vectors(en, glyphs, proved, english_derived, problems)
     english_bound = report_en.bound
     declarations_still_apply(report_uk.seen | report_en.seen, problems)
+    store_only_entries_still_apply(uk, problems)
     texts_state_the_same_claims(report_uk.signatures, report_en.signatures,
                                 problems)
     inventory(en, english_derived, english_bound, problems)
@@ -841,9 +879,11 @@ def main() -> int:
     print(f"same inventory from the English text alone     : "
           f"{len(set(re.findall(r'[0-9a-f]{{64}}', en)) - english_derived - english_bound)}"
           " unaccounted")
-    print(f"§7 mechanical predicates decided               : {checked}")
-    print("  the five it decides: subject identity, budget, canonical outcome,")
-    print("  result hash, ATP spend — and nothing else")
+    print(f"§7 instances of the five predicates decided    : {checked}")
+    print("  the five: subject identity, budget, canonical outcome, result hash,")
+    print("  ATP spend — and nothing else")
+    print(f"§7 digest bindings verified                    : {report_uk.bindings}")
+    print(f"  of which store-proved but carried by no record: {len(STORE_ONLY)}")
     print(f"§7 predicates the text does not resolve        : "
           f"{len(report_uk.unresolved)}")
     for item in report_uk.unresolved:

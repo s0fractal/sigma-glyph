@@ -100,9 +100,12 @@ The audit also compares what §7 *says* against what the suite recorded, and it 
 worth being exact about how far that goes. It decides **five mechanical
 predicates** and no more — subject identity, budget, canonical outcome, result
 hash, ATP spend — and a statement must have all of its *resolved* predicates
-satisfied by one record filed under that test. Everything else it reports rather
-than absorbs:
+satisfied by one record filed under that test. The run prints four ledgers:
 
+- **40 instances of the five predicates decided**, and separately **5 digest
+  bindings verified** — a digest belongs to the test that prints it, and one of
+  the five is a named exception, the compiled term whose hash the store proves
+  and no record carries;
 - **6 predicates it cannot resolve**, because the text names something it gives no
   identity to: `ghost`, a store shape, a budget written as a variable;
 - **4 statements declared undecided**, each keyed to its exact sentence, so
@@ -112,8 +115,11 @@ than absorbs:
   and what v0.4.x used to do. Inverting any of those would not fail this audit,
   which is why the run names them.
 
-The two texts must state the same predicates test by test, so a sentence altered
-in one rendering alone is caught even where its content is not decidable. One claim does not yet have a machine-readable filing — TV-12's second
+The two texts must state the same **predicates** test by test, so a statement
+altered in one rendering alone is caught. That is a check on predicates, not on
+prose: inverting a clause of the fifth kind in one language only passes, because
+those clauses are not predicates and the audit says so rather than pretending
+otherwise. One claim does not yet have a machine-readable filing — TV-12's second
 half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, is recorded by `EV-GENESIS-BARE`, whose note
 does not name TV-12. The audit carries that as a named exception which fails the
 run if it ever stops reproducing, so the exception cannot outlive the defect.
@@ -143,8 +149,8 @@ python3 tools/spec_audit.py            # the Book is self-contained
 python3 tests/spec_audit_selftest.py   # and the audit fails when it is not
 ```
 
-The second command matters more than the first. It breaks the Book in
-**twenty-six** ways — a genesis hash its construction does not produce, an axiom whose
+The second command matters more than the first. It breaks the Book in **thirty**
+ways — a genesis hash its construction does not produce, an axiom whose
 construction is replaced by "see the reference implementation", a prose hash no
 record of its own test carries, two tests' hashes swapped while both remain in the
 suite, a price restated in prose while the record keeps the old one, a constant
@@ -152,8 +158,8 @@ printed that nothing accounts for, a rule changed in translation, a suite
 generated against different bytes, and a recorded exception that has stopped
 reproducing — and requires the audit to fail for each, with its own reason.
 
-Seventeen of those twenty-six exist because external review reproduced the gap
-first, across three rounds. The audit's first version was described in wider terms than it
+Twenty-one of those thirty exist because external review reproduced the gap
+first, across five rounds. The audit's first version was described in wider terms than it
 checked; its second still let a whole test's filing vanish, ignored budgets no
 record used, read a note about a superseded version as a claim about this one, and
 let an exception outlive the evidence it named. Its third compared spends,
@@ -161,7 +167,9 @@ outcomes and results as separate sets, so TV-4's two budgets could exchange thei
 costs and TV-11's two evaluations their results with every set intact. §7 is now
 read one statement at a time, and a statement must be satisfied whole.
 
-The audit therefore reports two numbers rather than one: claims **decided**, and
-claims **explicitly left undecided**, each with the reason. A claim that is
-neither is an error. That accounting, rather than a stronger sentence, is what
-keeps the description from outrunning the check.
+The audit therefore reports four ledgers rather than one verdict: predicate
+instances **decided**, digest bindings **verified**, predicates it cannot
+**resolve**, statements **declared** undecided, and clauses **outside** its reach
+entirely. It does not claim that an unmatched sentence is an error — that cannot
+be guaranteed for arbitrary prose by this parser. That accounting, rather than a
+stronger sentence, is what keeps the description from outrunning the check.

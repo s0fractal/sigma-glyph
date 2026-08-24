@@ -14,13 +14,14 @@ suite's store and bound to the record of the test that names them. It then reads
 §7 statement by statement and decides **five mechanical predicates** — subject
 identity, budget, canonical outcome, result hash, ATP spend — each statement
 having to satisfy all of its resolved predicates against one record filed under
-that test. Forty-five predicates are decided that way. Six it cannot resolve, four
+that test. Forty instances of those predicates are decided that way, and five digest
+bindings verified separately. Six predicates it cannot resolve, four
 statements are declared undecided keyed to their exact sentences, and five clauses
 — storage access, forcing discipline, the memory invariant, the behaviour of a
 superseded version — lie outside the five entirely and are named rather than
 absorbed.
 [`tests/spec_audit_selftest.py`](../tests/spec_audit_selftest.py) breaks all of it
-twenty-eight ways and requires the audit to fail for each, including one
+thirty ways and requires the audit to fail for each, including one
 control in the other direction: an inverted clause outside the five predicates
 must appear in the report, since a passing run must not read as a statement
 about it.
