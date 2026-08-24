@@ -123,21 +123,26 @@ def main() -> int:
         # FALSE is built from H(K); TV-4's stated normal form *is* ⟨K⟩. A wrong
         # K must take both with it, or the Book is not linked as this assumes.
         cascade=("§5.2 FALSE", "does not carry the same hashes",
-                 "says the normal form is ⟨K⟩"))
+                 "says the result is ⟨K⟩",
+                 "says the result is APPLY(⟨K⟩,⟨K⟩)"))
 
     problems += expect(
         "B  an axiom whose construction is removed from the table",
         "no subject",
+        # The digest it used to derive becomes unaccounted, which is the same
+        # requirement seen from the inventory's side.
         lambda r: edit(r / "spec/book-1-truth.md",
                        '| S | `0001`+SHA-256("S") |',
-                       '| S | see the reference implementation |'))
+                       '| S | see the reference implementation |'),
+        cascade=("neither re-derived from a stated construction nor bound",))
 
     problems += expect(
         "C  the first theorem's construction deleted",
         "no longer states FALSE",
         lambda r: edit(r / "spec/book-1-truth.md",
                        "`FALSE ≡ APPLY(K,I)`; Bytes `0206‖H(K)‖H(I)`; Hash",
-                       "FALSE is defined in the reference implementation. Hash"))
+                       "FALSE is defined in the reference implementation. Hash"),
+        cascade=("neither re-derived from a stated construction nor bound",))
 
     problems += expect(
         "D  a prose hash that no record of its own test carries",
@@ -204,7 +209,8 @@ def main() -> int:
 
     problems += expect(
         "J  two tests' hashes swapped, both still present in the suite",
-        "files as the subject of TV-", swap_subjects)
+        "files as the subject of TV-", swap_subjects,
+        cascade=("neither re-derived from a stated construction nor bound",))
 
     def restate_price(root: Path) -> None:
         edit(root / "spec/book-1-truth.md", "**4 ATP** (force кореня 3 + R-I 1)",
@@ -223,8 +229,9 @@ def main() -> int:
                        "`d34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33f`.\n\n"
                        "**Негативні:**"),
         # A constant present in one language and not the other is a parity
-        # failure as well, and should be.
-        cascade=("does not carry the same hashes",))
+        # failure; a fabricated paragraph is also a paragraph with no records.
+        cascade=("does not carry the same hashes",
+                 "TV-13 states claims and no record in the suite is filed under it"))
 
     def file_the_waived_claim(root: Path) -> None:
         path = root / "tests/spec_conformance/vectors.json"
@@ -238,6 +245,75 @@ def main() -> int:
     problems += expect(
         "M  a recorded exception that has stopped reproducing",
         "no longer reproduces", file_the_waived_claim)
+
+    # --- the four paths a second independent audit reproduced against 9494a03.
+    # Every one of them was a green run over a claim nothing decided.
+
+    def untag(root: Path) -> None:
+        """One test's filing disappears while the aggregate count stays fine."""
+        path = root / "tests/spec_conformance/vectors.json"
+        path.write_text(path.read_text().replace("TV-8:", "case:"))
+
+    problems += expect(
+        "N  every record's tag for one test removed",
+        "no record in the suite is filed under it", untag)
+
+    problems += expect(
+        "O  a budget stated that no record uses and no rule implies",
+        "the claim is undecided and undeclared",
+        lambda r: [edit(r / f, "eval(·,4)", "eval(·,7)")
+                   for f in ("spec/book-1-truth.md", "spec/book-1-truth.en.md")])
+
+    problems += expect(
+        "P  an outcome swapped for one the records do not produce",
+        "states the outcome atp_exhausted",
+        lambda r: edit(r / "spec/book-1-truth.md",
+                       "DISSONANCE(Unresolved Reference)`, spent 4",
+                       "DISSONANCE(ATP Exhausted)`, spent 4"))
+
+    problems += expect(
+        "Q  a compound normal form changed",
+        "says the result is APPLY(⟨I⟩,⟨I⟩)",
+        lambda r: edit(r / "spec/book-1-truth.md",
+                       "нормальна форма `APPLY(⟨K⟩,⟨K⟩)`",
+                       "нормальна форма `APPLY(⟨I⟩,⟨I⟩)`"))
+
+    def delete_witness(root: Path) -> None:
+        path = root / "tests/spec_conformance/vectors.json"
+        suite = json.loads(path.read_text())
+        suite["vectors"] = [v for v in suite["vectors"] if v["id"] != "EV-GENESIS-BARE"]
+        path.write_text(json.dumps(suite))
+
+    problems += expect(
+        "R  the recorded exception's witness deleted",
+        "the exception is resting on nothing", delete_witness)
+
+    def move_witness(root: Path) -> None:
+        path = root / "tests/spec_conformance/vectors.json"
+        suite = json.loads(path.read_text())
+        for vector in suite["vectors"]:
+            if vector["id"] == "EV-GENESIS-BARE":
+                vector["expected"]["atp_spent"] = 9
+        path.write_text(json.dumps(suite))
+
+    problems += expect(
+        "S  the recorded exception's evidence altered",
+        "the exception's evidence has moved", move_witness)
+
+    def fabricate(root: Path) -> None:
+        """A paragraph with no records, quoting a digest the store happens to
+        hold. Store proof alone must not stand in for belonging to a test."""
+        key = list(json.loads(
+            (root / "tests/spec_conformance/vectors.json").read_text())["objects"])[7]
+        edit(root / "spec/book-1-truth.md", "**Негативні:**",
+             f"**TV-13 (fabricated):** Hash `{key}`.\n\n**Негативні:**")
+        edit(root / "spec/book-1-truth.en.md", "**Negative",
+             f"**TV-13 (fabricated):** Hash `{key}`.\n\n**Negative")
+
+    problems += expect(
+        "T  a fabricated test quoting an unrelated stored digest",
+        "TV-13 states claims and no record in the suite is filed under it",
+        fabricate, cascade=("neither re-derived from a stated construction nor bound",))
 
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)

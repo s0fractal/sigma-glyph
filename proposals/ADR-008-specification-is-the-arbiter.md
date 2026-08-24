@@ -63,8 +63,14 @@ than a contradiction: TV-12 claims `eval(H(I), n) = ⟨I⟩` at 0 ATP, `EV-GENES
 records exactly that, and nothing machine-readable connects them. The audit
 carries it as a named exception that fails the run if it stops reproducing.
 
-The clause itself has therefore never decided anything. It only tells a stranger
-where authority lives, and it puts it in the wrong place.
+At the current anchored revision, no contradiction was detected within the
+predicates the audit checks explicitly — and it now reports what it leaves
+undecided rather than passing over it. Whether the clause ever decided anything
+historically was not audited, and this ADR does not claim it did not.
+
+What can be said without any of that: the clause tells a stranger their
+disagreement with the specification is settled by code, and that is the wrong
+place for the authority regardless of whether it has ever been exercised.
 
 ## Proposal
 
@@ -107,7 +113,7 @@ becomes the Book.
 | document bytes | 23,749 → 24,590 |
 | behavioural change | none — no rule, price, constant or vector moves |
 | also in scope | `EV-GENESIS-BARE`'s note gains `TV-12:`, which files the one prose claim the suite proves but does not connect. That edits `tests/spec_conformance/vectors.json`, which is anchored, so it belongs to the same governed step |
-| version | a PATCH to Book I: prose only, oracle and suite unchanged |
+| version | a PATCH to Book I: its semantics are unchanged — no rule, price, constant or vector moves. The suite's **metadata** does change (one note gains `TV-12:`) and is re-anchored with it, so "suite unchanged" would be false |
 
 Adopting it therefore requires a new ANCHORS bundle section, the `book1_anchor`
 field of the vector suite re-pinned, and the English rendering updated in step —

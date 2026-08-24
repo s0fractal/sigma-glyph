@@ -95,7 +95,10 @@ bytes of the Book that ships. Today no discrepancy exists.
 
 The audit also compares what §7 *says* against what the suite recorded: every
 stated budget, spend, outcome and normal form must match the records filed under
-that test. One claim does not yet have a machine-readable filing — TV-12's second
+that test. Four claims are declared undecided — a statement quantified over every
+budget, a claim about what the compiler emits rather than about an evaluation, and
+a note recording how v0.4.x behaved — and the run fails if an undeclared one
+appears, or if a declaration stops applying. One claim does not yet have a machine-readable filing — TV-12's second
 half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, is recorded by `EV-GENESIS-BARE`, whose note
 does not name TV-12. The audit carries that as a named exception which fails the
 run if it ever stops reproducing, so the exception cannot outlive the defect.
@@ -125,7 +128,7 @@ python3 tools/spec_audit.py            # the Book is self-contained
 python3 tests/spec_audit_selftest.py   # and the audit fails when it is not
 ```
 
-The second command matters more than the first. It breaks the Book in **thirteen**
+The second command matters more than the first. It breaks the Book in **twenty**
 ways — a genesis hash its construction does not produce, an axiom whose
 construction is replaced by "see the reference implementation", a prose hash no
 record of its own test carries, two tests' hashes swapped while both remain in the
@@ -134,5 +137,13 @@ printed that nothing accounts for, a rule changed in translation, a suite
 generated against different bytes, and a recorded exception that has stopped
 reproducing — and requires the audit to fail for each, with its own reason.
 
-Four of those thirteen exist because external review reproduced the gap first:
-the first version of this audit was described in wider terms than it checked.
+Eleven of those twenty exist because external review reproduced the gap first, in
+two rounds. The audit's first version was described in wider terms than it
+checked; its second still let a whole test's filing vanish, ignored budgets no
+record used, read a note about a superseded version as a claim about this one, and
+let an exception outlive the evidence it named.
+
+The audit therefore reports two numbers rather than one: claims **decided**, and
+claims **explicitly left undecided**, each with the reason. A claim that is
+neither is an error. That accounting, rather than a stronger sentence, is what
+keeps the description from outrunning the check.
