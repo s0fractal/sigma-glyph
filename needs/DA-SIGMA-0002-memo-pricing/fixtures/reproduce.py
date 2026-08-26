@@ -3,8 +3,14 @@
 
 Four claims, in order:
 
-  R1  Book I never reuses a result. The same hash, evaluated twice, costs the
-      same both times: two agents holding one subterm pay for it twice.
+  R1  The ACCOUNTING is identical on a second evaluation: the same hash costs
+      the same both times. NOTE, corrected 2026-08-26: this says nothing about
+      whether an implementation re-does the WORK. Book I §3.4 settles that
+      explicitly — "sharing MAY be used in execution, but reported ATP MUST match
+      tree accounting" — so a conforming implementation may already take the
+      result from a memo and must still report the tree price. An earlier draft
+      of this packet read R1 as "Book I never reuses a result", which is a
+      different and false claim.
   R2  A memo of normal forms priced at `size(nf)` reaches the SAME result hash
       for every fixture term, spends materially less, and satisfies §3.4's
       `size <= spent + 1` at every action.
@@ -13,20 +19,32 @@ Four claims, in order:
       itself starts to fail; `size(nf)` is where a memo install stops obeying the
       per-row discipline every Book I action satisfies (`dsize <= cost - 1`).
       Both boundaries are measured here.
-  R4  The collision. Because the memoized run spends less, a memoizing
-      implementation returns a different `atp_spent` for the same
-      (term, budget) than the reference oracle, and therefore cannot satisfy
-      conformance vectors that pin spend exactly.
+  R4  What a DIFFERENT accounting would report. A run that charges size(nf) for
+      an installed normal form reports a different atp_spent for the same
+      (term, budget), and therefore cannot satisfy conformance vectors that pin
+      spend. That is not a defect in Book I: §3.4 requires the tree figure to be
+      reported, so this is a measurement of what an ALife-side metabolic
+      accounting would look like, and of why it must not be called Σ-GLYPH
+      atp_spent. It does NOT follow that warrant's ski@v1 verdicts diverge:
+      SPEC §3.1 compares the result NodeHash against `expect` and pins `atp` as
+      an INPUT budget; it does not compare spend.
 
 Usage:  python3 needs/DA-SIGMA-0002-memo-pricing/fixtures/reproduce.py
 Env:    SIGMA_GLYPH=<checkout>/impl   (default: this repository's impl/)
 """
+import hashlib
 import importlib.util
 import os
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+# The oracle this packet was measured against. The first version cited this
+# digest in prose and loaded whichever sigma_glyph.py it found first, so it would
+# have reported REPRODUCED against a different machine. Verified now, and fatal.
+PINNED_ORACLE_SHA256 = ("413d1f9805cdbdf42f13d967a17be26eb959c692"
+                        "eeb067e7146203ed9cebe64d")
+
 
 
 def load_sigma():
@@ -46,6 +64,15 @@ def load_sigma():
 
 
 sg, ORACLE = load_sigma()
+ORACLE_SHA256 = hashlib.sha256(Path(ORACLE).read_bytes()).hexdigest()
+if ORACLE_SHA256 != PINNED_ORACLE_SHA256 and "--allow-oracle-drift" not in sys.argv:
+    sys.exit(f"ERR: this packet pins the oracle it was measured against.\n"
+             f"  expected {PINNED_ORACLE_SHA256}\n"
+             f"  found    {ORACLE_SHA256}\n"
+             f"  at       {ORACLE}\n"
+             f"Numbers from another machine are not this packet's numbers. Pass "
+             f"--allow-oracle-drift to measure anyway; the result is then yours, "
+             f"not this packet's.")
 I = ("lit", sg.sha(b"I"))
 K = ("lit", sg.sha(b"K"))
 S = ("lit", sg.sha(b"S"))
@@ -142,10 +169,12 @@ def main():
     # R1 — Book I never reuses a result.
     print("R1  the same hash, evaluated twice:")
     reused = False
+    r1_costs = []
     for h in roots[:4]:
         _, a = sg.eval_hash(h, ATP, store)
         _, b = sg.eval_hash(h, ATP, store)
         reused |= a != b
+        r1_costs.append((a, b))
         print(f"      {h.hex()[:12]}  first {a:5d}   second {b:5d}")
     print(f"    -> every second evaluation pays full price: "
           f"{'NO' if reused else 'CONFIRMED'}\n")
@@ -176,17 +205,24 @@ def main():
             worst_p = max(worst_p, w)
         return broke, worst_p
 
+    # `max(1, ...)`, not `max(0, ...)`: Book I §3.4 fixes the minimum price of any
+    # action at 1, and 4 of these 8 normal forms have size 1, where a literal
+    # "k - 1" would be a free action the specification does not allow. The
+    # theorem's floor is therefore max(1, k - 1), which an earlier draft of this
+    # packet stated as a bare k - 1.
     print("R3  the memory bound under four prices for the same memo:")
+    r3 = {}
     for label, price in (("size(nf)", sg.size),
-                         ("size(nf) - 1", lambda nf: max(0, sg.size(nf) - 1)),
-                         ("size(nf) - 2", lambda nf: max(0, sg.size(nf) - 2)),
+                         ("max(1, size(nf)-1)", lambda nf: max(1, sg.size(nf) - 1)),
+                         ("max(1, size(nf)-2)", lambda nf: max(1, sg.size(nf) - 2)),
                          ("flat 1", lambda nf: 1)):
         b, w = at_price(price)
-        print(f"      {label:14s} violations {b}/{len(roots)}   worst excess {w:+d}")
-    broke, _ = at_price(lambda nf: max(0, sg.size(nf) - 2))
-    sound_floor, _ = at_price(lambda nf: max(0, sg.size(nf) - 1))
-    print("    -> the bound's floor is size(nf) - 1. size(nf) is what additionally")
-    print("       keeps the per-row discipline dsize <= cost - 1, tightly.\n")
+        r3[label] = (b, w)
+        print(f"      {label:18s} violations {b}/{len(roots)}   worst excess {w:+d}")
+    at_floor, _ = at_price(lambda nf: max(1, sg.size(nf) - 1))
+    below, worst_below = at_price(lambda nf: max(1, sg.size(nf) - 2))
+    print("    -> the bound's floor is max(1, size(nf) - 1). size(nf) is what")
+    print("       additionally keeps the per-row discipline dsize <= cost - 1.\n")
 
     # R4 — the collision with pinned conformance.
     diverged = []
@@ -203,8 +239,35 @@ def main():
     print("       that pin atp_spent exactly (tests/spec_conformance/vectors.json)")
 
     print(f"\noracle: {ORACLE}")
-    ok = (not reused) and same and worst == 0 and broke > 0 and diverged
-    print(f"\nDA-SIGMA-0002: {'REPRODUCED' if ok else 'NOT REPRODUCED'}")
+    print(f"oracle sha256: {ORACLE_SHA256}")
+
+    # EVERY claim this packet makes, pinned to an exact value. The first version
+    # of this predicate read `broke > 0 and diverged` and ignored the numbers
+    # entirely: mutating the k-1 arm to charge k-4, so that it reported 4/8
+    # violations and contradicted the packet's thesis, still printed REPRODUCED
+    # and exited 0. A reproducer whose verdict does not depend on its numbers is
+    # a press release.
+    expected = {
+        "R1 second evaluation costs the same": r1_costs == [(12, 12), (15, 15),
+                                                            (13, 13), (16, 16)],
+        "R1 no cheaper second run": not reused,
+        "R2 answers identical to the oracle": same,
+        "R2 warm/cold totals": (warm, cold) == (97, 185),
+        "R2 bound tight, never broken": worst == 0,
+        "R3 size(nf) is sound": r3["size(nf)"] == (0, 0),
+        "R3 max(1, size(nf)-1) is sound — the theorem's floor":
+            r3["max(1, size(nf)-1)"] == (0, 0),
+        "R3 max(1, size(nf)-2) breaks the bound": r3["max(1, size(nf)-2)"] == (4, 1),
+        "R3 a flat price of 1 breaks it worse": r3["flat 1"] == (4, 9),
+        "R4 a different accounting diverges on every term":
+            len(diverged) == len(roots) == 8,
+    }
+    print()
+    for name, held in expected.items():
+        print(("OK  " if held else "FAIL"), name)
+    ok = all(expected.values())
+    print(f"\nDA-SIGMA-0002: {'REPRODUCED' if ok else 'NOT REPRODUCED'} "
+          f"({sum(expected.values())}/{len(expected)} pinned values)")
     return 0 if ok else 1
 
 

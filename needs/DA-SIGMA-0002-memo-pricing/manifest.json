@@ -3,10 +3,10 @@
   "schema": "decision-archaeology.need@v0",
   "template": "decision-archaeology.need-template@v0.1.0",
   "id": "DA-SIGMA-0002",
-  "status": "draft",
+  "status": "filed",
   "source": {
     "repository": "https://github.com/s0fractal/sigma-glyph-alife",
-    "revision": "fb6b37da7aa73c681f5750cbdc5e70ef03c244e4",
+    "revision": "793c2fbe412113304d3254fa35dfcf0bc0a317a8",
     "case_id": "alife-exp-002-does-sharing-pay",
     "artifacts": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "path": "impl/sigma_alife.py",
-        "sha256": "4c134f401700335386c51e204da869a3ea2f1be97dd03159af25c4118b14210d"
+        "sha256": "e80483098491b7ae3fd07547a54a01d8d6cde4e7a39e4816b415f86676f011eb"
       }
     ]
   },
@@ -25,17 +25,17 @@
     "surface": "spec/book-1-truth.md \u00a73.4 ATP accounting, and the exact atp_spent pinned per (term, budget) by tests/spec_conformance/vectors.json \u2014 together they decide whether a conforming implementation may reuse a result it has already paid for"
   },
   "need": {
-    "blocked_operation": "Publish an implementation that answers a repeated Sigma-Glyph check without paying for it twice, and still call it conforming.",
-    "current_behavior": "Book I charges every agent for every materialization and the conformance vectors pin atp_spent exactly, so an implementation that reuses a normal form it already computed returns a different spend for the same (term, budget) and fails conformance. On the packet's fixture the divergence is total: 8 of 8 terms, e.g. 12 ATP against 1 and 15 against 5. Book I's text never mentions memoization; the prohibition is a side effect of pinning spend, not a decision recorded anywhere.",
-    "required_capability": "A stated position on whether a conforming implementation may reuse a normal form it holds for a demanded hash \u2014 and, if it may, WHICH of two prices it owes, since they differ by one and answer different questions: size(nf) - 1 is the floor below which the memory bound size <= spent + 1 itself fails, while size(nf) is the floor below which a memo install stops obeying the per-row discipline every Book I action satisfies (dsize <= cost - 1). Two implementations that both memoize agree on atp_spent only if they charge the same thing. Not an implementation: a statement, and if the answer is yes, which of the two numbers.",
-    "local_workaround": "The ALife substrate memoizes outside conformance: a Memo priced at size(nf), off by default, with every receipt recording that a memo was used and the SHA-256 of the oracle beside it. On its population this cuts ATP by 8.2% (composites that demand each other's roots) and 17.1% (a generational arm where children inherit parents' hashes), with the answer hash unchanged everywhere.",
-    "why_workaround_is_insufficient": "The numbers it produces are not Sigma-Glyph numbers. An ATP figure from a memoizing run cannot be compared with a Book I figure, cited in a receipt a verifier will re-run, or replayed by any conforming implementation \u2014 which is the property the substrate wanted Book I for. Every downstream consumer that re-runs a budgeted check (warrant's ski@v1 re-runs compare hash AND budget) inherits the same split.",
-    "candidate_placement": "unknown"
+    "blocked_operation": "Publish an implementation that answers a repeated Sigma-Glyph check without paying for it twice, and still call it conforming. CORRECTED 2026-08-26: Book I \u00a73.4 already permits this \u2014 sharing MAY be used in execution, the reported ATP MUST match tree accounting \u2014 so what was actually blocked is charging the CHEAPER number and calling it atp_spent.",
+    "current_behavior": "Book I \u00a73.4 fixes the normative accounting as tree semantics over the materialized graph and says in one sentence that sharing MAY be used in execution while the reported ATP MUST match that accounting. The filed version of this packet missed that sentence and claimed the specification never discusses memoization. It does. An implementation may reuse; it may not report the reuse price.",
+    "required_capability": "None from Sigma-Glyph. The capability exists. What remains is an application-side decision: an ALife substrate that charges size(nf) for an installed normal form is running a metabolic accounting of its own, which must not be called Sigma-Glyph atp_spent. Filed so the demand and its routing are on the record.",
+    "local_workaround": "The ALife substrate memoizes outside conformance: a Memo priced at size(nf), off by default, with every receipt recording that a memo was used and the SHA-256 of the oracle beside it. On its population this cuts ATP by 8.2% and 17.1% in two arms, with the answer hash unchanged.",
+    "why_workaround_is_insufficient": "It is sufficient, and that is the finding. The numbers it produces are not Sigma-Glyph numbers and \u00a73.4 says why: the reported figure must be the tree figure. The filed version additionally claimed that consumers re-running budgeted checks inherit the split \u2014 warrant's ski@v1 was named. That was too large: SPEC \u00a73.1 compares the result NodeHash against `expect` and pins `atp` as an input budget; it does not compare atp_spent, so no verdict diverges at the fixture's budget.",
+    "candidate_placement": "existing-contract"
   },
   "reproducer": {
     "command": "python3 needs/DA-SIGMA-0002-memo-pricing/fixtures/reproduce.py",
-    "expected": "R1: the same hash evaluated twice costs the same both times (12/12, 15/15, 13/13, 16/16) \u2014 Book I never reuses a result. R2: a memo priced at size(nf) reaches every oracle answer for 97 ATP against 185 (52.4%) with worst size-(spent+1) exactly 0. R3: the memory bound under four prices for the same memo \u2014 size(nf): 0/8 violations; size(nf)-1: 0/8; size(nf)-2: 4/8; flat 1: 4/8, worst excess +9. The bound's floor is size(nf)-1; size(nf) is what additionally keeps the per-row discipline. R4: the memoizing run and the oracle report different atp_spent on 8 of 8 terms, which is the conformance collision.",
-    "counterexample": "If Book I already fixes that atp_spent is exactly determined and that reuse is therefore forbidden by design, this closes as an existing contract, and the substrate keeps its memo strictly outside conformance and says so in every receipt \u2014 no protocol change. If an owner-side reading finds any published ADR, profile or vector that prices reuse, this closes as already-supported. The request survives only if the answer is 'nobody decided', in which case the price is already derived from \u00a73.4 and needs adopting, not inventing."
+    "expected": "Ten pinned values, all of which must hold, and a refusal to run against an oracle whose SHA-256 is not 413d1f98... R1: the same hash evaluated twice costs the same both times (12/12, 15/15, 13/13, 16/16) \u2014 the ACCOUNTING, not the work. R2: a run charging size(nf) reaches every oracle answer for 97 ATP against 185, worst size-(spent+1) exactly 0. R3: the bound under four prices \u2014 size(nf) 0/8 violations, max(1,size(nf)-1) 0/8, max(1,size(nf)-2) 4/8, flat 1 4/8 with worst excess +9; the floor is max(1,k-1), since four of the eight normal forms have size 1 and \u00a73.4 fixes the minimum price of any action at 1. R4: that accounting reports a different atp_spent on 8 of 8 terms, which is why \u00a73.4 requires the tree figure.",
+    "counterexample": "Already answered: Book I \u00a73.4 fixes that reported ATP must match tree accounting while permitting sharing in execution, so this closes as an existing contract. It would REOPEN only if that sentence were read as not covering a memo of whole normal forms \u2014 in which case the fork between max(1,k-1) and k would matter to Sigma-Glyph rather than to its consumer."
   },
   "boundaries": {
     "data_minimization": "The fixture carries eight SKI terms built from the genesis alphabet and nothing else. The ALife populations, their generational economy, the corpus and the experiment's own hypotheses are deliberately omitted; none of them is needed to reproduce the collision.",
@@ -43,11 +43,12 @@
       "Filing this request does not establish the source case's hypotheses. ALIFE-EXP-002's H1 and H3 both FAIL against their preregistered criteria and the packet does not depend on them.",
       "Merging this packet records demand and routing only; it does not adopt a protocol change, a memo action, or any price.",
       "The measured ATP figures describe the reference Python evaluator at the pinned target revision, not a property of the specification.",
-      "The substrate claims no standing in Sigma-Glyph governance and proposes no text."
+      "The substrate claims no standing in Sigma-Glyph governance and proposes no text.",
+      "The filed version of this packet claimed Book I never discusses memoization. It does, in \u00a73.4. The correction is in request.md rather than in a force-push, so the error stays legible."
     ]
   },
   "provenance": {
-    "producer": "Claude (Opus 5), working in s0fractal/sigma-glyph-alife under s0fractal's direction; not reviewed by a second party",
+    "producer": "Claude (Opus 5) in s0fractal/sigma-glyph-alife under s0fractal's direction; corrected after an external review by Codex found the premise false. Not reviewed by a second party otherwise.",
     "generated_at": "2026-08-25T16:40:00Z",
     "authority": "case-derived-demand-only"
   },

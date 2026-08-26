@@ -4,7 +4,7 @@
   "request_id": "DA-SIGMA-0002",
   "status": "untriaged",
   "owner_surface": "unassigned",
-  "rationale": "No owner-side triage has been recorded. The packet has not been filed against the target repository.",
+  "rationale": "No owner-side triage has been recorded. The packet was filed as s0fractal/sigma-glyph#25 on 2026-08-26 and corrected on the same branch after review; classification remains the owner's and this file has not been classified by the requester.",
   "next_action": "The target owner should reproduce the packet and route it without implying protocol adoption.",
   "decided_at": null,
   "decided_by": null,

@@ -1,109 +1,107 @@
-# DA-SIGMA-0002: may a conforming implementation reuse a result it has already paid for — and at what price?
+# DA-SIGMA-0002: may a conforming implementation reuse a result it has already paid for?
 
-This is a case-derived demand packet. It is not a protocol proposal, a finding of
-wrongdoing, or evidence that Σ-GLYPH has accepted a change. It asks for a
-statement, and — only if that statement is "yes" — for a number that is already
-derivable from Book I's own text.
+**The answer is yes, and Book I already says so.** This packet asked the question
+without having found the sentence that settles it. What follows is the corrected
+record: the case that prompted it, the answer §3.4 gives, and the decision that
+turns out to be ALife-side rather than Σ-GLYPH's.
 
-## Blocked operation
+It is filed as a record of demand and routing. It proposes no specification text
+and asks for no change.
 
-Publish an implementation that answers a repeated Σ-GLYPH check without paying
-for it twice, and still call it conforming.
+## Correction, 2026-08-26 — the premise was wrong
 
-Book I charges every agent for every materialization, and the conformance vectors
-pin `atp_spent` exactly for each `(term, budget)`. An implementation that reuses a
-normal form it already holds therefore reports a different spend and fails
-conformance. On the packet's eight-term fixture the divergence is total: 12 ATP
-against 1, 15 against 5, 8 of 8 terms.
+The filed version said: *"Book I's text never mentions memoization. The
+prohibition is a side effect of pinning spend, not a decision recorded anywhere."*
 
-Book I's text never mentions memoization. The prohibition is a **side effect of
-pinning spend**, not a decision recorded anywhere — which is why this arrives as a
-question rather than as a complaint.
+That is false. Book I §3.4 ends with:
+
+> «Нормативна модель обліку — tree semantics над матеріалізованим графом:
+> **шаринг MAY застосовуватись у виконанні, але звітований ATP MUST збігатися з
+> tree-обліком**.»
+
+Sharing **MAY** be used in execution; the *reported* ATP **MUST** match tree
+accounting. A conforming implementation may therefore already take a result from
+a memo and skip the work — it must simply report the canonical price. The
+capability this packet asked for exists, and the contract is one sentence long.
+
+The reproducer's R1 was read as *"Book I never reuses a result"*. It shows only
+that the **accounting** is identical on a second evaluation, which is a different
+claim, and the one §3.4 requires.
+
+Found by an external review (Codex) of the filed packet, verified against the
+spec at the pinned revision, and corrected here rather than quietly. Two further
+errors it found are corrected below.
+
+## What was actually blocked, restated
+
+The ALife substrate wanted an agent to buy a normal form somebody else had
+already derived, and to have that **cost less ATP** — because in a population,
+what an agent can afford decides whether it settles at all.
+
+§3.4 permits the *reuse* and fixes the *price*. So the substrate can skip the
+work and must still report the tree figure. What it cannot do is call its cheaper
+number `atp_spent` and stay conforming — and it should not want to: that number
+is a **metabolic accounting of its own**, and naming it after Σ-GLYPH's would
+make two incomparable quantities share a word.
+
+That is an application-side decision, and the packet's own counterexample clause
+anticipated this outcome: *"If Book I already fixes that atp_spent is exactly
+determined, this closes as an existing contract."*
 
 ## Evidence and reproducer
-
-The fixture is eight SKI terms: four base terms and four composites built to
-**demand** the base terms by hash, because that demand path is what a memo
-answers. Everything else about the source case — populations, generations, an
-ATP economy, hypotheses — is omitted; none of it is needed.
 
 ```
 python3 needs/DA-SIGMA-0002-memo-pricing/fixtures/reproduce.py
 ```
 
-- **R1** — the same hash, evaluated twice, costs the same both times (12/12,
-  15/15, 13/13, 16/16). Book I never reuses a result.
-- **R2** — a memo of normal forms priced at `size(nf)` reaches every oracle answer
-  for 97 ATP against 185 (52.4%), with `size − (spent + 1)` at worst exactly **0**:
-  the §3.4 bound holds, and holds tightly.
-- **R3** — the same memo priced at 1 violates `size ≤ spent + 1` on 4 of 8 terms,
-  worst excess +9.
-- **R4** — the memoizing run and the oracle disagree about `atp_spent` on 8 of 8
-  terms. That is the collision.
+Eight SKI terms; Book I and nothing else. The script **refuses to run** against an
+oracle whose SHA-256 is not the `413d1f98…` this packet pins, and its verdict is
+pinned to ten exact values — both corrections from the same review, and both
+demonstrable:
 
-## Capability boundary
+- mutating the `max(1, size(nf)−1)` arm so that it contradicts the packet now
+  prints `NOT REPRODUCED (9/10)` and exits 1. The filed version printed
+  `REPRODUCED` and exited 0;
+- appending one comment to the oracle now aborts with both digests. The filed
+  version loaded whatever it found and reported success.
 
-The capability asked for is a **position**, not an implementation: may a
-conforming implementation reuse a normal form it holds for a demanded hash?
+What it measures:
 
-If the answer is no, say so in Book I, because at present the answer lives only in
-the vectors and an implementer can reasonably read the specification and conclude
-otherwise.
+- **R1** the same hash evaluated twice costs the same both times (12/12, 15/15,
+  13/13, 16/16) — the *accounting*, not the work;
+- **R2** a run charging `size(nf)` for an installed normal form reaches every
+  oracle answer for 97 ATP against 185, with worst `size − (spent+1)` exactly 0;
+- **R3** the bound under four prices: `size(nf)` 0/8 violations,
+  `max(1, size(nf)−1)` 0/8, `max(1, size(nf)−2)` 4/8, flat 1 4/8 with worst
+  excess +9;
+- **R4** that accounting reports a different `atp_spent` on 8 of 8 terms — which
+  is precisely why §3.4 requires the tree figure instead.
 
-If the answer is yes, the price is not free either — but it is a **fork between
-two numbers that differ by one**, and choosing between them is a decision only
-Book I's owners can make.
+### The floor is `max(1, k − 1)`, not `k − 1`
 
-Installing a normal form of size `k` where a thunk of size 1 stood grows the term
-by `k − 1`. So:
+The filed version said the theorem's floor is `size(nf) − 1`. **Four of the eight
+fixture normal forms have size 1**, where that is zero — and §3.4 fixes the
+minimum price of any action at 1. The floor is `max(1, k − 1)`; `k` is what
+additionally preserves the per-row discipline (`Δsize ≤ cost − 1`) that every row
+of §3.4 satisfies, with equality. For an ALife action, `k` is the cleaner choice
+for exactly that reason, and it is an ALife choice.
 
-- **`k − 1`** is the floor for the *theorem*. `size ≤ spent + 1` needs only
-  `Δsize ≤ Δcost`, and R3 measures exactly that: sound at `k − 1`, broken at
-  `k − 2`.
-- **`k`** is the floor for the *discipline*. Every row of §3.4 satisfies the
-  stronger `Δsize ≤ cost − 1` — an action costs more than it adds — and a memo
-  install keeps that exactly when the price is at least `k`, with equality at `k`.
+### The `warrant` claim was too large
 
-Whichever is chosen, two implementations that both memoize agree on `atp_spent`
-only if they charge the same thing, which is why this needs a decision rather
-than an implementation. The source repository implements `k`, on the grounds that
-an action which merely fails to break the theorem is not the same as one that
-behaves like every other action of the machine — but that reasoning belongs to
-whoever owns §3.4.
-
-*(This paragraph replaces one that claimed `k` was forced. It was off by one: the
-claim was generalized from a measurement at a flat price of 1 without checking
-the boundary, and the boundary is at `k − 1`. Correcting it before filing is the
-reason a packet is written down before it is sent.)*
-
-> In a size-priced machine, memoization can refund time and never space.
-
-**Current workaround:** the ALife substrate memoizes strictly outside conformance
-— off by default, priced at `size(nf)`, with every receipt recording that a memo
-was used and the SHA-256 of the oracle beside it.
-
-**Why it is insufficient:** the numbers it produces are not Σ-GLYPH numbers. An
-ATP figure from a memoizing run cannot be compared with a Book I figure, cited in
-a receipt someone will re-run, or replayed by a conforming implementation. Every
-consumer that re-runs a budgeted check inherits the same split — `warrant`'s
-`ski@v1` re-runs compare the hash *and* the budget.
-
-**Counterexample that closes or reroutes this:** if Book I already fixes that
-`atp_spent` is exactly determined and reuse is forbidden by design, this closes as
-an existing contract and the substrate keeps its memo outside conformance
-permanently. If any published ADR, profile or vector already prices reuse, it
-closes as already-supported. The request survives only if the answer turns out to
-be "nobody decided".
+The filed version said every consumer that re-runs a budgeted check inherits the
+split, "warrant's `ski@v1` re-runs compare the hash *and* the budget". They do
+not. SPEC §3.1 step 3: *"pass iff the result's NodeHash equals `expect`"*; `atp`
+is the pinned **input** budget and `atp_spent` is not compared. At the fixture's
+budget the oracle and a memoizing run return the same hash, so no verdict
+diverges. Divergence needs a budget boundary — where a different accounting has
+already changed Book I semantics, which §3.4 forbids reporting as Book I.
 
 ## Non-claims
 
-- Filing this does not establish the source case's hypotheses. **ALIFE-EXP-002's
-  H1 and H3 both FAIL against their preregistered criteria**, and nothing in this
-  packet depends on them — the collision is arithmetic about ATP, not a result
-  about artificial life.
-- Merging this packet records demand and routing only. It adopts no protocol
-  change, no memo action, and no price.
-- The ATP figures describe the reference Python evaluator at the pinned target
-  revision. They are not properties of the specification.
-- The source repository claims no standing in Σ-GLYPH governance and proposes no
-  specification text.
+- Merging this records demand and routing only. It adopts nothing.
+- The source case's own hypotheses are not established: ALIFE-EXP-002's H1 and H3
+  both fail against their preregistered criteria, and nothing here depends on
+  them.
+- The ATP figures describe the reference Python evaluator at the pinned revision.
+- The source repository claims no standing in Σ-GLYPH governance, and does not
+  classify this packet. `disposition.json` remains the owner's to write.
