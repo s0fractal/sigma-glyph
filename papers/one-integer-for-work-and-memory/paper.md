@@ -346,7 +346,7 @@ semantic canonicity is not.
 # 4. The mechanization
 
 All proofs are Lean 4 v4.31.0 [@demoura2021lean4], **core only, no mathlib**.
-The pinned toolchain is `proofs/lean-toolchain`. Ten `.lean` files total 1304
+The pinned toolchain is `proofs/lean-toolchain`. Ten `.lean` files total 1404
 lines: `Sha256.lean` (110), `MachineBytes.lean` (282), `EvalMachine.lean` (340),
 `WaveAlgebra.lean` (203), `C1Compiler.lean` (138), `SizeBound.lean` (95),
 `LutData.lean` (17 lines holding a 206 KB generated table), and three `*Run.lean`
@@ -616,8 +616,8 @@ repository that gates on compilation gates on nothing in particular. The standar
 remedy is a script that compiles, queries each headline theorem's axiom
 dependencies with `#print axioms`, and fails the build on anything unexpected.
 Ours was about forty lines. Over eight days of adversarial review it became 1465
-lines of Python, a 175 KB pin registry and a 981-line regression suite asserting
-122 properties — machinery 2.3× the size of the 1304 lines of Lean it guards.
+lines of Python, a 179 KB pin registry and a 981-line regression suite asserting
+122 properties — machinery 2.3× the size of the 1404 lines of Lean it guards.
 Every bypass in that history was demonstrated end-to-end: not "this check has a
 theoretical gap" but *here is a file, here is the green CI output, here is the
 falsehood it certified.*

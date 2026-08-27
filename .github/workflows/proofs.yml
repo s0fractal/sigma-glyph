@@ -31,6 +31,15 @@ jobs:
         # bridge_check.py below, matching how every other proof file is
         # guarded by its bridge.
         run: lean proofs/SizeBound.lean && echo "PROOF CHECKS"
+      # A Lean fact with no tie to the oracle is a statement about a model
+      # nobody runs (SECURITY-ASSUMPTIONS SA-2). Store monotonicity gets the
+      # same treatment as every other theorem here.
+      - name: Bridge - store monotonicity holds on the live oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 proofs/store_mono_bridge_check.py | tee /dev/stderr \
+            | grep -q "STORE-MONO BRIDGE: ALL AGREE"
       - name: Bridge - step premise holds on live oracle traces (+ SizeBound no-sorry guard)
         run: python3 proofs/bridge_check.py
       - name: Wave-algebra proofs + differential bridge (Book II)
