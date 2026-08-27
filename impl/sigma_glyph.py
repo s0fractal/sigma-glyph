@@ -194,7 +194,40 @@ def step5(t, remaining, store, stats, limits):
 
 DEFAULT_LIMITS = {"max_node_depth": 4096,
                   "max_materialized_nodes": 1_000_000,
-                  "max_store_fetches": 1_000_000}
+                  "max_store_fetches": 1_000_000,
+                  # No admission cap: this module is the conformance oracle and
+                  # must be able to answer for any budget the Book permits.
+                  "max_atp": None}
+
+# What a *verifier* should use instead. `eval` is total, so a stranger's term
+# always terminates -- and `size <= atp + 1` means the budget they choose is also
+# their licence over the verifier's memory. A 32-bit ATP is up to 4,294,967,295
+# priced actions, so "finite" and "affordable" are different words. This cap is a
+# local admission decision, made BEFORE any allocation or any store access, and
+# it is NOT a canonical Sigma-GLYPH outcome (Book I s3.6): it says the verifier
+# declined to run the computation, not what the computation evaluates to.
+VERIFIER_LIMITS = dict(DEFAULT_LIMITS, max_atp=10_000_000)
+
+
+class AdmissionRefused(Exception):
+    """The verifier declined to begin. Distinct from ResourceFault, which is
+    breached during evaluation, and from every DISSONANCE, which is a result.
+
+    Kept a separate type on purpose: a caller that confuses "I would not run
+    this" with "this is what it evaluates to" has let the party supplying the
+    term decide what the verifier reports."""
+
+    def __init__(self, claimed, allowed):
+        super().__init__(f"claimed ATP {claimed} exceeds this verifier's "
+                         f"admission limit {allowed}; refused before execution")
+        self.claimed, self.allowed = claimed, allowed
+
+
+def admit(atp, limits=None):
+    """Decide whether to begin at all. Raises before anything is touched."""
+    allowed = (limits or DEFAULT_LIMITS).get("max_atp")
+    if allowed is not None and atp > allowed:
+        raise AdmissionRefused(atp, allowed)
 
 
 def resource_check(t, limits):
@@ -216,8 +249,11 @@ def eval_hash(h, atp, store, limits=None):
     BEFORE it happens; spent never exceeds atp; a failed action (resolve
     failure) is not charged; eval is total over canonical outcomes.
     The memory bound is semantic: materialized size - initial size < spent.
-    Resource limit breach -> ResourceFault (local, non-canonical)."""
+    Resource limit breach -> ResourceFault (local, non-canonical).
+    Claimed ATP above `limits["max_atp"]` -> AdmissionRefused, raised before any
+    allocation or store access (local, non-canonical)."""
     limits = limits or DEFAULT_LIMITS
+    admit(atp, limits)
     stats = {"fetches": 0}
     old_rl = sys.getrecursionlimit()
     sys.setrecursionlimit(max(old_rl, 3 * limits["max_node_depth"] + 2000))
