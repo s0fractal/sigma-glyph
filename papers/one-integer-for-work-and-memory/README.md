@@ -23,8 +23,10 @@ this code.
 | licence | CC BY 4.0, as recorded in the deposit |
 
 `paper.pdf` as committed **is** the deposited artifact, built from `paper.md` as
-it stood at `7ecba6a`. `paper.md` has since gained a correction: §7's reason for
-the missing independent implementation was wrong, and the marked note says so.
+it stood at `7ecba6a`. `paper.md` has since gained two marked corrections: §7's
+reason for the missing independent implementation was wrong, and the summary line
+named two arguments where the evaluator takes three — the store is an input, and
+availability is inside the semantics.
 A rebuild therefore no longer reproduces the deposited PDF, which is the normal
 state of a frozen deposit and not a defect — the commit is named above. What must
 not happen is rebuilding the PDF and committing it as though it carried the DOI.

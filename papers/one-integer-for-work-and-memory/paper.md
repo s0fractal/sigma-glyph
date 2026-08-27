@@ -832,6 +832,32 @@ paper.
 > audit to fail for each. The sentence above states what the audit found instead.
 > See `spec/IMPLEMENTING.md` and `proposals/ADR-008-specification-is-the-arbiter.md`.
 
+> **Correction (2026-08-27), same deposit.** The evaluator this paper describes
+> has three inputs, and the paper's own summary line names two. A node holding the
+> referenced bytes reaches a normal form where a node without them reaches
+> `DISSONANCE(Unresolved Reference)`: same term hash, same budget, two conforming
+> implementations, two different canonical results. Availability is inside the
+> semantics. Nothing in the mechanization changes — `evalHash` has always taken a
+> `Store`, and Book I §3.5 has always made an unresolved demand a canonical
+> outcome — but the sentence a reader takes away was wrong, and the conformance
+> suite cannot have caught it, since all three implementations are handed the same
+> prepared store.
+>
+> Two consequences this paper should not paper over. The determinism theorem is
+> over `(term, ATP, store)`, not `(term, ATP)`. And `result_hash` alone does not
+> say which of the three exits occurred: `DISSONANCE(ATP Exhausted)` is an ordinary
+> term that can sit in a store and evaluate to a normal form, so the same hash can
+> mean "finished" or "ran out". The trichotomy is about the machine exit rather
+> than the term; the summary line does not say so.
+>
+> Found by external review, registered at
+> `reviews/2026-08-codex-store-parameter.md` without disposition. The repair being
+> pursued is a monotonicity lemma — extending a store can change only an
+> `Unresolved` outcome — which would make the third input safe rather than merely
+> disclosed. Until it is proved, the honest statement of the result is: *one
+> integer bounds semantic reduction cost and peak semantic materialization, for a
+> fixed content environment.*
+
 **The model–code gap is empirical and finite.** No theorem relates
 `EvalMachine.lean` to `impl/sigma_glyph.py`. What relates them is 33 evaluation
 vectors, 334 byte buffers, 582 wave cases, 3000 $\lambda$-terms and 5185

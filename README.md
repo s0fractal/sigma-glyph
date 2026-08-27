@@ -13,13 +13,38 @@ and cannot be re-scoped afterwards, and evaluating it is deterministic,
 integer-only and total, with work **and** peak memory priced up front.
 
 ```
-result_hash = eval(term_hash, atp)     // deterministic, integer-only, total
+result_hash = eval(term_hash, atp, store)   // deterministic, integer-only, total
 ```
 
-Two independent machines given the same `term_hash` and the same budget return
-the same `result_hash` — bit for bit, with no shared runtime, no float, no clock,
-no network. If the budget runs out, that outcome is deterministic too. No input
-hangs it, and no input makes one implementation disagree with another.
+Two independent machines given the same `term_hash`, the same budget **and the
+same content** return the same `result_hash` — bit for bit, with no shared
+runtime, no float, no clock, no network. If the budget runs out, that outcome is
+deterministic too. No input hangs it, and no input makes one implementation
+disagree with another.
+
+> **Correction (2026-08-27).** This line used to read `eval(term_hash, atp)`, and
+> the paragraph under it promised that the budget and the term hash were enough.
+> They are not: the evaluator has a third input. A node that holds the referenced
+> bytes reaches a normal form where a node that does not reaches
+> `DISSONANCE(Unresolved Reference)` — same term, same budget, two conforming
+> implementations, two different canonical results. Availability had become part
+> of the semantics without being written down, and the genesis intrinsics of
+> Book I §5.1 are the one island carved out of it.
+>
+> This is a defect in the claim, not a discovery about the machine: the Lean
+> model has always been `evalHash (h) (atp) (st)`, the Python oracle has always
+> been `eval_hash(h, atp, store, …)`, and Book I §3.5 has always made an
+> unresolved demand a canonical result. What was missing is the third argument in
+> the sentence people read.
+>
+> Found by an external review of the deposited paper
+> ([`reviews/2026-08-codex-store-parameter.md`](reviews/2026-08-codex-store-parameter.md)),
+> registered without disposition. **Book I §3.4 still prints the two-argument
+> form in normative, anchored bytes**; changing that is a specification edit with
+> its own candidate and gate, and it is not this correction. What is being
+> pursued is the lemma that makes the third argument safe rather than merely
+> admitted: extending the store can change *only* an `Unresolved` outcome, never
+> a normal form or an exhaustion.
 
 **What that is for.** Re-running a *stranger's* reason.
 [Warrant](https://github.com/s0fractal/warrant) records why an AI agent was
