@@ -53,6 +53,13 @@ jobs:
       # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
       # it demands instead that every citation be accounted for in the committed
       # MAP.md. Cite a document nobody has located and this fails.
+      # Six version numbers in three schemes, and nothing said how they relate.
+      - name: The version numbers agree with each other
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/version_check.py | tee /dev/stderr \
+            | grep -q "VERSION-CHECK:"
       - name: Reference map (every cited document is located in MAP.md)
         run: python3 tools/repo_map.py --check-map
       # Can Book I be implemented from Book I? The audit re-derives every
