@@ -26,7 +26,9 @@ this code.
 it stood at `7ecba6a`. `paper.md` has since gained two marked corrections: §7's
 reason for the missing independent implementation was wrong, and the summary line
 named two arguments where the evaluator takes three — the store is an input, and
-availability is inside the semantics.
+availability is inside the semantics. Its counts of Lean lines and pin-registry
+entries have also moved, because the store-monotonicity theorems that answer that
+correction are new code in the tree the paper counts.
 A rebuild therefore no longer reproduces the deposited PDF, which is the normal
 state of a frozen deposit and not a defect — the commit is named above. What must
 not happen is rebuilding the PDF and committing it as though it carried the DOI.
