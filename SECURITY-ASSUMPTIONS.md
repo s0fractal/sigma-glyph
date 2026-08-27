@@ -244,6 +244,33 @@ fixed only by `lean-toolchain`) is likewise trust rather than verification.
 
 ## Explicit non-goals
 
+### SA-11. Totality is not affordability, and the caller picks the budget
+
+`eval` is total: a stranger's term always terminates. That is a real guarantee and
+it is not the same as being safe to run. A 32-bit ATP admits up to
+**4,294,967,295** priced actions, and because the memory bound is `size ≤ atp + 1`
+the budget a stranger chooses is also their licence over the verifier's memory. The
+party supplying the term therefore decides how much a verifier spends discovering
+that it terminates.
+
+The reference implementation's other limits — depth, materialized nodes, store
+fetches — are all breached *during* evaluation, after the work that breached them
+has been done. Nothing refused before starting.
+
+`impl/sigma_glyph.py` now has `admit()` and a `VERIFIER_LIMITS` preset carrying
+`max_atp`. It raises `AdmissionRefused` before any allocation or store read, and
+that refusal is deliberately not a `ResourceFault` and not a DISSONANCE: it says
+the verifier declined, not what the term evaluates to. `DEFAULT_LIMITS` leaves
+`max_atp` unset, because this module is also the conformance oracle and must
+answer for any budget the Book permits.
+
+**What remains assumed.** A verifier has to actually choose `VERIFIER_LIMITS`;
+nothing forces it. Book I says nothing about admission and should not — this is
+local policy, and §3.6 already keeps local faults outside the canonical outcomes.
+Consumers of Σ-GLYPH reasons elsewhere in the ecosystem have not been changed, so
+today the assumption is: *every verifier applies its own cap, and none is known to.*
+
+
 ### NG-1. Preventing a fork
 
 A fork is a new jurisdiction with its own genesis root adopting its own
