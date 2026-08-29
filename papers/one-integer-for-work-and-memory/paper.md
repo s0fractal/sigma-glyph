@@ -447,10 +447,25 @@ The adopted edition is bundle **v0.6.7**, with Book I at its own version 0.5.2,
 anchor `a98a03bd…`. Book I 0.5.2 prints the two-argument interface. A candidate —
 `proposals/ADR-010`, bundle `v0.7.0` — states the three inputs, the receipt, the
 CAS condition, the monotonicity bound, admission, and one arbitration rule shared
-by all three Books. **It is not adopted**, it has not passed a gate, and this paper
-does not describe it as in force. What this section describes is the machine,
-which has always had three inputs; what the Book prints is a separate fact, and
-the candidate is the proposal to make them agree.
+by all three Books. **It is not adopted**, and this paper does not describe it as
+in force. What this section describes is the machine, which has always had three
+inputs; what the Book prints is a separate fact, and the candidate is the proposal
+to make them agree.
+
+It has been through three rounds of the project's three-family blind gate, and
+the record is worth reading before the text is believed. Round 1: three REJECTs,
+all three families finding that the candidate had added a clause requiring an
+out-of-domain budget to be refused while leaving the neighbouring clause saying it
+may be clamped. Round 2: the repair contradicted itself, and a reviewer produced
+the environment on which two engines citing the same sentence diverge. Both
+defects were introduced by the revision immediately before, both were invisible to
+every test in this repository, and both shipped with a green CI — which is §5's
+thesis arriving in the specification text rather than in the guard. The rounds are
+recorded verbatim, with prompts, model identifiers and timestamps, in
+`gates/v0.7.0-candidate/`, including a NO VERDICT that was a truncated reply and
+an occasion where one family reversed a finding after reading another's argument
+in the candidate's own ADR — which is a change of mind and not independent
+confirmation, and is counted as such.
 
 ---
 
@@ -1165,11 +1180,18 @@ The artifact is the repository:
 
 Every figure in §6 was measured at that commit. The paper text itself is later on
 the same branch, because a paper cannot state the hash of the commit that carries
-it; what the two commits differ in is this file, the other paper's front matter,
-this directory's `README.md` and `build.sh`, `tools/paper_claims.py`,
-`tools/test-all.sh` and `.github/workflows/ci.yml`. Every surface §6 measures —
-`proofs/`, `impl/`, `impl-rs/`, `impl-go/`, `tests/` and `spec/` — is
-byte-identical between them, which `git diff` reports as empty. It is **not** `master` and **not** an adopted release: it
+it, and the branch has since gone through three rounds of the specification gate.
+
+What that costs the reproduction is worth stating exactly rather than waving at.
+`proofs/`, `impl/`, `impl-rs/` and `impl-go/` are byte-identical between the
+measured commit and the branch head: `git diff` over those four paths is empty,
+so every proof figure, every guarded-theorem count and every implementation line
+count in §6 stands unchanged. Inside `tests/`, the only change is the
+hand-declared `book1_anchor` pin in `tests/spec_conformance/generate.py` and the
+copy of it in `vectors.json` — no vector, no budget and no expected value moves,
+so no agreement count in §6.1 or §6.2 changes either. `spec/` changed
+substantially, and none of §6 measures it. The gate rounds themselves are in
+`gates/v0.7.0-candidate/`. It is **not** `master` and **not** an adopted release: it
 is the head of the draft pull request carrying the v0.7.0 specification
 candidate, and the Book bytes on it have not passed a gate. What it carries that
 `master` does not is the candidate spec text of §3.9 and the store-monotonicity
