@@ -20,9 +20,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-BOOKS = {"Book I": "spec/book-1-truth.md",
-         "Book II": "spec/book-2-navigation.md",
-         "Book III": "spec/book-3-federation.md"}
+BOOK_I = "Book I"
+BOOK_II = "Book II"
+BOOK_III = "Book III"
+BOOKS = {BOOK_I: "spec/book-1-truth.md",
+         BOOK_II: "spec/book-2-navigation.md",
+         BOOK_III: "spec/book-3-federation.md"}
 
 # A suite's `spec_version` is the version of the Book it conforms to. Two suites
 # disagree with that on `master`, and correcting either means regenerating an
@@ -31,10 +34,10 @@ BOOKS = {"Book I": "spec/book-1-truth.md",
 # stops reproducing: a recorded discrepancy that outlives its defect is a lie
 # with a date on it.
 KNOWN = {
-    "tests/spec_conformance/wave_vectors.json": ("0.5.2", "Book II",
+    "tests/spec_conformance/wave_vectors.json": ("0.5.2", BOOK_II,
         "declares Book I's version rather than Book II's; the suite was "
         "generated when the two coincided and nothing moved it since"),
-    "tests/spec_conformance/federation_vectors.json": ("0.6.0", "Book III",
+    "tests/spec_conformance/federation_vectors.json": ("0.6.0", BOOK_III,
         "declares a Book III version one patch behind the shipped one"),
 }
 
@@ -45,18 +48,29 @@ def book_version(path: str) -> str:
     return found.group(1) if found else ""
 
 
-def top_bundle() -> str:
-    for line in (ROOT / "spec/ANCHORS.txt").read_text().splitlines():
-        if line.startswith("== "):
+def adopted_bundle_from(text: str) -> str:
+    """Return the newest release section that is actually in force.
+
+    Candidate sections deliberately sit above the adopted history while their
+    bytes are reviewed.  Treating the first heading as current made a proposal
+    rewrite README's statement about the live release before any warrant had
+    adopted it.
+    """
+    for line in text.splitlines():
+        if line.startswith("== ") and "CANDIDATE" not in line.upper():
             return line.split()[1]
     return ""
 
 
+def top_bundle() -> str:
+    return adopted_bundle_from((ROOT / "spec/ANCHORS.txt").read_text())
+
+
 def check_suite_versions(problems: list[str]) -> int:
     """Each suite says which Book it conforms to. It should be that Book's."""
-    pairs = (("tests/spec_conformance/vectors.json", "Book I"),
-             ("tests/spec_conformance/wave_vectors.json", "Book II"),
-             ("tests/spec_conformance/federation_vectors.json", "Book III"))
+    pairs = (("tests/spec_conformance/vectors.json", BOOK_I),
+             ("tests/spec_conformance/wave_vectors.json", BOOK_II),
+             ("tests/spec_conformance/federation_vectors.json", BOOK_III))
     checked = 0
     for path, book in pairs:
         declared = json.loads((ROOT / path).read_text()).get("spec_version")

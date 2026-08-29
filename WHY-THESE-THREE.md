@@ -19,7 +19,7 @@ separate ways:
 |---|---|
 | the proof lies about its result | **determinism** — the same term reduces to the same value for everyone, so a result is a claim anyone can recheck rather than a report about the sender's machine |
 | "the same proof" is a promise, not a fact | **content addressing** — a proof is named by the hash of its own bytes, so *identity* is checkable instead of asserted |
-| the proof never halts, or eats memory | **a single integer bounding work AND memory, proven in Lean** |
+| the proof never halts, or grows the semantic term without bound | **a single integer bounding work AND semantic materialization, proven in Lean** |
 
 Drop any one and the target collapses. Determinism without a bound is a halting
 problem with extra steps. A bound without determinism bounds the wrong thing.
@@ -27,21 +27,25 @@ Both without content addressing means you cannot say which proof you ran.
 
 ## The third one is the load-bearing one, and it is the least obvious
 
-A proven joint bound is what lets a receiver say to an unknown sender:
+A proven joint semantic bound, combined with a receiver-chosen admission cap, is
+what lets a receiver say to an unknown sender:
 
-> send me a computation; I will spend exactly this much on it and not one step
+> send me a computation; I will spend at most this much on it and not one step
 > more
 
-and have that be a **theorem** rather than a policy, a timeout, or a promise.
+and have the reduction bound be a **theorem** rather than a timeout or promise.
+The decision to accept that amount remains local policy.
 
 A timeout is a policy: it can be misconfigured, raced, or disabled, and it tells
-you nothing before you start. `Σ-GLYPH`'s bound is a property of the term, known
-in advance, machine-checked. Without it, "we accept computations from anyone" is
-an open denial-of-service with a nice name.
+you nothing before you start. `Σ-GLYPH`'s bound is a property of the evaluator
+under the admitted budget, known before execution and machine-checked. Without
+it, "we accept computations from anyone" is an open denial-of-service with a
+nice name.
 
-This is why the Lean development covers **work and memory together in one
-integer** rather than either alone. Bounding steps while memory grows unbounded
-is not a bound on what a stranger can cost you.
+This is why the Lean development covers **work and semantic materialized size
+together in one integer** rather than either alone. It does not prove a bound on
+RSS, stack, allocator overhead, store indexes or hashing buffers; those remain an
+implementation and deployment obligation.
 
 ## Where warrant fits
 

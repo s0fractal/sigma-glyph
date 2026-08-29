@@ -1,13 +1,15 @@
 cff-version: 1.2.0
 title: "Sigma-GLYPH: a portable deterministic check engine with size-priced budgets"
 abstract: >-
-  A content-addressed computation core: send a term by hash with a budget, and any
-  machine returns the same result hash — deterministic, integer-only, total, with
-  no clock and no network. One budget prices both work and peak memory, so
-  re-running a stranger's computation is safe by construction. Determinism,
-  totality and the memory bound are mechanised in Lean 4; three independent
-  implementations agree on every conformance vector. A wave/coordinate layer sits
-  above as a view over identity and never as part of it.
+  A content-addressed computation core: given the same term hash, uint32 budget
+  and valid partial content store, implementations return the same canonical
+  result and reported spend, with no clock or network in reduction. One budget
+  bounds priced actions and peak semantic materialized-node count; it does not by
+  itself bound process RSS, stack, storage or allocator overhead, and a verifier
+  still needs a local admission limit. Determinism, totality, semantic size and
+  store-monotonicity properties are mechanised in Lean 4. Three implementations
+  from one author/model lineage agree on every conformance vector. A
+  wave/coordinate layer sits above identity and never inside it.
 message: "If you use or evaluate this work, please cite it."
 doi: "10.5281/zenodo.22069650"
 identifiers:
