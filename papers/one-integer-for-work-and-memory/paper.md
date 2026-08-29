@@ -387,8 +387,8 @@ theoretical one: until the audit of 2026-08-29 the reference oracle **executed**
 them as that key's node, which is an Identity-by-Hash violation that would let two
 engines disagree while both believed they were following the Book.
 
-What bounds the third input is `EvalMachine.evalHash_stable`: if `env₂` answers
-every lookup `env₁` answers, a settled exit — normal form or exhaustion — is the
+What bounds the third input is `EvalMachine.evalHash_stable`: if `env2` answers
+every lookup `env1` answers, a settled exit — normal form or exhaustion — is the
 same receipt under both. Only `unresolved_reference` can change. The hypothesis is
 stated on lookups rather than as set inclusion on purpose: `storeGet` returns the
 first entry whose hash matches, so a larger store could answer with different
@@ -404,8 +404,8 @@ never a different verdict.
 
 ## 3.7 The receipt, and what a result hash cannot say
 
-`eval` returns `{exit, result_hash, atp_spent}` with
-`exit ∈ {normal_form, atp_exhausted, unresolved_reference}`.
+`eval` returns `{exit, result_hash, atp_spent}`, where `exit` is exactly one of
+`normal_form`, `atp_exhausted` and `unresolved_reference`.
 
 The hash alone never identified the exit. `DISSONANCE(ATP Exhausted)` is an
 ordinary term: put it in a store and evaluate it, and it is a normal form. So
@@ -421,8 +421,9 @@ receipt still unpacks as a pair, so the four call sites in `warrant` that consum
 ## 3.8 Admission: totality is not affordability
 
 `eval` is total, so a stranger's term always terminates. A `uint32` budget admits
-up to 4,294,967,295 priced actions, and because `size ≤ spent + 1` the budget the
-stranger chooses is also their licence over the verifier's memory. The party
+up to 4,294,967,295 priced actions, and because
+$\mathit{size} \le \mathit{spent} + 1$ the budget the stranger chooses is also
+their licence over the verifier's memory. The party
 supplying the term was deciding how much the verifier spends discovering that it
 terminates.
 
@@ -1201,7 +1202,7 @@ tools/test-all.sh
 ```
 
 That reproduces the *agreement* columns — the vector, buffer, boundary-case,
-λ-term and perturbation counts, and the pass verdicts. It does **not** reproduce
+$\lambda$-term and perturbation counts, and the pass verdicts. It does **not** reproduce
 the wall-clock column: `test-all.sh` times nothing and reports no durations. Each
 figure in that column was taken by timing the named script on its own, from a
 tree extracted with `git archive`, and the sequential figure by timing the six in
