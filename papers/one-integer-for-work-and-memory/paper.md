@@ -346,7 +346,7 @@ semantic canonicity is not.
 # 4. The mechanization
 
 All proofs are Lean 4 v4.31.0 [@demoura2021lean4], **core only, no mathlib**.
-The pinned toolchain is `proofs/lean-toolchain`. Ten `.lean` files total 1304
+The pinned toolchain is `proofs/lean-toolchain`. Ten `.lean` files total 1404
 lines: `Sha256.lean` (110), `MachineBytes.lean` (282), `EvalMachine.lean` (340),
 `WaveAlgebra.lean` (203), `C1Compiler.lean` (138), `SizeBound.lean` (95),
 `LutData.lean` (17 lines holding a 206 KB generated table), and three `*Run.lean`
@@ -616,8 +616,8 @@ repository that gates on compilation gates on nothing in particular. The standar
 remedy is a script that compiles, queries each headline theorem's axiom
 dependencies with `#print axioms`, and fails the build on anything unexpected.
 Ours was about forty lines. Over eight days of adversarial review it became 1465
-lines of Python, a 175 KB pin registry and a 981-line regression suite asserting
-122 properties — machinery 2.3× the size of the 1304 lines of Lean it guards.
+lines of Python, a 179 KB pin registry and a 981-line regression suite asserting
+122 properties — machinery 2.3× the size of the 1404 lines of Lean it guards.
 Every bypass in that history was demonstrated end-to-end: not "this check has a
 theoretical gap" but *here is a file, here is the green CI output, here is the
 falsehood it certified.*
@@ -831,6 +831,34 @@ paper.
 > `tests/spec_audit_selftest.py` breaks that property nine ways and requires the
 > audit to fail for each. The sentence above states what the audit found instead.
 > See `spec/IMPLEMENTING.md` and `proposals/ADR-008-specification-is-the-arbiter.md`.
+
+> **Correction (2026-08-27), same deposit.** The evaluator this paper describes
+> has three inputs, and the paper's own summary line names two. A node holding the
+> referenced bytes reaches a normal form where a node without them reaches
+> `DISSONANCE(Unresolved Reference)`: same term hash, same budget, two conforming
+> implementations, two different canonical results. Availability is inside the
+> semantics. Nothing in the mechanization changes — `evalHash` has always taken a
+> `Store`, and Book I §3.5 has always made an unresolved demand a canonical
+> outcome — but the sentence a reader takes away was wrong, and the conformance
+> suite cannot have caught it, since all three implementations are handed the same
+> prepared store.
+>
+> Two consequences this paper should not paper over. The determinism theorem is
+> over `(term, ATP, store)`, not `(term, ATP)`. And `result_hash` alone does not
+> say which of the three exits occurred: `DISSONANCE(ATP Exhausted)` is an ordinary
+> term that can sit in a store and evaluate to a normal form, so the same hash can
+> mean "finished" or "ran out". The trichotomy is about the machine exit rather
+> than the term; the summary line does not say so.
+>
+> Found by external review, registered at
+> `reviews/2026-08-codex-store-parameter.md` without disposition. The repair being
+> is now merged: `evalHash_mono` / `evalHash_stable` prove that extending a valid
+> content store can change only an `Unresolved` answer, never a settled normal
+> form or exhaustion, and `store_mono_bridge_check.py` exercises both directions
+> against every live eval vector. The honest statement of the result is: *one
+> integer bounds semantic reduction cost and peak semantic materialization, for a
+> fixed content environment; a settled answer is stable under valid store
+> extension.*
 
 **The model–code gap is empirical and finite.** No theorem relates
 `EvalMachine.lean` to `impl/sigma_glyph.py`. What relates them is 33 evaluation

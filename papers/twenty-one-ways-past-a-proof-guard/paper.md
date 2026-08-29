@@ -71,9 +71,9 @@ anything unexpected appears. Most repositories that take this seriously have
 written some version of that script. Ours was about forty lines.
 
 This paper is what happened to those forty lines over eight days of adversarial
-review. They became 1465 lines of Python, a 175 KB pin registry, and a 981-line
+review. They became 1465 lines of Python, a 179 KB pin registry, and a 981-line
 regression suite asserting 122 properties — machinery that is now 2.3 times the
-size of the 1304 lines of Lean it guards. Along the way the guard was defeated
+size of the 1404 lines of Lean it guards. Along the way the guard was defeated
 twenty-one times, in twenty-one distinct ways, each demonstrated end-to-end: not
 "this check has a theoretical gap" but *here is a file, here is the green CI
 output, here is the falsehood it certified.*
@@ -119,7 +119,7 @@ started paying attention.
 
 ## 2.1 The artifact under audit
 
-Ten Lean 4 [@demoura2021lean4] files, 1304 lines, core Lean only with no
+Ten Lean 4 [@demoura2021lean4] files, 1404 lines, core Lean only with no
 mathlib, on a toolchain pinned by `lean-toolchain` (v4.31.0). The proofs are organized into five
 *fronts*, each with a module set, an allowed axiom set, and a list of *guarded*
 theorems whose properties CI asserts. At the commit we report, 36 theorems are
@@ -841,7 +841,7 @@ were measured at `35d8aea`, three commits earlier; `proofs/` and
 with `git diff`.
 
 **The guard and its regression suite** are `proofs/proof_guard.py` (1465 lines),
-`proofs/theorem_pins.json` (175 KB; 39 statement pins, 155 definition pins),
+`proofs/theorem_pins.json` (179 KB; 44 statement pins, 156 definition pins),
 `proofs/GUARD_CLAIMS.txt`, and `tests/proof_guard_test.py` (981 lines). Every
 vector in §4 is a fixture in the last of these. Each round's commit message
 contains the reproduction and its verbatim green output; the hashes are given in

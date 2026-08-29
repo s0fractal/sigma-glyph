@@ -31,6 +31,9 @@ python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
 python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
 python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION: ALL PASS"
 
+say "Version-state guard: candidates are not adopted releases"
+python3 tests/version_check_selftest.py | tee /dev/stderr | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
+
 say "Guard regression: the three self-tests put their verdict in the EXIT STATUS"
 # impl/sigma_glyph.py called run_tests() and discarded the boolean, so it printed
 # FAILURES PRESENT and exited 0 — every gate above catches that only by grepping
@@ -52,6 +55,7 @@ python3 tests/one_signing_path.py          | tee /dev/stderr | grep -q "ONE-SIGN
 
 say "Security boundaries: content addresses and local check commands"
 python3 tests/security_boundary_test.py   | tee /dev/stderr | grep -q "SECURITY-BOUNDARY: ALL PASS"
+python3 tests/oracle_input_boundary_test.py | tee /dev/stderr | grep -q "ORACLE-INPUT-BOUNDARY: ALL PASS"
 
 say "Release surface (what an installed copy promises)"
 # The checkout half only. It drives the gate's classifier against the two real

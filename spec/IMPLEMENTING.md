@@ -80,6 +80,29 @@ does TV-3, whose bytes §7 prints outright.
 
 Nothing on that list requires our code.
 
+## The third input
+
+`eval` takes a term hash, a budget **and a store**. The Book has always worked
+this way — §3.5 makes an unresolved demand a canonical result, and §5.1 carves the
+genesis atoms out of it precisely because availability would otherwise decide them
+— but the summary sentences in the README and the paper named two arguments, and
+they have been corrected.
+
+For you this is practical rather than philosophical: your implementation is
+deterministic against a *given* content environment, and the conformance suite
+hands every implementation the same one. It does not test store-independence, and
+it cannot. If you build a node that fetches lazily over a network, two of your own
+runs can differ legitimately, and the difference will be an `Unresolved` outcome
+rather than a wrong answer. That is now a theorem rather than a hope:
+`EvalMachine.evalHash_stable` says a settled answer — a normal form or an
+exhaustion — is unchanged by anything the store gains, and
+`proofs/store_mono_bridge_check.py` checks the same property against the live
+oracle by growing and shrinking the store under every eval vector.
+
+Book I §3.4 still prints `eval(term_hash, atp: uint32)` in normative, anchored
+bytes. Correcting that is a specification edit with its own candidate and gate,
+and it is not the correction above.
+
 ## The honest caveats
 
 **The normative text is Ukrainian.** [`book-1-truth.en.md`](book-1-truth.en.md)

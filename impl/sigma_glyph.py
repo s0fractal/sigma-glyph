@@ -76,6 +76,7 @@ class ResourceFault(Exception):
 #       | ("lit", atom) | ("ref", h) | ("dis", reason)
 #       | ("app", t, t)                       children may be thunks
 GENESIS = {I_H: I_BYTES, K_H: K_BYTES, S_H: S_BYTES}   # intrinsic axioms (Book I §5.1)
+UINT32_MAX = 2**32 - 1
 
 def term_bytes(t):
     if t[0] == "lit": return ser(LITERAL, F_ATOM, atom=t[1])
@@ -122,6 +123,17 @@ def force(h, store, stats, limits):
     b = GENESIS.get(h)
     if b is None: b = store.get(h)
     if b is None: raise Unresolved()
+    # A mapping lookup is not, by itself, a content-addressed store.  The
+    # public evaluator accepts any object with ``get`` (tests and downstream
+    # callers use plain dicts), so verify the CAS relation at the boundary
+    # instead of assuming only Store.put() can reach this function.  Treat a
+    # wrong key as a local storage fault: the bytes may be a perfectly valid
+    # SigmaNodeV2, but evaluating them as the requested hash would violate
+    # Identity by Hash and could make two conforming engines disagree.
+    if not isinstance(b, bytes):
+        raise ResourceFault("store returned non-bytes")
+    if node_hash(b) != h:
+        raise ResourceFault("CAS key mismatch")
     n = deser(b)
     if n is None: return ("dis", R_INVALID)
     op = n["op"]
@@ -194,7 +206,47 @@ def step5(t, remaining, store, stats, limits):
 
 DEFAULT_LIMITS = {"max_node_depth": 4096,
                   "max_materialized_nodes": 1_000_000,
-                  "max_store_fetches": 1_000_000}
+                  "max_store_fetches": 1_000_000,
+                  # No admission cap: this module is the conformance oracle and
+                  # must be able to answer for any budget the Book permits.
+                  "max_atp": None}
+
+# What a *verifier* should use instead. `eval` is total, so a stranger's term
+# always terminates -- and `size <= atp + 1` means the budget they choose is also
+# their licence over the verifier's memory. A 32-bit ATP is up to 4,294,967,295
+# priced actions, so "finite" and "affordable" are different words. This cap is a
+# local admission decision, made BEFORE any allocation or any store access, and
+# it is NOT a canonical Sigma-GLYPH outcome (Book I s3.6): it says the verifier
+# declined to run the computation, not what the computation evaluates to.
+VERIFIER_LIMITS = dict(DEFAULT_LIMITS, max_atp=10_000_000)
+
+
+class AdmissionRefused(Exception):
+    """The verifier declined to begin. Distinct from ResourceFault, which is
+    breached during evaluation, and from every DISSONANCE, which is a result.
+
+    Kept a separate type on purpose: a caller that confuses "I would not run
+    this" with "this is what it evaluates to" has let the party supplying the
+    term decide what the verifier reports."""
+
+    def __init__(self, claimed, allowed):
+        super().__init__(f"claimed ATP {claimed} exceeds this verifier's "
+                         f"admission limit {allowed}; refused before execution")
+        self.claimed, self.allowed = claimed, allowed
+
+
+def admit(atp, limits=None):
+    """Decide whether to begin at all. Raises before anything is touched.
+
+    Book I's consensus domain is ``uint32``.  Python's ``bool`` is an ``int``
+    subclass and floats participate in numeric comparisons, so an ordinary
+    range check is not enough to keep the API on that domain.
+    """
+    if type(atp) is not int or not 0 <= atp <= UINT32_MAX:
+        raise ValueError("atp must be a uint32 integer")
+    allowed = (limits or DEFAULT_LIMITS).get("max_atp")
+    if allowed is not None and atp > allowed:
+        raise AdmissionRefused(atp, allowed)
 
 
 def resource_check(t, limits):
@@ -209,15 +261,20 @@ def resource_check(t, limits):
 
 
 def eval_hash(h, atp, store, limits=None):
-    """eval(term_hash, atp) -> (result_term, atp_spent).
+    """eval(term_hash, atp, store) -> (result_term, atp_spent).
     Canonical outcomes: normal form | DISSONANCE(ATP Exhausted) | DISSONANCE(Unresolved Reference).
     v0.5 discipline (Book I §3.4): every action — rule firing OR thunk
     materialization — is priced; an unaffordable action yields ATP Exhausted
     BEFORE it happens; spent never exceeds atp; a failed action (resolve
     failure) is not charged; eval is total over canonical outcomes.
     The memory bound is semantic: materialized size - initial size < spent.
-    Resource limit breach -> ResourceFault (local, non-canonical)."""
+    Resource limit breach -> ResourceFault (local, non-canonical).
+    Claimed ATP above `limits["max_atp"]` -> AdmissionRefused, raised before any
+    allocation or store access (local, non-canonical)."""
     limits = limits or DEFAULT_LIMITS
+    admit(atp, limits)
+    if not isinstance(h, bytes) or len(h) != 32:
+        raise ValueError("term_hash must be exactly 32 bytes")
     stats = {"fetches": 0}
     old_rl = sys.getrecursionlimit()
     sys.setrecursionlimit(max(old_rl, 3 * limits["max_node_depth"] + 2000))

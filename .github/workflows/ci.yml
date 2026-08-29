@@ -53,6 +53,15 @@ jobs:
       # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
       # it demands instead that every citation be accounted for in the committed
       # MAP.md. Cite a document nobody has located and this fails.
+      # Six version numbers in three schemes, and nothing said how they relate.
+      - name: The version numbers agree with each other
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/version_check_selftest.py | tee /dev/stderr \
+            | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
+          python3 tools/version_check.py | tee /dev/stderr \
+            | grep -q "VERSION-CHECK:"
       - name: Reference map (every cited document is located in MAP.md)
         run: python3 tools/repo_map.py --check-map
       # Can Book I be implemented from Book I? The audit re-derives every
@@ -66,6 +75,22 @@ jobs:
           python3 tools/spec_audit.py | tee /dev/stderr | grep -q "SPEC-AUDIT:"
           python3 tests/spec_audit_selftest.py | tee /dev/stderr \
             | grep -q "every check failed for its own reason"
+      # Totality is not affordability: the stranger picks the budget, and
+      # size <= atp + 1 makes that budget a licence over memory too. The
+      # admission decision has to happen before anything is touched.
+      - name: A verifier can refuse before the term costs it anything
+        run: python3 tests/atp_admission_test.py | tee /dev/stderr \
+               | grep -q "ATP-ADMISSION:"
+      # A block scalar, not a plain one: `": "` inside a plain YAML scalar is a
+      # mapping, and the grep pattern here contains one. The neighbouring
+      # admission step survives only because "ATP-ADMISSION:" has no space after
+      # its colon -- which is luck, not a pattern to copy.
+      - name: The Python oracle enforces its content-address and uint32 boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/oracle_input_boundary_test.py | tee /dev/stderr \
+            | grep -q "ORACLE-INPUT-BOUNDARY: ALL PASS"
       - name: Reference test vectors (Book I, hash-thunk machine)
         run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
       - name: Book I third implementation (Rust) + conformance differential

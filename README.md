@@ -10,23 +10,54 @@ indistinguishable, from the outside, from one whose scope is fixed. Σ-GLYPH mak
 a check an *object* rather than a program you have to trust: a computation is
 addressed by the hash of itself, so what was checked is pinned by its own identity
 and cannot be re-scoped afterwards, and evaluating it is deterministic,
-integer-only and total, with work **and** peak memory priced up front.
+integer-only and total, with work and **peak semantic materialization** priced up
+front.
 
 ```
-result_hash = eval(term_hash, atp)     // deterministic, integer-only, total
+(result_term, atp_spent) = eval_hash(term_hash, atp, content_store)
 ```
 
-Two independent machines given the same `term_hash` and the same budget return
-the same `result_hash` — bit for bit, with no shared runtime, no float, no clock,
-no network. If the budget runs out, that outcome is deterministic too. No input
-hangs it, and no input makes one implementation disagree with another.
+Two machines given the same `term_hash`, the same uint32 budget and the same
+valid content for every demanded hash return the same result term and spend — bit
+for bit, with no float, clock or network in reduction. Missing content is itself
+an input and yields `Unresolved Reference`; local resource faults remain outside
+the canonical result. The current API does not return the exit kind separately,
+so a result hash alone cannot distinguish a normal form equal to the
+ATP-exhausted term from an actual exhausted exit.
+
+> **Correction (2026-08-27).** This line used to read `eval(term_hash, atp)`, and
+> the paragraph under it promised that the budget and the term hash were enough.
+> They are not: the evaluator has a third input. A node that holds the referenced
+> bytes reaches a normal form where a node that does not reaches
+> `DISSONANCE(Unresolved Reference)` — same term, same budget, two conforming
+> implementations, two different canonical results. Availability had become part
+> of the semantics without being written down, and the genesis intrinsics of
+> Book I §5.1 are the one island carved out of it.
+>
+> This is a defect in the claim, not a discovery about the machine: the Lean
+> model has always been `evalHash (h) (atp) (st)`, the Python oracle has always
+> been `eval_hash(h, atp, store, …)`, and Book I §3.5 has always made an
+> unresolved demand a canonical result. What was missing is the third argument in
+> the sentence people read.
+>
+> Found by an external review of the deposited paper
+> ([`reviews/2026-08-codex-store-parameter.md`](reviews/2026-08-codex-store-parameter.md)),
+> registered without disposition. **Book I §3.4 still prints the two-argument
+> form in normative, anchored bytes**; changing that is a specification edit with
+> its own candidate and gate, and it is not this correction. The resulting
+> `evalHash_mono` / `evalHash_stable` theorems are now guarded on
+> `master`: under a valid store extension, only an `Unresolved` outcome may
+> change; a normal form or exhaustion is stable. Their live-oracle bridge grows
+> and shrinks every evaluation fixture rather than treating the Lean model as
+> sufficient evidence about the Python implementation.
 
 **What that is for.** Re-running a *stranger's* reason.
 [Warrant](https://github.com/s0fractal/warrant) records why an AI agent was
 allowed to do something; a reason there can be a Σ-GLYPH term, so a reviewer
 re-executes it on their own laptop and gets the same verdict — instead of
-trusting the log of whoever wrote it. Bounding work *and* memory up front is what
-makes running a stranger's computation safe by construction.
+trusting the log of whoever wrote it. The ATP theorem bounds semantic work and
+materialized-node count; affordability additionally requires the verifier to
+apply its own admission limit before reading the term or store.
 
 That claim is about the *semantics*: a term's canonical result and its ATP cost
 are bounded and deterministic. It is not a promise that any given binary is
@@ -36,10 +67,11 @@ cleanly rather than fall over. Until v0.6.7 the Rust binary did not: hostile
 input aborted it with a stack overflow. It now fences and refuses; see
 `tests/book1_resource_fence.py`.
 
-Three independent implementations agree on **all 49** conformance vectors —
-Python, Rust and [`warrant-go`](https://github.com/s0fractal/warrant), across
+Three implementations from one author/model lineage agree on **all 49**
+conformance vectors — Python, Rust and
+[`warrant-go`](https://github.com/s0fractal/warrant), across
 serialization, byte-rejection and evaluation alike — and the evaluator's
-determinism, totality and memory bound are machine-checked theorems in Lean 4
+determinism, totality and semantic-size bound are machine-checked theorems in Lean 4
 ([`proofs/`](proofs/)), not prose. A randomized differential fuzzer runs all
 three against each other on every push, and `tools/x1_cross_repo.sh` runs this
 repo against warrant's HEAD rather than a pinned snapshot.
@@ -129,10 +161,10 @@ non-normative, and deliberately unhurried.
 
 
 **Why these three properties together** — determinism, content addressing, and a
-single Lean-proven bound over work *and* memory — is in
+single Lean-proven bound over work and semantic materialization — is in
 [`WHY-THESE-THREE.md`](WHY-THESE-THREE.md). Short version: they are what makes it
-safe to execute a proof sent by a stranger, and none of the three works without
-the other two.
+possible to bound a proof sent by a stranger. Local admission, a valid content
+store and ordinary implementation fences remain required.
 
 ## The Three Books
 
@@ -141,15 +173,17 @@ the other two.
 | [`spec/book-1-truth.md`](spec/book-1-truth.md) (informative [EN](spec/book-1-truth.en.md)) | Normative | **nodes** — everything two independent nodes need to agree on a result hash: canonical bytes, SHA-256 identity, SKI normal-order reduction, ATP totalization, resolution contract, canonical compiler profile C1 |
 | [`spec/book-2-navigation.md`](spec/book-2-navigation.md) | Normative | **nodes** (annotation layer) — WaveVectorQ as detached annotation, pinned LUT (SHA-256 arbitrated), `interfere()` with the Law of Left Dominance, coordinate pins, Mass, CP-24 |
 | [`spec/book-3-federation.md`](spec/book-3-federation.md) | Normative | **jurisdictions** — annotation assertions as Warrant v0.3 records, machine-readable selection policies, ConflictSets that clients never merge, AnnotationViewID + assertion-set commitments, ten conformance criteria |
+| [`spec/GLOSSARY.md`](spec/GLOSSARY.md) | Non-normative | **readers of the papers** — one name per thing: what `size`, ATP, "work", "memory" and "materialization" mean here, what they do not mean, and the refinement gap between the proved semantic quantity and a process's actual resource use |
+| [`spec/VERSIONS.md`](spec/VERSIONS.md) | Non-normative | **anyone reading a version number** — six numbers in three schemes, what each governs, why a Book at 0.5.2 inside a v0.6.x bundle is correct, and two suite versions that do not agree and are governed to fix. Checked by `tools/version_check.py` |
 | [`spec/IMPLEMENTING.md`](spec/IMPLEMENTING.md) | Non-normative | **implementers** — that Book I is implementable from Book I: derive the genesis atoms yourself in three lines, settle the one convention the text leaves to inference, and see the two places the Book still points at our code. Checked by `tools/spec_audit.py` on every CI run |
 | [`spec/LORE.md`](spec/LORE.md) | Non-normative | **humans & agents** — why the glyphs are named, why FALSE sits at 270°, why the wave left the hash, and what deliberately isn't here yet |
 | [`spec/GOV-anchors.md`](spec/GOV-anchors.md) | Normative (meta) | **the spec itself** — releases as anchor-set blobs adopted by threshold warrants (2-of-3), policy lineage, succession for model actors, fork legitimacy; deliberately not a Book: the constitution must not judge itself |
 
-Core invariants, in one breath: **hash is identity; phase is a coordinate; wave is a view; aggregate is never a field; ATP prices work AND memory (size − 1 ≤ spent); dead branches are never fetched; canonical failures are deterministic, local faults are not canonical.**
+Core invariants, in one breath: **hash is identity; phase is a coordinate; wave is a view; aggregate is never a field; ATP prices work AND semantic materialized size (`size − 1 ≤ spent`); dead branches are never fetched; canonical failures are deterministic, local faults are not canonical.**
 
 ## Reference implementation
 
-`impl/sigma_glyph.py` — Book I: serialization, validation, CAS, the v0.5 hash-thunk evaluator (lazy left-spine, size-priced ATP, genesis intrinsic), C1 λ→SKI compiler. `impl/sigma_wave.py` — Book II: arbiter-checked LUT, interfere() with entropy–coherence coupling. `impl/sigma_federation.py` + `impl-go/` — Book III (Python oracle + independent Go). `impl-rs/` — a third, independent **Rust** implementation of Book I (from-scratch SHA-256 + evaluator, no external crates) that replays the same oracle-generated vectors byte-exact.
+`impl/sigma_glyph.py` — Book I: serialization, validation, CAS, the v0.5 hash-thunk evaluator (lazy left-spine, size-priced ATP, genesis intrinsic), C1 λ→SKI compiler. `impl/sigma_wave.py` — Book II: arbiter-checked LUT, interfere() with entropy–coherence coupling. `impl/sigma_federation.py` + `impl-go/` — Book III (Python and Go implementations). `impl-rs/` — a from-scratch **Rust** implementation of Book I (including SHA-256, no external crates) that replays the same oracle-generated vectors byte-exact. All were produced within one author/model lineage.
 
 ```bash
 python3 impl/sigma_glyph.py         # expected: ALL PASS (Book I)
@@ -159,7 +193,7 @@ python3 impl/sigma_federation.py    # expected: FEDERATION: ALL PASS (Book III)
   ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json  # RUST-CONFORMANCE: ALL PASS (49/49)
 ```
 
-Book I now has three independent implementations that agree on every vector — the Python oracle, warrant-go's native evaluator (via `ski@v1`), and Rust — plus a Lean 4 mechanization of the evaluator's determinism/totality and memory bound (`proofs/EvalMachine.lean`). `impl-go` in *this* repo implements Books II and III only; its Book I "vector" is an echoed constant and says so out loud (`VACUOUS FV-BOOK-I-UNREACHABLE`).
+Book I now has three implementations from one author/model lineage that agree on every vector — the Python oracle, warrant-go's native evaluator (via `ski@v1`), and Rust — plus a Lean 4 mechanization of the evaluator's determinism/totality, semantic-size bound and valid-store monotonicity (`proofs/EvalMachine.lean`). `impl-go` in *this* repo implements Books II and III only; its Book I "vector" is an echoed constant and says so out loud (`VACUOUS FV-BOOK-I-UNREACHABLE`). No external implementation exists yet.
 
 ## For AI reviewers
 

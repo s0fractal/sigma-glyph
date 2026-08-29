@@ -43,7 +43,7 @@
 # the registry can edit this file too. What it buys is that the edit is loud
 # and names the theorem, instead of hiding inside a 30 000-line pin file.
 
-pins-sha256 5a4055719f6dfabaa0b1e6ae2134f06b1ab6748c8a6d394def0d7cac390d4a69
+pins-sha256 2b4cd70a064fa6ea889ec597ee14b545aa6063d744c63f038df028ab1c36f992
 
 core-modules Init Lean Std
 
@@ -100,6 +100,11 @@ front eval guarded EvalMachine.evalHash_settles
 front eval guarded EvalMachine.size_step
 front eval guarded EvalMachine.eval_size_bound
 front eval guarded EvalMachine.evalHash_size_bound
+front eval guarded EvalMachine.force_mono
+front eval guarded EvalMachine.step_mono
+front eval guarded EvalMachine.eval_mono
+front eval guarded EvalMachine.evalHash_mono
+front eval guarded EvalMachine.evalHash_stable
 front eval guarded EvalMachine.evalHash_peak_size
 front eval native-decide-ok
 front eval native-decide-sources
@@ -143,6 +148,8 @@ front c1 native-decide-sources
 
 unguarded SigmaGlyph.step_preserves
 unguarded EvalMachine.size_pos
+unguarded EvalMachine.Extends.refl
+unguarded EvalMachine.Extends.trans
 unguarded MachineBytes.append_inj'
 unguarded MachineBytes.take_length_append
 unguarded MachineBytes.drop_length_append

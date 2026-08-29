@@ -20,6 +20,15 @@
                        has actually settled on one of the three outcomes, it
                        was not cut off by the fuel counter (the claim `eval`'s
                        fuel-out branch used to make in a source comment only)
+     * force_mono / step_mono / eval_mono / evalHash_mono / evalHash_stable —
+                       store monotonicity. `eval` has three inputs, and an absent
+                       hash is a canonical outcome (§3.5), so availability is
+                       inside the semantics. These bound how far that goes:
+                       extending a store can turn an Unresolved answer into
+                       something else and can NEVER change a normal form or an
+                       exhaustion. The differential bridge for them is
+                       proofs/store_mono_bridge_check.py, which grows and shrinks
+                       the store under the live oracle on every eval vector.
    Totality is definitional (fuel-indexed structural recursion, a total
    function); determinism is definitional (it is a function). The bridge is
    the empirical check that this total, budget-respecting function IS the
@@ -175,6 +184,97 @@ def evalHash (h : Bytes) (atp : Nat) (st : Store) : Term × Nat :=
   eval (atp + 1) (.thunk h) atp 0 st
 
 /- ---------- theorems ---------- -/
+
+/- ---------- store monotonicity ----------
+
+   The evaluator has three inputs, not two. `evalHash h atp st` reads the store,
+   and a hash absent from it is a *canonical* outcome (§3.5), so availability sits
+   inside the semantics: two conforming nodes with the same term and the same
+   budget can return different canonical results if one holds bytes the other
+   does not.
+
+   What makes that safe rather than merely admitted is the direction of the
+   difference. Extending a store can turn an `Unresolved` outcome into something
+   else; it can never change a normal form or an exhaustion. These lemmas prove
+   that, so the honest determinism statement is: `eval` is a function of
+   (term, budget, store), and its answer is stable under everything a store
+   can *gain*.
+
+   `Extends` is stated on lookups rather than as list inclusion. Inclusion alone
+   is not enough: `storeGet` returns the *first* element whose hash matches, so a
+   larger store could answer with different bytes of the same hash. That case
+   needs a collision, and rather than assume SHA-256 injective — which is false by
+   counting and unprovable here — the hypothesis is exactly the property a
+   content-addressed store is supposed to have. -/
+
+/-- `s₂` answers every lookup `s₁` answers, with the same bytes. -/
+def Extends (s₂ s₁ : Store) : Prop :=
+  ∀ h b, storeGet s₁ h = some b → storeGet s₂ h = some b
+
+theorem Extends.refl (s : Store) : Extends s s := fun _ _ h => h
+
+theorem Extends.trans {a b c : Store} (hab : Extends a b) (hbc : Extends b c) :
+    Extends a c := fun h x m => hab h x (hbc h x m)
+
+/-- Materialization is monotone: what one store resolves, a larger one resolves
+    the same way. The genesis intrinsics need no store at all (§5.1). -/
+theorem force_mono {s₂ s₁ : Store} (ext : Extends s₂ s₁) (h : Bytes) (t : Term) :
+    force h s₁ = some t → force h s₂ = some t := by
+  unfold force
+  split
+  · exact id
+  · split
+    · exact id
+    · split
+      · exact id
+      · cases hg : storeGet s₁ h with
+        | none => simp [hg]
+        | some b => simp [hg, ext h b hg]
+
+/-- One action is monotone unless it was the unresolved one. -/
+theorem step_mono {s₂ s₁ : Store} (ext : Extends s₂ s₁) (t : Term) (rem : Nat) :
+    step t rem s₂ = step t rem s₁ ∨ step t rem s₁ = .unresolved := by
+  fun_induction step t rem s₁ <;> grind [force_mono, step]
+
+/-- The run is monotone unless it ended unresolved: extending the store cannot
+    change a normal form or an exhaustion into anything else. -/
+theorem eval_mono {s₂ s₁ : Store} (ext : Extends s₂ s₁)
+    (fuel : Nat) (t : Term) (atp spent : Nat) :
+    eval fuel t atp spent s₂ = eval fuel t atp spent s₁
+      ∨ (eval fuel t atp spent s₁).1 = .dis rUnres := by
+  induction fuel generalizing t spent with
+  | zero => left; rfl
+  | succ fuel ih =>
+      rw [eval, eval]
+      rcases step_mono ext t (atp - spent) with same | unres
+      · rw [same]
+        cases hstep : step t (atp - spent) s₁ with
+        | nf => left; rfl
+        | exhausted => left; rfl
+        | unresolved => right; rfl
+        | step t' c => exact ih t' (spent + c)
+      · rw [unres]
+        cases hstep : step t (atp - spent) s₂ with
+        | nf => right; rfl
+        | exhausted => right; rfl
+        | unresolved => right; rfl
+        | step t' c => right; rfl
+
+/-- Top level, and the statement the README makes: the answer depends on the
+    store, and only an `Unresolved` answer can be changed by adding to it. -/
+theorem evalHash_mono {s₂ s₁ : Store} (ext : Extends s₂ s₁) (h : Bytes) (atp : Nat) :
+    evalHash h atp s₂ = evalHash h atp s₁
+      ∨ (evalHash h atp s₁).1 = .dis rUnres :=
+  eval_mono ext (atp + 1) (.thunk h) atp 0
+
+/-- The same, contrapositive and usable: a settled answer is stable. -/
+theorem evalHash_stable {s₂ s₁ : Store} (ext : Extends s₂ s₁) (h : Bytes) (atp : Nat)
+    (settled : (evalHash h atp s₁).1 ≠ .dis rUnres) :
+    evalHash h atp s₂ = evalHash h atp s₁ := by
+  rcases evalHash_mono ext h atp with same | unres
+  · exact same
+  · exact absurd unres settled
+
 
 /-- the hash-leaf size of any term is ≥ 1. -/
 theorem size_pos (t : Term) : 1 ≤ size t := by
