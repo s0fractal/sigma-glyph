@@ -270,10 +270,25 @@ The alternative — withholding the dispositions — would leave reviewers unabl
 see what changed and why, which trades a known weakness for a worse one. The
 weakness is named here so that nobody reads the vote total as more than it is.
 
-## Round 3 of the gate
+## Round 3 of the gate — incomplete
 
-Frozen at `gates/v0.7.0-candidate/round-3/`, anchor set `4c93717a…`. Verdicts
-recorded there.
+Frozen at `gates/v0.7.0-candidate/round-3/`, anchor set `4c93717a…`.
+
+**ADOPT** (Gemini 3.1 Pro), **NO VERDICT** (DeepSeek), **NO VERDICT** (Kimi). Both
+NO VERDICTs are `HTTP Error 402: Payment Required`: the OpenRouter account ran out
+of credit partway through the round. DeepSeek was retried at a smaller reply
+budget and returned 402 again.
+
+This is one verdict, not a gate, and it is not recorded as one. The two families
+that raised round 2's findings have not seen the edits those findings produced —
+DeepSeek in particular has not been asked whether §3.5 now closes the P0 it
+found. No substitute model was used: swapping in a cheaper model from the same
+family would change the reviewer set mid-gate, and spending more is the account
+holder's decision.
+
+**The candidate therefore has no gate.** Adoption needs a completed round over
+these exact bytes, and that is a prerequisite independent of, and additional to,
+the signature threshold.
 
 | Date | Change | Bytes already edited? |
 | --- | --- | --- |

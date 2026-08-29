@@ -90,3 +90,50 @@ gives, and it is the decision this candidate most needs from the roster.
 ## Release artifacts
 
 None.
+
+## Round 3's outcome: incomplete, for a reason that is not about the candidate
+
+| Reviewer | Verdict | |
+| --- | --- | --- |
+| `google/gemini-3.1-pro-preview` | **ADOPT** | full review recorded |
+| `deepseek/deepseek-v4-pro-0813` | **NO VERDICT** | `HTTP Error 402: Payment Required` |
+| `moonshotai/kimi-k3` | **NO VERDICT** | `HTTP Error 402: Payment Required` |
+
+The OpenRouter account ran out of credit partway through the round: three rounds
+of a 130 KB prompt across three models spent it. DeepSeek was retried at a
+12 000-token reply budget rather than 40 000 and returned 402 again; the balance
+at that point was $0.168.
+
+**This is one verdict, not a gate.** Two of three families have not seen these
+bytes. The correct reading is that the round did not happen, not that it went
+one-nil: an ADOPT standing alone says only that one reviewer found nothing, and
+the two whose round-2 findings produced these very edits were not asked whether
+the edits close them. In particular DeepSeek, whose P0 and P1 this round answers,
+has not seen the answer.
+
+Nothing here is substituted for. A cheaper model from the same family would have
+changed the reviewer set mid-gate, and choosing to spend more is the account
+holder's decision, not the reviewer-runner's.
+
+## The prepared adoption warrant
+
+Unsigned, in this directory as `adoption-warrant.unsigned.json`, outside
+`.warrants/`.
+
+| | |
+| --- | --- |
+| subject (anchor-set blob) | `4c93717a7007ef8af179ae39ee62492a59594e23be8fdc4a4eef5e04a98f3ae9` |
+| ancestor | `d985e8b811e29c4e11142acde79a7f330211310205b7b49d8fff5c8a9e1b61b5` (adopted v0.6.7) |
+| prior warrant | `b4dc05e307b81e7415536a2e2442ff5db41d29ea5b392423735e1892236e095c` |
+| threshold | 2-of-3 — `claude-fable-5@sigma-glyph`, `codex@sigma-glyph`, `s0fractal@sigma-glyph` |
+| WarrantID **if** filed by `s0fractal@sigma-glyph` at `ts = 1788000000` | `e9dd72bccb56444b64fb4faf475bf56e6926c39c41607cea3e1bc6aa79cbc5da` |
+
+The WarrantID is conditional on those two values because both are inside the
+body and therefore inside the hash. A different filer or a different timestamp is
+a different warrant. Regenerate with:
+
+    python3 tools/prepare_adoption.py gates/v0.7.0-candidate/round-3 \
+      --actor <roster actor> --ts <filing time>
+
+which prints the ID and the exact `cosign.py` and settlement-verification
+commands. It holds no keys and cannot sign.

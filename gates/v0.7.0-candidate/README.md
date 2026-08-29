@@ -9,7 +9,7 @@ after the round; a round whose findings are answered is superseded, not amended.
 | --- | --- | --- |
 | [round 1](round-1/) | anchor set `0bac2605…` | REJECT / REJECT / REJECT |
 | [round 2](round-2/) | anchor set `79bf939a…` | ADOPT / REJECT / NO VERDICT |
-| [round 3](round-3/) | anchor set `4c93717a…` | pending |
+| [round 3](round-3/) | anchor set `4c93717a…` | ADOPT / NO VERDICT / NO VERDICT — **incomplete** |
 
 Reviewers, in that column order: `google/gemini-3.1-pro-preview`,
 `deepseek/deepseek-v4-pro-0813`, `moonshotai/kimi-k3`.
@@ -38,6 +38,10 @@ Round 1's central finding and round 2's were both defects the candidate had
 introduced in the immediately preceding step — §3.6 added without amending §3.4,
 then §3.5's repair contradicting itself. Neither was reachable by any test in
 this repository, and a green CI accompanied both.
+
+Round 3 did not complete: the OpenRouter account ran out of credit after the
+first reviewer, and the two families whose round-2 findings produced round 3's
+edits never saw them. One ADOPT is not a gate, and it is not recorded as one.
 
 Round 2's NO VERDICT was a truncated reply, not a silent reviewer. It is recorded
 as NO VERDICT with the reason, and the reply budget is now an argument that every
