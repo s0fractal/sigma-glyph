@@ -273,6 +273,41 @@ Consumers of Σ-GLYPH reasons elsewhere in the ecosystem have not been changed, 
 today the assumption is: *every verifier applies its own cap, and none is known to.*
 
 
+### SA-12. The guard lives in the artifact it guards — narrowed, not closed
+
+An external review named this **V22, "Edit the Cop"**: `proof_guard.py`,
+`theorem_pins.json`, `GUARD_CLAIMS.txt`, the regression suite and the workflow
+that runs them all sit in the repository they police. `GUARD_CLAIMS.txt` already
+said as much — whoever can change the registry can change the claims; it is
+visibility control, not authority.
+
+The reviewer marked it a threat-model candidate rather than a reproduced exploit,
+because they could not read this repository's protection settings. Those settings
+were then read, and the condition held: **rulesets empty, `master` unprotected**.
+Anyone with push could move the branch directly, guard and all.
+
+**What was done.** `master` now requires a pull request and five checks read from
+live runs rather than invented — `test`, `lean`, `cross-repo`,
+`SonarCloud Code Analysis`, `GitGuardian Security Checks` — with branches required
+up to date, force-pushes and deletions refused, and **admin enforcement on**. That
+last part was tested rather than assumed: with `enforce_admins` off, a direct push
+by an admin succeeded and was reverted by a forward commit, not a rewrite; with it
+on, the same push is rejected with `protected branch hook declined`.
+
+**What is still open, and it is the interesting half.** A *pull request* can still
+change a theorem, the guard, the tests and the workflow together, and the required
+checks are the ones that pull request defines. No review is required, so an author
+can merge their own. The recursion is narrowed to one door, not closed:
+
+    proof ← guard ← tests ← workflow ← all editable in the same change
+
+Closing it needs a verifier that does not live in the candidate revision — a
+reusable workflow pinned to a protected ref, a separate verifier repository, or a
+governance commitment over the verifier's hash. None of those exist yet, so no
+claim of an independent guard should be made on the strength of branch protection
+alone.
+
+
 ### NG-1. Preventing a fork
 
 A fork is a new jurisdiction with its own genesis root adopting its own

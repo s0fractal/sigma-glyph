@@ -78,7 +78,9 @@ if n is not None:
 
 # --- pin counts ------------------------------------------------------------
 pins = json.loads((ROOT / "proofs" / "theorem_pins.json").read_text())
-m = re.search(r"(\d+) statement pins, (\d+) definition pins", guard)
+# Bounded digits: an unbounded \d+ pair separated by literal text is what the
+# analyzer flags as super-linear on adversarial input.
+m = re.search(r"(\d{1,9}) statement pins, (\d{1,9}) definition pins", guard)
 if m:
     chk("statement pins", len(pins.get("statements", {})), int(m.group(1)))
     chk("definition pins", len(pins.get("definitions", {})), int(m.group(2)))

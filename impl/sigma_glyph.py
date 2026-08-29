@@ -114,10 +114,15 @@ def glyph_eq(t, gh):
 class Unresolved(Exception): pass
 class BudgetExhausted(Exception): pass
 
-def force(h, store, stats, limits):
+def force(h, store, stats, limits):  # NOSONAR python:S8495
     """Materialize ONE node from hash h; children stay thunks. Genesis axioms
     are intrinsic — synthesized without the store (Book I §5.1). Bytes failing
-    §4.1 materialize the Canonical Invalid Object (§3.5b)."""
+    §4.1 materialize the Canonical Invalid Object (§3.5b).
+
+    Returns a Term, which is a tagged union: ``("lit", atom)`` and ``("app", l, r)``
+    have different arities on purpose (see the Term grammar above). A rule that
+    wants every return of a function to be the same length is reading a sum type
+    as a record, so S8495 is suppressed here by name rather than by silence."""
     stats["fetches"] += 1
     if stats["fetches"] > limits["max_store_fetches"]: raise ResourceFault("fetches")
     b = GENESIS.get(h)

@@ -113,7 +113,9 @@ def decide(raw: bytes) -> str:
             if isinstance(value[field], bool) != (kind is bool) or not isinstance(
                     value[field], kind):
                 raise Malformed(f"{field} has the wrong type")
-    except (Malformed, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+    # UnicodeDecodeError and JSONDecodeError are both ValueError subclasses;
+    # naming all three said the same thing three times.
+    except (Malformed, ValueError):
         return "MALFORMED"
     allowed = (value["amount_minor"] <= LIMIT_MINOR
                and value["currency"] == "UAH"

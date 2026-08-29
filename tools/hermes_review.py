@@ -20,7 +20,7 @@ Env: HERMES_MODEL (default qwen3-coder:30b), HERMES_OLLAMA (default
 http://localhost:11434), HERMES_CHECK (default the run_reference.py gate),
 HERMES_KEY (default ~/.config/sigma-hermes/ed25519.key — auto-created).
 """
-import hashlib, json, os, shlex, subprocess, sys, time, urllib.request
+import hashlib, json, os, re, shlex, subprocess, sys, time, urllib.request
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -101,8 +101,17 @@ def run_check(command=None) -> tuple[str, str]:
     return transcript, ("pass" if p.returncode == 0 else "fail")
 
 
+# A revision that begins with "-" is an option to every git command it reaches,
+# not a revision. The same shape has already been a real defect in this ecosystem
+# (the agent gate's --base), so it is refused here rather than trusted to the
+# argument vector keeping a shell out of it.
+SAFE_REF = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._/^~@{}-]*\Z")
+
+
 def main():
     ref = sys.argv[1] if len(sys.argv) > 1 else "HEAD"
+    if SAFE_REF.fullmatch(ref) is None:
+        sys.exit(f"refusing {ref!r}: not a plain revision")
     sha = subprocess.check_output(["git", "rev-parse", ref], cwd=REPO,
                                   text=True).strip()
     subject = subprocess.check_output(["git", "log", "-1", "--format=%s", sha],

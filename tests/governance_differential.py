@@ -125,7 +125,12 @@ def single_doc(v):
 
 def run_replays(name, v):
     doc = single_doc(v)
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+    # Inside the tree on purpose: `anchor_governance replay` refuses a path
+    # outside the repository, because a governance vector file is a repository
+    # artifact and reading one from anywhere is how a symlink becomes evidence.
+    # The differential harness is a caller like any other and says where it is.
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
+                                     dir=ROOT) as f:
         json.dump(doc, f, sort_keys=True, ensure_ascii=False)
         f.write("\n")
         path = f.name
