@@ -1,0 +1,15 @@
+{
+  "answered_utc": "2026-08-29T17:26:38+00:00",
+  "family": "google",
+  "finish_reason": "stop",
+  "frozen_commit": "fb7b650360b2a03d0bc60ccae50c1c208f68befd",
+  "max_tokens": 40000,
+  "model_answered": "google/gemini-3.1-pro-preview",
+  "model_requested": "google/gemini-3.1-pro-preview",
+  "no_verdict_reason": null,
+  "prompt_sha256": "5dd792308393457b613eef16a6e3c93b234996b4da057e27614966f86a466b84",
+  "requested_utc": "2026-08-29T17:24:39+00:00",
+  "response_sha256": "42b4544128bf67dcf13ef0f16a9c0c149a764bb7e79adfa3dc2f4bf2d2cd9dde",
+  "system_sha256": "a87d162d7a1c13ce15756bcf1565daf55701b91fd7e47ed432dfae4d3a819d2a",
+  "verdict": "ADOPT"
+}

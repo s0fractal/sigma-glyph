@@ -328,14 +328,14 @@ def audit_engine(audit, tree):
     # them, and the two places must agree with each other as well as with it.
     totals, why = store_mono_totals()
     if totals is None:
-        audit.note(f"the store-monotonicity totals of §6a.1 and §6.1: {why}")
+        audit.note(f"the store-monotonicity totals of §3.6 and §6.1: {why}")
     else:
         grown, shrunk, over = totals
         stated(audit, ENGINE,
                r"\*\*(\d+) grown and (\d+) shrunk over (\d+) evaluation vectors\*\*",
-               [("§6a.1 grown perturbations", grown, int),
-                ("§6a.1 shrunk perturbations", shrunk, int),
-                ("§6a.1 eval vectors perturbed", over, int)])
+               [("§3.6 grown perturbations", grown, int),
+                ("§3.6 shrunk perturbations", shrunk, int),
+                ("§3.6 eval vectors perturbed", over, int)])
         stated(audit, ENGINE,
                r"\| `store_mono_bridge_check\.py` \| [\d.]+ \| — \| (\d+) grown / (\d+) "
                r"shrunk over (\d+) eval vectors \|",
