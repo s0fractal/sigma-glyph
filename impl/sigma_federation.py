@@ -428,7 +428,7 @@ def gen_vectors():
                             "byte-identical regardless of any annotation state - federation "
                             "is a pure-function domain that eval() cannot observe"})
     doc = {"format": "sigma-glyph-federation-conformance", "format_version": 1,
-           "spec_version": "0.6.0",
+           "spec_version": "0.7.0",   # Book III
            "notes": ["Book III (DRAFT) oracle: impl/sigma_federation.py; selection-only "
                      "federation per ADR-006 gate 3/3 (F1-strict).",
                      "string order fields compare by Unicode scalar values directly; desc "

@@ -94,7 +94,12 @@ def find(repo, ident):
         # book-1-truth.en.md, the informative English rendering, and pointing a
         # reviewer at a translation while calling it the citation target is the
         # same ambiguity this file exists to remove.
-        matches.sort(key=lambda p: (".en." in p, "/archive/" in p, len(p)))
+        # Prefer the document over data that merely carries the identifier in
+        # its filename: `ADR-009` resolved to an anchor-set blob because the blob's
+        # path was shorter than the ADR's, which pointed a reader at bytes when
+        # they asked for a decision record.
+        matches.sort(key=lambda p: (not p.endswith(".md"), ".en." in p,
+                                    "/archive/" in p, len(p)))
         for path in matches:
             if path not in seen_paths:
                 hits.append((ref, path))

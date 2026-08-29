@@ -405,7 +405,7 @@ def gen_vectors():
     doc = {
         "format": "sigma-glyph-wave-conformance",
         "format_version": 2,
-        "spec_version": "0.5.2",
+        "spec_version": "0.7.0",   # Book II
         "lut_arbiter": LUT_ARBITER,
         "notes": [
             "interfere() per Book II v0.5 (entropy-coherence coupling adopted).",

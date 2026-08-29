@@ -1,6 +1,6 @@
 # Σ-GLYPH — Book III: FEDERATION
 
-**Version:** 0.6.1
+**Version:** 0.7.0
 **Type:** Annotation Federation Protocol (Warrant v0.3 profile)
 **Status:** DRAFT STANDARD — anchored in `spec/ANCHORS.txt` since v0.6.0; implementation gate passed (Codex round 1 blocked→fixed, Gemini round 2 verified; two implementations, differential-tested)
 **Scope Guard (MUST):** ніщо в цій Книзі не змінює редукцію, серіалізацію чи хешування Книги I — жодна анотація, скільки завгодно ворожа, MUST NOT впливати на `eval()`. Книга II визначає хвильову алгебру; ця Книга визначає лише, *чиї твердження* про хвилі юрисдикція приймає. При конфлікті: Книга I > Книга II > ця Книга.
@@ -121,4 +121,4 @@ AnnotationViewID = SHA-256(JCS({
 
 ## 8. Оракул і вектори
 
-`impl/sigma_federation.py` — референс-оракул чистих функцій (валідація блобів і політик, деривація вибору, `wave_fed`, ViewID, assertion_set_root); машинні вектори — `tests/spec_conformance/federation_vectors.json`, згенеровані оракулом. При розбіжності прози з оракулом виграє оракул (дисципліна Книги I §7).
+`impl/sigma_federation.py` — референс-оракул чистих функцій (валідація блобів і політик, деривація вибору, `wave_fed`, ViewID, assertion_set_root); машинні вектори — `tests/spec_conformance/federation_vectors.json`, згенеровані оракулом. Набір є нормативною частиною цього видання: проза і записи набору MUST бути взаємно узгодженими, видання з розбіжністю між ними є неконформним і MUST NOT використовуватися як джерело консенсусу до виправлення та повторного анкерування, і жодна реалізація, включно з референсною, не має переваги над нормативними артефактами видання (те саме правило, що в Книзі I §7).

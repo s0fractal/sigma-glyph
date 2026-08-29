@@ -99,9 +99,10 @@ exhaustion — is unchanged by anything the store gains, and
 `proofs/store_mono_bridge_check.py` checks the same property against the live
 oracle by growing and shrinking the store under every eval vector.
 
-Book I §3.4 still prints `eval(term_hash, atp: uint32)` in normative, anchored
-bytes. Correcting that is a specification edit with its own candidate and gate,
-and it is not the correction above.
+**On this branch** Book I 0.6.0 states the interface over three inputs and returns
+a `Receipt`. That is a **candidate**: `proposals/ADR-010-three-inputs-and-a-receipt.md`,
+not adopted, not in force. On `master` the Book still prints
+`eval(term_hash, atp: uint32)`.
 
 ## The honest caveats
 

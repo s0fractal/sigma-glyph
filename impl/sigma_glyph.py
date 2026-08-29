@@ -265,8 +265,60 @@ def resource_check(t, limits):
         raise ResourceFault("term depth")
 
 
+EXITS = ("normal_form", "atp_exhausted", "unresolved_reference")
+
+
+class Receipt(tuple):
+    """What `eval` returns: {exit, result_hash, atp_spent} (Book I §3.4).
+
+    `result_hash` alone does not identify the exit and never did:
+    ``DISSONANCE(ATP Exhausted)`` is an ordinary term that can sit in a content
+    environment and evaluate to a normal form, so one hash means "finished" or
+    "ran out" depending on how it was reached. A caller that must tell them apart
+    reads `exit`.
+
+    A tuple subclass so that a receipt still unpacks as a pair for the
+    compatibility profile below, which is why nothing that used the two-value
+    form has to change at once."""
+
+    def __new__(cls, term, spent, exit_kind):
+        if exit_kind not in EXITS:
+            raise ValueError(f"exit must be one of {EXITS}, not {exit_kind!r}")
+        return super().__new__(cls, (term, spent))
+
+    def __init__(self, term, spent, exit_kind):
+        super().__init__()
+        self.term, self.atp_spent, self.exit = term, spent, exit_kind
+
+    def __repr__(self):
+        return (f"Receipt(exit={self.exit!r}, "
+                f"result_hash={self.result_hash.hex()[:12]}…, "
+                f"atp_spent={self.atp_spent})")
+
+    @property
+    def result_hash(self):
+        return term_hash(self.term)
+
+    def as_dict(self):
+        return {"exit": self.exit, "result_hash": self.result_hash.hex(),
+                "atp_spent": self.atp_spent}
+
+
+def eval_receipt(h, atp, env, limits=None):
+    """eval(term_hash, uint32 atp, content environment) -> Receipt (Book I §3.4).
+
+    The three inputs the Book states. `env` is a partial map from NodeHash to
+    bytes whose entries hash to their own key (§3.5); bytes under a foreign key
+    are refused locally rather than executed."""
+    term, spent, exit_kind = _eval_hash_raw(h, atp, env, limits)
+    return Receipt(term, spent, exit_kind)
+
+
 def eval_hash(h, atp, store, limits=None):
-    """eval(term_hash, atp, store) -> (result_term, atp_spent).
+    """Compatibility profile (Book I §3.4): -> (result_term, atp_spent).
+
+    Loses no guarantee and is not deprecated; the one question it cannot answer
+    is which exit occurred. `eval_receipt` answers it.
     Canonical outcomes: normal form | DISSONANCE(ATP Exhausted) | DISSONANCE(Unresolved Reference).
     v0.5 discipline (Book I §3.4): every action — rule firing OR thunk
     materialization — is priced; an unaffordable action yields ATP Exhausted
@@ -276,6 +328,12 @@ def eval_hash(h, atp, store, limits=None):
     Resource limit breach -> ResourceFault (local, non-canonical).
     Claimed ATP above `limits["max_atp"]` -> AdmissionRefused, raised before any
     allocation or store access (local, non-canonical)."""
+    term, spent, _ = _eval_hash_raw(h, atp, store, limits)
+    return term, spent
+
+
+def _eval_hash_raw(h, atp, store, limits=None):
+    """The machine. Returns (term, spent, exit); the two public forms wrap it."""
     limits = limits or DEFAULT_LIMITS
     admit(atp, limits)
     if not isinstance(h, bytes) or len(h) != 32:
@@ -302,9 +360,9 @@ def eval_hash(h, atp, store, limits=None):
             try:
                 r = step5(t, atp - spent, store, stats, limits)
             except BudgetExhausted:
-                return ("dis", R_ATP), spent
+                return ("dis", R_ATP), spent, "atp_exhausted"
             except Unresolved:
-                return ("dis", R_UNRES), spent
+                return ("dis", R_UNRES), spent, "unresolved_reference"
             if r is None:
                 # normal form: a `max_*` limit MUST hold on the returned term,
                 # even for evaluations that finish before the 256-step sample
@@ -312,7 +370,7 @@ def eval_hash(h, atp, store, limits=None):
                 # never exceed the configured maximum). DISSONANCE returns
                 # above are size-1 leaves and cannot breach.
                 resource_check(t, limits)
-                return t, spent
+                return t, spent, "normal_form"
             t = r[0]
             spent += r[1]
     except RecursionError:

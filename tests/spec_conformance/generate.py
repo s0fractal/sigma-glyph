@@ -8,7 +8,11 @@ Two kinds of expected value live in vectors.json, and the difference matters:
     hand-computed from its rules. If the oracle disagrees with any declaration
     this script REFUSES to write vectors.json. These vectors constrain the
     oracle: an oracle that was wrong from the start cannot launder its own
-    answer into the suite. Same discipline as the governance suite
+    answer into the suite. Since Book I 0.6.0 the suite is a normative part of the
+    edition and no implementation outranks it: a disagreement between the prose
+    and a record makes the edition non-conformant rather than being settled in the
+    oracle's favour. Books II and III carry the same rule now. Same discipline as
+    the governance suite
     (tools/anchor_governance.py cmd_gen, which has refused since v0.6.x).
 
   * ORACLE-GENERATED (regression-only). Everything without a declaration is
@@ -38,9 +42,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.5.2"   # Book I document version these vectors conform to
+SPEC_VERSION = "0.6.0"   # Book I document version these vectors conform to
 SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "a98a03bd5fcc573d4850cdc9e8e80d66518fdc4888ce31c9888df1e24b48b47b"
+BOOK1_ANCHOR = "a97fc63748f00838e51d2282ac3e35052fc0c4f8162ef3ee8797ee6c7e6a4950"
 
 # ============================================================================
 # Spec-declared expectations — hand-written from spec/book-1-truth.md v0.5.2

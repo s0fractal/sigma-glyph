@@ -30,21 +30,18 @@ The bundle number is not a maximum of the others and not derived from them. It
 names an adopted set of bytes. Reading it as "the version of the specification" is
 the mistake this page exists to prevent.
 
-## Two numbers that do not agree, and are not fixed here
+## Two numbers that did not agree, and now do
 
-`spec_version` means *the Book this suite conforms to*. Two suites disagree:
+`spec_version` means *the Book this suite conforms to*. Two suites disagreed:
+`wave_vectors.json` declared **0.5.2**, which was Book I's version, while Book II
+was at 0.6.1; `federation_vectors.json` declared **0.6.0** while Book III was at
+0.6.1. Neither could be corrected without regenerating an **anchored** file, so
+both were carried by name in `version_check.py`, which fails when a recorded
+discrepancy stops reproducing without the record being removed.
 
-- `wave_vectors.json` declares **0.5.2**, which is Book I's version, while Book II
-  is at **0.6.1**. The two coincided when the suite was generated and nothing
-  moved it since.
-- `federation_vectors.json` declares **0.6.0** while Book III is at **0.6.1** — one
-  patch behind the shipped document.
-
-Neither is corrected here, and the reason is not laziness: both files are
-**anchored**, so changing a byte of either is a governed change with a new bundle
-and an adoption warrant. They are recorded by name in `version_check.py`, which
-fails if a discrepancy stops reproducing without the record being removed — a
-recorded exception that outlives its defect is a lie with a date on it.
+The `v0.7.0` candidate regenerates every suite against its own Book, which closes
+both. The records were removed in the same change — leaving them would have been
+the failure the mechanism exists to cause.
 
 ## What this page cannot check
 
