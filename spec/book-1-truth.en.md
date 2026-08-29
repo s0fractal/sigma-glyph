@@ -184,8 +184,12 @@ cost(R-S)      = 1 + size(z)   // z in its current materialization; thunks in z 
 * **Compatibility profile (MAY).** An implementation MAY offer the two-value form
   `eval(term_hash, atp, env) → (result_term, atp_spent)`. It loses no guarantee of
   this Book and is not deprecated; the one question it cannot answer is `exit`.
-* The ATP budget is a `uint32`; ATP > 2³²−1 is implementation-defined (MAY
-  reject/clamp); only canonical results are consensus-critical. A single step
+* The ATP budget is a `uint32`. A value outside that domain is not a budget: it
+  MUST be refused per §3.6 — locally, before the environment is consulted, and
+  not as a canonical exit. An implementation MUST NOT accept it by clamping to
+  2³²−1: clamping turns a refusal to admit into a result of evaluation, and two
+  engines, one of which clamps, diverge on the same input. Only canonical results
+  are consensus-critical. A single step
   whose price exceeds 2³²−1 is unreachable for any canonical budget → ATP
   Exhausted, not implementation-defined.
 * **The exhaustion check precedes the action.** An action whose price is `c > atp
@@ -222,8 +226,14 @@ one property: the bytes filed under a key hash to that key
 (`NodeHash(bytes) = key`, §2). Bytes under any other key **MUST NOT** be evaluated
 as that key's node: they may be a perfectly valid SigmaNodeV2, and evaluating them
 would violate Identity by Hash (§3.2) and let two conforming engines disagree while
-both believe they are following the Book. An implementation that detects such a
-mismatch MUST fail locally (§3.6) and MUST NOT return a canonical result.
+both believe they are following the Book. The property MUST be checked for every hash the
+evaluation actually resolves; an entry the evaluation never demanded does not
+affect the result. An implementation that detects a mismatch on a resolved hash
+MUST fail locally (§3.6) and MUST NOT return a canonical result. A wider check —
+validating the whole environment on admission, say — is permitted as local
+policy, but its consequence MUST be that same local refusal and not a different
+canonical exit; otherwise two conforming engines would disagree on an environment
+poisoned under a key nobody demands.
 
 **Determinism is over the demanded environment (MUST).** Two implementations that
 resolve the same **demanded** hashes to the same bytes return the same `Receipt`.
@@ -405,6 +415,15 @@ fields makes the edition non-conformant. The remainder of §7's prose explains
 rules established in §3–§5 — environment access, lazy materialization, the
 materialization bound — and is not an independent normative statement of this
 section; those rules remain normative where they are established.
+
+**§7 notation (MUST be read this way).** In the vectors below, `eval(·, atp)`
+abbreviates evaluation of the named term with budget `atp` over this edition's
+content environment — the `objects` of `tests/spec_conformance/vectors.json`. The
+third input (§3.4) is not omitted; it is fixed by the set. `= ⟨X⟩` asserts the
+exit `normal_form` with `expected.result_hash` equal to `H(X)`; "ATP Exhausted"
+asserts `atp_exhausted`; "Unresolved Reference" asserts `unresolved_reference`.
+The shorthand adds and changes no requirement: the normative statements remain
+the record fields listed above.
 
 **TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash
 `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`;

@@ -44,10 +44,10 @@ import sigma_glyph as sg  # noqa: E402
 
 SPEC_VERSION = "0.6.0"   # Book I document version these vectors conform to
 SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "a97fc63748f00838e51d2282ac3e35052fc0c4f8162ef3ee8797ee6c7e6a4950"
+BOOK1_ANCHOR = "eff52cdbb7114903449a26dd95cd56ddde46ba3c9118c25e0a04f4aed471551c"
 
 # ============================================================================
-# Spec-declared expectations — hand-written from spec/book-1-truth.md v0.5.2
+# Spec-declared expectations — hand-written from spec/book-1-truth.md v0.6.0
 # ============================================================================
 # NOTHING in this block calls the oracle. The only computation is
 # hashlib.sha256 over byte strings the SPEC dictates, plus the four-line

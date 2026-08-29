@@ -1,0 +1,14 @@
+{
+  "answered_utc": "2026-08-29T16:58:33+00:00",
+  "family": "moonshot",
+  "finish_reason": "stop",
+  "frozen_commit": "a49a106aefff9337a941cd30ce7fd3cecb95a105",
+  "model_answered": "moonshotai/kimi-k3",
+  "model_requested": "moonshotai/kimi-k3",
+  "no_verdict_reason": null,
+  "prompt_sha256": "cccb925a4f76c75a004dba359254f621dbee82599adcd71474b9040ea2bff559",
+  "requested_utc": "2026-08-29T16:50:55+00:00",
+  "response_sha256": "4b46fdf5e03c89fb5ba90471031411650bcdbf93b46e9f8d0af71056d9a69bfe",
+  "system_sha256": "a87d162d7a1c13ce15756bcf1565daf55701b91fd7e47ed432dfae4d3a819d2a",
+  "verdict": "REJECT"
+}

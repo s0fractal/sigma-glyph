@@ -130,9 +130,18 @@ corrected rather than left pointing at something that no longer says it.
   accepted must now be refused, and an edition whose prose and suite disagree used
   to be usable and is now non-conformant. Each is a changed verdict for a
   documented state.
-- **Books II and III 0.6.1 → 0.7.0.** MINOR for the same reason and no other: the
-  conformance verdict for a prose/suite disagreement changes. Nothing else in
-  either Book moves.
+- **Books II and III 0.6.1 → 0.7.0.** MINOR, and two reviewers were right to
+  press on why. `spec/VERSIONS.md`'s test is whether *an implementation*
+  conformant to the previous version could become non-conformant, and the
+  objection is that an arbitration rule binds editions rather than
+  implementations. It binds both, because an implementation's conformance is
+  judged against the edition's normative artifacts and this changes which
+  artifact decides: under 0.6.1 the reference oracle had precedence, so an engine
+  matching the oracle where the oracle and the suite disagreed was conformant;
+  under 0.7.0 it is not. Round 1 added a second implementation-visible change to
+  each — the record fields that carry a prose claim are now named for these
+  suites' own schemas, so an auditor no longer has to transport Book I §7's field
+  list onto a different shape by guesswork.
 - **Bundle `v0.7.0`**, carrying all of them.
 - Each suite's `spec_version` is set to the version of the Book it conforms to,
   which closes the two discrepancies `version_check.py` has been carrying by name
@@ -164,6 +173,60 @@ different tree, and most of them reviewed the *enforcement* rather than the norm
 The unsigned `v0.7.0` anchor-set blob and the exact command that reproduces it
 byte-for-byte are recorded in this branch once the bytes are frozen.
 
+## Round 1 of the gate
+
+Three families, blind, one prompt, over the frozen bytes of `1c2b6ca`:
+`google/gemini-3.1-pro-preview`, `deepseek/deepseek-v4-pro-0813`,
+`moonshotai/kimi-k3`. **Three REJECT.** Raw responses, prompt digest and
+timestamps: `gates/v0.7.0-candidate/`.
+
+- **P0, found independently by all three — `atp` out of domain.** §3.4 kept
+  "ATP > 2³²−1 — implementation-defined (MAY reject/clamp)" while the new §3.6
+  said a non-`uint32` budget MUST be refused. Two MUST-level clauses in the same
+  Book, permitting and forbidding the same behaviour, with no priority between
+  them; Book-priority is *between* Books and does not apply. Both DeepSeek and
+  Kimi produced the same counterexample: `H(I)`, `atp = 2³²`, empty environment —
+  one engine refuses, the other clamps and returns a normal form. This was a
+  defect the candidate introduced: §3.6 was added and §3.4 was not amended.
+  **Fixed** — §3.4 now says a value outside the domain is not a budget, refuses
+  it per §3.6, and forbids clamping by name.
+- **P1, found independently by DeepSeek and Kimi — when the CAS property is
+  checked.** §3.5 required an implementation *that detects* a foreign-key
+  mismatch to refuse, and never said whether detection is eager or
+  demand-scoped. An eager validator refuses an environment whose poisoned entry
+  is never demanded; a lazy one returns a normal form. **Fixed** — the property
+  is checked for every hash the evaluation actually resolves, an undemanded entry
+  does not affect the result, and a wider local check MUST end in the same local
+  refusal rather than a different canonical exit.
+- **P1/P2, Gemini and Kimi — §7's call shape.** The vectors wrote `eval(·, 4)`
+  with two arguments under a rule this candidate itself adds, and stated a result
+  without naming an exit. **Fixed** — §7 now says how its shorthand reads, and
+  that it adds no requirement.
+- **P2, Kimi — Books II and III imported Book I §7's rule without mapping it.**
+  Their suites have different schemas, so "the same rule as Book I §7" left the
+  field list to guesswork. **Fixed** in both, against each suite's own shape.
+- **P0 for Gemini and DeepSeek, P3 for Kimi — GOV-anchors' dependency pin.**
+  `spec/GOV-anchors.md` is defined against "Book I v0.5.2 / Book II v0.6.1 /
+  Book III v0.6.1 as anchored in this release", and this candidate makes that
+  sentence name versions the bundle no longer carries. **Not fixed, deliberately,
+  and the disagreement is left standing rather than resolved by the author.**
+  Kimi's reading is that leaving it is correct: the only Book I semantics
+  GOV-anchors consumes is `NodeHash(LITERAL, SHA-256(bytes))`, which this
+  candidate does not touch, so the pinned *semantics* hold; and GOV §0 makes
+  re-pinning a governed breaking change, which would need its own MAJOR version
+  and its own gate. Gemini's and DeepSeek's reading is that a governance verifier
+  treating the pin as binding rejects the bundle while one applying only §3's
+  seven steps authorizes it, which is a divergence about whether the release may
+  be adopted at all. Both readings are recorded; the choice is the roster's,
+  because a document that governs which bytes are the specification should not be
+  amended by the author of the bytes it is being asked to govern.
+- **Typo**, `преф лайт` → `префлайт` (§3.4), pre-existing. Fixed.
+
+Round 1's verdicts do not carry to round 2: the bytes moved, so the gate is
+re-run over the new freeze and the earlier REJECTs stand as a record of a
+revision that is no longer proposed.
+
 | Date | Change | Bytes already edited? |
 | --- | --- | --- |
 | 2026-08-29 | scope fixed, before any normative edit | no |
+| 2026-08-29 | round 1: three REJECT; four findings fixed, one recorded unresolved | yes, after the gate saw them |
