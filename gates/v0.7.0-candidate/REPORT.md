@@ -225,7 +225,7 @@ silently excluded.
 | branch head (this report) | `461fe7b6ffcf3f9235d546fac6642601b66f1c24` |
 | candidate first written | `1c2b6ca42cb95cdc035fc887cd0587a5758862d7` |
 | round 2 bytes | `1e91131c891dcc8f8b02ee27957330ab2251e2b6` |
-| round 3 bytes | `fb7b650360b2…` (gate-verified at send time) |
+| round 3 bytes | `fb7b650360b2a03d0bc60ccae50c1c208f68befd` |
 | adopted release | `v0.6.7` at `16a1355` |
 | `master` | `f07edad`, unchanged — no normative byte was merged |
 
