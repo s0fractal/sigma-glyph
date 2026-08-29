@@ -811,7 +811,9 @@ def strip_prose(block: str) -> str:
     kept = []
     for line in block.splitlines():
         line = re.sub(r'//.*$', '', line)
-        line = re.sub(r'\s+(якщо|if)\s+.*$', '', line)
+        # Bounded, and anchored on a single space run: the previous form nested
+        # \s+ … \s+ … .*$ over the same class and scanned super-linearly.
+        line = re.sub(r'[ \t]+(?:якщо|if)[ \t]+[^\n]{0,200}$', '', line)
         line = re.sub(r'=\s*size[^\n]*$', '= size…', line)
         if line.strip():
             kept.append(line.rstrip())

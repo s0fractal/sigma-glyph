@@ -47,8 +47,8 @@ HERE = Path(__file__).resolve().parent
 # admission boundary and then the CAS-key/uint32 input boundary — and all ten
 # values were re-measured under this one and are unchanged. The original is kept
 # above so what the requester measured stays legible.
-PINNED_ORACLE_SHA256 = ("a1029f9ab579d6905cd4edf9529247678b978089"
-                        "e55c72a08385712328b51540")
+PINNED_ORACLE_SHA256 = ("4b4f458eed0f4cda71532a495e3d726e7fea5a7d"
+                        "7aa734ad9c7c560096b05e1b")
 
 
 
@@ -125,7 +125,7 @@ def replace_at(t, path, node):
     return ("app", t[1], replace_at(t[2], path[1:], node))
 
 
-def run(root, store, memo=None, price=None):
+def run(root, store, memo=None, price=None):  # NOSONAR python:S3776 - SONAR-DISPOSITIONS.md
     """Book I's own loop, with one optional extra action: install a known normal
     form where the machine was about to materialize its hash."""
     t, spent, stats = ("thunk", root), 0, {"fetches": 0}
@@ -165,7 +165,7 @@ def fixture(store):
     return roots + [put(t, store) for t in comp]
 
 
-def main():
+def main():  # NOSONAR python:S3776 - SONAR-DISPOSITIONS.md
     store = sg.Store()
     for b in (sg.I_BYTES, sg.K_BYTES, sg.S_BYTES):
         store.put(b)
@@ -224,8 +224,8 @@ def main():
         b, w = at_price(price)
         r3[label] = (b, w)
         print(f"      {label:18s} violations {b}/{len(roots)}   worst excess {w:+d}")
-    at_floor, _ = at_price(lambda nf: max(1, sg.size(nf) - 1))
-    below, worst_below = at_price(lambda nf: max(1, sg.size(nf) - 2))
+    # The two prices these lines used to recompute are already in `r3`, and
+    # `at_price` is pure, so the recomputation was work nobody read.
     print("    -> the bound's floor is max(1, size(nf) - 1). size(nf) is what")
     print("       additionally keeps the per-row discipline dsize <= cost - 1.\n")
 

@@ -69,6 +69,41 @@ def eval_vectors():
         yield vector["id"], vector["term"], vector["atp"], list(keys)
 
 
+def check_growing(vid, term, atp, keys, base, everything, problems) -> int:
+    """Adding content must not move a settled answer."""
+    grown = 0
+    for label, bigger_keys, strangers in (
+            ("the rest of the suite", everything, False),
+            ("eight nodes belonging to no vector", keys, True),
+            ("both", everything, True)):
+        if bigger_keys == keys and not strangers:
+            continue
+        bigger = outcome(term, atp, bigger_keys, strangers)
+        grown += 1
+        if base[0] != UNRESOLVED.hex() and bigger != base:
+            problems.append(
+                f"{vid}: settled at {base[0][:12]}… spending {base[1]}, and "
+                f"adding {label} changed it to {bigger[0][:12]}… spending "
+                f"{bigger[1]}. Extending a store rewrote an answer")
+    return grown
+
+
+def check_shrinking(vid, term, atp, keys, base, problems) -> int:
+    """Removing content must yield Unresolved, or nothing at all."""
+    shrunk = 0
+    for dropped in keys:
+        smaller = outcome(term, atp, [k for k in keys if k != dropped])
+        shrunk += 1
+        if smaller == base or smaller[0] == UNRESOLVED.hex():
+            continue
+        problems.append(
+            f"{vid}: removing {dropped[:12]}… turned {base[0][:12]}… "
+            f"(spent {base[1]}) into a different settled answer "
+            f"{smaller[0][:12]}… (spent {smaller[1]}), not into Unresolved. "
+            "Availability changed a verdict instead of withholding one")
+    return shrunk
+
+
 def main() -> int:
     problems, grown, shrunk = [], 0, 0
     # Nodes to add: everything in the suite's store. For a vector already given
@@ -79,32 +114,8 @@ def main() -> int:
     for vid, term, atp, keys in eval_vectors():
         base = outcome(term, atp, keys)
 
-        for label, bigger_keys, strangers in (
-                ("the rest of the suite", everything, False),
-                ("eight nodes belonging to no vector", keys, True),
-                ("both", everything, True)):
-            if bigger_keys == keys and not strangers:
-                continue
-            bigger = outcome(term, atp, bigger_keys, strangers)
-            grown += 1
-            if base[0] != UNRESOLVED.hex() and bigger != base:
-                problems.append(
-                    f"{vid}: settled at {base[0][:12]}… spending {base[1]}, and "
-                    f"adding {label} changed it to {bigger[0][:12]}… spending "
-                    f"{bigger[1]}. Extending a store rewrote an answer")
-
-        for dropped in keys:
-            smaller = outcome(term, atp, [k for k in keys if k != dropped])
-            shrunk += 1
-            if smaller == base:
-                continue
-            if smaller[0] == UNRESOLVED.hex():
-                continue
-            problems.append(
-                f"{vid}: removing {dropped[:12]}… turned {base[0][:12]}… "
-                f"(spent {base[1]}) into a different settled answer "
-                f"{smaller[0][:12]}… (spent {smaller[1]}), not into Unresolved. "
-                "Availability changed a verdict instead of withholding one")
+        grown += check_growing(vid, term, atp, keys, base, everything, problems)
+        shrunk += check_shrinking(vid, term, atp, keys, base, problems)
 
     for problem in problems:
         print("FAIL", problem, file=sys.stderr)

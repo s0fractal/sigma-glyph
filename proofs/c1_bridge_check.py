@@ -135,7 +135,7 @@ def main():
 
     # 2. Lean model == oracle on random closed λ-terms (NodeHash-exact)
     # Deterministic corpus generation only; no security decision uses this PRNG.
-    rng = random.Random(20260717)  # NOSONAR python:S2245
+    rng = random.Random(20260717)  # NOSONAR
     n = 3000
     for i in range(n):
         lam = rand_closed_lam(rng, [], rng.randint(1, 6))

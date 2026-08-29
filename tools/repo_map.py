@@ -166,9 +166,72 @@ def check_committed_map(ids):
     stale = [line for line in text.splitlines() if "resolves nowhere" in line]
     for line in stale:
         print(f"UNRESOLVED in MAP.md: {line.strip()}", file=sys.stderr)
+    wrong, unverifiable, absent = check_rows_resolve(text)
     print(f"REPO-MAP: {len(ids) - len(missing)}/{len(ids)} citations mapped, "
-          f"{len(stale)} unresolved")
-    return 1 if missing or stale else 0
+          f"{len(stale)} unresolved, {unverifiable} row(s) in a sibling repo and "
+          f"{absent} whose ref this checkout does not have")
+    return 1 if missing or stale or wrong else 0
+
+
+def check_rows_resolve(text):
+    """Does each row's (ref, path) actually hold that document?
+
+    Checking that an identifier appears somewhere in MAP.md is a check whose
+    subject can be an arbitrary sentence: a row could name any ref and any path
+    and still pass. A map whose rows are unverified is a map that cannot be cited
+    as evidence of where anything lives, which is the only thing it is for.
+    """
+    wrong = unverifiable = absent = 0
+    # Only the citation table. The refs table below it lists branches rather than
+    # documents, and counting its rows as sibling citations reported nineteen
+    # unverifiable rows where there is one — a true check with a false scope.
+    table = text.split("## Refs that exist", 1)[0]
+    for line in table.splitlines():
+        cells = [cell.strip() for cell in line.split("|")]
+        if len(cells) < 5 or not cells[1].startswith("`") or cells[2] == "Lives in":
+            continue
+        where, quoted = cells[2], cells[3]
+        if "this repo" not in where:
+            unverifiable += 1
+            continue
+        ref = where.split("`")[1] if "`" in where else "master"
+        path = quoted.split("`")[1] if "`" in quoted else ""
+        if not path:
+            continue
+        # A remote-tracking ref the remote no longer has resolves locally and
+        # nowhere else. The generated map named one such ref as a document's
+        # home; `git cat-file` was happy and nobody could fetch it.
+        if ref.startswith("origin/") and subprocess.run(
+                ["git", "-C", str(ROOT), "ls-remote", "--exit-code", "--heads",
+                 "origin", ref.split("/", 1)[1]],
+                capture_output=True).returncode != 0:
+            wrong += 1
+            print(f"STALE REF: MAP.md says {cells[1]} lives at {ref}, which the "
+                  "remote does not have. It resolves only in this checkout",
+                  file=sys.stderr)
+            continue
+        # A shallow checkout has no local branches at all, so `master:path`
+        # resolves nowhere and every row would read as misplaced. Not being able
+        # to look is a different fact from looking and finding nothing, and
+        # collapsing the two would make this check fire hardest where it is least
+        # informative.
+        spellings = [ref, f"origin/{ref}", f"refs/remotes/origin/{ref}"]
+        present = [r for r in spellings
+                   if subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify",
+                                      "--quiet", r], capture_output=True).returncode == 0]
+        if not present:
+            absent += 1
+            print(f"UNCHECKED: MAP.md says {cells[1]} lives at {ref}, which this "
+                  "checkout does not have. Fetch it to verify the row",
+                  file=sys.stderr)
+            continue
+        if all(subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", f"{r}:{path}"],
+                              capture_output=True).returncode != 0 for r in present):
+            wrong += 1
+            print(f"MISPLACED: MAP.md says {cells[1]} lives at {ref}:{path}, and "
+                  "no such object is there. A row nobody resolves is a row that "
+                  "can say anything", file=sys.stderr)
+    return wrong, unverifiable, absent
 
 
 def check_resolutions(rows, unresolved):

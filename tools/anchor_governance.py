@@ -608,8 +608,16 @@ def cmd_status(trust_path, enforce):
     if trust is None:
         for rel, _ in reversed(live):
             print(f"{rel:10s} UNGOVERNED (no out-of-band trust config)")
-        print("\nGOVERNANCE: not active (ADR-007 is PROPOSED; no adoption "
-              "warrants may be filed before its gate closes)")
+        # This line used to say governance was not active because "ADR-007 is
+        # PROPOSED". ADR-007 has been SUPERSEDED since it was adopted as
+        # GOV-anchors 1.0.x (STANDARD), and the store holds adoption warrants, so
+        # the sentence was false and it told a reader no warrant could be filed.
+        # Whether a release is authorised is a fact of the trust anchor, which is
+        # deliberately out of band; without it this command cannot say.
+        print("\nGOVERNANCE: undetermined here — authority is a fact of the "
+              "out-of-band trust anchor, not of this tree. Pass --trust-config "
+              "to evaluate it. This is not a statement that no release is "
+              "governed, and not a statement that a warrant cannot be filed.")
         return 1 if enforce else 0
     recs, blobs, bdir = load_store(STORE)
     prior, all_ok = None, True
@@ -624,8 +632,15 @@ def cmd_make_blob(jurisdiction, ancestor):
     sections = parse_anchors(ANCHORS)
     release, _, entries = next(s for s in sections if not s[1])
     blob = anchor_set_blob(release, entries, jurisdiction, ancestor)
-    sys.stdout.buffer.write(canon(blob) + b"\n")
-    print(f"# sha256 {sha256(canon(blob))}", file=sys.stderr)
+    body = canon(blob)
+    # EXACTLY the canonical bytes, with nothing appended. This used to write a
+    # trailing newline while reporting the digest of the bytes without it, so
+    # `make-blob > set.json` produced a file whose hash was not the hash the same
+    # command had just printed -- the documented way to reproduce an anchor set
+    # could not reproduce it. The digest goes to stderr so redirection keeps
+    # giving the artifact and nothing else.
+    sys.stdout.buffer.write(body)
+    print(f"# sha256 {sha256(body)}", file=sys.stderr)
     return 0
 
 
@@ -1016,7 +1031,14 @@ def cmd_replay(path):
     if not HAVE_ED25519:
         print("replay needs the 'cryptography' package")
         return 2
-    doc = json.load(open(path))
+    # The operator names this file, but "the operator named it" is not the same
+    # as "it is a file". A symlink or a device here would be read as governance
+    # vectors, so the shape is checked before the contents are trusted.
+    target = pathlib.Path(path)
+    if target.is_symlink() or not target.is_file():
+        print(f"ERR: {path} is not a regular file")
+        return 1
+    doc = json.loads(target.read_text(encoding="utf-8"))
     if doc.get("format") != "sigma-glyph.governance-vectors@v1":
         print("ERR: unknown vector format")
         return 1
