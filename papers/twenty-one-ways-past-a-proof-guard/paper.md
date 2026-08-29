@@ -1,6 +1,13 @@
 ---
 title: "Twenty-One Ways Past a Proof Guard: The CI Apparatus Around a Theorem Prover Is the Attack Surface"
-author:
+author: "Serhii Glova (independent) --- sergey.glova@gmail.com"
+# Same shape as the companion paper's defect: pandoc's default LaTeX template
+# renders a list of maps by its truthiness, and printed the word "true" where
+# that paper's author belonged. This one has no build.sh, so it never rendered
+# and the defect was latent rather than observed -- fixed here so it stays that
+# way. The structured form is kept for deposit metadata, under a key the
+# template does not read.
+authors:
   - name: Serhii Glova
     affiliation: independent
     email: sergey.glova@gmail.com

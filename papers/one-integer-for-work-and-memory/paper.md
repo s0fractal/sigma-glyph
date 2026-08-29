@@ -1,6 +1,11 @@
 ---
 title: "One Integer for Semantic Work and Materialization: A Mechanized, Content-Addressed Combinator Machine over Term, Budget and Content Environment, and the Engineering of Trustworthy Proof Artifacts"
-author:
+author: "Serhii Glova (independent) --- sergey.glova@gmail.com"
+# The structured form below is for deposit metadata. It is NOT the `author`
+# field: pandoc's default LaTeX template renders a list of maps by its
+# truthiness, which is why every build of this paper so far has printed the
+# word "true" on the title page where the author's name belongs.
+authors:
   - name: Serhii Glova
     affiliation: independent
     email: sergey.glova@gmail.com
@@ -797,6 +802,7 @@ allowed; regeneration can launder any drift and is therefore never run by CI; an
 who wants the evidence behind those sentences should read the companion paper;
 the reader who wants only the calibration should take away that §4's numbers are
 as good as a human reading of one JSON diff.
+
 ---
 
 # 6. Evaluation
