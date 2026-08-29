@@ -76,6 +76,7 @@ class ResourceFault(Exception):
 #       | ("lit", atom) | ("ref", h) | ("dis", reason)
 #       | ("app", t, t)                       children may be thunks
 GENESIS = {I_H: I_BYTES, K_H: K_BYTES, S_H: S_BYTES}   # intrinsic axioms (Book I §5.1)
+UINT32_MAX = 2**32 - 1
 
 def term_bytes(t):
     if t[0] == "lit": return ser(LITERAL, F_ATOM, atom=t[1])
@@ -122,6 +123,17 @@ def force(h, store, stats, limits):
     b = GENESIS.get(h)
     if b is None: b = store.get(h)
     if b is None: raise Unresolved()
+    # A mapping lookup is not, by itself, a content-addressed store.  The
+    # public evaluator accepts any object with ``get`` (tests and downstream
+    # callers use plain dicts), so verify the CAS relation at the boundary
+    # instead of assuming only Store.put() can reach this function.  Treat a
+    # wrong key as a local storage fault: the bytes may be a perfectly valid
+    # SigmaNodeV2, but evaluating them as the requested hash would violate
+    # Identity by Hash and could make two conforming engines disagree.
+    if not isinstance(b, bytes):
+        raise ResourceFault("store returned non-bytes")
+    if node_hash(b) != h:
+        raise ResourceFault("CAS key mismatch")
     n = deser(b)
     if n is None: return ("dis", R_INVALID)
     op = n["op"]
@@ -224,7 +236,14 @@ class AdmissionRefused(Exception):
 
 
 def admit(atp, limits=None):
-    """Decide whether to begin at all. Raises before anything is touched."""
+    """Decide whether to begin at all. Raises before anything is touched.
+
+    Book I's consensus domain is ``uint32``.  Python's ``bool`` is an ``int``
+    subclass and floats participate in numeric comparisons, so an ordinary
+    range check is not enough to keep the API on that domain.
+    """
+    if type(atp) is not int or not 0 <= atp <= UINT32_MAX:
+        raise ValueError("atp must be a uint32 integer")
     allowed = (limits or DEFAULT_LIMITS).get("max_atp")
     if allowed is not None and atp > allowed:
         raise AdmissionRefused(atp, allowed)
@@ -242,7 +261,7 @@ def resource_check(t, limits):
 
 
 def eval_hash(h, atp, store, limits=None):
-    """eval(term_hash, atp) -> (result_term, atp_spent).
+    """eval(term_hash, atp, store) -> (result_term, atp_spent).
     Canonical outcomes: normal form | DISSONANCE(ATP Exhausted) | DISSONANCE(Unresolved Reference).
     v0.5 discipline (Book I §3.4): every action — rule firing OR thunk
     materialization — is priced; an unaffordable action yields ATP Exhausted
@@ -254,6 +273,8 @@ def eval_hash(h, atp, store, limits=None):
     allocation or store access (local, non-canonical)."""
     limits = limits or DEFAULT_LIMITS
     admit(atp, limits)
+    if not isinstance(h, bytes) or len(h) != 32:
+        raise ValueError("term_hash must be exactly 32 bytes")
     stats = {"fetches": 0}
     old_rl = sys.getrecursionlimit()
     sys.setrecursionlimit(max(old_rl, 3 * limits["max_node_depth"] + 2000))
