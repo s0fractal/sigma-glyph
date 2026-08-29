@@ -628,9 +628,60 @@ def cmd_status(trust_path, enforce):
     return 0 if all_ok else 1
 
 
-def cmd_make_blob(jurisdiction, ancestor):
+def cmd_make_blob(jurisdiction, ancestor, release=None, candidate=False):
+    """Serialize one ANCHORS.txt section as its canonical anchor-set blob.
+
+    Two things this refused to notice before. It always took the newest section
+    that carries no parenthesised annotation, so a branch whose newest section is
+    a CANDIDATE got the previous *adopted* release's blob back, silently, with
+    whatever `--ancestor` was passed grafted onto it -- including that release's
+    own adopted blob, which produces a set claiming to descend from itself. And
+    there was no way to ask for the candidate's bytes at all, which is what
+    freezing a candidate for a gate requires.
+
+    So: `--release` names a section, `--candidate` is the explicit consent needed
+    to serialize an annotated one, and an ancestor that resolves in the local
+    store to a blob for the same release is refused. Serializing is not adopting
+    -- these are bytes, not a warrant -- but bytes nobody asked for are how the
+    wrong ones get signed.
+    """
     sections = parse_anchors(ANCHORS)
-    release, _, entries = next(s for s in sections if not s[1])
+    if release is None:
+        chosen = next((s for s in sections if not s[1]), None)
+        if chosen is None:
+            print("no un-annotated section in ANCHORS.txt; name one with "
+                  "--release", file=sys.stderr)
+            return 2
+        if sections[0] is not chosen:
+            print(f"note: the newest section is {sections[0][0]}, which is "
+                  f"annotated; serializing {chosen[0]} instead. Pass --release "
+                  f"{sections[0][0]} --candidate for that one.", file=sys.stderr)
+    else:
+        chosen = next((s for s in sections if s[0] == release), None)
+        if chosen is None:
+            print(f"no section {release} in {ANCHORS}", file=sys.stderr)
+            return 2
+        if chosen[1] and not candidate:
+            print(f"{release} is annotated in ANCHORS.txt (a candidate or an "
+                  f"ancestor). Serializing it needs --candidate, which says you "
+                  f"know these bytes are not an adopted set.", file=sys.stderr)
+            return 2
+    release, annotated, entries = chosen
+    if ancestor is not None:
+        prior = os.path.join(STORE, "blobs", ancestor)
+        if os.path.isfile(prior):
+            try:
+                prior_release = json.loads(open(prior, "rb").read()).get("release")
+            except (ValueError, OSError):
+                prior_release = None
+            if prior_release == release:
+                print(f"--ancestor {ancestor[:12]} is itself a {release} "
+                      f"anchor set; a release cannot descend from itself",
+                      file=sys.stderr)
+                return 2
+    if annotated:
+        print(f"# {release} is a CANDIDATE section: these bytes are not an "
+              f"adopted anchor set", file=sys.stderr)
     blob = anchor_set_blob(release, entries, jurisdiction, ancestor)
     body = canon(blob)
     # EXACTLY the canonical bytes, with nothing appended. This used to write a
@@ -1123,13 +1174,18 @@ def main():
     mb.add_argument("--jurisdiction", required=True,
                     help="hex64 WarrantID of the governance genesis root")
     mb.add_argument("--ancestor", help="hex64 sha256 of the prior adopted set")
+    mb.add_argument("--release", help="section to serialize; default is the "
+                    "newest un-annotated one")
+    mb.add_argument("--candidate", action="store_true",
+                    help="consent to serializing an annotated (candidate) section")
     sub.add_parser("selftest")
     sub.add_parser("gen", help="write pinned conformance vectors from the scenarios")
     rp = sub.add_parser("replay", help="replay pinned vectors against this verifier")
     rp.add_argument("path", nargs="?", default=VEC_PATH)
     args = ap.parse_args()
     if args.cmd == "make-blob":
-        sys.exit(cmd_make_blob(args.jurisdiction, args.ancestor))
+        sys.exit(cmd_make_blob(args.jurisdiction, args.ancestor,
+                               args.release, args.candidate))
     if args.cmd == "selftest":
         sys.exit(selftest())
     if args.cmd == "gen":
