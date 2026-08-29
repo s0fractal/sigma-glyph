@@ -221,19 +221,29 @@ cost(R-S)      = 1 + size(z)   // z in its current materialization; thunks in z 
 
 ### 3.5. Resolution Contract (MUST)
 
-**Content environment (MUST).** `env` is a partial map from NodeHash to bytes with
-one property: the bytes filed under a key hash to that key
-(`NodeHash(bytes) = key`, §2). Bytes under any other key **MUST NOT** be evaluated
-as that key's node: they may be a perfectly valid SigmaNodeV2, and evaluating them
-would violate Identity by Hash (§3.2) and let two conforming engines disagree while
-both believe they are following the Book. The property MUST be checked for every hash the
-evaluation actually resolves; an entry the evaluation never demanded does not
-affect the result. An implementation that detects a mismatch on a resolved hash
-MUST fail locally (§3.6) and MUST NOT return a canonical result. A wider check —
-validating the whole environment on admission, say — is permitted as local
-policy, but its consequence MUST be that same local refusal and not a different
-canonical exit; otherwise two conforming engines would disagree on an environment
-poisoned under a key nobody demands.
+**Content environment (MUST).** `env` is a partial map from hash to bytes with one
+property: `SHA-256(bytes) = key` for every entry. The check is over the **raw
+buffer and before §4.1 validation**: a buffer that fails validation does not
+violate this property — it is failure mode (b) below and yields the Canonical
+Invalid Object. "Is this a valid node" and "do these bytes belong under this key"
+are different questions and must not be conflated: the first has a canonical
+answer, the second has no canonical answer at all.
+
+Bytes under a key they do not hash to **MUST NOT** be evaluated as that key's
+node: they may be a perfectly valid SigmaNodeV2, and evaluating them would
+violate Identity by Hash (§3.2) and let two conforming engines disagree while
+both believe they are following the Book. The property MUST be checked for every
+hash the evaluation actually resolves, and a mismatch detected on a resolved hash
+MUST yield a local refusal (§3.6), not a canonical result.
+
+An entry the evaluation never demanded **MUST NOT** change any canonical
+`Receipt`: given the same answers to the demanded hashes, two conforming
+implementations return the same `Receipt`, whatever else the environment holds.
+That does not forbid a verifier from declining an environment for its own
+reasons, including checking it more widely than the evaluation requires. Such a
+step is **admission** (§3.6), not evaluation: it produces no `Receipt`, so there
+is nothing to disagree about, and it MUST NOT be presented as a result of
+evaluation.
 
 **Determinism is over the demanded environment (MUST).** Two implementations that
 resolve the same **demanded** hashes to the same bytes return the same `Receipt`.

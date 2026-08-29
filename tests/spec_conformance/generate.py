@@ -44,7 +44,7 @@ import sigma_glyph as sg  # noqa: E402
 
 SPEC_VERSION = "0.6.0"   # Book I document version these vectors conform to
 SUITE_VERSION = "0.5.0"  # conformance-suite package (release) version
-BOOK1_ANCHOR = "eff52cdbb7114903449a26dd95cd56ddde46ba3c9118c25e0a04f4aed471551c"
+BOOK1_ANCHOR = "96d47223bed17078254d9155c70fa29d9c0c0eb8a27bcff17e739d4064949c67"
 
 # ============================================================================
 # Spec-declared expectations — hand-written from spec/book-1-truth.md v0.6.0

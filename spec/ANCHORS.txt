@@ -6,13 +6,13 @@ per-document Version header AND its anchor — from the last release that
 changed it. (E.g. GOV-anchors ships in v0.6.x bundles at its own version 1.0.2.)
 
 == v0.7.0 (CANDIDATE — NOT ADOPTED; see proposals/ADR-010) ==
-eff52cdbb7114903449a26dd95cd56ddde46ba3c9118c25e0a04f4aed471551c  spec/book-1-truth.md
+96d47223bed17078254d9155c70fa29d9c0c0eb8a27bcff17e739d4064949c67  spec/book-1-truth.md
 c88d78f7bd4dd514186fab5cbf2e448295f8e5cabe3049a29e2ea10574ff22bc  spec/book-2-navigation.md
 f9f6b1f7652032110a867ef8e1e5050c84cd88f2a25832c36adb1230f687ccb0  spec/book-3-federation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
 2df9194b15734a98b185e1f42472ddc52b03597cd6fd48a8a6fbf50799091021  spec/appendix-a-complexity.md
 59bbb117978c75392045c2db57ea1d62122eb18c1e39d3e1c4c1353301799502  spec/GOV-anchors.md
-fe89e80deecaa1d0694f892dff1ba49cc571ab48d14fbaa5850f7f6bf3fd5c54  tests/spec_conformance/vectors.json
+a4b02b642a2b90e4716bcbcb63a959419df3a4c46bb391c932f369ed4225ef39  tests/spec_conformance/vectors.json
 904395f210097f537f6c852816e5052e28dedf37b9b52ebe0f07bc115045cb36  tests/spec_conformance/wave_vectors.json
 392f74ef5320976cde1dcd5ade01e3d872d681ec1eddef9bd8edd36956e7b40f  tests/spec_conformance/federation_vectors.json
 14ead59a1e79e349ff32a32526fb3b0abdf108ba3baa15e7ca9ac214002bcfbe  tests/spec_conformance/governance_vectors.json

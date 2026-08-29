@@ -20,6 +20,17 @@ reviewer's answer, and none is shown prior reviews of earlier releases — a gat
 whose subject is "do you agree with the last three reviewers" measures something
 else.
 
+One honest limit on that, from round 2 onward. The prompt carries the candidate's
+own ADR, and once a round has produced findings the ADR records their
+dispositions — which necessarily includes why a reviewer was disagreed with.
+Reviewers are therefore blind to each other *within* a round and not blind to
+earlier rounds' arguments. This is a real weakening and not a hypothetical one:
+in round 2 of the v0.7.0 candidate, one family reversed a P0 it had raised in
+round 1 and cited another family's round-1 reasoning as its ground. That is a
+legitimate change of mind and it is not independent confirmation. Where a
+disputed point survives a round, count the independent judgments, not the
+verdicts.
+
 Before anything is sent, every byte named in the freeze record is re-hashed and
 must match. A gate over bytes that have since moved is worse than no gate,
 because it reads as coverage.
@@ -186,11 +197,11 @@ did not edit it and say so. Whether that is correct is in scope.
 Review the candidate now."""
 
 
-def ask(model, prompt, timeout):
+def ask(model, prompt, timeout, max_tokens):
     body = json.dumps({"model": model,
                        "messages": [{"role": "system", "content": SYSTEM},
                                     {"role": "user", "content": prompt}],
-                       "max_tokens": 24000}).encode()
+                       "max_tokens": max_tokens}).encode()
     request = urllib.request.Request(
         API, data=body,
         headers={"Authorization": f"Bearer {key()}",
@@ -217,7 +228,7 @@ def verdict_of(text):
     return found[0]
 
 
-def run(freeze, timeout, only):
+def run(freeze, timeout, only, max_tokens):
     head, expected = check_freeze(freeze)
     prompt = build_prompt(freeze)
     prompt_digest = hashlib.sha256(prompt.encode()).hexdigest()
@@ -234,7 +245,7 @@ def run(freeze, timeout, only):
         asked = utc()
         print(f"[gate] {family}: {model} ...", file=sys.stderr)
         try:
-            text, answered_by, finish = ask(model, prompt, timeout)
+            text, answered_by, finish = ask(model, prompt, timeout, max_tokens)
             error = None
         except (urllib.error.URLError, TimeoutError, OSError, RuntimeError,
                 ValueError, KeyError, IndexError) as failure:
@@ -248,6 +259,7 @@ def run(freeze, timeout, only):
             "requested_utc": asked,
             "answered_utc": answered,
             "finish_reason": finish,
+            "max_tokens": max_tokens,
             "prompt_sha256": prompt_digest,
             "system_sha256": system_digest,
             "frozen_commit": head,
@@ -287,10 +299,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("freeze", help="directory holding FREEZE.md")
     parser.add_argument("--timeout", type=int, default=1800)
+    parser.add_argument("--max-tokens", type=int, default=40000,
+                        help="reply budget; a reviewer that reasons at length "
+                             "and is cut off returns NO VERDICT, which is a "
+                             "fact about this number and not about the candidate")
     parser.add_argument("--only", action="append", default=[],
                         help="run only this family (repeatable)")
     args = parser.parse_args()
-    return run(args.freeze.rstrip("/"), args.timeout, args.only)
+    return run(args.freeze.rstrip("/"), args.timeout, args.only, args.max_tokens)
 
 
 if __name__ == "__main__":

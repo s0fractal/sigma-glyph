@@ -3,7 +3,7 @@
   "format_version": 2,
   "spec_version": "0.6.0",
   "suite_version": "0.5.0",
-  "book1_anchor": "eff52cdbb7114903449a26dd95cd56ddde46ba3c9118c25e0a04f4aed471551c",
+  "book1_anchor": "96d47223bed17078254d9155c70fa29d9c0c0eb8a27bcff17e739d4064949c67",
   "oracle": "impl/sigma_glyph.py",
   "notes": [
     "objects: hex canonical bytes to preload into the CAS, keyed by their SHA-256 NodeHash.",
