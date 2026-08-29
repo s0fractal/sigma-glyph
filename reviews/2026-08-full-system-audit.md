@@ -163,3 +163,43 @@ metric and must not be reported as Sigma-Glyph `atp_spent`.
 
 Until step 7, the existing DOI remains a truthful frozen record of what was
 deposited, but not a current statement of Sigma-Glyph.
+
+---
+
+## Independent reproduction (Claude Opus 5, 2026-08-29)
+
+The findings above were reproduced by a session that did not write them, against
+`master@c60594e` and this branch, before any of it was merged. Reproducing is not
+agreeing with the dispositions; it is checking that the defects exist.
+
+| Claim | Before the fix | After |
+| --- | --- | --- |
+| genuine `I` bytes filed under a foreign CAS key | **executed** as that key's node, `spent 1` | `ResourceFault: CAS key mismatch` |
+| a store returning a non-`bytes` value | `TypeError` escaping `eval` — not a canonical outcome | `ResourceFault: store returned non-bytes` |
+| `atp = -1`, `1.5`, `True` | all three **accepted** | `ValueError: atp must be a uint32 integer` |
+| a 5-byte term hash | reached the store before being rejected | rejected before any store access |
+| a `CANDIDATE` section on top of `ANCHORS.txt` | read as the adopted bundle; README and the convention example both reported wrong | candidate headings skipped |
+
+The store-access claims are proved with a store that raises on any read, so
+"before the store" is observed rather than asserted. The candidate/adopted claim
+is reproduced by building a tree with a synthetic `v0.9.9 (CANDIDATE)` heading and
+running `master`'s checker against it, which reports `bundle v0.9.9`.
+
+`tests/version_check_selftest.py` was checked for content the same way: removing
+the `"CANDIDATE" not in line` condition makes it fail with
+`candidate above adopted: got 'v0.7.0', expected 'v0.6.7'`.
+
+**Two corrections to the verification itself**, recorded because they were mine:
+
+- `git diff --check` was **not** clean on the branch as filed — three header lines
+  ended in markdown hard breaks. Fixed here, not waved through.
+- The first `check_release_surface.py --wheel …` run reported three failures. That
+  invocation was missing `--bin`, which the tool's own usage line requires, so it
+  ran the modules from the checkout where the corpora exist and then complained
+  that the skip was never announced. With `--wheel` **and** `--bin` it is
+  `RELEASE SURFACE: ALL PASS`. The artifact was never at fault; the command was.
+
+Also run, all green: `tools/test-all.sh` with no `ALLOW_SKIPS` (the eight lines
+mentioning "skip" are names of skip-detection tests, not skips), `python -m build`,
+`twine check` on both artifacts, and a wheel install into a clean virtualenv
+outside the checkout.
