@@ -64,6 +64,18 @@ jobs:
             | grep -q "VERSION-CHECK:"
       - name: Reference map (every cited document is located in MAP.md)
         run: python3 tools/repo_map.py --check-map
+      # The papers state numbers about this tree. Every one of them is recounted
+      # from the file it describes, and the selftest rewrites each number in turn
+      # and demands the audit go red -- a claim the gate does not gate on is
+      # decoration, which is the papers' own thesis pointed at the papers.
+      - name: The papers' numbers are recounted from the tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/paper_claims.py --selftest | tee /dev/stderr \
+            | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
+          python3 tools/paper_claims.py | tee /dev/stderr \
+            | grep -q "PAPER-CLAIMS: ALL PASS"
       # Can Book I be implemented from Book I? The audit re-derives every
       # constant the Book prints from the Book alone, in both languages, checks
       # the prose against the normative vector suite, and requires the English

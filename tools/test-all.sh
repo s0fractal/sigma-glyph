@@ -172,8 +172,12 @@ say "Guard regression: WARRANT_PIN extraction fails hard on duplicate/malformed 
 python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUARD: ALL PASS"
 
 # The papers in papers/ state numbers about this repository -- guard line counts,
-# pin totals, Lean size. They were correct on the day they moved in and nothing
-# enforced that, which is the defect the second paper is about.
+# pin totals, Lean size, front distributions, vector totals, implementation line
+# counts. They were correct on the day they moved in and nothing enforced that,
+# which is the defect the second paper is about. The selftest runs first and on
+# its own line: a claims checker whose checks cannot fail is the same defect one
+# level up, and it is the cheaper of the two, so it fails faster.
+python3 tools/paper_claims.py --selftest   | tee /dev/stderr | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
 python3 tools/paper_claims.py              | tee /dev/stderr | grep -q "PAPER-CLAIMS: ALL PASS"
 
 # Network-gated surfaces that CI runs against pinned out-of-band sources (the
