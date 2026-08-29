@@ -12,7 +12,11 @@ after the round; a round whose findings are answered is superseded, not amended.
 | [round 3](round-3/) | anchor set `4c93717a…` | ADOPT / NO VERDICT / NO VERDICT — **incomplete** |
 
 Reviewers, in that column order: `google/gemini-3.1-pro-preview`,
-`deepseek/deepseek-v4-pro-0813`, `moonshotai/kimi-k3`.
+`deepseek/deepseek-v4-pro-0813`, `moonshotai/kimi-k3`. The third has since been
+changed to `moonshotai/kimi-k2.6` for future rounds: k3 usually returns nothing,
+and a reviewer that returns nothing costs the whole round rather than a third of
+it. The rounds recorded here name the model that actually answered them, which is
+the point of recording it.
 
 Round 1's central finding was one the candidate had introduced: §3.6 was added
 saying an out-of-domain budget MUST be refused, and §3.4 was left saying it MAY

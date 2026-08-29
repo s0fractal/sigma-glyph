@@ -57,8 +57,15 @@ API = "https://openrouter.ai/api/v1/chat/completions"
 REVIEWERS = [
     ("google", "google/gemini-3.1-pro-preview"),
     ("deepseek", "deepseek/deepseek-v4-pro-0813"),
-    ("moonshot", "moonshotai/kimi-k3"),
+    ("moonshot", "moonshotai/kimi-k2.6"),
 ]
+
+# Not `moonshotai/kimi-k3`: it usually returns nothing here. In round 2 of the
+# v0.7.0 gate it reasoned past a 24 000-token reply budget and was cut off with no
+# verdict while the other two families answered well inside it. A reviewer that
+# returns nothing is not a cheap failure — it costs the whole round, because two
+# verdicts cannot be averaged into three, and the spend on the others is wasted.
+# k2.6 is the model that ran the GOV-anchors 1.0 verification pass.
 
 # Shown to every reviewer, in this order.
 SOURCES = [
