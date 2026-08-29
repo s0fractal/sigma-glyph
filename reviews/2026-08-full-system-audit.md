@@ -1,9 +1,9 @@
 # Full-system audit before the next Zenodo version
 
-**Date:** 2026-08-29  
-**Reviewer:** Codex  
-**Target:** `master@c60594e0e977cff2423b418d0af470689d82f8ca`  
-**Disposition:** findings filed; release and normative adoption are not implied
+- **Date:** 2026-08-29
+- **Reviewer:** Codex
+- **Target:** `master@c60594e0e977cff2423b418d0af470689d82f8ca`
+- **Disposition:** findings filed; release and normative adoption are not implied
 
 ## Scope and epistemic boundary
 
