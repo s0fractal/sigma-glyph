@@ -1165,7 +1165,8 @@ The artifact is the repository:
 
 Every figure in §6 was measured at that commit. The paper text itself is later on
 the same branch, because a paper cannot state the hash of the commit that carries
-it; what the two commits differ in is this file, `tools/paper_claims.py`,
+it; what the two commits differ in is this file, the other paper's front matter,
+this directory's `README.md` and `build.sh`, `tools/paper_claims.py`,
 `tools/test-all.sh` and `.github/workflows/ci.yml`. Every surface §6 measures —
 `proofs/`, `impl/`, `impl-rs/`, `impl-go/`, `tests/` and `spec/` — is
 byte-identical between them, which `git diff` reports as empty. It is **not** `master` and **not** an adopted release: it
