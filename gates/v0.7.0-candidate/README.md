@@ -9,14 +9,16 @@ after the round; a round whose findings are answered is superseded, not amended.
 | --- | --- | --- |
 | [round 1](round-1/) | anchor set `0bac2605…` | REJECT / REJECT / REJECT |
 | [round 2](round-2/) | anchor set `79bf939a…` | ADOPT / REJECT / NO VERDICT |
-| [round 3](round-3/) | anchor set `4c93717a…` | ADOPT / NO VERDICT / NO VERDICT — **incomplete** |
+| [round 3](round-3/) | anchor set `4c93717a…` | ADOPT / REJECT / NO VERDICT — completed on the third delivery attempt |
+| [round 4](round-4/) | anchor set `91b4182c…` | pending |
 
-Reviewers, in that column order: `google/gemini-3.1-pro-preview`,
-`deepseek/deepseek-v4-pro-0813`, `moonshotai/kimi-k3`. The third has since been
-changed to `moonshotai/kimi-k2.6` for future rounds: k3 usually returns nothing,
-and a reviewer that returns nothing costs the whole round rather than a third of
-it. The rounds recorded here name the model that actually answered them, which is
-the point of recording it.
+Reviewers, in that column order: Google, DeepSeek, and a third family. The third
+was `moonshotai/kimi-k3` in rounds 1–3 and `moonshotai/kimi-k2.6` for round 3's
+last two attempts; neither ever delivered a review. From round 4 it is
+`qwen/qwen3-235b-a22b-2507`. Each record names the model that actually answered
+it, which is the point of recording it — and the change means round 4's three
+families are not round 1's three families, which `round-4/FREEZE.md` states
+rather than absorbs.
 
 Round 1's central finding was one the candidate had introduced: §3.6 was added
 saying an out-of-domain budget MUST be refused, and §3.4 was left saying it MAY
@@ -43,9 +45,19 @@ introduced in the immediately preceding step — §3.6 added without amending §
 then §3.5's repair contradicting itself. Neither was reachable by any test in
 this repository, and a green CI accompanied both.
 
-Round 3 did not complete: the OpenRouter account ran out of credit after the
-first reviewer, and the two families whose round-2 findings produced round 3's
-edits never saw them. One ADOPT is not a gate, and it is not recorded as one.
+Round 3 took three delivery attempts. Attempt 1 was `HTTP 402` — the account was
+out of credit. Attempt 2, after a top-up, returned reasoning traces and no reply
+from both reviewers at a 40 000-token budget. Attempt 3 at 24 000 got DeepSeek's
+review; Moonshot never produced one under either model tried. Every attempt is
+filed beside the last, never over it, and the retries were delivered from the
+**recorded** prompt file rather than a rebuilt one, so all three families were
+asked the same question.
+
+Round 3's REJECT rested on GOV-anchors, which the owner has since dispositioned.
+What moved the bytes was an observation beside it: §7's test vectors quantified
+over every budget `n` while §3.6 — added by this same candidate — refuses a
+budget outside `uint32` before evaluation. The third instance of one pattern: a
+clause added, its neighbour not revisited.
 
 Round 2's NO VERDICT was a truncated reply, not a silent reviewer. It is recorded
 as NO VERDICT with the reason, and the reply budget is now an argument that every

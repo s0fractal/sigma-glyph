@@ -1,0 +1,817 @@
+The user wants me to review a candidate revision of a normative specification. Let me analyze what I've been given carefully.
+
+First, let me understand the context:
+- Adopted release: v0.6.7 (Book I 0.5.2, Books II and III 0.6.1)
+- Candidate: v0.7.0 (Book I 0.6.0, Books II and III 0.7.0)
+- The candidate is NOT adopted yet; it's marked CANDIDATE and carries no signature.
+
+I need to review the diff and the full text of the candidate revision, looking for P0, P1, P2, P3 issues.
+
+Severity ladder:
+- P0: two conforming implementations can disagree on a result, or the text contradicts itself or the vector suite
+- P1: the text is silent where an implementer must guess, or a normative requirement is unenforceable as written
+- P2: clarity, naming, structure
+- P3: future work
+
+For every P0 and P1, I need to give an executable counterexample: a concrete term, budget and environment (or a concrete document state) plus the two different results two conforming implementations would produce.
+
+Important constraints:
+- I cannot run code. Do not pretend I did.
+- Where a claim is checkable by arithmetic or by reading the supplied bytes, check it and show the work.
+- Do NOT treat as evidence: CI is green, previous releases were gated, authors say a check exists.
+- The text must say it normatively for an implementer to be bound by it.
+
+Let me review the changes carefully.
+
+Key changes in Book I:
+1. `eval` now takes three inputs: `term_hash, atp: uint32, env` where `env` is a content environment (partial map NodeHash → bytes).
+2. `Receipt = { exit, result_hash, atp_spent }` with three exits.
+3. `result_hash` alone does not determine `exit`.
+4. Compatibility profile MAY exist for old two-value form.
+5. ATP budget is uint32. Values outside MUST be refused per §3.6, locally, before consulting environment. MUST NOT clamp.
+6. Semantic memory bound clarified as "semantic materialization bound", not physical memory.
+7. Resolution Contract §3.5 heavily expanded:
+   - Content environment `env` is partial map hash → bytes with property `SHA-256(bytes) = key`.
+   - Check is over raw buffer before §4.1 validation.
+   - Bytes under wrong key MUST NOT be evaluated as that key's node.
+   - Must check for every hash evaluation actually resolves.
+   - Undemanded entry MUST NOT change canonical Receipt.
+   - Determinism over demanded environment.
+   - Extending environment can only change `unresolved_reference` exit.
+8. §3.6: Admission is a boundary, not an outcome. Input outside domain (non-uint32 atp, non-32-byte term_hash) MUST be refused locally, not as canonical output.
+9. §7 Test Vectors: machine-readable set is normative part of edition. Prose and records MUST agree. Reference implementation no longer arbiter.
+10. Genesis intrinsic: clarified SHA-256("X") means exactly one ASCII byte X.
+
+Changes in Book II:
+1. Machine vectors are normative part of edition. Same rule as Book I §7 about prose vs suite disagreement.
+2. Fields mapping defined for wave_vectors.json schema.
+
+Changes in Book III:
+1. Same normative suite rule as Book I §7.
+2. Fields mapping defined for federation_vectors.json schema.
+
+GOV-anchors.md is unchanged and pins dependencies as Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1.
+
+The ADR-010 document describes the rationale and gate rounds. It mentions several findings from previous rounds.
+
+Now let me look for potential issues.
+
+**Potential Issue 1: GOV-anchors.md dependency pin mismatch**
+
+The candidate changes Book I to 0.6.0, Book II to 0.7.0, Book III to 0.7.0. But GOV-anchors.md still pins "Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1". The ADR explicitly says this was deliberately not fixed.
+
+The question is: does this create a P0 or P1?
+
+GOV-anchors.md is a governance document. It says:
+"**Normative dependencies (pinned — MUST):** ... This profile is defined against **Warrant SPEC v0.3** exactly as pinned ... and against **Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1** as anchored in this release..."
+
+The candidate proposes to adopt v0.7.0 with Books at new versions, but GOV-anchors still pins old versions. The ADR says this is deliberate and leaves the disagreement standing.
+
+Is this a P0? The ADR round 2 had DeepSeek hold this as P0, Gemini reversed to "not a P0". 
+
+Let me think: Does this cause two conforming implementations to disagree on a result? GOV-anchors governs which bytes constitute the anchored specification set. If GOV-anchors says the governance profile is defined against Book I v0.5.2, but the release bundle contains Book I 0.6.0, then what does a verifier implement?
+
+Actually, the governance document is about the anchor-set adoption process. The pin says "This profile is defined against Book I v0.5.2 ... as anchored in this release". If the release now contains Book I 0.6.0, then a governance verifier checking the anchor set might reject it because the Book I bytes are not v0.5.2. But the ADR says the only Book I semantics GOV-anchors consumes is `NodeHash(LITERAL, SHA-256(bytes))`, which hasn't changed.
+
+However, the text of GOV-anchors says "Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0)." So it allows implementations to track later versions if semantics are preserved.
+
+But the key issue: is there a normative contradiction that causes implementations to disagree? GOV-anchors §0 says: "Re-pinning to a newer dependency is itself a breaking change." Since the candidate changes the Books without changing GOV-anchors version, is that a breaking change to GOV-anchors? GOV-anchors is version 1.0.2. The candidate doesn't change GOV-anchors. But the bundle v0.7.0 would presumably include the unchanged GOV-anchors 1.0.2 alongside new Books. 
+
+Does GOV-anchors govern what goes into the bundle? It governs the anchor-set adoption process. The anchor-set blob lists the anchored files. The governance verifier checks the anchor-set adoption warrant. It doesn't check that the Book versions match what GOV-anchors says, unless the governance profile is changed.
+
+Wait, the pin in GOV-anchors is a statement about what the governance profile is defined against. If the bundle contains different Book bytes, is that a problem? The governance profile checks the anchor set. The anchor set contains hashes of the documents. The verifier checks that the adoption warrant is valid under the governance policy. The policy doesn't care about the content of the Books for its own validation; it only cares about the anchor-set blob structure, warrants, signatures, etc.
+
+However, the pin says: "This profile is defined against Book I v0.5.2 ... as anchored in this release". If the release contains Book I 0.6.0, then the profile is defined against bytes that are not in this release. But "as anchored in this release" refers to the specific anchored versions. Since the anchor set would contain the new Book I 0.6.0, the governance profile would be referring to a version not present.
+
+Is this a P0? It depends on whether two conforming implementations could disagree. One governance verifier might reject the anchor set because the pinned dependencies don't match the actual anchored files. Another might say "the semantics I need (NodeHash construction) haven't changed, so I accept it." This seems like a potential disagreement about whether the release can be adopted at all.
+
+But the prompt asks me to review the candidate specification change. GOV-anchors is part of the specification set. If the candidate leaves GOV-anchors unchanged but changes the Books, that's a deliberate choice. The question is whether this creates a normative contradiction.
+
+Looking at GOV-anchors §0: "Pinned dependencies. The normative dependencies above are pinned by content hash / anchored version. Re-pinning to a newer dependency is itself a breaking change."
+
+If the bundle v0.7.0 is adopted with Book I 0.6.0, but GOV-anchors 1.0.2 says it's pinned to Book I 0.5.2, then we haven't re-pinned formally (GOV-anchors version is still 1.0.2). But the actual anchored bytes changed. Is this a breaking change to GOV-anchors? The text says "any change [to the pinned dependencies] is a breaking change to this STANDARD." But the Book bytes changed without a GOV-anchors version bump.
+
+Actually, GOV-anchors doesn't require the Book bytes to match the pinned versions in the anchor set; it says the profile is defined against those versions. If the anchor set contains different bytes, the profile is still defined against the old versions. This might just mean the profile doesn't govern the new Book bytes, which is weird but not necessarily contradictory.
+
+However, the ADR says: "Gemini's and DeepSeek's reading is that a governance verifier treating the pin as binding rejects the bundle while one applying only §3's seven steps authorizes it, which is a divergence about whether the release may be adopted at all."
+
+This sounds like a P0: two conforming implementations disagree on whether the release is adoptable. But is this about the specification itself, or about the governance process? The prompt says "deciding whether a proposed change to a normative specification may be adopted." The GOV-anchors pin mismatch could prevent adoption.
+
+But I need to be careful. The prompt says the candidate's own argument mentions this and says it's deliberately left unresolved. As a reviewer, I need to decide if this is a P0, P1, etc.
+
+Actually, looking more carefully: GOV-anchors is unchanged by the candidate. The candidate only changes Books I, II, III. The question is whether the bundle can be adopted with this inconsistency. If GOV-anchors says "my profile is defined against Book I v0.5.2" and the bundle contains Book I v0.6.0, a strict verifier might say "this bundle does not match the governance profile's pinned dependencies, so I cannot verify it." A lenient verifier might say "the governance steps in §3 don't actually check Book versions, so I can verify it." This is a disagreement on whether the bundle is valid.
+
+But wait, the governance profile is pinned to specific versions. If the bundle changes the Books, isn't that a change to the protocol? The governance document is part of the normative specification. If it pins old versions but the bundle contains new versions, that's a contradiction in the specification set.
+
+I think the ADR correctly identifies this as a potential P0. However, the ADR also gives Kimi's counterargument: the only semantics consumed is NodeHash(LITERAL, SHA-256(bytes)), which is unchanged. So a verifier applying only §3's steps would not check the Book versions.
+
+But GOV-anchors §0 says: "Re-pinning to a newer dependency is itself a breaking change to this STANDARD." This implies that if the dependencies change, the STANDARD must change. Since the candidate doesn't change GOV-anchors, but the dependencies in the bundle have changed (by version number, even if semantics are preserved), this creates a tension.
+
+However, is this a P0 about the *computational core* (Book I)? The prompt asks about the normative specification. If two governance verifiers disagree on whether to adopt, that's a process issue, not a computational disagreement. But the severity ladder says "two conforming implementations can disagree on a result" — the "result" could be "is this release adopted?".
+
+Given the explicit handling in the ADR and the fact that the authors deliberately left it unresolved, I should flag this. But I need to decide if it's a P0. The ADR says DeepSeek held it at P0, Gemini reversed to "not a P0". 
+
+Let me think about whether there's a concrete counterexample. Consider a governance verifier that checks the anchor set. The anchor set contains Book I v0.6.0. GOV-anchors says it's defined against Book I v0.5.2. Verifier A says: "The pin is binding; the bundle contains wrong Book version; I reject." Verifier B says: "§3 steps don't check version headers; the anchor hashes match the files; I accept." The result is different: A rejects the bundle, B adopts it.
+
+But is the governance verifier's output a "result" in the sense of the specification? Yes, it determines whether the release is adopted.
+
+However, the prompt says "THE CANDIDATE'S OWN ARGUMENT... GOV-anchors... is unchanged... Whether that is correct is in scope."
+
+I think this is at least a P1: the text is silent where an implementer must guess, or a normative requirement is unenforceable as written. Actually, it's worse: there are two possible readings, leading to different behaviors. That's P0.
+
+But wait. The bundle hasn't been adopted yet. The candidate is proposing these bytes. If I flag this as P0, I need to give a counterexample. The counterexample would be: two governance verifiers checking the same anchor-set blob for adoption. Verifier A treats the dependency pin as binding and rejects; Verifier B treats only §3 as binding and accepts. The result differs: one says the release is adopted, the other says it is not.
+
+Is there an alternative? The ADR suggests that the correct resolution is that GOV-anchors needs its own MAJOR version bump to re-pin, which would be a separate governed change. But the candidate doesn't do that. So the candidate leaves a P0 in the specification set.
+
+However, I need to check if the English rendering or the Ukrainian text has any bearing. The English rendering says it's not anchored.
+
+Let me look for other issues.
+
+**Potential Issue 2: §3.5 CAS property check timing**
+
+Book I §3.5 says: "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+And: "Запис, якого виконання не вимагало, **MUST NOT** змінювати жоден канонічний `Receipt`"
+
+And: "Це не забороняє верифікаторові не допустити середовище з власних причин — зокрема перевіривши його ширше, ніж вимагає виконання. Такий крок є **допуском** (§3.6), а не обчисленням: він не дає жодного `Receipt`, тож і розходитися немає в чому, і подавати його як результат обчислення MUST NOT."
+
+This seems well-defined now after round 2 fix. The distinction between evaluation result and admission refusal is clear.
+
+**Potential Issue 3: §3.4 ATP budget domain**
+
+The text says: "ATP-бюджет — `uint32`. Значення поза цією областю не є бюджетом: воно MUST бути відхилене згідно з §3.6 (локально, до звернення до середовища, і не як канонічний вихід). Реалізація MUST NOT приймати його, обрізавши до 2³²−1..."
+
+And §3.6 says: "Вхід поза оголошеною областю (MUST). `atp`, що не є `uint32`, і `term_hash`, що не є рівно 32 байтами, MUST бути відхилені так само — локально, до звернення до середовища, і не як канонічний вихід."
+
+This seems consistent and fixes the round 1 P0.
+
+**Potential Issue 4: Test Vectors §7 notation**
+
+The candidate adds: "У векторах нижче `eval(·, atp)` — скорочення для обчислення вказаного терма з бюджетом `atp` над середовищем вмісту цього видання..."
+
+And: "Запис `= ⟨X⟩` стверджує вихід `normal_form` із `expected.result_hash` рівним `H(X)`; «ATP Exhausted» — вихід `atp_exhausted`; «Unresolved Reference» — вихід `unresolved_reference`."
+
+This seems clear.
+
+**Potential Issue 5: Book I §5.1 Genesis intrinsic**
+
+"Для `X ∈ {I,K,S}` вираз `SHA-256("X")` означає SHA-256 рівно одного ASCII-байта `X`, без лапок і термінатора."
+
+Wait, is `SHA-256("X")` clear? In the English rendering: "For `X ∈ {I,K,S}`, `SHA-256("X")` denotes SHA-256 of exactly one ASCII byte `X`, with no quotation marks and no terminator."
+
+This is clear. But note that in the table, the CanonicalBytes for I is `0001`+SHA-256("I"). So the bytes are: 0x00, 0x01, then 32 bytes of SHA-256 of single byte 'I' (0x49). This is well-defined.
+
+**Potential Issue 6: Book II and III suite normativity**
+
+They now say the suite is normative and the prose must agree with it. This is the same construction as Book I. But they define their own field mappings.
+
+For Book II: "нормативним представленням твердження прози в записі є поля входу (`w1`, `w2`) і поле `expected` цілком; поля `id` та `note` — пояснювальні."
+
+For Book III: "нормативним представленням твердження прози в записі є поля входу (`kind`, `doc`) і поле `expected` цілком; поля `id` та `note` — пояснювальні."
+
+Is there any issue here? The schema of wave_vectors.json and federation_vectors.json isn't fully provided, but the mapping seems reasonable. However, without seeing the actual JSON schema, it's hard to verify if this is complete.
+
+Wait, the prompt only gives me the diff and the full text of the Books, not the actual vector files. So I can't check if the fields mentioned exist or if the mapping is correct. I should only flag issues checkable from the provided bytes.
+
+**Potential Issue 7: English rendering vs Ukrainian normative text**
+
+The prompt says: "The English rendering `spec/book-1-truth.en.md` is informative, not normative. It is included because the candidate claims it carries the same requirements as the Ukrainian text; disagreement between them is a finding."
+
+So I need to check if the English rendering disagrees with the Ukrainian text.
+
+Let me compare key sections.
+
+Ukrainian §3.4:
+- "Розмір — семантична міра матеріалізації"
+- "Чим ця межа не є (MUST NOT тлумачити ширше)."
+- "Інтерфейс (MUST). `eval(term_hash, atp: uint32, env)` → `Receipt`, де `env` — **середовище вмісту** (§3.5): часткове відображення NodeHash → байти."
+- "Receipt (MUST). `Receipt = { exit, result_hash, atp_spent }`, де `exit ∈ { normal_form, atp_exhausted, unresolved_reference }`."
+- "`result_hash` сам по собі не визначає `exit` (MUST NOT покладатися)."
+- "Профіль сумісності (MAY)."
+- "ATP-бюджет — `uint32`. Значення поза цією областю не є бюджетом: воно MUST бути відхилене згідно з §3.6 (локально, до звернення до середовища, і не як канонічний вихід). Реалізація MUST NOT приймати його, обрізавши до 2³²−1..."
+- "Перевірка вичерпання передує дії."
+- "Семантична межа пам'яті (теорема, нормативний інваріант):"
+- "префлайт"
+
+English §3.4:
+- "Size — the semantic materialization measure"
+- "What this bound is not (MUST NOT be read more widely)."
+- "Interface (MUST). `eval(term_hash, atp: uint32, env)` → `Receipt`, where `env` is a **content environment** (§3.5): a partial map from NodeHash to bytes."
+- "Receipt (MUST). `Receipt = { exit, result_hash, atp_spent }`, where `exit ∈ { normal_form, atp_exhausted, unresolved_reference }`."
+- "`result_hash` alone does not identify `exit` (MUST NOT rely on it)."
+- "Compatibility profile (MAY)."
+- "The ATP budget is a `uint32`. A value outside that domain is not a budget: it MUST be refused per §3.6 — locally, before the environment is consulted, and not as a canonical exit. An implementation MUST NOT accept it by clamping to 2³²−1..."
+- "The exhaustion check precedes the action."
+- "Semantic memory bound (a theorem, a normative invariant):"
+- "preflight"
+
+This seems to match well.
+
+Ukrainian §3.5:
+- "Середовище вмісту (MUST). `env` — часткове відображення хеш → байти з однією властивістю: `SHA-256(bytes) = key` для кожного запису. Перевірка йде над **сирим буфером і до валідації §4.1**"
+- "Байти під ключем, у який вони не хешуються, **MUST NOT** виконуватися як вузол цього ключа"
+- "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+- "Запис, якого виконання не вимагало, **MUST NOT** змінювати жоден канонічний `Receipt`"
+- "Такий крок є **допуском** (§3.6), а не обчисленням"
+- "Детермінізм — за вимаганим середовищем (MUST)."
+- "Розширення середовища (MUST)."
+
+English §3.5:
+- "Content environment (MUST). `env` is a partial map from hash to bytes with one property: `SHA-256(bytes) = key` for every entry. The check is over the **raw buffer and before §4.1 validation**"
+- "Bytes under a key they do not hash to **MUST NOT** be evaluated as that key's node"
+- "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+- "An entry the evaluation never demanded **MUST NOT** change any canonical `Receipt`"
+- "Such a step is **admission** (§3.6), not evaluation"
+- "Determinism is over the demanded environment (MUST)."
+- "Extending the environment (MUST)."
+
+This matches.
+
+Ukrainian §3.6:
+- "Канонічні результати — лише три з §3.4."
+- "Допуск — обов'язкова межа розгортання (MUST), і не канонічний вихід (MUST NOT)."
+- "Вхід поза оголошеною областю (MUST). `atp`, що не є `uint32`, і `term_hash`, що не є рівно 32 байтами, MUST бути відхилені так само — локально, до звернення до середовища, і не як канонічний вихід."
+
+English §3.6:
+- "The canonical results are only the three of §3.4."
+- "Admission is a required deployment boundary (MUST), and not a canonical exit (MUST NOT)."
+- "Input outside the declared domain (MUST). An `atp` that is not a `uint32`, and a `term_hash` that is not exactly 32 bytes, MUST be refused the same way — locally, before the environment is consulted, and not as a canonical exit."
+
+Matches.
+
+Ukrainian §7:
+- "Вичерпний машинний набір `tests/spec_conformance/vectors.json` є нормативною частиною цього видання."
+- "Що саме має узгоджуватися (MUST)."
+- "Позначення §7 (MUST читати так)."
+
+English §7:
+- "The exhaustive machine-checkable set `tests/spec_conformance/vectors.json` is a normative part of this edition."
+- "What exactly must agree (MUST)."
+- "§7 notation (MUST be read this way)."
+
+Matches.
+
+What about §5.1? Ukrainian: "Для `X ∈ {I,K,S}` вираз `SHA-256("X")` означає SHA-256 рівно одного ASCII-байта `X`, без лапок і термінатора."
+
+English: "For `X ∈ {I,K,S}`, `SHA-256("X")` denotes SHA-256 of exactly one ASCII byte `X`, with no quotation marks and no terminator."
+
+Matches.
+
+What about TV-8? Ukrainian: "spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+Wait, let me parse this. "APPLY(⟨I⟩, ghost) при відсутньому ghost → DISSONANCE(Unresolved Reference), spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+Hmm. Let's trace:
+- Term is APPLY(I, ghost). I is intrinsic, ghost is missing.
+- Leftmost-outermost: check if left child is a redex. Left child is I, which is a combinator. Pattern R-I matches: APPLY(I, x) → x. But this is a rewrite rule at the root. The argument x is ghost. In R-I, the argument is not forced (§3.4 says "відкинутий аргумент НЕ форсується і НЕ тарифікується" but here it's not discarded, it's returned). Wait, for R-I, cost is 1. The rule says APPLY(⟨I⟩, x) → x. Does forcing ghost happen? No, because R-I returns x directly without evaluating it. But then the result is ghost (a thunk for missing hash). The machine then needs to check if ghost is in normal form. Since it's a thunk for a missing hash, it's not a normal form? Actually, §3.3 says: if t = thunk(h), and h is not intrinsic, then force(h) is the action. But wait, the step function is called on the current term. After R-I, the term is ghost (a thunk). The machine then calls step on ghost. Since ghost is a thunk for a missing hash and not intrinsic, the action is force(h). But the budget was 4. Let's compute cost:
+  - Root is APPLY. To check if R-I matches, we need to look at the root. Is the root materialized? The description says "spent 4". Let's compute from the rules.
+  - Force root APPLY node? The root is APPLY, which is already materialized if we have the bytes. But in eval, we start with a term_hash. The root is a thunk. We need to force it first.
+  - Actually, eval(term_hash, atp, env): the term_hash is the root. The machine starts with a thunk for the root. Let's trace:
+    - Start: thunk(root_hash). Need to step.
+    - If it's a thunk, and not intrinsic, force it: cost = size of materialized node. For APPLY, cost(force) = 3. After forcing, we have an APPLY node with left=I_thunk, right=ghost_thunk.
+    - Then step on APPLY: check if left matches R-I. Left is thunk(I_hash). I_hash is intrinsic, so it's recognized as I without forcing? Wait, §3.3 says: "товк порівнюється з ⟨I⟩/⟨K⟩/⟨S⟩ за хешем без матеріалізації; товк матеріалізується лише коли його вимагає leftmost-outermost пошук". The left child is a thunk for H(I), which is intrinsic. The machine compares the hash and sees it's intrinsic. So R-I pattern matches at root: APPLY(⟨I⟩, x) where x is ghost_thunk.
+    - Fire R-I: cost 1. Result is ghost_thunk.
+    - Now step on ghost_thunk: it's a thunk for a missing hash, not intrinsic. The step says: force(h). But wait, the budget was 4. We spent 3 (force root) + 1 (R-I) = 4. So spent == atp. Before forcing ghost, we check exhaustion: cost of force is at least 1 (for a LITERAL/DISSONANCE) but we don't know the node kind yet. Actually, §3.4 says: "Мінімальна ціна будь-якої дії — 1, тому при `spent == atp` вичерпання вирішується **до** будь-якого звернення до сховища (`eval(REF(missing), 0)` = ATP Exhausted)." But here we need to force ghost. The cost of force is unknown until we get bytes, but §3.4 also says: "Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано." Wait, but we haven't even fetched the bytes. The budget is exhausted (spent=4, atp=4). So we cannot attempt to fetch ghost because the minimum price is 1. So the result should be ATP Exhausted, spent 4.
+
+But TV-8 says: "APPLY(⟨I⟩, ghost) при відсутньому ghost → DISSONANCE(Unresolved Reference), spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+Wait, "потім ghost стає вимаганим коренем і не форсується" — then ghost becomes the demanded root and is NOT forced. How can it be Unresolved Reference if it's not forced? Because if it's the root and it's a thunk for a missing hash, then... hmm.
+
+Actually, let me re-read the machine semantics. After R-I, the term is ghost_thunk. Now we evaluate ghost_thunk. But ghost_thunk is a REF? Or just a hash? In the term APPLY(I, ghost), ghost is presumably a REF node or just a hash? The notation is ambiguous.
+
+Wait, in the test vectors, ghost is "відсутній у сховищі". The hash of ghost is SHA-256(ASCII `this node was never stored`). In TV-11, ghost is used similarly.
+
+Let me look at TV-8 more carefully. The result is DISSONANCE(Unresolved Reference), spent 4. The prose says: "R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+If the budget is exactly 4, and we spent 3 (force root APPLY) + 1 (R-I) = 4, then we have 0 left. To force ghost, we need at least 1 ATP (if it's a LITERAL/DISSONANCE) or 2 (if REF) or 3 (if APPLY). Since spent == atp, exhaustion is decided before any storage access. So the result should be ATP Exhausted, not Unresolved Reference.
+
+But TV-8 says the result is Unresolved Reference. How? Unless the budget for TV-8 is higher? Wait, TV-8 doesn't specify a budget! It just says `APPLY(⟨I⟩, ghost) при відсутньому ghost → DISSONANCE(Unresolved Reference), spent 4`. But what is the atp budget? It's not stated!
+
+Actually, looking at the vector: "TV-8 (Unresolved Child): `APPLY(⟨I⟩, ghost)` при відсутньому ghost → `DISSONANCE(Unresolved Reference)`, spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+There's no `eval(·, N)` notation here. It just gives the result and spent 4. But for the result to be Unresolved Reference, the budget must be at least 5 (or enough to force ghost). If the budget were 4, it would be ATP Exhausted. If the budget were ≥5, then after spending 4, we have at least 1 left. Then we try to force ghost. Since ghost is missing, force fails: DISSONANCE(Unresolved Reference). But what is the cost of that failure? §3.4 says: "Невдала дія (відмова resolve) не тарифікується." Wait, but force is the action. If force fails because the hash is missing, is it priced? The text says: "недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано. Невдала дія (відмова resolve) не тарифікується."
+
+Actually, the force action's cost is paid before attempting resolution? Or after? The text says: "Перевірка вичерпання передує дії. Дія з ціною `c > atp − spent` не виконується: результат `DISSONANCE(ATP Exhausted)` зі `spent` без змін." And "невдала дія (відмова resolve) не тарифікується."
+
+So if we attempt to force ghost and it's missing, the action is not priced? But then how is spent=4? If we attempt to force ghost and fail, we don't pay for it? Wait, the cost of force is the size of the materialized node. But if the node is missing, we can't materialize it. So does the cost still apply?
+
+Let me re-read: "cost(force h) = size(матеріалізованого вузла з товк-дітьми) = 1 (LITERAL, DISSONANCE) | 2 (REF) | 3 (APPLY)". This is the cost if the force succeeds and materializes the node. If the force fails because the hash is missing, is there a cost? §3.5 says: "resolve(h)/force(h) — єдина операція матеріалізації вузла за хешем. Два режими відмови розрізняються явно: (a) `h` не знаходиться у сховищі... → `DISSONANCE(Unresolved Reference)`; (b) байти не проходять валідацію..."
+
+And §3.4: "Невдала дія (відмова resolve) не тарифікується."
+
+So if we attempt to force ghost and it's missing, the action is not priced, and spent remains 4. But can we attempt it? We need to check if we have enough budget to perform the action. The minimum price of any action is 1. So if atp - spent >= 1, we can attempt the force. If the hash is missing, we get Unresolved Reference and spent stays 4. If atp - spent = 0, we get ATP Exhausted without attempting.
+
+Therefore, TV-8 implies a budget of at least 5 (or rather, at least 5? Actually, we just need atp - spent >= 1 to attempt the action. But the cost of the action is unknown until we see the bytes. §3.4 says: "Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано."
+
+Wait, for a missing hash, we don't get bytes at all. The price is unknown. But the minimum price is 1. So if atp - spent >= 1, we can attempt the fetch. If the fetch fails (missing), it's a failed action, not priced.
+
+But what if the budget is exactly 4? Then atp - spent = 0, so we cannot attempt any action. The result should be ATP Exhausted. But TV-8 says Unresolved Reference. Therefore, TV-8 must be using a budget > 4. But the budget is not stated in TV-8! This is a problem.
+
+Wait, looking at the TV-8 prose: "spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+Actually, maybe "не форсується" means it is not forced because the machine recognizes it as the result? No, Unresolved Reference is a canonical result when a demanded hash is missing. But if the term is just a thunk for a missing hash, and we are evaluating it, we must force it. Unless... the machine returns the thunk itself as the result? No, §3.3 says: "if t = thunk(h): if h ∈ {H(I),H(K),H(S)}: none // NF-лист за хешем, else: force(h)". So a thunk that is not intrinsic is forced. If force fails (missing), it's Unresolved Reference.
+
+But wait, after R-I, the result term is ghost_thunk. Then the machine continues stepping? Or does eval return when it reaches a normal form? A thunk for a missing hash is not a normal form. The machine must step on it. Since it's a non-intrinsic thunk, step demands force. If budget allows, it attempts force, fails, returns Unresolved Reference.
+
+But why is the budget not stated? In other vectors, the budget is given: `eval(·,4)`, `eval(·,12)`, etc. TV-8 just gives the term and the result. Maybe the budget is implicit? Or maybe it's saying "for any sufficient budget, the result is Unresolved Reference with spent 4"? Actually, if the budget is 4, the result would be ATP Exhausted (since spent would be 4 and no budget left to attempt force). If the budget is ≥5, the result would be Unresolved Reference with spent 4 (since the failed force is not priced). But if the budget is 5, and the cost of forcing ghost would be, say, 1 (if it were a LITERAL) or 2 (if REF) or 3 (if APPLY), but since it's missing, the cost is not paid. So spent stays 4.
+
+But is there a lower bound on what atp must be? The vector doesn't say. An implementer must know what budget to use. This is a P1: the text is silent where an implementer must guess. However, the machine-readable suite `vectors.json` presumably contains the exact budget. Since the suite is normative, the exact budget is in the JSON. The prose in §7 says the shorthand doesn't add requirements. So maybe this is not a P1 because the JSON has the exact values.
+
+Wait, but I don't have the JSON. The prompt says "where a claim is checkable by arithmetic or by reading the supplied bytes, check it and show the work." I don't have the bytes of vectors.json. So I can't verify the exact budget for TV-8. But I can note that the prose doesn't state the budget, which is a P2 clarity issue. However, since the suite is normative and the prose says "Скорочення не додає і не змінює жодної вимоги: нормативними лишаються поля запису", this might be acceptable.
+
+But wait, there's a more serious issue. In TV-8, the result is Unresolved Reference. But if the budget is not given, could an implementation choose budget 4 and get ATP Exhausted? The suite presumably fixes the budget. But if the prose alone is read, it's ambiguous. However, the candidate explicitly says the JSON fields are normative. So a conforming implementation must read the JSON.
+
+Still, I should look for issues in the text itself.
+
+**Potential Issue 8: The `size` bound and cost of force for missing hash**
+
+Consider a term that is a REF to a missing hash, with budget 1. According to §3.4, cost(force h) for a REF is 2. Since 2 > 1 - 0 = 1, the action is not performed, result is ATP Exhausted, spent 0. This matches TV-9: `eval(r2, 1)` = ATP Exhausted, spent 0 (force costs 2).
+
+Now consider a term that is a LITERAL (or DISSONANCE) to a missing hash? No, LITERAL doesn't force; it's a normal form. But if we have a REF to a missing hash, cost is 2.
+
+What about TV-8: root is APPLY. Force root costs 3. If budget is 3, after forcing, spent=3. Then R-I costs 1, but 1 > 3-3=0, so exhaustion before R-I? Wait, no: the exhaustion check is before each action. After forcing root (spent=3), we have the APPLY node. Then step on APPLY: we check if left is redex. We need to compare left child (thunk for I) with I, K, S. This requires no forcing because I is intrinsic and recognized by hash. So R-I fires, cost 1. But spent=3, atp=3? Then 1 > 0, so exhaustion. Result: ATP Exhausted, spent 3. But TV-8 says spent 4. So the budget must be at least 4.
+
+If budget is 4: force root (3), R-I (1), spent=4. Then ghost is demanded. Next step: attempt to force ghost. Minimum cost is 1. But atp-spent=0, so exhaustion. Result: ATP Exhausted, spent 4.
+
+If budget is 5: force root (3), R-I (1), spent=4. Then attempt force ghost. Since ghost is missing, it's a failed action, not priced. Result: Unresolved Reference, spent 4.
+
+So TV-8 requires budget ≥5. But the prose doesn't say the budget! It just says "spent 4". This is extremely confusing. But again, the JSON presumably has the budget.
+
+Wait, looking at the Ukrainian text: "TV-8 (Unresolved Child): `APPLY(⟨I⟩, ghost)` при відсутньому ghost → `DISSONANCE(Unresolved Reference)`, spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+Actually, "не форсується" could mean "is not forced" because the budget is exhausted? But then the result would be ATP Exhausted, not Unresolved Reference. Or does it mean that because it's the root and missing, we return Unresolved Reference without counting it as a force? That contradicts the semantics.
+
+Let me check the English rendering: "TV-8 (Unresolved Child): `APPLY(⟨I⟩, ghost)` with ghost absent → `DISSONANCE(Unresolved Reference)`, spent 4: R-I fires lazily WITHOUT forcing ghost, then ghost becomes the demanded root and is not forced."
+
+"is not forced" — this is ambiguous. Does it mean "the attempt to force it fails" or "we don't force it"? If we don't force it, how do we know it's absent? We know it's absent because the environment doesn't have it, but the semantics says we only know when we try to resolve. Actually, in the abstract machine, a thunk for a missing hash is just a thunk. To evaluate it, we must force it. If we don't force it, the term is a thunk, which is not a normal form? Wait, is a thunk for a non-intrinsic hash a normal form? No, §3.3 says for thunk(h): if h is intrinsic, none (NF). Else: force(h). So it's not an NF.
+
+Unless... after R-I, the result is ghost. But eval returns a Receipt with result_hash. If the evaluation ends with ghost (a thunk), the result_hash would be the hash of ghost? But ghost is just a hash, not a node. How do we hash a thunk? Wait, the materialized graph consists of nodes. A thunk is an unresolved hash. The result of evaluation is a term. If the term is just a thunk, its "hash" is the hash of the thunk? But §2 says NodeHash = SHA-256(CanonicalBytes). A thunk is not a node; it's an unresolved reference. So what is the result_hash when the exit is unresolved_reference?
+
+Ah! The receipt has result_hash as "NodeHash терма, який машина повернула". If the term is an unresolved thunk, it's not a node. But perhaps the result is a REF node? Actually, in the machine, after materialization, the children are either materialized nodes or unresolved hashes (thunks). The term itself could be a thunk. But the receipt must return a NodeHash. If the term is an unresolved hash, there is no node. 
+
+Wait, but in §3.5: "resolve(h)/force(h) — єдина операція матеріалізації вузла за хешем. Два режими відмови розрізняються явно: (a) `h` не знаходиться у сховищі... → `DISSONANCE(Unresolved Reference)`". So when force fails, the canonical result is DISSONANCE(Unresolved Reference), which is a specific node. Its hash is known: it's the Canonical Invalid Object? No, DISSONANCE is an opcode. The DISSONANCE(Unresolved Reference) has atom = SHA-256("Unresolved Reference") = 75daae55... So the result is a DISSONANCE node. Its hash is deterministic. So the result_hash would be the hash of that DISSONANCE node.
+
+But TV-8 says the result is DISSONANCE(Unresolved Reference). So the machine must construct this node. But to construct it, do we need to materialize it? The cost of materializing a DISSONANCE node is 1 (force). But if the failure happens during force, the failed action is not priced. However, the result is a DISSONANCE node, but that node is not materialized from the store; it's synthesized by the machine as a canonical failure object. 
+
+Actually, §3.4 says: "невдала дія (відмова resolve) не тарифікується." And §3.5 says missing hash yields DISSONANCE(Unresolved Reference). So the machine synthesizes the DISSONANCE node without charging for it? But then the result is a DISSONANCE node, which is a normal form? Wait, DISSONANCE is a normal form (§3.3 says else: none for LITERAL, DISSONANCE). So the machine returns a DISSONANCE node. But does it charge for creating it? The text says the failed action is not priced. So spent stays at 4.
+
+But how does the machine decide to return DISSONANCE(Unresolved Reference) instead of ATP Exhausted? It must have enough budget to attempt the force. The minimum cost is 1. So atp must be at least 5. But the vector doesn't state the budget.
+
+This is a clarity issue in the prose, but the normative JSON presumably states the budget. Since the prose says it abbreviates and the JSON is normative, it's P2 at worst.
+
+But wait, I need to check if there's an arithmetic contradiction in the text itself. Let me check the semantic memory bound. "уздовж будь-якого виконання `materialized_size(t) − 1 ≤ spent`". For TV-4: APPLY(I, K). Force root (APPLY) costs 3. After forcing, materialized nodes: root APPLY (1) + left I_thunk? Wait, after forcing root, we have an APPLY node with two children. Are the children materialized? The force of the root materializes the root node. Its children are thunks (unresolved hashes). The size of the materialized graph: the APPLY node counts as 1. The children are thunks, each counts as 1. So size = 1 + 1 + 1 = 3. spent = 3. size - 1 = 2 ≤ 3. OK.
+
+Then R-I fires: result is K_thunk. The materialized graph now is just the K_thunk? Or is the APPLY node replaced? In term rewriting, the result is K_thunk. So materialized nodes: K_thunk counts as 1. size = 1. spent = 4 (3+1). size - 1 = 0 ≤ 4. OK.
+
+But wait, if the result is K_thunk, is that a normal form? K is intrinsic, so a thunk for K is a normal form (recognized by hash). So eval returns normal_form with result_hash = H(K). But what about the size? At the end, size = 1 (the thunk). spent = 4. 1-1=0 ≤ 4. OK.
+
+But why is spent 4 if the result is obtained after 3+1=4? The receipt includes atp_spent = 4. That seems correct.
+
+Now, is there any issue with the semantic bound? The text says "Кожна дія коштує строго більше, ніж додає розміру." Let's check:
+- force(APPLY): costs 3. Adds an APPLY node and two thunks. Size increase: before forcing, the thunk was size 1. After forcing, the APPLY node with thunk children has size 1 + 1 + 1 = 3. Increase is 2. Cost is 3 > 2. OK.
+- force(REF): costs 2. Adds a REF node and a thunk. Size increase: from 1 to 2. Increase is 1. Cost 2 > 1. OK.
+- force(LITERAL/DISSONANCE): costs 1. Adds a LITERAL/DISSONANCE node. Size increase: from 1 to 1. Increase is 0. Cost 1 > 0. OK.
+- R-R: costs 1. Replaces REF node with thunk of target. Before: REF node + thunk? Wait, the REF node is materialized, so it counts as 2 (node + thunk). After: just the target thunk (size 1). So size decreases by 1. Cost is 1 > -1. OK.
+- R-I: costs 1. Replaces APPLY(I, x) with x. Before: APPLY node + left I_thunk (size 1) + right x_thunk (size 1) = 3? Wait, if I is intrinsic thunk, size is 1. x is thunk, size 1. APPLY is 1. Total 3. After: just x_thunk, size 1. Size decrease 2. Cost 1 > -2. OK.
+- R-K: costs 1. Replaces APPLY(APPLY(K, x), y) with x. Before: outer APPLY (1) + left APPLY (1) + left K_thunk (1) + right x_thunk (1) + right y_thunk (1) = 5. After: x_thunk (1). Decrease 4. Cost 1 > -4. OK.
+- R-S: costs 1 + size(z). Replaces APPLY(APPLY(APPLY(S, x), y), z) with APPLY(APPLY(x, z), APPLY(y, z)). Before: 3 APPLY nodes + S_thunk + x_thunk + y_thunk + z_thunk = 3 + 4*1 = 7? Wait, size(APPLY) = 1 + size(left) + size(right). For the outermost APPLY: 1 + size(APPLY(APPLY(S,x),y)) + size(z_thunk). size(z_thunk) = 1. size(APPLY(APPLY(S,x),y)) = 1 + size(APPLY(S,x)) + size(y_thunk) = 1 + (1 + size(S_thunk) + size(x_thunk)) + 1 = 1 + (1+1+1) + 1 = 4. So outermost size = 1 + 4 + 1 = 6. Total size = 6. After: APPLY(APPLY(x,z), APPLY(y,z)). size(APPLY(y,z)) = 1 + 1 + 1 = 3. size(APPLY(x,z)) = 1 + 1 + 1 = 3. size(APPLY(..., ...)) = 1 + 3 + 3 = 7. So size increases from 6 to 7. Increase is 1. Cost is 1 + size(z). z is a thunk in current materialization, so size(z) = 1. Cost = 2. 2 > 1. OK.
+
+So the bound holds.
+
+**Potential Issue 9: English rendering discrepancy**
+
+Let me check if there are any discrepancies between English and Ukrainian that could lead to different implementations.
+
+Ukrainian §3.5: "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+English: "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+
+This matches.
+
+Ukrainian §3.5: "Запис, якого виконання не вимагало, **MUST NOT** змінювати жоден канонічний `Receipt`"
+
+English: "An entry the evaluation never demanded **MUST NOT** change any canonical `Receipt`"
+
+Matches.
+
+One thing to check: English §3.4 says: "The minimum price of any action is 1, so at `spent == atp` exhaustion is decided **before** any access to storage (`eval(REF(missing), 0)` = ATP Exhausted)." Ukrainian: "Мінімальна ціна будь-якої дії — 1, тому при `spent == atp` вичерпання вирішується **до** будь-якого звернення до сховища (`eval(REF(missing), 0)` = ATP Exhausted)." Matches.
+
+English §3.4: "When the cost of a force becomes known only after fetching the bytes (the node's kind), bytes unaffordable under the budget are discarded without materialization — deterministically." Ukrainian: "Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано." Matches.
+
+English §3.5: "The check is over the raw buffer and before §4.1 validation: a buffer that fails validation does not violate this property — it is failure mode (b) below and yields the Canonical Invalid Object." Ukrainian: "Перевірка йде над **сирим буфером і до валідації §4.1**: буфер, що не проходить валідацію, цієї властивості не порушує — він є режимом відмови (b) нижче й дає Canonical Invalid Object." Matches.
+
+Now, what about the `term_hash` length check? Ukrainian §3.6: "`term_hash`, що не є рівно 32 байтами". English: "a `term_hash` that is not exactly 32 bytes". Matches.
+
+What about the hash of genesis axioms? Ukrainian: "Значення повністю визначені цією конструкцією і навмисно не дублюються, щоб не створювати друге джерело істини; референсна реалізація не є нормативним джерелом цих значень."
+
+English: "The values are fully determined by this construction and are deliberately not duplicated here, to avoid creating a second source of truth; the reference implementation is not a normative source for them."
+
+Matches.
+
+I don't see discrepancies between English and Ukrainian that would cause P0/P1.
+
+**Potential Issue 10: The compatibility profile and what it returns**
+
+The text says: "Реалізація MAY надавати двозначну форму `eval(term_hash, atp, env) → (result_term, atp_spent)`. Вона не втрачає жодної гарантії цієї Книги і не є застарілою; єдине, чого вона не може, — відповісти на питання `exit`."
+
+Wait, "двозначну" means "two-valued"? Actually "двозначну форму" probably means "binary form" or "two-return form". The English says "the two-value form".
+
+But what is `result_term`? In the three-input form, the receipt contains `result_hash`, not the term itself. The two-value form returns `result_term`. Is `result_term` the materialized term or its hash? The English says `(result_term, atp_spent)`. The Ukrainian says `(result_term, atp_spent)`. But earlier, the Receipt contains `result_hash`. So the two-value form returns the term, not just its hash. That's fine.
+
+But is there a normative requirement about what `result_term` is? No, it's a compatibility profile. It doesn't affect consensus.
+
+**Potential Issue 11: Book II interference computation**
+
+Let me check Book II §5: `interfere(w1, w2, LUT_COS)`.
+
+The English rendering of Book II is not provided; only Ukrainian. But Book II is unchanged except for the suite normativity clause. Let me verify if the arithmetic in Book II is correct.
+
+`delta = min(d32, 65536-d32)` where `d32 = |w1.ph - w2.ph|`. Since ph is uint16, difference is in [0, 65535]. 65536-d32 is in [1, 65536]. min of these gives a value in [0, 32768]. So delta is valid index for LUT_COS which has 32769 entries (0 to 32768). Good.
+
+`r = int32(LUT_COS[delta])`. LUT_COS values are in [-32767..32767]. So r is in that range.
+
+`delta_en = div_round_half_up(-r, 128)`. Since r ∈ [-32767, 32767], -r ∈ [-32767, 32767]. Dividing by 128 with round-half-away-from-zero:
+- If -r = 32767, 32767/128 = 255.992..., half-up = 256.
+- If -r = -32767, -32767/128 = -255.992..., half-up (away-from-zero) = -256.
+So delta_en ∈ [-256, 256]. The text says "∈ [-256..+256]: когерентність". OK.
+
+`new_en = clamp_i16(div_round_half_up(int32(w1.en)+int32(w2.en), 2) + delta_en)`
+Wait, `div_round_half_up(int32(w1.en)+int32(w2.en), 2)` is the average of w1.en and w2.en with round-half-away-from-zero. Then add delta_en. Then clamp to int16. The text says "конструктивна (r>0) створює порядок (delta_en<0)". Since r>0 means delta_en is negative (because -r < 0, divided by positive 128 gives negative). OK.
+
+`amp_factor = div_round_half_up(int64(r+32767)*65535, 65534)`
+r+32767 ∈ [0, 65534]. Multiply by 65535: max is 65534*65535 = 4,294,901,190. This fits in uint64 (and int64, since it's positive). Divide by 65534.
+If r = 32767, r+32767 = 65534. 65534*65535/65534 = 65535. So amp_factor = 65535.
+If r = -32767, r+32767 = 0. amp_factor = 0.
+If r = 0, 0+32767 = 32767. 32767*65535 = 2,147,450,145. Divide by 65534: 32767*65535/65534 = 32767 * (65534+1)/65534 = 32767 + 32767/65534 = 32767 + 0.5. Round-half-away-from-zero: 32767 + 1 = 32768? Wait, div_round_half_up(n, d) with n=2,147,450,145, d=65534. n/d = 32767.5 exactly? Let's check: 32767.5 * 65534 = 32767*65534 + 0.5*65534 = 2,147,450,078 + 32767 = 2,147,482,845. That's not 2,147,450,145. Let me compute correctly.
+
+Actually, 65535/65534 = 1 + 1/65534. So 32767 * 65535 / 65534 = 32767 * (1 + 1/65534) = 32767 + 32767/65534 = 32767 + 0.499992... = 32767.499992... So floor is 32767, remainder is 32767. Since 2*remainder = 65534 >= d (65534), we round up. So q = 32767 + 1 = 32768. So amp_factor = 32768 when r=0. The text says range is [0..65535]. OK.
+
+`prod01 = div_round_half_up(uint64(w1.am)*uint64(w2.am), 65535)`. w1.am and w2.am are uint16, max 65535. Product max = 65535*65535 = 4,294,836,225. Dividing by 65535 gives exactly 65535 when both are 65535. When one is 0, result 0. OK.
+
+`new_am = div_round_half_up(uint64(prod01)*uint64(amp_factor), 65535)`. prod01 max 65535, amp_factor max 65535. Product max same as above. Divide by 65535. OK.
+
+The English translation of Book II is not in the prompt, so I only need to check the Ukrainian text for internal consistency.
+
+Wait, the prompt includes the full text of Book II (Ukrainian). It does not include an English rendering of Book II. The English rendering is only for Book I.
+
+So my job is to check the Ukrainian text of all three Books, plus the English rendering of Book I, plus VERSIONS.md and GOV-anchors.md.
+
+**Potential Issue 12: GOV-anchors and the candidate**
+
+Let me revisit the GOV-anchors issue. The candidate changes Book I from 0.5.2 to 0.6.0. GOV-anchors pins "Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1 as anchored in this release".
+
+The ADR says: "Gemini's and DeepSeek's reading is that a governance verifier treating the pin as binding rejects the bundle while one applying only §3's seven steps authorizes it, which is a divergence about whether the release may be adopted at all."
+
+This is a concrete counterexample:
+- State: A candidate anchor-set blob B for bundle v0.7.0, containing Book I bytes at version 0.6.0.
+- Verifier V1: Checks §3 steps 1-7, which verify crypto, schema, jurisdiction, closure, policy lineage, key state, cardinality, no ties. These steps do not inspect the `Version:` header of Book I. V1 outputs: ADOPT (the anchor-set is authorized).
+- Verifier V2: Checks the same steps, but also enforces the pinned dependency clause in GOV-anchors §0/Normative dependencies, requiring that the Book I bytes match version 0.5.2. Since the blob contains Book I 0.6.0, V2 outputs: REJECT (the bundle does not satisfy the governance profile's declared dependencies).
+- Result: Disagreement on whether the release is adopted.
+
+Is this a P0? Yes, two conforming implementations (governance verifiers) disagree on a result (adopt/reject). The severity ladder says P0 is when "two conforming implementations can disagree on a result, or the text contradicts itself or the vector suite." Here, the text of GOV-anchors contradicts the candidate bundle's content.
+
+But is GOV-anchors part of the candidate change? The diff doesn't show changes to GOV-anchors. The candidate's argument says they deliberately didn't change it. But the candidate proposes adoption of a bundle containing the new Books alongside the old GOV-anchors. If GOV-anchors is part of the specification set, then the set contains a contradiction.
+
+However, the prompt says: "Two facts about scope... 2. `spec/GOV-anchors.md` is unchanged by this candidate, and pins its normative dependencies as 'Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1'. The authors did not edit it and say so. Whether that is correct is in scope."
+
+So I must evaluate this. The question is whether leaving GOV-anchors unchanged creates a normative defect.
+
+GOV-anchors §0 says: "This profile is defined against **Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1** as anchored in this release... Re-pinning to a newer dependency is itself a breaking change."
+
+If the bundle v0.7.0 contains Book I 0.6.0, then the profile is NOT defined against that Book. The profile is defined against an older version. Does that matter? The profile's §3 steps don't check Book versions. But the normative text says the profile is defined against those versions. If a verifier wants to be conformant to GOV-anchors, and GOV-anchors says it's defined against v0.5.2, but the release contains v0.6.0, then the verifier might reasonably conclude that the release does not match the profile.
+
+But GOV-anchors is a governance document. Its job is to specify the adoption process. If the adoption process doesn't actually use the pinned versions in its steps, then the pin is... what? A statement of intent? A compatibility declaration? 
+
+Actually, GOV-anchors says: "Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD." This suggests that the Book semantics used by the governance profile must be exactly those of the pinned versions. If the Book changes, the governance profile might break. But does it? The only Book I semantics used by GOV-anchors is `NodeHash(LITERAL, SHA-256(bytes))`, which hasn't changed. So perhaps the semantics are preserved.
+
+But the pin says "Book I v0.5.2", not "the semantics of Book I v0.5.2 that I use". A strict reading is that the exact version is pinned.
+
+The ADR records this as a known unresolved issue. As a reviewer, I need to decide if it's a P0. I think it is a P0 because the text creates a condition where two conforming verifiers can disagree on adoption. However, the ADR argues that fixing it would require a MAJOR version bump of GOV-anchors, which is a separate governed change. The candidate deliberately leaves it.
+
+But the severity ladder is strict: if there's a P0, the candidate should be REJECT unless all P0s are absent. The instructions say: "REJECT means at least one P0 stands, or the candidate should not proceed in this shape."
+
+Wait, but is disagreement about adoption authorization a "result" in the sense of the severity ladder? The ladder says "two conforming implementations can disagree on a result". The result here is boolean: is the release adopted? Yes or no. That's a result.
+
+Alternatively, is this a P1: "a normative requirement is unenforceable as written"? The pin is a normative requirement ("MUST NOT rest on a moving target"). But the requirement is on the governance profile, not on the Book. The governance profile is pinned to old versions. If the new bundle contains new versions, the profile is arguably no longer valid for the bundle, but the bundle hasn't been adopted yet. The candidate is just the proposed bytes. The governance process to adopt it hasn't run. So maybe the disagreement only arises if someone tries to adopt it using the old profile.
+
+Actually, the candidate bundle includes GOV-anchors unchanged. When the adoption warrant is filed, the governance verifier checks it against the current governance profile. The current governance profile (in force) is the one pinned in GOV-anchors 1.0.2. If the anchor-set blob references Book I 0.6.0, a strict verifier might reject it because the profile is defined against 0.5.2. A lenient verifier might accept it because the used semantics haven't changed. This is a disagreement.
+
+But is the candidate asking me to review the bundle as a whole, including the unchanged GOV-anchors? Yes. The prompt says "The full text of every Book at the candidate revision, plus the versioning rules and the governance profile." So GOV-anchors is part of the candidate.
+
+Given that the ADR explicitly notes this as a point of disagreement among previous reviewers, and the authors deliberately left it unresolved, I think it would be irresponsible to ignore it. I should flag it.
+
+However, I need to be careful: is there a way to read GOV-anchors that avoids the P0? The ADR gives Kimi's reading: "the only Book I semantics GOV-anchors consumes is `NodeHash(LITERAL, SHA-256(bytes))`, which this candidate does not touch, so the pinned *semantics* hold." If that reading is valid, then the pin is satisfied because the semantics are preserved. But GOV-anchors says "pinned by content hash / anchored version", not "pinned by semantics used". The text says "This profile is defined against Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1 as anchored in this release". "as anchored in this release" implies the exact bytes of those versions. So if the release contains different bytes, the profile is defined against bytes not in the release. That's a contradiction.
+
+I think this is a genuine P0. But I also need to consider if it's fixable by editing the text without changing what the machine does. The authors say it would require a MAJOR bump of GOV-anchors. But maybe they could add a sentence to GOV-anchors saying "the pinned versions refer to the semantics used by this profile; later versions with identical semantics in the used subset are acceptable." But that would be a semantic change to GOV-anchors, which might require a version bump under its own rules.
+
+Alternatively, the candidate could simply update the pin to the new versions and bump GOV-anchors to 1.1.0 or 2.0.0. But the ADR says this is a breaking change to GOV-anchors and needs its own gate.
+
+Given the instructions, I must decide. I think the GOV-anchors pin is a P0 because two verifiers can disagree on adoption. But let me see if I can find any other P0s.
+
+**Potential Issue 13: The `EvalMachine.evalHash_stable` reference**
+
+Book I §3.5 says: "(Механізовано: `EvalMachine.evalHash_stable`; диференціальний міст — `proofs/store_mono_bridge_check.py`.)"
+
+This is a reference to code/proofs in the repository. Is it normative? The text says the theorem is normative. The reference is parenthetical. It's not a normative requirement on implementations. So it's fine.
+
+**Potential Issue 14: `spec_version` in suites**
+
+VERSIONS.md talks about `spec_version` meaning the Book version. The candidate regenerates suites. This is non-normative but checked by tools. Not an issue.
+
+**Potential Issue 15: Book III attribution**
+
+Book III §8 says: "те саме правило, що в Книзі I §7". The English rendering of Book I §7 changed. The Ukrainian Book I §7 changed. Book III's text is updated to refer to the new rule. So no issue.
+
+Wait, looking at Book III §8 (Оракул і вектори): it says "Набір є нормативною частиною цього видання: ... (те саме правило, що в Книзі I §7)." This is correct because Book I §7 now says the suite is normative. Book III repeats the rule with its own schema mapping.
+
+**Potential Issue 16: Book I §3.5 "Детермінізм — за вимаганим середовищем (MUST)."**
+
+It says: "Дві реалізації, які розв'язують ті самі **вимагані** хеші в ті самі байти, повертають однаковий `Receipt`."
+
+What if the two implementations have different environments that happen to provide the same bytes for demanded hashes but different bytes for undemanded hashes? The text says undemanded entries MUST NOT change the Receipt. So the Receipt must be the same. That's fine.
+
+But what if two implementations resolve demanded hashes to the same bytes, but one implementation detects a CAS mismatch on an undemanded hash and refuses admission (§3.6), while the other doesn't check undemanded hashes and returns a Receipt? Then one returns a local refusal, the other returns a Receipt. Is that allowed? §3.5 says: "Це не забороняє верифікаторові не допустити середовище з власних причин — зокрема перевіривши його ширше, ніж вимагає виконання. Такий крок є **допуском** (§3.6), а не обчисленням: він не дає жодного `Receipt`, тож і розходитися немає в чому."
+
+So that's fine: admission refusal is not a canonical result, so no disagreement about Receipts.
+
+**Potential Issue 17: The English rendering of `book-1-truth.en.md` status**
+
+It says: "**Informative English translation.** ... The canonical, anchored source of record is `book-1-truth.md` (Ukrainian)."
+
+But what if an implementer only reads the English rendering? The text says it's not anchored and not canonical. But the candidate claims it carries the same requirements. If there's a discrepancy, the Ukrainian governs. That's fine.
+
+But is there any discrepancy I missed?
+
+Let me check the English rendering's §3.4: "An implementation MUST NOT accept it by clamping to 2³²−1: clamping turns a refusal to admit into a result of evaluation, and two engines, one of which clamps, diverge on the same input."
+
+Ukrainian: "Реалізація MUST NOT приймати його, обрізавши до 2³²−1: обрізання перетворює відмову у прийомі на результат обчислення, а два рушії, один із яких обрізає, розійдуться на тому самому вході."
+
+Matches.
+
+English §3.6: "An `atp` that is not a `uint32`, and a `term_hash` that is not exactly 32 bytes, MUST be refused the same way — locally, before the environment is consulted, and not as a canonical exit."
+
+Ukrainian: "`atp`, що не є `uint32`, і `term_hash`, що не є рівно 32 байтами, MUST бути відхилені так само — локально, до звернення до середовища, і не як канонічний вихід."
+
+Matches.
+
+One more thing: English rendering has a section "8. Specification Anchor (Update Protocol)" which matches Ukrainian §8. OK.
+
+**Potential Issue 18: TV-10 C1 compiler hash**
+
+Ukrainian: `C1[λx.λy.x] = APPLY(APPLY(⟨S⟩,APPLY(⟨K⟩,⟨K⟩)),⟨I⟩)`, hash `bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d`.
+
+Let me verify if I can compute this. I don't have a SHA-256 implementation, but I can check the construction:
+- K: 0001 + SHA-256("K")
+- I: 0001 + SHA-256("I")
+- APPLY(K, K): OpCode=APPLY (0x02), Flags=F_LEFT|F_RIGHT (0x06), Left=H(K), Right=H(K). CanonicalBytes: 02 06 H(K) H(K). Length: 2 + 32 + 32 = 66.
+- APPLY(S, APPLY(K,K)): 02 06 H(S) H(APPLY(K,K)). Length 66.
+- APPLY(APPLY(S, APPLY(K,K)), I): 02 06 H(APPLY(S,APPLY(K,K))) H(I). Length 66.
+
+The hash is printed as bed95fbc... I cannot verify the hash without computing SHA-256, but the construction is clear. Since the text says the values are determined by the construction, it's fine.
+
+**Potential Issue 19: Canonical Invalid Object**
+
+Bytes: `ff017cc62bcc7c921683532cec1c1c331ca81d76b001e0c7f407a4078df7f696efe8`
+Hash: `af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507`
+
+This is OpCode DISSONANCE (0xFF), Flags F_ATOM (0x01), Atom = SHA-256("Invalid Object") = 7cc62b...
+So CanonicalBytes = ff01 || SHA-256("Invalid Object"). The hash is SHA-256(ff01 || SHA-256("Invalid Object")).
+The bytes and hash are given. I can't compute SHA-256 to verify, but the construction is consistent.
+
+**Potential Issue 20: TV-4 `eval(·,3)` = ATP Exhausted, spent 3.**
+
+Let's trace APPLY(I, K) with atp=3.
+- Start: thunk(root). Force root: cost 3. spent=3. Materialized: APPLY node with left=I_thunk, right=K_thunk.
+- Step on APPLY: left is I_thunk (intrinsic). R-I matches. Cost 1. But atp - spent = 0. So exhaustion check: 1 > 0, cannot perform. Result: ATP Exhausted, spent 3.
+This matches the text: "`eval(·,3)` = ATP Exhausted, spent 3."
+
+But wait, if atp=3, force root costs 3, spent becomes 3. Then R-I would cost 1, which is > 0, so exhaustion. Correct.
+
+**Potential Issue 21: TV-9 `eval(r2, 1)` = ATP Exhausted, spent 0**
+
+r2 = REF(r1), r1 = REF(H(K)).
+- Start: thunk(r2). Force r2: cost? We need to materialize the REF node. cost(force h) for REF = 2. atp=1, so 2 > 1-0=1. Exhaustion. spent=0. Result: ATP Exhausted.
+Matches text: "spent 0 (force коштує 2)".
+
+OK.
+
+**Potential Issue 22: The term "префлайт" vs "preflight"**
+
+Ukrainian uses "префлайт". English uses "preflight". This is fine.
+
+**Potential Issue 23: Book II §5 `div_round_half_up` on negative numbers**
+
+The text says `div_round_half_up` is round-half-away-from-zero. For n negative, s = -1, a = |n|, q = a//d, r = a%d. If 2r >= d, q += 1. Return s*q.
+Example: n=-1, d=2. a=1, q=0, r=1. 2*1 >= 2, so q=1. Return -1. So -1/2 = -1 (away from zero). Good.
+Example: n=-3, d=2. a=3, q=1, r=1. 2*1 >= 2, q=2. Return -2. So -3/2 = -2 (away from zero). Good.
+Example: n=-2, d=2. a=2, q=1, r=0. 2*0 < 2, q stays 1. Return -1. So -2/2 = -1. Correct.
+
+The text mentions `WV-NEG-TIE`: `avg(−1,−2) = −2`. Let's check: avg = div_round_half_up(-1 + -2, 2) = div_round_half_up(-3, 2). a=3, q=1, r=1, 2r>=d, q=2, return -2. Yes.
+
+**Potential Issue 24: Book II §5 `new_en` computation**
+
+`new_en = clamp_i16(div_round_half_up(int32(w1.en)+int32(w2.en), 2) + delta_en)`
+
+Wait, the sum inside is `div_round_half_up(int32(w1.en)+int32(w2.en), 2) + delta_en`. The clamp is outside the sum. Could this overflow int32 before clamping? w1.en and w2.en are int16, so sum is in [-65536, 65534]. div_round_half_up of that by 2 is in [-32768, 32767]. delta_en is in [-256, 256]. Sum is in [-33024, 33023]. This fits in int32 easily. Clamp to int16 [-32768, 32767]. OK.
+
+But is there a case where the sum is > 32767? Max avg = 32767 (when w1.en=w2.en=32767? Wait, int16 max is 32767. But Book II defines en as int16. The Pantheon pins have en=-32768. Can en be 32767? Possibly. If w1.en=32767, w2.en=32767, avg = 32767. delta_en max = 256. Sum = 33023. clamp_i16(33023) = 32767. OK.
+Min: w1.en=-32768, w2.en=-32768. Sum = -65536. div_round_half_up(-65536, 2). a=65536, q=32768, r=0. 2r=0<2, q=32768. return -32768. delta_en min = -256. Sum = -33024. clamp_i16(-33024) = -32768. OK.
+
+What about w1.en=32767, w2.en=-32768? Sum = -1. avg = div_round_half_up(-1, 2) = -1 (since a=1, q=0, r=1, 2r>=2, q=1, return -1). delta_en=0. new_en=-1. OK.
+
+What about tie cases: w1.en=0, w2.en=1. Sum=1. avg=div_round_half_up(1,2)=1 (a=1,q=0,r=1,2r>=2,q=1). Wait, 1/2 away-from-zero is 1? That seems odd. Actually, 0.5 rounded away from zero is 1. So yes. But standard round-half-up usually means 0.5 rounds up (to +1 for positive, -1 for negative? No, away-from-zero means 0.5 rounds to 1, -0.5 rounds to -1). The text explicitly says "round-half-away-from-zero". So avg(0,1) = 1. Then WV-NEG-TIE example uses avg(-1,-2). Sum=-3. avg=-2. Correct.
+
+**Potential Issue 25: Book II §5 `amp_factor` and `new_am`**
+
+`amp_factor = div_round_half_up(int64(r+32767)*65535, 65534)`
+`prod01 = div_round_half_up(uint64(w1.am)*uint64(w2.am), 65535)`
+`new_am = div_round_half_up(uint64(prod01)*uint64(amp_factor), 65535)`
+
+The text says: "Шкала unit-scaled: 65535 ≡ 1.0, тож `1.0×1.0 = 65535·65535/65535 = 65535` — точно 1.0, максимум амплітуди стабільний під множенням."
+
+Let's check: w1.am=65535, w2.am=65535. prod01 = div_round_half_up(65535*65535, 65535) = 65535 exactly.
+If r=32767, amp_factor=65535. new_am = div_round_half_up(65535*65535, 65535) = 65535.
+If r=-32767, amp_factor=0. new_am = div_round_half_up(65535*0, 65535) = 0.
+If r=0, amp_factor=32768 (computed earlier). w1.am=65535, w2.am=65535. prod01=65535. new_am = div_round_half_up(65535*32768, 65535) = 32768. Since 65535*32768 / 65535 = 32768 exactly. So new_am = 32768. This is within uint16 (0..65535). OK.
+
+But what if w1.am=65535, w2.am=65535, and amp_factor=65535? prod01=65535. new_am = div_round_half_up(65535*65535, 65535). 65535*65535 = 4,294,836,225. Divide by 65535 = 65535 exactly. So new_am=65535. Good.
+
+**Potential Issue 26: Book III §4 collation**
+
+"Колація рядкових полів (MUST): лексикографічний порядок за послідовностями Unicode scalar values, як вони представлені у JCS-значенні; реалізації MUST порівнювати рядки напряму і інвертувати результат порівняння для `dir:"desc"`; MUST NOT реалізовувати desc через character-complement трансформи (ламаються на префіксних парах і не тотальні над Unicode — вектори `FV-SELECT-ACTOR-DESC-PREFIX`, `FV-SELECT-ACTOR-NONASCII`)."
+
+This seems clear.
+
+**Potential Issue 27: Book III §6 `assertion_set_root`**
+
+`assertion_set_root` = SHA-256(JCS(масив WarrantID активних тверджень, відсортований лексикографічно за lowercase hex)).
+
+This is clear.
+
+**Potential Issue 28: Book I §3.5 `resolve(h)`/`force(h)` failure modes**
+
+"(a) `h` не знаходиться у сховищі **і не є intrinsic-аксіомою §5.1** → `DISSONANCE(Unresolved Reference)`; (b) байти не проходять валідацію §4.1 → матеріалізується Canonical Invalid Object (§4.2), дія тарифікується як force вузла DISSONANCE (1)."
+
+Wait, in case (b), the action is priced as force of a DISSONANCE node (cost 1). But earlier, §3.4 says: "невдала дія (відмова resolve) не тарифікується." Is (b) a failed action? It says "байти не проходять валідацію → матеріалізується Canonical Invalid Object". The action is force(h), which succeeds in materializing the Canonical Invalid Object. So it's not a failed action; it's a successful materialization of an invalid object. The cost is 1. So that's consistent.
+
+In case (a), it's a failed resolve, not priced. So spent doesn't increase.
+
+But wait: what if the bytes are present but don't hash to the key? That's a CAS mismatch. §3.5 says: "виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат." So it's not (a) or (b); it's a local refusal. Not priced.
+
+Good.
+
+**Potential Issue 29: Book I §1.1 LITERAL blob validation**
+
+"LITERAL — інертний commitment. ... `resolve(h)` для LITERAL не вимагає blob: матеріалізація завжди успішна (1 ATP), поки вузол десеріалізується коректно за §4.1."
+
+Wait, this is interesting. For a LITERAL node, `resolve(h)` doesn't require the blob. But what does `force(h)` do? It materializes the node from its canonical bytes. The canonical bytes are stored in the environment (hash → bytes). The bytes are validated per §4.1. If they are valid, the node is materialized. The blob (the data committed by atom) is not needed. So even if the blob is missing, the node can be materialized. This is consistent with "blob-retrieval API MAY validate ... but those failures are outside Book I".
+
+But what if the bytes under the hash are a valid SigmaNodeV2 LITERAL, but the blob it commits to is missing? The node materializes successfully because §4.1 only checks the node structure, not the blob. That's correct.
+
+**Potential Issue 30: Book I §3.3 step function**
+
+```text
+step(t):
+  if t = thunk(h):
+      if h ∈ {H(I),H(K),H(S)}: none
+      else: force(h)
+  elif t = REF(h):                fire R-R
+  elif t matches R-I|R-K|R-S at root: fire
+  elif t = APPLY(f,a):
+      if step(f) exists: act in f
+      elif step(a) exists: act in a
+      else: none
+  else: none
+```
+
+What is the type of `step(f)`? It returns an action? The pseudocode is a bit loose, but the intent is clear: if the left child can be reduced, reduce there; else if the right child can be reduced, reduce there; else it's a normal form.
+
+This is standard leftmost-outermost. The prose clarifies: "Форсується лише товк, що його вимагає leftmost-outermost пошук: лівий хребет для розпізнавання редексів, аргумент — лише коли функціональна частина нормальна." So it's fine.
+
+**Potential Issue 31: Book I §3.4 "Невдала дія (відмова resolve) не тарифікується."**
+
+What about a CAS mismatch? It's a local refusal (§3.6). Is it priced? §3.5 says it MUST give a local refusal. §3.6 says local faults MUST NOT be serialized as DISSONANCE. Is a CAS mismatch a canonical failure or a local fault? It's a local refusal. So not priced. Good.
+
+**Potential Issue 32: The ADR mentions a P0 in round 2 that was fixed**
+
+"**P0, DeepSeek — round 1's own fix contradicted itself.** §3.5 said an undemanded entry 'does not affect the result' and, one sentence later, that a permitted wider check MUST end in a local refusal. So a poisoned entry nobody demands both must not and may change the outcome."
+
+This was fixed by clarifying that a wider check is admission, not evaluation, and produces no Receipt. So the current text is fine.
+
+**Potential Issue 33: Book I §3.5 "Перевірка йде над сирим буфером і до валідації §4.1"**
+
+English: "The check is over the raw buffer and before §4.1 validation". This means the SHA-256 of the raw bytes must equal the key, even if the bytes are invalid as a SigmaNodeV2. This is important because an invalid buffer under a correct key yields Canonical Invalid Object (failure mode b), while a valid buffer under a wrong key yields local refusal.
+
+Is there any ambiguity? The text says: "буфер, що не проходить валідацію, цієї властивості не порушує — він є режимом відмови (b) нижче й дає Canonical Invalid Object." So invalid bytes are fine; the property is about the key mapping, not node validity.
+
+**Potential Issue 34: Book I §7 "Ціни нижче — v0.5 (size-priced, hash-leaf, §3.4)."**
+
+Wait, the candidate is Book I 0.6.0, but the test vectors say prices are v0.5? That seems odd. But §3.4 is still the size-priced, hash-leaf model. The version label v0.5 refers to the pricing model, not the Book version. The text says "Ціни нижче — v0.5 (size-priced, hash-leaf, §3.4)." This is because the pricing model was introduced in v0.5 and hasn't changed. So this is fine.
+
+**Potential Issue 35: TV-11 and TV-12**
+
+TV-11: ghost = SHA-256(ASCII `this node was never stored`). Note: the English rendering says "ASCII `this node was never stored`". The Ukrainian says "ASCII `this node was never stored`". This is the same.
+
+TV-12: REF(H(K)) on empty store → ⟨K⟩, 3 ATP. Force H(K): since K is intrinsic, does it cost? Wait, §3.3 says: if t = thunk(h) and h ∈ {H(I),H(K),H(S)}: none. So an intrinsic thunk is a normal form without materialization. But TV-12 says REF(H(K)) → ⟨K⟩, 3 ATP.
+
+Wait, REF(H(K)) is a REF node, not a thunk for H(K). The term is a REF node whose target is H(K). To evaluate it:
+- Start: thunk(root_hash) for the REF node. Force it: cost = size of materialized REF node = 2 (REF node + thunk of target). Wait, cost(force h) for REF = 2. After forcing, we have a REF node with target thunk H(K).
+- Then step on REF node: fire R-R, cost 1. Result is thunk(H(K)).
+- Now thunk(H(K)) is intrinsic, so it's a normal form. No more steps.
+Total spent: 2 + 1 = 3. Result: normal_form, result_hash = H(K). This matches TV-12.
+
+Wait, but what about `eval(H(I), n)`? The term is just the hash H(I). Start: thunk(H(I)). Since H(I) is intrinsic, step returns none. So it's a normal form with 0 ATP. Matches TV-12.
+
+**Potential Issue 36: `materialized_size(t)` for a thunk**
+
+The bound says `materialized_size(t) − 1 ≤ spent`. For a thunk, materialized_size is 1. So 0 ≤ spent. OK.
+
+**Potential Issue 37: Book I §3.4 "Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined."**
+
+This is about the cost of a single step exceeding uint32 max. Since atp is uint32 max 2^32-1, and spent is at least 0, if c > 2^32-1, then c > atp - spent, so exhaustion. This is correct.
+
+**Potential Issue 38: Book I §3.4 ATP exhaustion and force cost unknown**
+
+"Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано."
+
+This means: if you need to force a thunk, you don't know if it's LITERAL(1), REF(2), or APPLY(3). If atp-spent = 1, and it turns out to be REF or APPLY, you cannot afford it. So you discard the bytes and return ATP Exhausted. This is deterministic because the decision is based on the budget, not on the bytes. Wait, but how do you know the bytes are unaffordable before reading them? The text says "ціна force стає відомою лише після отримання байтів (вид вузла)". So you fetch the bytes, see the OpCode, compute the cost, and if too expensive, you discard. But §3.6 says: "Вхід поза оголошеною областю ... MUST бути відхилені ... до звернення до середовища." That's for input validation. For force, you do consult the environment. The text says you can fetch the bytes to determine the kind, then discard if too expensive. This is fine.
+
+But what if the environment has a CAS mismatch? You fetch the bytes, check SHA-256(bytes) != key. Then local refusal. But you fetched the bytes. The text says the CAS check is over the raw buffer. So you must fetch the bytes to check CAS. That's fine.
+
+**Potential Issue 39: Book I §3.5 `resolve(h)`/`force(h)` and the two failure modes**
+
+Mode (a): h not in storage and not intrinsic → DISSONANCE(Unresolved Reference).
+Mode (b): bytes fail validation → Canonical Invalid Object, priced as force DISSONANCE (1).
+
+Is there a mode (c): bytes pass validation but CAS mismatch? That's local refusal (§3.6). Not a canonical result.
+
+What if h is in storage, bytes are valid, but the node is a LITERAL and the blob is missing? That's outside Book I (§1.1). The node materializes successfully. OK.
+
+**Potential Issue 40: Book I §7 TV-3 (DISSONANCE ATP)**
+
+Bytes: `ff01dc435a...` Hash: `8bb0006f...`
+This is a DISSONANCE node with atom = SHA-256("ATP Exhausted"). It's a normal form. Evaluating it with any budget should return normal_form with result_hash = H(node). But wait, the text doesn't give a budget for TV-3. It just says it's a DISSONANCE ATP node. Probably the vector in JSON has a budget and expects normal_form.
+
+OK.
+
+**Potential Issue 41: English rendering of Book I §7 notation**
+
+"In the vectors below, `eval(·, atp)` abbreviates evaluation of the named term with budget `atp` over this edition's content environment — the `objects` of `tests/spec_conformance/vectors.json`; the third input (§3.4) is not omitted; it is fixed by the set."
+
+This is clear.
+
+**Potential Issue 42: `book-1-truth.en.md` is informative but claims to be checked**
+
+The English file says: "**That last sentence is checked, not promised.** `tools/spec_audit.py` requires this file and the normative one to carry the same 64-hex hashes in the same order..."
+
+This is a meta-statement about tooling. It's not normative.
+
+**Potential Issue 43: GOV-anchors version 1.0.2 and bundle v0.7.0**
+
+GOV-anchors version is 1.0.2. The candidate bundle is v0.7.0. VERSIONS.md says the bundle number is independent. So no issue there.
+
+**Potential Issue 44: The GOV-anchors pin and Book I §8 anchor**
+
+Book I §8 says the anchor is NodeHash(LITERAL, SHA-256(document_bytes)). This is unchanged. So the anchor mechanism is the same.
+
+**Potential Issue 45: Is there any P0 or P1 in the text that I missed?**
+
+Let me re-read the Ukrainian Book I §3.5 carefully:
+
+"Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+This is clear.
+
+"Запис, якого виконання не вимагало, **MUST NOT** змінювати жоден канонічний `Receipt`"
+
+Clear.
+
+"Дві реалізації, які розв'язують ті самі **вимагані** хеші в ті самі байти, повертають однаковий `Receipt`."
+
+Clear.
+
+"Додавання вмісту може змінити **лише** вихід `unresolved_reference`. Усталений вихід — `normal_form` або `atp_exhausted` — MUST лишатися тим самим `Receipt` за будь-якого розширення середовища, яке зберігає відповіді на вже вимагані хеші."
+
+Clear.
+
+Now, is there any issue with the receipt definition? `Receipt = { exit, result_hash, atp_spent }`. Could two implementations return different `atp_spent` for the same evaluation? The text says the three exits are deterministic and identical on all nodes given the same demanded environment. It mentions exits, but does it say `atp_spent` is identical? It says "Усі три виходи — канонічні, детерміновані й однакові на всіх нодах за однакового **вимаганого** середовища (§3.5)." The "три виходи" refers to the three exits. It doesn't explicitly say `atp_spent` is identical. But the normative model of accounting is tree semantics (§3.4). So `atp_spent` should be deterministic. However, the text doesn't explicitly state that `atp_spent` is part of the consensus. Is that a P1?
+
+The text says: "`Receipt = { exit, result_hash, atp_spent }`". And then says the three exits are canonical, deterministic, and identical. It doesn't say the whole receipt is identical. But the accounting model says "звітований ATP MUST збігатися з tree-обліком." Since the tree accounting is deterministic, `atp_spent` is deterministic. But is it required to be identical across implementations? The text doesn't explicitly say so. However, the test vectors include `expected.atp_spent`, and §7 says the fields must agree. So it is normatively fixed by the suite. But is that sufficient?
+
+Actually, the suite is normative. So if the suite specifies atp_spent, then implementations must match it. But the prose doesn't state that `atp_spent` is consensus-critical. Is that a P1? A reader might think only `exit` and `result_hash` matter, and `atp_spent` is advisory. But the suite fixes it.
+
+Wait, §3.4 says: "Консенсус-критичні лише канонічні результати." And the receipt includes `atp_spent`. Is `atp_spent` consensus-critical? The text doesn't say. But the suite includes it as a normative field.
+
+Let me check the English: "All three exits are canonical, deterministic and identical on all nodes given the same demanded environment (§3.5)." It says "exits", not "receipts". It doesn't say `atp_spent` is identical. But the test vectors check it. This could be a P1: the text is silent on whether `atp_spent` must be identical across nodes, but the suite demands it.
+
+However, the text also says: "Нормативна модель обліку — tree semantics над матеріалізованим графом: шаринг MAY застосовуватись у виконанні, але звітований ATP MUST збігатися з tree-обліком." Since the tree accounting is deterministic, and the rules fix the cost of each action, the total spent is deterministic. So any conforming implementation must produce the same atp_spent. But the text doesn't explicitly state that two conforming implementations must produce the same atp_spent. It says the reported ATP must match tree accounting. Since tree accounting is deterministic, this implies atp_spent is deterministic. I think this is fine.
+
+But to be safe, let's see if there's any ambiguity. Could two different tree accountings both be valid? No, the costs are fixed. So atp_spent is fixed. But the text doesn't say "Receipts are identical across implementations." It says exits are identical. A pedantic implementer might ignore atp_spent. But the suite checks it, so they'd fail conformance.
+
+Is that a P0? No, because the suite would catch it. Two implementations that disagree on atp_spent would disagree on the vector suite, which is a P0 ("the text contradicts ... the vector suite"). But the text doesn't contradict the suite; it's just silent. However, the severity ladder says P0 includes "the text contradicts itself or the vector suite". Silence is not contradiction. And the suite is normative, so implementers must match it.
+
+Actually, §7 says: "Для кожного тестового вектора §7 нормативним представленням твердження прози в наборі є поля запису: ... витрачений ATP (`expected.atp_spent`). Розбіжність прози з будь-яким із цих полів робить видання неконформним." So the prose agrees that atp_spent is normative. The receipt definition includes it. I think it's fine.
+
+**Potential Issue 46: GOV-anchors pin again**
+
+Let me think about the GO

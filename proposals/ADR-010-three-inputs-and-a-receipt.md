@@ -270,28 +270,86 @@ The alternative — withholding the dispositions — would leave reviewers unabl
 see what changed and why, which trades a known weakness for a worse one. The
 weakness is named here so that nobody reads the vote total as more than it is.
 
-## Round 3 of the gate — incomplete
+## Owner disposition — GOV-anchors stays unchanged in v0.7.0
 
-Frozen at `gates/v0.7.0-candidate/round-3/`, anchor set `4c93717a…`.
+Recorded 2026-08-29 on the project owner's instruction, relayed through
+`codex@sigma-glyph`. This is the owner's decision, not a reviewer's verdict and
+not the author's:
 
-**ADOPT** (Gemini 3.1 Pro), **NO VERDICT** (DeepSeek), **NO VERDICT** (Kimi). Both
-NO VERDICTs are `HTTP Error 402: Payment Required`: the OpenRouter account ran out
-of credit partway through the round. DeepSeek was retried at a smaller reply
-budget and returned 402 again.
+> **The current candidate preserves the exact anchor-hashing semantics consumed
+> by GOV-anchors 1.0.2. A dependency-minimizing GOV 2.0 is separate governed
+> work, and is not part of this adoption.**
 
-This is one verdict, not a gate, and it is not recorded as one. The two families
-that raised round 2's findings have not seen the edits those findings produced —
-DeepSeek in particular has not been asked whether §3.5 now closes the P0 it
-found. No substitute model was used: swapping in a cheaper model from the same
-family would change the reviewer set mid-gate, and spending more is the account
-holder's decision.
+`spec/GOV-anchors.md` therefore ships unchanged in the `v0.7.0` anchor set, and
+the question the gate split on is answered by the owner rather than left open:
+the pin binds the semantics GOV consumes — `NodeHash(LITERAL, SHA-256(bytes))`,
+serialization and validation — and those do not move in this candidate. Re-pinning
+the version *strings* is a change to a STANDARD, which GOV §0 makes a breaking
+change requiring its own MAJOR version, its own §7 suite and its own governed
+adoption. Bundling it here would shortcut the rules GOV exists to state.
 
-**The candidate therefore has no gate.** Adoption needs a completed round over
-these exact bytes, and that is a prerequisite independent of, and additional to,
-the signature threshold.
+For the record, this is the disposition Kimi argued for in round 1 and Gemini
+adopted in rounds 2 and 3; DeepSeek held the opposite at P0 in rounds 1 and 2.
+The owner deciding it does not convert that disagreement into consensus, and §8
+of the report still counts the independent judgments rather than the verdicts. It
+does mean the candidate no longer carries an unresolved question into adoption:
+it carries a decided one, with the dissent recorded.
+
+## Round 3 of the gate — completed at the third delivery attempt
+
+Frozen at `gates/v0.7.0-candidate/round-3/`, anchor set `4c93717a…`, prompt
+`5dd79230…`. **ADOPT** (Gemini 3.1 Pro), **REJECT** (DeepSeek v4 Pro),
+**NO VERDICT** (Moonshot, three attempts, never a reply).
+
+One frozen subject, several documented delivery attempts. Attempt 1 for DeepSeek
+and Moonshot was `HTTP 402` — the account was out of credit. Attempt 2, after it
+was topped up, returned reasoning traces and no reply from both at a 40 000-token
+budget. Attempt 3 at 24 000 — the budget under which DeepSeek had produced a
+clean review in round 2 — got DeepSeek's review; Moonshot produced 83 414 more
+characters of trace and still no reply. Every attempt is filed beside the last,
+never over it, and the retries were delivered from the **recorded** prompt file
+rather than a rebuilt one, so all three families were asked the same question.
+
+- **DeepSeek's P0 is GOV-anchors**, restating its round-2 position: a verifier
+  treating the dependency pin as binding refuses the bundle, one applying only
+  §3's seven steps authorizes it. It says explicitly that this "is not fixable by
+  editing the three Books". The owner's disposition above answers it; the dissent
+  stands in the record.
+- **One observation moves normative bytes, and that is what triggers round 4.**
+  TV-7 read `∀n: eval(Ω,n) = DISSONANCE(ATP Exhausted)` and TV-12 read
+  `eval(H(I), n) = ⟨I⟩, 0 ATP`, quantified over every `n`. §3.6 — which this
+  candidate adds — refuses a budget outside `uint32` before evaluation and
+  forbids that refusal from being a canonical exit, so both statements claimed a
+  canonical outcome for inputs the same Book says must be locally refused. This
+  is the third instance of one pattern: a clause added, its neighbour not
+  revisited. Both quantifiers are bounded to `n : uint32` in round 4.
+- DeepSeek also read §3.5's "«do these bytes belong under this key» has no
+  canonical answer" as confusing and declined to raise it. Left as written: the
+  sentence distinguishes a question with a canonical answer from one without, and
+  that distinction is the point of the paragraph.
+
+**A defect in this tool, found here.** `ask()` fell back to the API's `reasoning`
+field when `content` was empty, so a model that spent its whole budget thinking
+and never answered was recorded as having produced a 73 KB review that merely
+lacked a verdict line. Those are two different facts and only one is about the
+candidate. An empty reply is now `NO VERDICT — the model returned no reply, only
+an N-character reasoning trace`, and the trace is filed beside the record as
+`*.reasoning-trace.txt`, never as it.
+
+## Round 4 of the gate
+
+Frozen at `gates/v0.7.0-candidate/round-4/`, anchor set `91b4182c…`. Triggered by
+the TV quantifier defect above. All three families asked again, and the third
+family is now `qwen/qwen3-235b-a22b-2507`: Moonshot never delivered a review on
+this subject under either model tried, and OpenAI would have put the vendor that
+instructs and signs on the gate as well. That is a change to the gate's own
+composition, it weakens comparability across rounds, and `round-4/FREEZE.md` says
+so rather than absorbing it.
 
 | Date | Change | Bytes already edited? |
 | --- | --- | --- |
 | 2026-08-29 | scope fixed, before any normative edit | no |
 | 2026-08-29 | round 1: three REJECT; four findings fixed, one recorded unresolved | yes, after the gate saw them |
 | 2026-08-29 | round 2: ADOPT / REJECT / NO VERDICT; both findings were round 1's own repair | yes, after the gate saw them |
+| 2026-08-29 | round 3: ADOPT / REJECT / NO VERDICT after three delivery attempts; one observation moved the bytes | yes, after the gate saw them |
+| 2026-08-29 | round 4 frozen; third family changed to Qwen because Moonshot never delivered | no |

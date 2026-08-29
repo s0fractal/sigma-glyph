@@ -224,7 +224,7 @@ A(x, (M N))  = APPLY(APPLY(⟨S⟩, A(x,M)), A(x,N))
 
 **TV-6 (Duplication Stress):** `S I I (I·K)` hash `0379bafee726f493bffc153163b7165b916efe0bd661cf99bc2f834f36db8198`; нормальна форма `APPLY(⟨K⟩,⟨K⟩)`; рівно **21 ATP**; уздовж виконання `size − 1 ≤ spent` (семантична межа пам'яті, §3.4).
 
-**TV-7 (Omega):** `Ω = (SII)(SII)` hash `0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211`; `∀n: eval(Ω,n) = DISSONANCE(ATP Exhausted)`.
+**TV-7 (Omega):** `Ω = (SII)(SII)` hash `0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211`; `∀n : uint32 — eval(Ω,n) = DISSONANCE(ATP Exhausted)`. Квантор обмежений оголошеною областю бюджету: значення поза `uint32` не є бюджетом і дає локальну відмову (§3.6), а не канонічний вихід, тож твердження про них тут не робиться.
 
 **TV-8 (Unresolved Child):** `APPLY(⟨I⟩, ghost)` при відсутньому ghost → `DISSONANCE(Unresolved Reference)`, spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується.
 
@@ -234,7 +234,7 @@ A(x, (M N))  = APPLY(APPLY(⟨S⟩, A(x,M)), A(x,N))
 
 **TV-11 (Divergence class, v0.5):** ghost = SHA-256(ASCII `this node was never stored`), відсутній у сховищі. `APPLY(⟨FALSE⟩, ghost)` (= `(K I) ghost`) → ⟨I⟩, 7 ATP; `APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP. У 0.4.x обидва давали Unresolved Reference — це свідомий breaking change (ADR-003).
 
-**TV-12 (Genesis intrinsic, v0.5):** `REF(H(K))` на **порожньому** сховищі → ⟨K⟩, 3 ATP. Голий intrinsic-товк: `eval(H(I), n)` = ⟨I⟩, 0 ATP, сховище не потрібне.
+**TV-12 (Genesis intrinsic, v0.5):** `REF(H(K))` на **порожньому** сховищі → ⟨K⟩, 3 ATP. Голий intrinsic-товк: `eval(H(I), n)` = ⟨I⟩, 0 ATP для будь-якого `n : uint32`, сховище не потрібне.
 
 **Негативні:** flags поза 0x07; невідповідність Flags опкоду; опкод 0x03; довжина ≠ expected — усе → Canonical Invalid Object.
 

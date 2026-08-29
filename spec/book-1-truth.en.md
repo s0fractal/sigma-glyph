@@ -452,8 +452,10 @@ the root bytes discarded (force costs 3 > 2); `eval(·,3)` = ATP Exhausted, spen
 semantic memory bound, §3.4).
 
 **TV-7 (Omega):** `Ω = (SII)(SII)` hash
-`0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211`; `∀n:
-eval(Ω,n) = DISSONANCE(ATP Exhausted)`.
+`0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211`; `∀n : uint32 —
+eval(Ω,n) = DISSONANCE(ATP Exhausted)`. The quantifier is bounded by the
+declared budget domain: a value outside `uint32` is not a budget and yields a
+local refusal (§3.6), not a canonical exit, so nothing is claimed about it here.
 
 **TV-8 (Unresolved Child):** `APPLY(⟨I⟩, ghost)` with ghost absent →
 `DISSONANCE(Unresolved Reference)`, spent 4: R-I fires lazily WITHOUT forcing
@@ -474,7 +476,8 @@ ATP; `APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP. In 0.4.x both gave Unres
 Reference — this is a deliberate breaking change (ADR-003).
 
 **TV-12 (Genesis intrinsic, v0.5):** `REF(H(K))` on an **empty** store → ⟨K⟩, 3
-ATP. A bare intrinsic thunk: `eval(H(I), n)` = ⟨I⟩, 0 ATP, no store needed.
+ATP. A bare intrinsic thunk: `eval(H(I), n)` = ⟨I⟩, 0 ATP for any `n : uint32`, no
+store needed.
 
 **Negatives:** flags outside 0x07; Flags not matching the opcode; opcode 0x03;
 length ≠ expected — all → Canonical Invalid Object.

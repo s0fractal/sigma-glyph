@@ -1,0 +1,17 @@
+{
+  "answered_utc": "2026-08-29T18:45:26+00:00",
+  "attempt": 3,
+  "family": "deepseek",
+  "finish_reason": "stop",
+  "follows": "review-deepseek.retry-1.md",
+  "frozen_commit": "0c1eb37102c0a250f8944fa23222a420adf9f323",
+  "max_tokens": 24000,
+  "model_answered": "deepseek/deepseek-v4-pro-0813",
+  "model_requested": "deepseek/deepseek-v4-pro-0813",
+  "no_verdict_reason": null,
+  "prompt_sha256": "5dd792308393457b613eef16a6e3c93b234996b4da057e27614966f86a466b84",
+  "requested_utc": "2026-08-29T18:34:58+00:00",
+  "response_sha256": "526721f0af22d5170814937e23a2171d635698e8163b10ec42babeb1736d27a7",
+  "system_sha256": "a87d162d7a1c13ce15756bcf1565daf55701b91fd7e47ed432dfae4d3a819d2a",
+  "verdict": "REJECT"
+}

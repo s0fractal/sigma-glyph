@@ -57,15 +57,21 @@ API = "https://openrouter.ai/api/v1/chat/completions"
 REVIEWERS = [
     ("google", "google/gemini-3.1-pro-preview"),
     ("deepseek", "deepseek/deepseek-v4-pro-0813"),
-    ("moonshot", "moonshotai/kimi-k2.6"),
+    ("qwen", "qwen/qwen3-235b-a22b-2507"),
 ]
 
-# Not `moonshotai/kimi-k3`: it usually returns nothing here. In round 2 of the
-# v0.7.0 gate it reasoned past a 24 000-token reply budget and was cut off with no
-# verdict while the other two families answered well inside it. A reviewer that
-# returns nothing is not a cheap failure — it costs the whole round, because two
-# verdicts cannot be averaged into three, and the spend on the others is wasted.
-# k2.6 is the model that ran the GOV-anchors 1.0 verification pass.
+# The third family was Moonshot and is not any more. `kimi-k3` returned nothing
+# in every round it was asked; `kimi-k2.6`, tried as its replacement, did the
+# same thing twice on this prompt — 147 315 and then 83 414 characters of
+# reasoning trace and no reply, at 40 000 and at 24 000 tokens. A reviewer that
+# returns nothing does not cost a third of a round, it costs the round.
+#
+# Not OpenAI either, though GPT-5 sat on the original ADR-007 gate. `codex@
+# sigma-glyph` is a roster signer and the instructions for this round came
+# through it; putting the same vendor on the gate as well would concentrate the
+# instructing, the signing and a third of the reviewing in one place. Qwen is
+# outside both the roster and the instruction chain, and the non-thinking
+# `-2507` variant answers instead of narrating.
 
 # Shown to every reviewer, in this order.
 SOURCES = [
@@ -117,6 +123,14 @@ ADOPT-WITH-AMENDMENTS means every P0 is absent and the P1s you list are, in your
 judgement, fixable by editing the text without changing what the machine does. \
 REJECT means at least one P0 stands, or the candidate should not proceed in this \
 shape."""
+
+
+class NoReply(RuntimeError):
+    """The transport worked; the model produced no answer. Carries the trace."""
+
+    def __init__(self, message, trace=""):
+        super().__init__(message)
+        self.trace = trace
 
 
 def key():
@@ -208,9 +222,9 @@ did not edit it and say so. Whether that is correct is in scope.
 Review the candidate now."""
 
 
-def ask(model, prompt, timeout, max_tokens):
+def ask(model, prompt, system, timeout, max_tokens):
     body = json.dumps({"model": model,
-                       "messages": [{"role": "system", "content": SYSTEM},
+                       "messages": [{"role": "system", "content": system},
                                     {"role": "user", "content": prompt}],
                        "max_tokens": max_tokens}).encode()
     request = urllib.request.Request(
@@ -224,11 +238,18 @@ def ask(model, prompt, timeout, max_tokens):
     if "error" in payload:
         raise RuntimeError(f"api error: {payload['error']}")
     choice = payload["choices"][0]
-    content = choice["message"].get("content") or choice["message"].get("reasoning")
-    if not content or not content.strip():
-        raise RuntimeError("empty content; finish_reason="
-                           f"{choice.get('finish_reason')}")
-    return content, payload.get("model", model), choice.get("finish_reason")
+    message = choice["message"]
+    content = (message.get("content") or "").strip()
+    if content:
+        return content, payload.get("model", model), choice.get("finish_reason")
+    # A reasoning trace is not a review. Recording one as the reviewer's answer
+    # produced a 73 KB "review with no verdict line" when what actually happened
+    # was that the model spent its whole budget thinking and never replied — two
+    # different facts, and only one of them is about the candidate.
+    trace = (message.get("reasoning") or "").strip()
+    raise NoReply(f"the model returned no reply, only a "
+                  f"{len(trace)}-character reasoning trace "
+                  f"(finish_reason={choice.get('finish_reason')})", trace)
 
 
 def no_verdict_reason(error, decision):
@@ -262,14 +283,43 @@ def keep_prompt(path, text):
     path.write_text(text)
 
 
+def attempt_paths(freeze, family, retry):
+    """Where this attempt is written, and what it follows.
+
+    A delivery failure is not a review. When a reviewer could not be reached, the
+    round is not re-run and its record is not replaced: the failed attempt stays
+    exactly where it is and the next one is filed beside it. One frozen subject,
+    several documented attempts to put it in front of the same reviewer.
+    """
+    directory = ROOT / freeze
+    first = directory / f"review-{family}.md"
+    if not retry:
+        return first, directory / f"review-{family}.json", 1, None
+    if not first.exists():
+        sys.exit(f"--retry, but {first.relative_to(ROOT)} does not exist: there "
+                 f"is no earlier attempt for {family} to follow.")
+    n = 1 + len(list(directory.glob(f"review-{family}.retry-*.json")))
+    previous = (f"review-{family}.retry-{n - 1}.md" if n > 1
+                else f"review-{family}.md")
+    return (directory / f"review-{family}.retry-{n}.md",
+            directory / f"review-{family}.retry-{n}.json", n + 1, previous)
+
+
 def review_one(freeze, family, model, context):
     """Ask one reviewer and write down everything about the asking."""
     asked = utc()
-    print(f"[gate] {family}: {model} ...", file=sys.stderr)
+    out_md, out_json, attempt, follows = attempt_paths(
+        freeze, family, context["retry"])
+    trace = ""
+    print(f"[gate] {family}: {model} (attempt {attempt}) ...", file=sys.stderr)
     try:
         text, answered_by, finish = ask(model, context["prompt"],
-                                        context["timeout"], context["max_tokens"])
+                                        context["system"], context["timeout"],
+                                        context["max_tokens"])
         error = None
+    except NoReply as failure:
+        text, answered_by, finish, error = "", model, "no-reply", str(failure)
+        trace = failure.trace
     except (OSError, RuntimeError, ValueError, LookupError) as failure:
         text, answered_by, finish, error = "", model, None, str(failure)
     decision = verdict_of(text) if text else None
@@ -280,6 +330,8 @@ def review_one(freeze, family, model, context):
         "requested_utc": asked,
         "answered_utc": utc(),
         "finish_reason": finish,
+        "attempt": attempt,
+        "follows": follows,
         "max_tokens": context["max_tokens"],
         "prompt_sha256": context["prompt_sha256"],
         "system_sha256": context["system_sha256"],
@@ -292,19 +344,40 @@ def review_one(freeze, family, model, context):
     header = "\n".join(f"{k}: {v}" for k, v in record.items() if v is not None)
     body = (text.strip() + "\n" if text
             else f"NO VERDICT — {record['no_verdict_reason']}\n")
-    (ROOT / freeze / f"review-{family}.md").write_text(f"<!--\n{header}\n-->\n\n{body}")
-    (ROOT / freeze / f"review-{family}.json").write_text(
-        json.dumps(record, indent=2, sort_keys=True) + "\n")
+    out_md.write_text(f"<!--\n{header}\n-->\n\n{body}")
+    if trace:
+        # Kept, because it is evidence about the reviewer and about this tool's
+        # settings — but beside the record, never as the record.
+        out_md.with_suffix(".reasoning-trace.txt").write_text(trace)
+    out_json.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
     print(f"[gate] {family}: {record['verdict']}", file=sys.stderr)
     return record
 
 
-def report(results):
-    """Print the round, and say plainly when it is not a round."""
+def standing(freeze):
+    """Each family's latest attempt in this round, whatever produced it."""
+    latest = {}
+    for record_path in sorted((ROOT / freeze).glob("review-*.json")):
+        record = json.loads(record_path.read_text())
+        family = record["family"]
+        if record.get("attempt", 1) >= latest.get(family, {}).get("attempt", 0):
+            latest[family] = record
+    return latest
+
+
+def report(results, freeze):
+    """Print this run, then where the ROUND stands across all its attempts."""
     print()
     for record in results:
         print(f"  {record['family']:<10} {record['model_answered']:<34} "
-              f"{record['verdict']}")
+              f"attempt {record['attempt']}  {record['verdict']}")
+    latest = standing(freeze)
+    if len(latest) > len(results):
+        print("\n  round, latest attempt per family:")
+        for family, record in sorted(latest.items()):
+            print(f"    {family:<10} {record['model_answered']:<34} "
+                  f"attempt {record.get('attempt', 1)}  {record['verdict']}")
+    results = list(latest.values())
     verdicts = [r["verdict"] for r in results]
     named = [v for v in verdicts if v != "NO VERDICT"]
     rejects = verdicts.count("REJECT")
@@ -317,25 +390,58 @@ def report(results):
     return 1 if rejects else 0
 
 
-def run(freeze, timeout, only, max_tokens):
+def recorded_prompt(freeze):
+    """The exact bytes this round's earlier attempts were sent, re-verified.
+
+    A retry that regenerates the prompt is a different round wearing the same
+    name: the ADR the prompt embeds moves as dispositions are written, so
+    rebuilding it would put a later question to a reviewer while the directory
+    claims one frozen subject. Read the recorded files, and demand they still
+    hash to what every review in this directory says it was shown.
+    """
+    directory = ROOT / freeze
+    prompt = (directory / "prompt.txt").read_text()
+    system = (directory / "prompt.system.txt").read_text()
+    digests = (hashlib.sha256(prompt.encode()).hexdigest(),
+               hashlib.sha256(system.encode()).hexdigest())
+    for record_path in sorted(directory.glob("review-*.json")):
+        record = json.loads(record_path.read_text())
+        recorded = (record.get("prompt_sha256"), record.get("system_sha256"))
+        if recorded != digests:
+            sys.exit(f"{record_path.name} was shown prompt {recorded[0][:12]}, "
+                     f"but prompt.txt now hashes to {digests[0][:12]}. This is "
+                     f"not the same subject; freeze a new round.")
+    return prompt, system, digests
+
+
+def run(freeze, timeout, only, max_tokens, retry=False):
     head, _ = check_freeze(freeze)
-    prompt = build_prompt()
+    if retry:
+        prompt, system, (prompt_digest, system_digest) = recorded_prompt(freeze)
+        print(f"[gate] retry over the RECORDED prompt: {len(prompt)} bytes, "
+              f"sha256 {prompt_digest[:16]}", file=sys.stderr)
+    else:
+        prompt, system = build_prompt(), SYSTEM
+        prompt_digest = hashlib.sha256(prompt.encode()).hexdigest()
+        system_digest = hashlib.sha256(system.encode()).hexdigest()
+        print(f"[gate] prompt {len(prompt)} bytes, sha256 {prompt_digest[:16]}",
+              file=sys.stderr)
+        keep_prompt(ROOT / freeze / "prompt.txt", prompt)
+        keep_prompt(ROOT / freeze / "prompt.system.txt", system)
     context = {
         "prompt": prompt,
+        "system": system,
         "timeout": timeout,
         "max_tokens": max_tokens,
         "head": head,
-        "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
-        "system_sha256": hashlib.sha256(SYSTEM.encode()).hexdigest(),
+        "retry": retry,
+        "prompt_sha256": prompt_digest,
+        "system_sha256": system_digest,
     }
-    print(f"[gate] prompt {len(prompt)} bytes, "
-          f"sha256 {context['prompt_sha256'][:16]}", file=sys.stderr)
-    keep_prompt(ROOT / freeze / "prompt.txt", prompt)
-    keep_prompt(ROOT / freeze / "prompt.system.txt", SYSTEM)
     results = [review_one(freeze, family, model, context)
                for family, model in REVIEWERS
                if not only or family in only]
-    return report(results)
+    return report(results, freeze)
 
 
 def main():
@@ -346,10 +452,15 @@ def main():
                         help="reply budget; a reviewer that reasons at length "
                              "and is cut off returns NO VERDICT, which is a "
                              "fact about this number and not about the candidate")
+    parser.add_argument("--retry", action="store_true",
+                        help="re-deliver this round's RECORDED prompt to a "
+                             "reviewer that could not be reached; writes a new "
+                             "attempt file and never replaces an existing one")
     parser.add_argument("--only", action="append", default=[],
                         help="run only this family (repeatable)")
     args = parser.parse_args()
-    return run(args.freeze.rstrip("/"), args.timeout, args.only, args.max_tokens)
+    return run(args.freeze.rstrip("/"), args.timeout, args.only,
+               args.max_tokens, args.retry)
 
 
 if __name__ == "__main__":

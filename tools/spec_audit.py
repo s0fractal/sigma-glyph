@@ -276,9 +276,12 @@ class Claim(NamedTuple):
 # a marker like "C1[" covered several statements at once and stayed satisfied
 # when one of them changed.
 DECLARED = {
-    "∀n: eval(Ω,n) = DISSONANCE(ATP Exhausted)":
-        "quantified over every budget; the suite records two instances and this "
-        "audit does not decide quantified statements",
+    "∀n : uint32 — eval(Ω,n) = DISSONANCE(ATP Exhausted)":
+        "quantified over every budget in the declared domain; the suite records "
+        "two instances and this audit does not decide quantified statements. The "
+        "bound was added after a reviewer observed that §3.6 refuses a budget "
+        "outside uint32 before evaluation, so an unbounded quantifier claimed a "
+        "canonical exit for inputs the same Book says must be locally refused",
     "C1[λx.x] = ⟨I⟩":
         "what the compiler emits, not what an evaluation produces. The suite "
         "records how C1's output behaves and not the compilation",
@@ -292,7 +295,7 @@ DECLARED = {
 # subject, result and spend — to one witness, so changing any part of the
 # sentence or any part of the evidence breaks it.
 EXCEPTIONS = {
-    "Голий intrinsic-товк: eval(H(I), n) = ⟨I⟩, 0 ATP, сховище не потрібне": {
+    "Голий intrinsic-товк: eval(H(I), n) = ⟨I⟩, 0 ATP для будь-якого n : uint32, сховище не потрібне": {
         "witness": "EV-GENESIS-BARE",
         "result_glyph": "I",
         "expects": {"outcome": "normal_form", "atp_spent": 0},
@@ -300,7 +303,7 @@ EXCEPTIONS = {
                "TV-12, so nothing machine-readable connects the paragraph to its "
                "evidence. Filing it edits an anchored file; ADR-008.",
     },
-    "A bare intrinsic thunk: eval(H(I), n) = ⟨I⟩, 0 ATP, no store needed": {
+    "A bare intrinsic thunk: eval(H(I), n) = ⟨I⟩, 0 ATP for any n : uint32, no store needed": {
         "witness": "EV-GENESIS-BARE",
         "result_glyph": "I",
         "expects": {"outcome": "normal_form", "atp_spent": 0},

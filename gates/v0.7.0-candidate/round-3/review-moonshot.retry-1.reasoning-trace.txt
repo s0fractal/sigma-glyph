@@ -1,0 +1,858 @@
+The user wants me to review a candidate revision of a normative specification (v0.7.0) against the adopted release (v0.6.7). I am one of three independent reviewers from different model families. I need to be correct, not agreeable or harsh. I cannot run code, but must check claims by arithmetic or reading supplied bytes.
+
+Key constraints:
+- Do NOT treat as evidence: CI being green, previous releases being gated, authors saying a check exists unless normative.
+- Severity ladder:
+  - P0: two conforming implementations can disagree on a result, or text contradicts itself or vector suite.
+  - P1: text is silent where implementer must guess, or normative requirement unenforceable as written.
+  - P2: clarity, naming, structure.
+  - P3: future work.
+- For every P0 and P1, give an executable counterexample: concrete term, budget, environment (or document state) plus two different results.
+- End with exactly one line verdict: ADOPT, ADOPT-WITH-AMENDMENTS, or REJECT.
+
+Scope notes:
+- English rendering is informative, not normative, but candidate claims it carries same requirements. Disagreement is a finding.
+- GOV-anchors.md is unchanged by candidate and pins dependencies as Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1. Authors didn't edit it. Whether that is correct is in scope.
+
+I need to review the diff and the full text carefully.
+
+Let me analyze the changes and the full text for issues.
+
+First, let's look at the diff summary:
+
+Book I (0.5.2 -> 0.6.0):
+- §3.4: Added "Розмір — семантична міра матеріалізації" and "Чим ця межа не є" paragraph.
+- §3.4: Interface changed from `eval(term_hash, atp: uint32)` to `eval(term_hash, atp: uint32, env)` with `env` content environment. Receipt defined.
+- §3.4: Added `result_hash` alone doesn't determine `exit`.
+- §3.4: Added compatibility profile.
+- §3.4: Changed ATP budget description: used to say "ATP > 2³²−1 — implementation-defined (MAY reject/clamp)"; now says values outside uint32 MUST be refused per §3.6, MUST NOT clamp.
+- §3.4: Added "Перевірка вичерпання передує дії" and semantic memory bound theorem.
+- §3.5: Resolution Contract expanded with content environment, SHA-256(bytes)=key check, determinism over demanded environment, extension stability.
+- §3.6: Added admission boundary, input outside domain refusal (atp not uint32, term_hash not 32 bytes).
+- §3.7: Tooling unchanged.
+- §4.1, §4.2: No change? (Wait, diff shows some context around TV-3 but no change to validation section).
+- §5.1: Clarified SHA-256("X") meaning.
+- §7: Major changes. Added normative status of vectors.json. Added field mapping for vectors. Added notation for eval(·, atp) shorthand.
+- TV-4 through TV-12: No changes to content but added annotations.
+- English rendering updated correspondingly.
+
+Book II (0.6.1 -> 0.7.0):
+- §5: Changed reference to vectors.json: removed "при розбіжності з прозою виграє оракул impl/sigma_wave.py" and replaced with paragraph stating suite is normative part, no implementation precedence, etc. Added mapping of schema fields.
+
+Book III (0.6.1 -> 0.7.0):
+- §8: Same change: suite is normative part, no implementation precedence, field mapping.
+
+Other files:
+- VERSIONS.md: Explains version scheme, fixes spec_version discrepancies.
+- GOV-anchors.md: Unchanged by candidate.
+
+Now let's look for issues.
+
+Potential issue 1: GOV-anchors.md pins Book I v0.5.2, Book II v0.6.1, Book III v0.6.1. The candidate proposes Book I 0.6.0, Book II 0.7.0, Book III 0.7.0. The authors deliberately did not edit GOV-anchors.md. Is this a problem?
+
+ADR-010 says: "Gemini's and DeepSeek's reading is that a governance verifier treating the pin as binding rejects the bundle while one applying only §3's seven steps authorizes it, which is a divergence about whether the release may be adopted at all. Both readings are recorded; the choice is the roster's, because a document that governs which bytes are the specification should not be amended by the author of the bytes it is being asked to govern."
+
+This is in scope. But is it a P0? Let's think. GOV-anchors.md is a STANDARD. It pins dependencies. The candidate does not change GOV-anchors.md. The question is whether the candidate bundle can be adopted while GOV-anchors.md still pins old versions. The GOV doc says: "Re-pinning to a newer dependency is itself a breaking change." So under GOV-anchors.md, the new Books would be a breaking change to the governance standard? Actually, GOV-anchors.md governs which bytes are anchored. It says this profile is defined against Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1. It also says: "Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0)." And §0 says: "Breaking changes to any of the above are permissible only under a new MAJOR document version (SemVer)."
+
+So the candidate is proposing new Book versions without changing GOV-anchors.md's pinned dependencies. If GOV-anchors.md is normative and binding, then the candidate bundle either violates the governance standard (because it changes semantics without a new MAJOR version of GOV-anchors) or the governance standard is meta and doesn't block adoption of new Book versions. The ADR records a deliberate disagreement.
+
+Is this a P0? A P0 requires "two conforming implementations can disagree on a result, or the text contradicts itself or the vector suite". The GOV-anchors issue is about whether the release can be adopted, not about computational results. However, if two verifiers disagree on whether the candidate is adoptable, that's a disagreement on a result (the result of the governance procedure). But the prompt asks about the specification revision adoption. The GOV issue is a governance disagreement. The prompt says "Whether that is correct is in scope." But is it a P0? The ADR frames it as a governance question for the roster. It might be a P1 (text is silent where implementer must guess) if the implementer is the governance verifier. But a governance verifier is an implementation of GOV-anchors.
+
+However, the prompt says: "The English rendering spec/book-1-truth.en.md is informative, not normative. It is included because the candidate claims it carries the same requirements as the Ukrainian text; disagreement between them is a finding."
+
+So I must check if the English rendering disagrees with the Ukrainian normative text.
+
+Let me compare key sections. The English text is provided in full. I need to compare it against the Ukrainian text (also provided). Since I cannot run code, I must read carefully.
+
+Actually, the prompt says "the full text of every Book at the candidate revision". So I have both Ukrainian and English texts. I need to check if they carry the same requirements. This is a manual check.
+
+Potential issue 2: §3.5 in Ukrainian says: "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+And English says: "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+
+Looks consistent.
+
+Potential issue 3: §3.6 in Ukrainian: "`eval` тотальний, тож терм незнайомця завершується завжди; це не те саме, що бути придатним до виконання. ... Вхід поза оголошеною областю (MUST). `atp`, що не є `uint32`, і `term_hash`, що не є рівно 32 байтами, MUST бути відхилені так само — локально, до звернення до середовища, і не як канонічний вихід."
+
+English: "`eval` is total, so a stranger's term always terminates; that is not the same as being affordable to run. ... Input outside the declared domain (MUST). An `atp` that is not a `uint32`, and a `term_hash` that is not exactly 32 bytes, MUST be refused the same way — locally, before the environment is consulted, and not as a canonical exit."
+
+Consistent.
+
+Potential issue 4: §7 notation. Ukrainian: "У векторах нижче `eval(·, atp)` — скорочення для обчислення вказаного терма з бюджетом `atp` над середовищем вмісту цього видання, тобто над об'єктами `objects` набору `tests/spec_conformance/vectors.json`; третій вхід (§3.4) не опускається, а фіксується набором."
+
+English: "In the vectors below, `eval(·, atp)` abbreviates evaluation of the named term with budget `atp` over this edition's content environment — the `objects` of `tests/spec_conformance/vectors.json`. The third input (§3.4) is not omitted; it is fixed by the set."
+
+Consistent.
+
+Potential issue 5: Compatibility profile. Ukrainian: "Реалізація MAY надавати двозначну форму `eval(term_hash, atp, env) → (result_term, atp_spent)`. Вона не втрачає жодної гарантії цієї Книги і не є застарілою; єдине, чого вона не може, — відповісти на питання `exit`."
+
+English: "An implementation MAY offer the two-value form `eval(term_hash, atp, env) → (result_term, atp_spent)`. It loses no guarantee of this Book and is not deprecated; the one question it cannot answer is `exit`."
+
+Consistent.
+
+Potential issue 6: ATP budget. Ukrainian: "ATP-бюджет — `uint32`. Значення поза цією областю не є бюджетом: воно MUST бути відхилене згідно з §3.6 (локально, до звернення до середовища, і не як канонічний вихід). Реалізація MUST NOT приймати його, обрізавши до 2³²−1..."
+
+English: "The ATP budget is a `uint32`. A value outside that domain is not a budget: it MUST be refused per §3.6 — locally, before the environment is consulted, and not as a canonical exit. An implementation MUST NOT accept it by clamping to 2³²−1..."
+
+Consistent.
+
+Now let's look for actual normative contradictions or gaps.
+
+Potential issue 7: The candidate adds `env` as a third input to `eval`. In §3.4 it says "Три входи, не два". But in §7, the test vectors notation `eval(·, atp)` is used, and it's explained that the third input is fixed by the vector suite. However, in §3.4's interface definition, the signature is `eval(term_hash, atp: uint32, env)`. In §7, the text says "eval(·, atp)" is shorthand. The English says "In the vectors below, `eval(·, atp)` abbreviates... The third input (§3.4) is not omitted; it is fixed by the set." This seems fine.
+
+But is there a contradiction in the semantic memory bound? Ukrainian says "префлайт"-оцінку, English says "preflight". Wait, that's a typo fix. Not an issue.
+
+Now, deep dive into potential P0/P1s.
+
+P0 candidate: Two conforming implementations can disagree.
+
+Where could they disagree?
+
+1. On the handling of `atp` values > 2^32-1 or non-uint32. The candidate explicitly forbids clamping and requires refusal. So if one implementation clamps and another refuses, they disagree on the same input? Actually, the text says clamping MUST NOT happen. So an implementation that clamps is non-conformant. But is the requirement enforceable? Yes. However, is there any way two *conforming* implementations can disagree? Maybe on what constitutes a "local refusal" vs a canonical result? The text says refusal MUST NOT be serialized as DISSONANCE. But what does it mean to "refuse"? Is there a standard serialization of a refusal? The text says it's a local fault. So two conforming implementations might both refuse, but how do they report the refusal? The text says it's local, not canonical. Thus they might report different local errors, but since it's not a canonical result, does that count as a disagreement on a result? The spec says "eval is total... a refusal... MUST NOT be serialized as DISSONANCE". If a caller asks for a Receipt and gets a local fault, the implementations might throw exceptions differently. But the spec doesn't define the serialization of local faults. However, P0 is about two conforming implementations disagreeing on a result. If the spec doesn't define the result for local faults, then perhaps two implementations could disagree on whether to produce a canonical result or a local fault for out-of-domain inputs? No, the text is clear: out-of-domain MUST be refused locally, not as canonical. So both must refuse. They might refuse differently, but the spec says it's not a canonical result. Is that a P1? "A normative requirement is unenforceable as written" — maybe, because how do you check if an implementation refused locally vs produced a canonical result? You can check that it doesn't produce a Receipt. But is that enforceable? Yes, by inspection. Not a P0.
+
+2. On the CAS property check timing: §3.5 says the property MUST be checked for every hash the evaluation actually resolves. An eager checker might check all entries in env before starting; a lazy checker checks only demanded ones. The text explicitly says: "Запис, якого виконання не вимагало, MUST NOT змінювати жоден канонічний Receipt". And "виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат." This means if an undemanded hash has a foreign key mismatch, it must not affect the Receipt. So an eager validator that checks all entries and refuses if any mismatch is found would be non-conformant if it changes the Receipt. But the text also says: "Це не забороняє верифікаторові не допустити середовище з власних причин — зокрема перевіривши його ширше, ніж вимагає виконання. Такий крок є допуском (§3.6), а не обчисленням: він не дає жодного Receipt". So a verifier can refuse the environment before evaluation. That is admission. So two conforming implementations: one eagerly checks all keys and refuses admission (no Receipt), another only checks demanded keys and returns a canonical Receipt. Since admission produces no Receipt, they don't disagree on *canonical* results. However, the user might see one evaluate and the other not. But that's local policy. Not a P0. Good.
+
+Wait, is there a subtle issue about what "demanded" means? The text says "для кожного хеша, який виконання фактично розв'язує". Does "resolve" mean `resolve` is called, or does it mean the hash is looked up in env? It says `resolve(h)`/`force(h)` is the single node-materialization operation. So if `resolve(h)` is called, the hash is demanded. Lazy evaluation means dead branches are not forced. So only hashes that are actually forced are demanded. This seems clear enough.
+
+3. On the Receipt and `result_hash`. The text says `result_hash` alone does not identify the exit. But what about the case where `eval` returns `Receipt` with `exit=normal_form` and `result_hash = H(DISSONANCE(ATP Exhausted))` because that node is in the store and was reached as a normal form? Wait, if the term itself is `DISSONANCE(ATP Exhausted)`, then it's a normal form (DISSONANCE is a normal form). But `eval` might also produce `exit=atp_exhausted` with `result_hash = H(DISSONANCE(ATP Exhausted))` because it ran out of budget while trying to reduce something else and returned the dissonance node as the current term. So the same `result_hash` can correspond to different exits. The text explicitly warns about this. Is there a case where two conforming implementations could disagree? Suppose one implementation returns `normal_form` with result_hash H(DISSONANCE) because the input term *is* a DISSONANCE node. Another returns `atp_exhausted` with the same result_hash because it exhausted ATP while evaluating some other term and the stuck term is DISSONANCE? No, the input term is the same. For a given input, the behavior is deterministic. So no disagreement.
+
+4. On the English rendering. Let's check for discrepancies that could cause different implementations.
+
+In §3.4, Ukrainian: "Реалізація MAY надавати двозначну форму `eval(term_hash, atp, env) → (result_term, atp_spent)`." English: "An implementation MAY offer the two-value form `eval(term_hash, atp, env) → (result_term, atp_spent)`." OK.
+
+Ukrainian: "Три входи, не два". English: "Three inputs, not two". OK.
+
+Ukrainian: "exit ∈ { normal_form, atp_exhausted, unresolved_reference }". English same.
+
+Now, check §3.5, the "Extending the environment" paragraph. Ukrainian: "Додавання вмісту може змінити лише вихід unresolved_reference. Усталений вихід — normal_form або atp_exhausted — MUST лишатися тим самим Receipt за будь-якого розширення середовища, яке зберігає відповіді на вже вимагані хеші."
+
+English: "Adding content can change only an unresolved_reference exit. A settled exit — normal_form or atp_exhausted — MUST remain the same Receipt under any extension that preserves the answers to already-demanded hashes."
+
+OK.
+
+Now, is there a problem with the normative vectors? The candidate states that the vectors.json files are normative and take precedence over implementations. It also defines which fields are normative for each suite. Is there any self-contradiction?
+
+In Book I §7:
+"Вичерпний машинний набір tests/spec_conformance/vectors.json є нормативною частиною цього видання. Проза §7 і записи набору MUST бути взаємно узгодженими."
+"Для кожного тестового вектора §7 нормативним представленням твердження прози в наборі є поля запису: предмет обчислення (term або bytes), бюджет (atp), канонічний вихід (expected.outcome), хеш результату (expected.result_hash) і витрачений ATP (expected.atp_spent)."
+
+English: "The exhaustive machine-checkable set tests/spec_conformance/vectors.json is a normative part of this edition. The prose of §7 and the records of the set MUST be mutually consistent."
+"For each §7 test vector, the normative representation of the prose's statement in the set is the record's fields: the subject of the evaluation (term or bytes), the budget (atp), the canonical exit (expected.outcome), the result hash (expected.result_hash) and the ATP spent (expected.atp_spent)."
+
+Looks consistent.
+
+Potential issue 8: Book I §5.1: "Для X ∈ {I,K,S} вираз SHA-256("X") означає SHA-256 рівно одного ASCII-байта X, без лапок і термінатора." English: "For X ∈ {I,K,S}, SHA-256("X") denotes SHA-256 of exactly one ASCII byte X, with no quotation marks and no terminator." This corrects a potential ambiguity. Good.
+
+Potential issue 9: Book I §3.4 says "Нормативна модель обліку — tree semantics над матеріалізованим графом: шаринг MAY застосовуватись у виконанні, але звітований ATP MUST збігатися з tree-обліком." English: "The normative accounting model is tree semantics over the materialized graph: sharing MAY be used in execution, but the reported ATP MUST match the tree accounting." This is a consistency requirement. Fine.
+
+Potential issue 10: The candidate changed the handling of out-of-domain `atp` and `term_hash`. Previously accepted, now refused. The ADR says "This changes behaviour relative to 0.5.2, where such values were accepted; the change is deliberate". Is there a backwards compatibility concern? The prompt asks whether the change should be adopted. The change is a breaking change. But that's okay if it's deliberate and properly versioned (MINOR bump). The ADR argues it's MINOR because a conformant implementation of 0.5.2 could become non-conformant. That's correct.
+
+Now, is there any P0 in the text itself?
+
+Let me look for contradictions.
+
+In Book I §3.4: "Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined."
+
+In English: "A single step whose price exceeds 2³²−1 is unreachable for any canonical budget → ATP Exhausted, not implementation-defined."
+
+Wait, the step price could exceed 2^32-1? The cost of R-S is 1 + size(z). size(z) could be up to atp+1 (by the semantic bound). So for a large atp (close to 2^32-1), size(z) could be up to 2^32. Then cost(R-S) could be up to 2^32+1. But the text says a step with price > 2^32-1 is unreachable for any canonical budget. Let's verify.
+
+Given atp is uint32, max atp = 2^32-1 = 4294967295.
+At any point, spent ≤ atp. The size bound says materialized_size(t) ≤ spent + 1 ≤ atp + 1 ≤ 2^32.
+For R-S, cost = 1 + size(z). z is a subterm of the current term, so size(z) ≤ materialized_size(t) ≤ spent + 1 ≤ atp + 1.
+Thus cost ≤ 1 + (atp + 1) = atp + 2.
+If atp = 2^32-1, cost could be 2^32+1, which is > 2^32-1.
+But is it possible to have size(z) = spent + 1? The bound says materialized_size(t) - 1 ≤ spent, so the whole term has size ≤ spent + 1. But size(z) could be as large as the whole term minus 1 (if z is the right child of APPLY). Actually, if the current term is APPLY(APPLY(S, x), y) and we are about to fire R-S, the current term size includes the root, S, x, y. Let's compute: materialized_size(APPLY(APPLY(APPLY(S,x),y),z))? Wait, R-S pattern is APPLY(APPLY(APPLY(⟨S⟩,x),y),z). The size of the whole term is 1 (root) + size(left) + size(right). Left is APPLY(APPLY(⟨S⟩,x),y). Right is z. So total size = 1 + (1 + (1 + size(S) + size(x)) + size(y)) + size(z) = 1 + (1 + (1 + 1 + size(x)) + size(y)) + size(z) = 4 + size(x) + size(y) + size(z). Then cost(R-S) = 1 + size(z). The total size is much larger than cost.
+But could size(z) be > atp? No, because total size ≤ spent + 1. But spent is the spent so far before this step. If we are about to fire R-S, we haven't spent the cost of this step yet. spent < atp (otherwise exhaustion check would fail, since cost ≥ 1). Actually, if spent == atp, exhaustion happens before any action. So to reach R-S, spent ≤ atp - 1? Not necessarily, because the cost could be 0? No, minimum cost is 1. So spent must be ≤ atp - 1 for any action to occur. Wait, the exhaustion check says: action with price c > atp - spent is not performed. So if c = 1, and spent = atp, then 1 > 0, so exhaustion. So to perform any action, we need atp - spent ≥ c ≥ 1, meaning spent ≤ atp - 1. Actually, if c = 1 and spent = atp, then c > atp - spent (1 > 0), so no action. So any action requires spent ≤ atp - 1? Let's check: for c=1, we need 1 ≤ atp - spent, i.e., spent ≤ atp - 1. Yes. So before any step, spent ≤ atp - 1.
+
+Now, the bound says materialized_size(t) ≤ spent + 1 ≤ atp.
+Thus size(z) ≤ materialized_size(t) - 1 ≤ atp - 1? Wait, the root itself takes 1, so size(z) ≤ materialized_size(t) - 1 ≤ spent ≤ atp - 1.
+Then cost(R-S) = 1 + size(z) ≤ 1 + (atp - 1) = atp.
+So cost(R-S) ≤ atp ≤ 2^32-1. So a step price exceeding 2^32-1 is indeed unreachable! Because the bound ensures size(z) ≤ spent, so cost ≤ 1 + spent ≤ atp. Wait, is size(z) ≤ spent always? materialized_size(t) ≤ spent + 1. The term includes the root and z as a subterm. The minimal term containing z is something like APPLY(..., z). So materialized_size(t) ≥ 1 + size(z). Thus 1 + size(z) ≤ materialized_size(t) ≤ spent + 1, so size(z) ≤ spent. Therefore cost(R-S) = 1 + size(z) ≤ 1 + spent ≤ atp (since spent ≤ atp - 1 for any performable step, but actually spent could be up to atp? Let's re-examine: can spent be equal to atp and we still perform a step? No, because c ≥ 1. The exhaustion check performs BEFORE the step. So if spent = atp, then c > atp - spent = 0, so the step is not performed. Thus to perform a step, we must have spent ≤ atp - 1. So cost(R-S) ≤ 1 + spent ≤ atp. So cost ≤ atp ≤ 2^32-1. This means the statement "Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету" is true. But is it proven in the text? It relies on the semantic bound. The text says it as a standalone sentence. However, does it need the bound? Yes. The sentence after the bound says: "Наслідок для реалізацій: ...". The "Окремий крок..." sentence is before the bound. Let's check the ordering.
+
+Ukrainian text:
+"* ATP-бюджет — `uint32`.... Консенсус-критичні лише канонічні результати. Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined."
+Then later:
+"* **Семантична межа пам'яті (теорема, нормативний інваріант):** ..."
+
+Wait, the proof that a step cannot exceed 2^32-1 relies on the semantic bound theorem, which comes later. But in the text, the claim about steps > 2^32-1 comes before the theorem. Is this a problem? Not necessarily; it's stated as a fact. But the theorem is what makes it true. However, for a reader, the claim is in the text and is true. So it's not a contradiction. The order is a bit odd but not a bug.
+
+Actually, is the claim "недоступний для будь-якого канонічного бюджету" correct? Let's verify more carefully. Suppose atp = 2^32-1. Could we have a step with cost > 2^32-1? We argued no, because materialized_size ≤ spent + 1 and the cost of any step is bounded by the size (or the theorem says every action costs strictly more than the size it adds, but that doesn't directly bound the cost). Let's compute maximum possible cost for each step:
+- force: max 3.
+- R-R: 1.
+- R-I: 1.
+- R-K: 1.
+- R-S: 1 + size(z). size(z) could be at most spent? Because total size of term is at least 1 + size(z) (since z is a child of some node). The bound says total size ≤ spent + 1. So 1 + size(z) ≤ spent + 1 ⇒ size(z) ≤ spent. So cost(R-S) ≤ 1 + spent ≤ atp (since spent ≤ atp - 1 for any performable step). Wait, what if the R-S is the first step? spent=0, cost ≤ 1. Fine.
+So indeed a single step cannot exceed 2^32-1. This is a simple consequence of the bound, but the text states it before introducing the bound. It might be slightly confusing, but not contradictory.
+
+However, is there a case where the bound doesn't hold? The bound is a theorem. It's stated as a normative invariant. So it's part of the spec. The claim about step price > 2^32-1 being unreachable is correct given the bound. Since the bound is normative, the claim is supported. No P0.
+
+Potential issue 11: The English rendering §3.4 says: "The minimum price of any action is 1, so at spent == atp exhaustion is decided before any access to storage (eval(REF(missing), 0) = ATP Exhausted)." The Ukrainian says: "Мінімальна ціна будь-якої дії — 1, тому при spent == atp вичерпання вирішується до будь-якого звернення до сховища (eval(REF(missing), 0) = ATP Exhausted)." Good.
+
+But what about `eval(REF(missing), 0)`? The term is a REF node. To evaluate it, we need to do a step. The step is R-R (unfold REF) which costs 1. But exhaustion check says c=1 > atp - spent = 0 - 0 = 0, so yes, exhaustion. The result is ATP Exhausted. But wait, the spec says "Невдала дія (відмова resolve) не тарифікується." Here the action is not even attempted because of exhaustion. Good.
+
+But the spec also says in §3.4: "Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано." This is about the case where you need to fetch bytes to know the cost. For example, to force a hash, you need to know if it's a LITERAL (cost 1), REF (cost 2), or APPLY (cost 3). So if you have atp=1, spent=0, and the node is APPLY, cost=3 > 1, so you should discard bytes without materialization. If the node is LITERAL, cost=1, you can materialize. This is deterministic because the bytes are either fetched or not, but the decision is based on the cost after seeing the bytes? Wait, the text says "ціна force стає відомою лише після отримання байтів (вид вузла)". But to know the kind, you need to fetch at least the first two bytes (Op and Flags). But the spec says: "недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано." Does this mean you fetch enough to know the kind, then decide? Or you must not fetch at all? The text is ambiguous. Let's read carefully.
+
+"Перевірка вичерпання передує дії. Дія з ціною c > atp − spent не виконується: результат DISSONANCE(ATP Exhausted) зі spent без змін."
+So the exhaustion check precedes the action. Does it precede fetching? Yes: "Мінімальна ціна будь-якої дії — 1, тому при spent == atp вичерпання вирішується до будь-якого звернення до сховища (eval(REF(missing), 0) = ATP Exhausted)."
+Then: "Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано."
+
+This suggests that for force, the cost depends on the node kind. To know the kind, you need bytes. But you only need a small prefix (first byte) to know the kind. Actually, the first byte is OpCode. If OpCode is LITERAL, cost=1; REF cost=2; APPLY cost=3; DISSONANCE cost=1. So you need at most the first byte. If you have atp=2 and spent=0, and the node is APPLY, cost=3 > 2, so you must not materialize. But to know it's APPLY, you need to fetch at least one byte. The text says "отримання байтів" (receipt of bytes). It doesn't say how many. But the prefix is enough. This is an implementation detail. The spec says the bytes are discarded without materialization. Does this mean the materialization is not charged? Yes, because the action is not performed. But the bytes might have been fetched. The spec doesn't forbid fetching bytes as long as the materialization (building the node) doesn't happen and the cost is not charged. So two implementations could disagree if one fetches bytes and charges for the fetch (outside ATP) and another refuses to fetch? But the spec says fetching is not priced; only materialization (force) is priced. The cost of force includes the materialization. So fetching is free. Two implementations could still disagree if one treats fetching as a "local resource limit" (e.g., fetch count) and refuses, but that's a local fault, not canonical.
+
+This seems okay.
+
+Potential issue 12: The vectors.json normative fields. The text says for Book I §7, the normative fields are: term/bytes, atp, expected.outcome, expected.result_hash, expected.atp_spent. What about the content environment? The test vectors need to define the objects (content environment) for the evaluation. The text says "the `objects` of `tests/spec_conformance/vectors.json`". Does vectors.json contain an `objects` field? The text says it does. The prompt doesn't include vectors.json, so I can't verify. But the text is clear that the third input is fixed by the set. That seems fine, assuming the set includes it.
+
+Now, look at Book II and Book III changes. They changed the arbitration rule from "oracle wins" to "suite is normative part". But they also added field mappings. Is there any discrepancy between the field mappings in Book II and Book III?
+
+Book II §5 says: "Відображення на схему цього набору: нормативним представленням твердження прози в записі є поля входу (`w1`, `w2`) і поле `expected` цілком; поля `id` та `note` — пояснювальні."
+
+Book III §8 says: "Відображення на схему цього набору: нормативним представленням твердження прози в записі є поля входу (`kind`, `doc`) і поле `expected` цілком; поля `id` та `note` — пояснювальні."
+
+These are different schemas, which makes sense because the suites are different. No issue.
+
+Now, the English rendering. Let's check if there's any place where the English translation says something normatively different.
+
+For example, in §3.4, Ukrainian: "Розмір — семантична міра матеріалізації". English: "Size — the semantic materialization measure". OK.
+
+Ukrainian: "Чим ця межа не є (MUST NOT тлумачити ширше)." English: "What this bound is not (MUST NOT be read more widely)." OK.
+
+Ukrainian: "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+English: "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+
+OK.
+
+But wait: "mismatch detected on a resolved hash". In Ukrainian: "виявлена невідповідність на розв'язаному хеші". The phrase "на розв'язаному хеші" means "on a resolved hash". This is consistent.
+
+Now, check §3.6 English: "Input outside the declared domain (MUST). An atp that is not a uint32, and a term_hash that is not exactly 32 bytes, MUST be refused the same way — locally, before the environment is consulted, and not as a canonical exit."
+
+Ukrainian: "Вхід поза оголошеною областю (MUST). atp, що не є uint32, і term_hash, що не є рівно 32 байтами, MUST бути відхилені так само — локально, до звернення до середовища, і не як канонічний вихід."
+
+Seems identical.
+
+Now, think deeply about P0 possibilities.
+
+One possible P0: In §3.5, the text says "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує". Does "виконання фактично розв'язує" mean "the evaluation actually resolves"? Yes. But what about a hash that is looked up but the bytes are not needed because the node is an intrinsic axiom? Wait, intrinsic axioms are resolved without looking in the store. The text says: "конформна реалізація MUST обслуговувати resolve/force їхніх канонічних хешів без залежності від наявності цих байтів у сховищі". So for intrinsic hashes, no lookup in env is needed. The CAS property check applies to "кожного хеша, який виконання фактично розв'язує". Does resolving an intrinsic hash count? The spec says "resolve(h)/force(h) — єдина операція матеріалізації вузла за хешем." So if h is intrinsic, resolve/force returns the intrinsic node without env lookup. So no resolution against env happens. Thus no CAS check is needed for intrinsics. This is fine.
+
+But what about a hash that is resolved, but the env has bytes that hash to a different key? The mismatch gives local refusal. But what about a hash that is resolved, the env has bytes, and the bytes pass CAS but fail validation (§4.1)? Then it yields Canonical Invalid Object (mode b). The text says the CAS check is over the raw buffer before validation. So even if validation fails, if CAS fails, it's a local refusal? Wait, let's read: "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+But earlier it says: "resolve(h)/force(h) — єдина операція матеріалізації вузла за хешем. Два режими відмови розрізняються явно: (a) h не знаходиться у сховищі і не є intrinsic-аксіомою §5.1 → DISSONANCE(Unresolved Reference); (b) байти не проходять валідацію §4.1 → матеріалізується Canonical Invalid Object (§4.2), дія тарифікується як force вузла DISSONANCE (1)."
+
+Now, where does the CAS check happen relative to (a) and (b)? The text says: "Перевірка йде над сирим буфером і до валідації §4.1: буфер, що не проходить валідацію, цієї властивості не порушує — він є режимом відмови (b) нижче й дає Canonical Invalid Object."
+
+This means: if bytes are present but fail validation, they still satisfy CAS (by definition? No, the text says "буфер, що не проходить валідацію, цієї властивості не порушує"). Wait, does it mean that a buffer failing validation does not violate the CAS property? The CAS property is `SHA-256(bytes) = key`. If the bytes are under the wrong key, they violate it regardless of validation. But the text seems to say: if the buffer fails validation, that doesn't mean it violates CAS. Actually, the text is clarifying that the check `SHA-256(bytes)=key` is separate from validation. A buffer that fails validation is still checked for CAS. Does failing validation automatically mean CAS passes? No. The text says: "буфер, що не проходить валідацію, цієї властивості не порушує". This literally means "a buffer that does not pass validation does not violate this property". But that seems wrong: a buffer could fail validation AND have a wrong hash. The text probably means: the fact that it fails validation does not, in itself, constitute a violation of the property; you still need to check the property separately. Or it means: a buffer that fails validation is not considered to violate the property for the purpose of the resolution contract—it just becomes a Canonical Invalid Object. But then what about CAS mismatch for an invalid buffer?
+
+Let's parse carefully:
+
+"Перевірка йде над сирим буфером і до валідації §4.1: буфер, що не проходить валідацію, цієї властивості не порушує — він є режимом відмови (b) нижче й дає Canonical Invalid Object."
+
+I think the intended meaning is: The CAS check is performed on the raw buffer before validation. If the buffer fails validation, that does not imply it violates the CAS property (i.e., you can't skip the CAS check just because validation fails). Rather, the buffer is still subject to the normal failure mode (b) if it fails validation. But what if it fails both validation and CAS? The text says a mismatch MUST give local refusal, not canonical result. So if CAS fails, it's local refusal regardless of validation. But the sentence "буфер, що не проходить валідацію, цієї властивості не порушує" could be read as: a buffer failing validation does not violate the CAS property (meaning it's exempt?). That would be a P0: two implementations could disagree: one says "invalid buffer with wrong hash → Canonical Invalid Object (failure mode b)", another says "CAS mismatch → local refusal".
+
+Let's look at the English: "The check is over the raw buffer and before §4.1 validation: a buffer that fails validation does not violate this property — it is failure mode (b) below and yields the Canonical Invalid Object."
+
+The English says "does not violate this property". This is ambiguous. It could mean: the failure to validate is not a violation of the CAS property; i.e., validation and CAS are orthogonal. But then what if the buffer also fails CAS? The property says SHA-256(bytes) = key. If they don't match, it violates the property. The text says "a buffer that fails validation does not violate this property" — this might mean that the property is defined independently, and failing validation is not the same as violating the property. It does NOT say that a buffer that fails validation cannot also violate the property. It says failing validation is not, in itself, a violation of the property. That seems logically true: failing validation means it's not a valid node, but it might still hash correctly.
+
+However, there is a subtle ordering issue. The text says: "resolve(h)/force(h) — ... (b) bytes fail validation → Canonical Invalid Object". Then later: "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+
+So which takes precedence? If bytes are present and they fail CAS, you must local refuse. If they pass CAS but fail validation, you get Canonical Invalid Object. What if they fail both? The local refusal clause is MUST. The failure mode (b) is also MUST. This is a direct conflict if a buffer can fail both. But can a buffer fail validation and also fail CAS? Yes: I can put arbitrary bytes under a key; they might not be a valid SigmaNodeV2 AND might not hash to the key. The spec's text about "a buffer that fails validation does not violate this property" is trying to say that the two checks are independent: invalidity doesn't imply CAS failure, and CAS failure doesn't imply invalidity. But the ordering of paragraphs might cause confusion.
+
+Is there a normative contradiction? The spec says:
+1. `resolve`/`force` has two failure modes: (a) not found → Unresolved Reference; (b) bytes fail validation → Canonical Invalid Object.
+2. CAS property: bytes under a key must hash to that key.
+3. If CAS mismatch is detected on a resolved hash → local refusal.
+
+If a hash is resolved (bytes are found), and the bytes fail validation AND fail CAS, the first rule says it's mode (b) → Canonical Invalid Object. The third rule says mismatch → local refusal. Both apply. This is a P0: two conforming implementations could choose either rule: one produces Canonical Invalid Object (canonical result), the other produces local refusal (no canonical result). That's a disagreement on the canonical result.
+
+Counterexample: Let h be a hash. In env, map h to bytes b where b is invalid (e.g., opcode 0x03) and SHA-256(b) ≠ h. Evaluate a term that demands h (e.g., REF(h)) with sufficient atp.
+- Implementation A checks validation first (or treats invalid bytes as mode b regardless of CAS) → yields Canonical Invalid Object with exit normal_form (since it's a materialized DISSONANCE? Wait, Canonical Invalid Object is a DISSONANCE node? Let's see §4.2: Canonical Invalid Object is a specific DISSONANCE node. It is materialized and is a normal form. So exit is normal_form, atp_spent includes the cost of forcing it.
+- Implementation B checks CAS first, sees mismatch, and yields local refusal (no Receipt, or a fault).
+
+The spec says: "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+This is a direct MUST. It says CAS mismatch must give local refusal, not canonical result. So even if validation fails, a CAS mismatch must give local refusal. That means the "two failure modes" paragraph is incomplete: it should have a third failure mode (c) CAS mismatch → local refusal. But instead, the text says "(b) байти не проходять валідацію §4.1 → матеріалізується Canonical Invalid Object". It doesn't say "if bytes pass CAS but fail validation". It just says bytes fail validation → CIO. But the CAS paragraph says mismatch → local refusal. This is a direct contradiction if both can happen.
+
+But is it possible for bytes to fail validation and also be under the wrong key? Yes, trivially. So the text has two normative requirements for the same input state:
+- If bytes fail validation → CIO.
+- If bytes mismatch key → local refusal.
+
+Since both conditions can hold simultaneously, there is a conflict. Which one wins? The text does not say explicitly. However, the ADR round 2 fix addresses exactly this: "Fixed — the property is SHA-256(bytes) = key over the raw buffer, checked before validation, and the two questions are named as different: whether a buffer is a valid node has a canonical answer, whether bytes belong under a key has none. This is what the reference oracle has always done (node_hash(b) != h before deser(b)), so no vector changes."
+
+So the intended order is: check CAS first. If mismatch → local refusal. If match → then validate. If validation fails → CIO.
+
+But does the normative text actually say this ordering? Let's read carefully:
+
+"Перевірка йде над сирим буфером і до валідації §4.1: буфер, що не проходить валідацію, цієї властивості не порушує — він є режимом відмови (b) нижче й дає Canonical Invalid Object."
+
+This says the check is over the raw buffer before validation. Then it says: a buffer that fails validation does not violate this property — it is failure mode (b). This implies that the CAS check is separate and before validation. But does it say that CAS mismatch supersedes validation failure? The sentence "буфер, що не проходить валідацію, цієї властивості не порушує" means that validation failure is not a CAS violation. But does it mean that validation failure is still processed as mode (b) even if CAS fails? I think the intended reading is: validation and CAS are separate checks. CAS is checked first because it's a property of the raw buffer. If CAS passes, then you validate. If validation fails, you get mode (b). If CAS fails, it's a local refusal. The text does not explicitly say "if CAS fails, do mode (b)". It says CAS mismatch → local refusal. So the conflict is resolved by the CAS paragraph overriding the validation paragraph for mismatched keys.
+
+But is the text explicit enough? "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+This is unambiguous: a mismatch on a resolved hash must give local refusal. It does not say "unless the buffer is invalid". It applies to any mismatch. Therefore, for a resolved hash where CAS fails, you MUST refuse locally. The earlier paragraph about two failure modes of resolve/force might be interpreted as assuming the bytes are under the correct key (which is the normal case for a well-formed store). But normatively, the CAS paragraph takes precedence because it's a MUST NOT (must not evaluate foreign-key bytes) and a MUST (must give local refusal).
+
+However, a literal reading could still produce a P0 if an implementer reads the "two modes" paragraph and thinks those are the only two possibilities, not realizing the CAS paragraph adds a precondition. Is the text "two modes" exclusive? It says: "Два режими відмови розрізняються явно: (a) ... (b) ...". It says "two failure modes". But there are actually three: (a) not found, (b) invalid bytes, (c) CAS mismatch. The text says only two modes, which could be read as excluding (c). If an implementer implements only (a) and (b), and for CAS mismatch does (b) (CIO), while another implementer does (c) (local refusal), they diverge. And the text is ambiguous enough that both could claim conformance.
+
+This might be a P1 (unenforceable as written) rather than P0, because the text does have the CAS paragraph, but it's structurally ambiguous. However, the ADR says this was fixed in round 2. But does the text actually reflect the fix clearly enough?
+
+Let's re-read the candidate text (post-round 2): The text I have is the candidate revision v0.7.0. The ADR says round 2 fixed the P1 about "when the CAS property is checked" and the P0 about the "own fix contradicted itself" regarding undemanded entry. The P0 about CAS was fixed by: "Fixed — the property is SHA-256(bytes) = key over the raw buffer, checked before validation, and the two questions are named as different". Does the text reflect this? Let's examine.
+
+In §3.5 candidate text:
+"Перевірка йде над сирим буфером і до валідації §4.1: буфер, що не проходить валідацію, цієї властивості не порушує — він є режимом відмови (b) нижче й дає Canonical Invalid Object. Питання «чи це валідний вузол» і питання «чи ці байти належать цьому ключу» — різні, і плутати їх не можна: перше має канонічну відповідь, друге канонічної відповіді не має взагалі."
+
+This says the questions are different and must not be conflated. It doesn't explicitly order them, but "Перевірка йде над сирим буфером і до валідації" implies the raw buffer check (CAS) is first. However, the next sentence says the buffer failing validation doesn't violate the property. It doesn't say "if the buffer fails CAS, it is refused before validation". But the following paragraph says:
+
+"Байти під ключем, у який вони не хешуються, MUST NOT виконуватися як вузол цього ключа: вони можуть бути цілком валідним SigmaNodeV2, але їх виконання порушило б Identity by Hash (§3.2) і дозволило б двом конформним рушіям розійтися, поки обидва вважають, що виконують Книгу. Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+This says CAS mismatch MUST give local refusal. So there is no conflict: if CAS fails, local refusal. If CAS passes and validation fails, mode (b). The text doesn't say there are *only* two failure modes; it says "Два режими відмови розрізняються явно". It might be interpreted as "two canonical failure modes of resolve/force after the CAS check". But the ADR round 2 P0 was about another issue: "round 1's own fix contradicted itself. §3.5 said an undemanded entry 'does not affect the result' and, one sentence later, that a permitted wider check MUST end in a local refusal. So a poisoned entry nobody demands both must not and may change the outcome." That was fixed by clarifying admission vs result.
+
+So the CAS issue from round 1 was a P1, fixed. The candidate text seems okay on CAS.
+
+But wait: the round 1 fix for CAS was "the property is checked for every hash the evaluation actually resolves". The candidate text says that. Good.
+
+Now, is there any other hidden P0?
+
+Let's look at the "Extending the environment" paragraph. It says: "Adding content can change only an unresolved_reference exit. A settled exit — normal_form or atp_exhausted — MUST remain the same Receipt under any extension that preserves the answers to already-demanded hashes."
+
+Counterexample: Suppose we have term T = REF(h), atp = 0. Evaluation: exhaustion check says cost(force) is at least 1 > 0, so exit is atp_exhausted, spent 0, result_hash is the hash of the current term? Wait, when exhaustion happens, what is the result_hash? The spec says result_hash is the NodeHash of the term the machine returned. If the machine returns because ATP exhausted, what term does it return? It returns the current term before the exhausted step. For REF(h), the current term is REF(h) itself (orThunk(h) depending on representation). But the notation says eval(·,0) = ATP Exhausted for REF(missing), spent 0. But what is result_hash? The spec doesn't define it precisely for atp_exhausted. It says result_hash is the NodeHash of the term the machine returned. If the machine couldn't make a step, it returns the current term. So for REF(missing) with atp=0, the current term is REF(h) (or maybe a thunk?). So result_hash would be h (if thunk) or hash of REF node? Wait, the machine starts with term_hash. The initial term is a thunk? No, the input is term_hash. The machine presumably starts with a thunk of term_hash. But if term_hash is for a REF node, the initial thunk is... hmm.
+
+Actually, the machine operates on hash thunks. The term is a graph of materialized nodes or thunks. The input is term_hash. So the initial term is a thunk of term_hash. If term_hash is a REF node, then forcing it would materialize the REF node (cost 2), then R-R would fire (cost 1) to replace the REF node with a thunk of its target. But with atp=0, exhaustion happens before forcing. So the machine returns the initial thunk of term_hash. The result_hash would be term_hash? But thunks are hash leaves; their hash is the hash they carry. So result_hash = term_hash. The exit is atp_exhausted. Now, if we extend the environment with h mapping to valid bytes, does the exit change? No, because atp=0 still means exhaustion before force. The answer remains atp_exhausted with result_hash = term_hash.
+
+But what if the term is something that reduces to a normal form quickly, and we have atp large enough? Suppose term is APPLY(I, K), atp = 4. Without env, we need to force root (cost 3), then R-I (cost 1). That's 4 total. Exit is normal_form with result_hash = H(K). If we extend env, no change.
+
+Now, is there a case where adding content changes a normal_form to unresolved_reference? No, because if it was normal_form, it didn't need any missing hashes. Adding hashes can't break existing ones.
+
+But is there a case where adding content changes atp_exhausted to normal_form? That would violate the stability rule. Let's try: term = REF(h), atp = 2. Without env, h missing. step: try to resolve. Since it's a thunk(h) where h is not intrinsic, force(h) is needed. cost(force) unknown until we know the kind. But we need to check env. If env doesn't have h, wait, §3.5 says resolve/force has mode (a): h not found in storage and not intrinsic → Unresolved Reference. But does the machine check for h in the env before checking ATP? §3.4 says: "Мінімальна ціна будь-якої дії — 1, тому при spent == atp вичерпання вирішується до будь-якого звернення до сховища (eval(REF(missing), 0) = ATP Exhausted)." But what if atp > 0? For atp = 2, spent = 0. The machine tries step(t) where t = thunk(h). Since h is not intrinsic, it does force(h). To know the cost of force(h), we need to know the kind. But the env doesn't have h. So the resolve fails. Is that a "failed action (a resolve failure)"? The text says "Невдала дія (відмова resolve) не тарифікується." So if resolve fails because h is missing, it's mode (a): Unresolved Reference. But does that happen before or after the exhaustion check? The exhaustion check says: action with price c > atp - spent is not performed. But for force(h), the price depends on the kind, which is unknown until we fetch bytes. However, if h is not in env, we can't know the kind. The text says: "Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано." But if bytes are missing entirely (not just too expensive), what happens? The text says: "невдала дія (відмова resolve) не тарифікується." So missing hash is a resolve failure, not an exhaustion. It gives Unresolved Reference.
+
+So for REF(missing) with atp=2, the exit is Unresolved Reference, not ATP Exhausted. The spent is 0? Wait, if force fails (resolve failure), it's not priced. So spent = 0. But does the machine attempt force? It tries to materialize, discovers the hash is missing, and returns DISSONANCE(Unresolved Reference). That is a canonical result. So adding h to env could change the result to normal_form (if h points to a normal form) or to something else. But wait: if h is missing, the exit is unresolved_reference. If we add h, it might become normal_form or atp_exhausted. The stability rule says "Adding content can change only an unresolved_reference exit. A settled exit — normal_form or atp_exhausted — MUST remain the same Receipt". So if the original exit is unresolved_reference, adding content can change it to something else, which is fine.
+
+But can adding content change an atp_exhausted exit? Let's think. Suppose term is something where we exhaust ATP on a step that requires forcing a hash that IS present but we don't have enough budget to force it. For example, a big APPLY node with atp=2. Force root costs 3 > 2, so exhaustion before force. Exit is atp_exhausted, spent=0, result_hash = term_hash (initial thunk). If we extend env with some missing hashes, this doesn't change anything because we never demanded them. The root hash is present? Wait, the root term_hash is the input; it's not looked up in env. The root is given. Actually, the machine might need to resolve the root bytes to know it's an APPLY. But the input is a hash; to start evaluating, you might need to force the root. If the root hash is not in env and not intrinsic, then the very first step is Unresolved Reference. But if the root is known (e.g., it's in the vector suite objects), then you can evaluate. If you exhaust ATP on a step where a subterm hash is missing but you never got to it because of exhaustion, then adding that subterm to env doesn't change the outcome. Good.
+
+Wait, but what about the case where the term is a deep structure and we exhaust ATP partway through? The current term is some intermediate thunk or node. We return atp_exhausted with result_hash = hash of current term. If we add more content to env, can the exit remain atp_exhausted? Yes, because the same steps would be taken, same exhaustion point. But could adding content change the cost of a step? No, costs are determined by structure, not by env content (except that force price depends on node kind, but the node kind is determined by the bytes under the hash, which is part of the content environment). Wait! The cost of force(h) is determined by the kind of node (LITERAL, REF, APPLY, DISSONANCE). If the env changes to provide different bytes for h, the kind could change! For example, if h was previously mapping to a LITERAL (cost 1), and now maps to an APPLY (cost 3), the cost of force changes.
+
+This is an interesting point. The spec says the cost of force is determined by the materialized node size, which depends on the node kind. The node kind comes from the bytes in env. Therefore, changing the bytes under a resolved hash could change the cost of force. Could that affect whether exhaustion occurs? Potentially.
+
+Example: Suppose we have term = APPLY(f, a) where f and a are thunks. To evaluate, we need to force the root (cost 3, since it's APPLY). That is determined by the root's bytes. But if the root is given as a hash, its bytes must be in env to evaluate. If the root bytes change from APPLY (cost 3) to LITERAL (cost 1), the cost of forcing the root changes. But the root hash is the term_hash input; its bytes are fixed by the input hash? No, the input term_hash is a hash. The env maps that hash to bytes. If the env changes to map term_hash to different bytes that still hash to term_hash? The CAS property says SHA-256(bytes) = key. So you cannot change the bytes under a hash without violating CAS. The only way to have different bytes is to change the key. But the term_hash is fixed. So the bytes for the term_hash are fixed by the hash. Therefore, for a demanded hash, the bytes are fixed (if they pass CAS). So changing the env by adding a new mapping for a previously undemanded hash doesn't change the cost of steps that don't demand it. And for a demanded hash, the bytes are constrained by the hash. However, what if the env previously didn't have bytes for a hash, so the evaluation exhausted at a point before demanding that hash? Then adding the hash to env doesn't change the steps taken before that point, so exhaustion occurs at the same place with the same cost. Therefore, adding content cannot change atp_exhausted or normal_form exits.
+
+But is there a case where a hash is demanded, the env initially doesn't have it (so unresolved_reference), and later the env gets it. That's exactly the unresolved_reference case; adding content can change that.
+
+But is there a case where a hash is demanded, the env has it with valid bytes, and later the env gets a different entry? You can't have two entries for the same key in a partial map. So the only change is from absent to present.
+
+What about the scenario where the hash is present but the bytes are invalid? If the bytes are invalid, the canonical result is Canonical Invalid Object (normal_form) with cost 1 for force. If you later change the env to have valid bytes for the same hash (impossible under CAS because the hash would be the same if the bytes hash to it; but invalid bytes don't hash to the key? Wait, the text says "буфер, що не проходить валідацію, цієї властивості не порушує". That means invalid bytes can still hash to the key. So if the env initially has invalid bytes that hash to the key, the result is CIO (normal_form). If you change the env to have valid bytes for the same key (still hashing to the key), then the result changes to normal_form of the actual node. That's a change in result_hash while exit remains normal_form. Does the stability rule forbid this? The rule says: "A settled exit — normal_form or atp_exhausted — MUST remain the same Receipt under any extension that preserves the answers to already-demanded hashes." Wait, "preserves the answers to already-demanded hashes". If the hash was demanded and previously the answer was invalid bytes, changing to valid bytes changes the answer. So the extension does NOT preserve the answers. Thus the stability rule does not apply. Good.
+
+So the stability rule is correctly qualified.
+
+Now, back to the potential P0 about CAS mismatch + invalid bytes. I think the text is sufficient: CAS mismatch → local refusal. Invalid bytes → CIO. If both occur, CAS mismatch applies because the spec says mismatch MUST give local refusal. The "two modes" paragraph does not claim to be exhaustive in the presence of CAS mismatch. But could an implementer be confused? Maybe. Is it a P0 or P1? If an implementer could reasonably think the two modes are exhaustive, and implement CIO for CAS mismatch, they would produce a canonical result for an input where another implementation refuses locally. The two implementations would disagree on whether the result is canonical CIO or local refusal. Since the spec says local refusal MUST be given, a conforming implementation must refuse. But if the text is ambiguous enough that two conforming implementations could interpret it differently, that's a P0. However, I lean toward P1 because the text does have an unambiguous MUST later, but the earlier paragraph is poorly structured. But the prompt says: "A severity claim with no counterexample is a P2." For P1, I need a counterexample of two different results. For the CAS+invalid case, the counterexample is: env maps h to invalid bytes with wrong hash. Term REF(h), atp=10. Implementation A (validates first): returns Canonical Invalid Object (normal_form, specific hash). Implementation B (checks CAS first): returns local refusal (no receipt). Two different results. This is a concrete term, budget, environment. This is a valid P0 or P1 depending on whether the text truly contradicts itself. I think it does: the text presents two failure modes of resolve/force, then adds a CAS requirement that says mismatch must local refuse. Because it doesn't explicitly say "if CAS mismatches, this takes precedence over the validation failure mode", an implementer might not realize it's a separate failure mode. So I will classify this as a P1 (normative requirement unenforceable as written) because the text is silent on the precedence between the two rules in the corner case of CAS mismatch + invalid bytes. Actually, it's not silent; it says mismatch MUST give local refusal. That sounds enforceable. But the presence of the "two modes" paragraph without mentioning CAS could mislead. However, in the English rendering, the paragraph says: "resolve(h)/force(h) is the single node-materialization operation by hash. Two failure modes are distinguished explicitly: (a) h is not found in storage and is not an intrinsic axiom of §5.1 → DISSONANCE(Unresolved Reference); (b) the bytes fail §4.1 validation → the Canonical Invalid Object (§4.2) is materialized, and the action is priced as a force of a DISSONANCE node (1)." Then the CAS paragraph says mismatch → local refusal. This is a structural contradiction: you can't have two failure modes and also have a third failure mode without counting it. The phrase "Two failure modes are distinguished explicitly" strongly implies there are exactly two. Then a later paragraph introduces a third. This is a direct contradiction in the text itself: the text contradicts itself about how many failure modes there are and which one applies when.
+
+But is it a P0? The text contradicts itself. That is explicitly a P0: "the text contradicts itself or the vector suite". The counterexample is as above.
+
+Wait, the prompt says: "P0 two conforming implementations can disagree on a result, or the text contradicts itself or the vector suite". So text contradicting itself is a P0. And I have a counterexample showing two different results. So this is a strong P0.
+
+However, does the candidate's own ADR mention this? Round 2 DeepSeek P1: "NodeHash(bytes) = key was undefined for invalid buffers. A buffer failing §4.1 is not a node, so it has no NodeHash — yet failure mode (b) prices materializing the Canonical Invalid Object, which is reachable only if the key check passed." The fix was: "the property is SHA-256(bytes) = key over the raw buffer, checked before validation, and the two questions are named as different". But the text still leaves the "two failure modes" paragraph intact without adding the third mode explicitly. It only says the two questions are different. But it doesn't amend the "two failure modes" list to include CAS mismatch as a third mode. It relies on the later paragraph. So the text still has the self-contradiction.
+
+Let me check if the text actually resolves it. The CAS paragraph says: "Bytes under a key they do not hash to MUST NOT be evaluated as that key's node ... The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+
+This is a MUST. It applies to every resolved hash. So if there's a mismatch, you MUST local refuse. This overrides the "two failure modes" because those modes are about what happens when resolve/force succeeds (bytes are found). Actually, mode (a) is about not found. Mode (b) is about bytes fail validation. But if bytes are found but mismatch, the earlier "two modes" doesn't cover it. The spec says "Two failure modes are distinguished explicitly". It doesn't say "the only failure modes". But "distinguished explicitly" might imply there are only two. However, in rigorous specs, listing two modes doesn't always preclude a third. But the phrase "Два режими відмови розрізняються явно" is more like "Two failure modes are explicitly distinguished". It doesn't say "only two". So maybe it's not contradictory, just incomplete. But the fact that the text presents exactly two modes and then later adds a third without integrating it is a structural flaw. Is it a P0? It could cause divergence. I'll mark it as P1 because the text does have the correct requirement later; the incompleteness makes it ambiguous but not strictly contradictory enough that a careful reader can't find the right answer. But wait, the severity ladder: P1 is "text is silent where an implementer must guess". Here the text is not silent; it gives two different answers for the same case. That's worse than silence. It's a contradiction. So P0.
+
+But let's be careful. The two failure modes paragraph is describing `resolve(h)/force(h)`. The CAS paragraph is adding a precondition on `resolve`/`force`: before you even consider the bytes as belonging to h, you must check the hash. If they don't match, `resolve`/`force` must not proceed to evaluate them as that node. This is effectively a guard on the operation, not a failure mode of the operation itself. You could view it as: `resolve`/`force` is called only after the CAS check passes. The text doesn't explicitly say that, but "The property MUST be checked for every hash the evaluation actually resolves" implies that before resolve/force returns a canonical result, the check must be done. So maybe it's a pre-condition, not a failure mode of resolve. Then the two failure modes are the only canonical failure modes, but there is also a local refusal pre-condition. That would mean the operation has a pre-condition (CAS match) and two canonical failure modes. That's a valid reading. So the text may not be contradictory, just poorly structured.
+
+Given that the ADR explicitly fixed this and described the fix as making the two questions different, and the text does say they are different, I might not raise this as a new P0. But the prompt asks me to review the candidate text as it stands. I must decide if the text is contradictory. I think it is borderline. But the presence of the MUST in the CAS paragraph is strong enough that a conforming implementation cannot produce a canonical result for a CAS mismatch. So the divergence is prevented by the MUST. An implementation that ignores the MUST is non-conformant. So perhaps it's not a P0 because the text does resolve it, albeit imperfectly.
+
+However, the prompt says "Where a claim is checkable by arithmetic or by reading the supplied bytes, check it and show the work." I should focus on concrete checkable issues.
+
+Let's look at the English rendering again. The prompt says it is informative but disagreement is a finding. Let's search for differences.
+
+Book I English §3.4: "A single step whose price exceeds 2³²−1 is unreachable for any canonical budget → ATP Exhausted, not implementation-defined."
+
+Wait, is this sentence in the Ukrainian text? Yes: "Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined."
+
+But note: if the step price exceeds 2^32-1, it's unreachable. However, the text in §3.4 also says: "Значення поза цією областю не є бюджетом: воно MUST бути відхилене згідно з §3.6". So for non-uint32 atp, it's refused. But for uint32 atp, step price > 2^32-1 is unreachable. That's consistent.
+
+Now, a concrete check: The vector TV-4: "eval(·,4)=⟨K⟩, 4 ATP (force кореня 3 + R-I 1)". Let's verify. Term is APPLY(I, K). The root is an APPLY node. To reduce it, we need to force the root to see it's APPLY(⟨I⟩, ⟨K⟩). cost(force root) = size of materialized node with thunk children. The root is APPLY, its children are thunks (I and K). So size = 3 (APPLY node + 2 thunks). Wait, cost(force h) is defined as "size of the materialized node with thunk children". For APPLY, that is 1 (APPLY node) + 1 (left thunk) + 1 (right thunk) = 3. Yes. Then R-I costs 1. Total 4. Correct.
+
+TV-5: SKK·I. Term is APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨I⟩). Let's compute. The root is APPLY. Need to force root (3). Now we have APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨I⟩). Left child is also APPLY. Need to force left child? No, step(t) says: if t = APPLY(f,a): if step(f) exists: act in f. So we recurse into left child. Left child is APPLY(⟨S⟩, ⟨K⟩). Need to force it (3). Now we have root APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨I⟩). Actually, after forcing the left child, the left child is materialized as an APPLY node with thunks ⟨S⟩ and ⟨K⟩. Then step on the left child: it's an APPLY. Its left child is ⟨S⟩. Does step(⟨S⟩) exist? ⟨S⟩ is a thunk of an intrinsic hash. step(t) says: if t = thunk(h): if h ∈ {H(I),H(K),H(S)}: none. So no step. Then check if t matches R-I|R-K|R-S at root. The left child is APPLY(⟨S⟩, ⟨K⟩). Does it match R-S? R-S is APPLY(APPLY(APPLY(⟨S⟩, x), y), z). The left child is only APPLY(⟨S⟩, ⟨K⟩); it has only two levels, not three. So no match. Then step(f) exists? f is the left child. We recurse into its left child, which is ⟨S⟩. No step. Then into its right child, ⟨K⟩. No step. So left child has no step. Thus step(f) does not exist for the root. So we go to step(a) exists: a is ⟨I⟩. No step. So root has no step? Wait, but the left child is normal? No, the left child is APPLY(⟨S⟩, ⟨K⟩). Is that a normal form? No, but step on it didn't find any action? Wait, why? Because step(APPLY(⟨S⟩, ⟨K⟩)):
+- t = APPLY(f,a)
+- step(f): f = ⟨S⟩, thunk(h) where h=H(S). h ∈ intrinsic → none.
+- t matches R-I|R-K|R-S at root? The root of this subterm is APPLY(⟨S⟩, ⟨K⟩). R-S requires APPLY(APPLY(APPLY(⟨S⟩, x), y), z). So no.
+- step(a): a = ⟨K⟩, thunk(H(K)) → none.
+- else: none.
+
+So indeed APPLY(⟨S⟩, ⟨K⟩) is in normal form? That can't be right. Wait, SKI reduction: S K is a normal form? No, S is a combinator expecting three arguments. S K is a partial application. It's in weak head normal form? Yes, because the leftmost-outermost search looks for a redex. The root is APPLY(⟨S⟩, ⟨K⟩). To match R-S, we need the root to be APPLY(APPLY(APPLY(⟨S⟩, x), y), z). Here the root is only APPLY(⟨S⟩, ⟨K⟩), which has only one APPLY. So step returns none. That means the term is in normal form? But S K is not a closed normal form in the usual sense, but in this lazy machine, it is a normal form because the machine doesn't reduce under lambda (there are no lambdas) and doesn't force arguments unless needed. Actually, yes: in weak head normal form, a term is normal if its leftmost-outermost position is not a redex. Here the leftmost is S, which needs 3 arguments but only has 1. So it's stuck. It's a normal form for the machine.
+
+But wait, the term is APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨I⟩). The root has left child APPLY(⟨S⟩, ⟨K⟩) and right child ⟨I⟩. The root is an APPLY. step on root:
+- step(left): left is APPLY(⟨S⟩, ⟨K⟩). step(left) returned none (as above). So step(f) does not exist? Actually, step(f) exists if step(f) exists in the left child. We just computed step(APPLY(⟨S⟩, ⟨K⟩)) = none. So step(f) does not exist.
+- step(a): a is ⟨I⟩. step(⟨I⟩) = none. So neither exists.
+- Therefore root step = none. So the whole term is normal form? That contradicts the expected result of TV-5: eval(·,12)=⟨I⟩. What's wrong?
+
+Ah! The step function in §3.3:
+```text
+step(t):
+  if t = thunk(h): ...
+  elif t = REF(h): fire R-R
+  elif t matches R-I|R-K|R-S at root: fire
+  elif t = APPLY(f,a):
+      if step(f) exists: act in f
+      elif step(a) exists: act in a
+      else: none
+  else: none
+```
+
+Wait, for t = APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨I⟩), step(t) is called. The cases are checked in order. Is t a thunk? No. Is t a REF? No. Does t match R-I|R-K|R-S at root? Let's check. R-S pattern: APPLY(APPLY(APPLY(⟨S⟩, x), y), z). Our t is APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨I⟩). This matches R-S with x=⟨K⟩, y=⟨I⟩, z=? Wait, the pattern has three APPLYs: the outermost, then another, then another. Our t has two APPLYs: outermost and inner. Let's count: APPLY( S, K ) is one APPLY. Then APPLY( APPLY(S,K), I ) is the outer APPLY. So the structure is:
+APPLY(
+  left = APPLY(⟨S⟩, ⟨K⟩),
+  right = ⟨I⟩
+)
+The R-S pattern is:
+APPLY(
+  left = APPLY(
+    left = APPLY(⟨S⟩, x),
+    right = y
+  ),
+  right = z
+)
+
+So to match R-S, we need the left child of the root to be an APPLY whose left child is also an APPLY with left child ⟨S⟩. Our left child is APPLY(⟨S⟩, ⟨K⟩). Its left child is ⟨S⟩ (a thunk, not an APPLY). So the left child of the root is not an APPLY(APPLY(⟨S⟩, x), y). It's just APPLY(⟨S⟩, ⟨K⟩). So it does NOT match R-S. Therefore, step(t) goes to the APPLY case. step(f) where f = APPLY(⟨S⟩, ⟨K⟩). We computed step(APPLY(⟨S⟩, ⟨K⟩)). step on that:
+- thunk? no.
+- REF? no.
+- matches R-S? Let's check: APPLY(⟨S⟩, ⟨K⟩) has structure APPLY(left=⟨S⟩, right=⟨K⟩). R-S requires left = APPLY(APPLY(⟨S⟩, x), y). That's not the case. So no match.
+- APPLY case: step(f') where f' = ⟨S⟩. step(⟨S⟩) = thunk(H(S)), intrinsic → none. step(a') where a' = ⟨K⟩ → none. So step(APPLY(⟨S⟩, ⟨K⟩)) = none.
+
+Thus step(f) for the root does not exist. step(a) for the root: a = ⟨I⟩, step = none. So step(root) = none? That would mean the term is a normal form. But TV-5 says eval(·,12)=⟨I⟩. Something is seriously wrong with my understanding of the structure.
+
+Wait! The term SKK·I is usually written as `((S K) K) I`? No, TV-5 says "SKK·I". In SKI notation, SKK means `((S K) K)`? Actually, the church encoding of boolean TRUE is K, FALSE is K I. Wait, SKK is a known combinator: `S K K = I`. But here the term is `APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨I⟩)`? No, that's SKI. SKK would be `APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨K⟩)`. But TV-5 says hash `c9f57b3f...`. Let's compute: `APPLY(APPLY(⟨S⟩, ⟨K⟩), ⟨K⟩)` would reduce: S K K x → K x (K x). That's not I. The well-known identity is `S K K = I`? Let's recall: S f g x = f x (g x). So S K K x = K x (K x) = x. So S K K is the identity function, but it needs an argument x to reduce to x. If you apply it to I, you get I. But the term in TV-5 is "SKK·I". The notation `APPLY(⟨S⟩,⟨K⟩)` might represent the function, and then `APPLY(..., ⟨K⟩)` would be the first argument for S? Wait, the title says "SKK·I". The dot likely means application. So the term is `(S K K) I`? Or `S K K I`? In left-associative application, `S K K I` = `((S K) K) I`. Let's reduce `((S K) K) I`:
+- Root is APPLY( APPLY(APPLY(S,K),K), I ).
+- Let's call inner = APPLY(S,K). This is normal form (as before).
+- Middle = APPLY(inner, K). step on middle:
+  - left = inner = APPLY(S,K). step(inner) = none.
+  - So no step in left.
+  - right = K. step(K) = none.
+  - So step(middle) = none? Wait, but middle is APPLY(normal, K). The leftmost-outermost search says: if left is normal, demand right. But the step function says: if step(f) exists: act in f; elif step(a) exists: act in a; else: none. Since step(f) = none, it tries step(a). step(a) = step(K) = none. So step(middle) = none. That means middle is normal form? But APPLY(APPLY(S,K),K) is not a redex; S needs three arguments. It's stuck. So it's normal form for this machine.
+- Root = APPLY(middle, I). step(root):
+  - step(left) = step(middle) = none.
+  - step(right) = step(I) = none.
+  - So step(root) = none. Normal form! That can't be right because TV-5 says it reduces to I in 12 ATP.
+
+I see the problem. The term SKK·I is `APPLY(APPLY(APPLY(⟨S⟩,⟨K⟩),⟨K⟩),⟨I⟩)`. Let's trace step on this:
+- Root is APPLY(f, a) where f = APPLY(APPLY(⟨S⟩,⟨K⟩),⟨K⟩), a = ⟨I⟩.
+- step(f): f is APPLY(f1, a1) where f1 = APPLY(⟨S⟩,⟨K⟩), a1 = ⟨K⟩.
+  - step(f1): f1 is APPLY(⟨S⟩,⟨K⟩). step(⟨S⟩)=none. Doesn't match R-S. step(⟨K⟩)=none. So step(f1)=none.
+  - step(a1): step(⟨K⟩)=none.
+  - So step(f)=none.
+- step(a): step(⟨I⟩)=none.
+- So step(root)=none. That implies it's normal form, which is wrong.
+
+Wait, maybe the matching `t matches R-I|R-K|R-S at root` uses the *materialized* structure, not just the surface syntax. The materialized node for S, K, I is just a thunk or a node. When we say `⟨S⟩`, it means a node whose NodeHash equals H(S). In the graph, the node `f1 = APPLY(⟨S⟩,⟨K⟩)` is an APPLY node. Its left child is a thunk of H(S). To check if it matches R-S, we compare the left child's hash to H(S). It does! But the pattern R-S is `APPLY(APPLY(APPLY(⟨S⟩,x),y),z)`. This requires the root of the *subterm* to be an APPLY whose left child is an APPLY whose left child is ⟨S⟩. In `f = APPLY(f1, a1)`, f1 is APPLY(⟨S⟩,⟨K⟩). So f is APPLY(APPLY(⟨S⟩,⟨K⟩),⟨K⟩). This matches R-S with x=⟨K⟩, y=⟨K⟩, z=⟨I⟩? Wait, the root is f, not the root of the whole term? Let's look at the root of the whole term: it's APPLY(f, a) with f = APPLY(APPLY(⟨S⟩,⟨K⟩),⟨K⟩) and a = ⟨I⟩. That's exactly the pattern R-S! Because R-S is APPLY(APPLY(APPLY(⟨S⟩,x),y),z). Here:
+- The outermost APPLY is the root.
+- Its left child is APPLY(APPLY(⟨S⟩,x),y). In our case, the left child is f = APPLY(APPLY(⟨S⟩,⟨K⟩),⟨K⟩). So f matches APPLY(APPLY(⟨S⟩,x),y) with x=⟨K⟩, y=⟨K⟩.
+- The right child of the root is z = ⟨I⟩.
+- So indeed, the root matches R-S! The root is APPLY(f, a) where f is an APPLY node whose left child is an APPLY node whose left child is ⟨S⟩. I was incorrectly thinking the root's left child had to be exactly three levels deep; it does: the root's left child is middle = APPLY(APPLY(⟨S⟩,⟨K⟩),⟨K⟩). That's two APPLY deep. The root adds a third APPLY. So the whole term is three APPLYs deep. The match is at the root of the whole term.
+
+So step(root) would match R-S at root. Therefore it fires R-S. That means no need to recurse. So the ATP cost is: force root (3) + force left child? Wait, to match R-S at root, we need to recognize that the left child is an APPLY node whose left child is ⟨S⟩. Do we need to materialize the left child? The text says: "патерни — порівняння хешів, аргументи НЕ форсуються". The patterns are hash compares, arguments are NOT forced. But to compare the hash of the left child of the root, we need to know that the left child of the root is an APPLY node. The root is an APPLY node that we must have materialized (forced). Its children are thunks (hashes). To match the pattern R-S, we need to check if the left thunk is H(APPLY(...))? No, the pattern compares hashes of nodes, not the hashes of thunks? Wait, "патерни — порівняння хешів". The pattern R-S requires the root to be an APPLY node (which is known because we forced it). Its left child is a thunk. To match R-S, we need the left child to be an APPLY node whose left child is ⟨S⟩. But the left child is currently a thunk (a hash). We don't know if it's an APPLY node or a leaf, unless we force it. However, we can compare the hash of the left child thunk to the hash of the expected structure? No, the hash of a thunk is the hash of the node it represents. The pattern "APPLY(APPLY(⟨S⟩,x),y)" at the root means the root is an APPLY, its left child is an APPLY, and that left child's left child is ⟨S⟩. To check if the left child is an APPLY, we need to know its node kind. Since it's represented by a thunk (hash), we can't know its kind without forcing it. But the text says arguments are NOT forced. Wait, the root's left child is the function argument at the first level; it's not forced. But the pattern requires the root's left child to be an APPLY node. How can we check that without forcing it? The hash of the left child is known. We can compare that hash to the hash of `APPLY(...)`? But `APPLY(...)` depends on x and y, which are variable. We can't know the hash of the left child unless we know x and y. So how does the machine match R-S without forcing the left child?
+
+This is a fundamental question about the abstract machine. The text says: "патерни — порівняння хешів, аргументи НЕ форсуються". Perhaps the meaning is: the combinators I, K, S are recognized by hash. The pattern matching for redexes compares the hashes of the function spine to the hashes of the combinators, but does not force the argument nodes. However, to match R-S, the machine needs to see the structure of the left spine. The root is forced (cost 3). After forcing, the root is an APPLY node with two thunk children. The left child is a thunk of some hash. To check if it is an APPLY node, we need to force it? But the text says arguments are not forced. But the left child of the root is the *function* part, not the argument. In `APPLY(f, a)`, the left child is the function. The step algorithm says: when t = APPLY(f,a), first try step(f). That means we recurse into the function part. But for R-S, the pattern is at the root. How does the root match R-S if we haven't checked the left spine?
+
+Let's re-read step(t):
+```text
+step(t):
+  if t = thunk(h): ...
+  elif t = REF(h): fire R-R
+  elif t matches R-I|R-K|R-S at root: fire
+  elif t = APPLY(f,a):
+      if step(f) exists: act in f
+      elif step(a) exists: act in a
+      else: none
+  else: none
+```
+
+The third case checks if t matches R-I, R-K, or R-S at the root. "at root" means the top-most node of the current term t. For the initial term T = APPLY(APPLY(APPLY(⟨S⟩,x),y),z), t is the root. To check if it matches R-S, we need to verify:
+1. t is an APPLY node.
+2. t.left is an APPLY node.
+3. t.left.left is ⟨S⟩.
+4. t.left.right is x (any).
+5. t.right is z (any).
+
+Since t is the root, it is a thunk initially. We need to force it to know it's an APPLY. After forcing, t is materialized. But t.left is a thunk. To know it's an APPLY node, we must force t.left as well? But the text says "аргументи НЕ форсуються". However, t.left is the *function* of the inner APPLY, not the argument of the outermost. In the outermost APPLY(f,a), f = APPLY(APPLY(⟨S⟩,x),y). This f is the function part. Is it considered an "argument"? No, the argument is a. So f is the function. The step algorithm recurses into f. But the pattern match at the root might be done by the evaluator using the hashes: since the root is a thunk of some hash H, but wait, t is the materialized root. After forcing the root, we have an APPLY node. Its left child is a thunk. The machine could compare the hash of that thunk to the hash of the expected structure? No, because the expected structure includes variable x and y. But the machine doesn't need to know x and y to trigger R-S; it just needs to know that the left child is an APPLY and that its left child is ⟨S⟩. To know that, it must materialize the left child (f). But the cost of materializing f is part of the cost of forcing the root? No, the cost of forcing the root only materializes the root node; its children remain thunks. The text says: "cost(force h) = size of the materialized node with thunk children". So after forcing, the node is materialized, but children are thunks. To know that the left child is an APPLY node, we need to force the left child. That would be a separate force.
+
+But TV-5 says 3 forces of 3. Let's count: the term is SKKI. Let's denote:
+- t0 = APPLY(t1, I) where t1 = APPLY(t2, K) where t2 = APPLY(S, K).
+Wait, is that the structure? S K K I is left-associative: ((S K) K) I. So:
+- root = APPLY( middle, I ), where middle = APPLY( inner, K ), where inner = APPLY( S, K ).
+Actually, the root is an APPLY node. Its left child is middle (an APPLY). Its right child is I. middle's left child is inner (an APPLY). middle's right child is K. inner's left child is S. inner's right child is K.
+
+To reduce the root, we need to recognize R-S. The root must be forced first (cost 3). After forcing, we have an APPLY node. The left child is a thunk of middle. To check if it is an APPLY node, we need to force it (cost 3). After that, we have an APPLY node for middle. Its left child is a thunk of inner. To check if inner is an APPLY node? Wait, R-S only requires the root's left child to be an APPLY node whose left child is ⟨S⟩. It does NOT require inner to be an APPLY node? Let's see:
+R-S pattern: APPLY(APPLY(APPLY(⟨S⟩,x),y),z).
+The root's left child is APPLY(APPLY(⟨S⟩,x),y). This is an APPLY node. Its left child is APPLY(⟨S⟩,x). This is also an APPLY node. Its left child is ⟨S⟩. So to match R-S, we need to know:
+- root is APPLY.
+- root.left is APPLY.
+- root.left.left is ⟨S⟩.
+
+Thus, we need to force root.left (middle) to verify it's an APPLY. Then we need to force root.left.left (inner? no, root.left.left is the left child of middle, which is inner) to verify it's ⟨S⟩? Wait, root.left = middle. middle.left = inner. inner.left = S. So root.left.left = inner. To verify that inner's left child is S, we would need to force inner? But maybe we only need to verify that middle.left (which is inner) is ⟨S⟩? No, the pattern says root.left.left = ⟨S⟩. root.left is middle. So root.left.left is middle.left, which is inner. inner must be ⟨S⟩? But inner is APPLY(S,K). That's not ⟨S⟩. Wait, I'm confusing the levels.
+
+Let's write the tree:
+root = APPLY( f=APPLY( f=APPLY( f=S, a=K ), a=K ), a=I )
+Pattern R-S:
+root = APPLY( f=APPLY( f=APPLY( f=⟨S⟩, a=x ), a=y ), a=z )
+So:
+- root.f is an APPLY.
+- root.f.f is an APPLY.
+- root.f.f.f is ⟨S⟩.
+
+Therefore, to match R-S at the root, we need:
+1. Force root (cost 3).
+2. Check root.f is an APPLY. Root.f is a thunk of H(middle). We need to know if middle is an APPLY. Since it's a thunk, we can't see its kind. We must force it? Actually, we could compare H(middle) to known hashes, but middle's hash depends on K. It's not a known constant. So we must force it (cost 3).
+3. Check root.f.f is an APPLY. After forcing middle, we know it's an APPLY. Its left child is a thunk of H(inner). We need to know if inner is an APPLY? Wait, root.f.f is middle.f, which is inner. Inner is APPLY(S,K). To check if inner is ⟨S⟩? No, the pattern says root.f.f is an APPLY whose left child is ⟨S⟩. Wait, root.f.f is inner. The pattern says root.f.f must be an APPLY. But inner is APPLY(S,K), so yes. But to verify that, we need to force inner? Because it's a thunk. That would cost another 3.
+4. Check root.f.f.f is ⟨S⟩. That's inner.f, which is S. It's a thunk. We compare its hash to H(S). We already forced inner in step 3, so now we can see its left child is S.
+
+But TV-5 says cost is 12 ATP: "3 forces of 3 + R-S 2 + R-K 1". Wait, that's only 3 forces. Let's count:
+- Force root (3).
+- Force root.f (3). (That's middle)
+- Force root.f.f? (3). (That's inner? But they say only 3 forces).
+Wait, "3 forces of 3" = 9. Plus R-S 2 = 11. Plus R-K 1 = 12. So only 3 forces. Which three?
+
+Maybe the machine doesn't need to force inner. Let's re-examine the pattern. In the abstract machine, a thunk is an unresolved hash leaf. Comparing a thunk to ⟨S⟩ is done by hash comparison without materialization. The text says: "Товк порівнюється з ⟨I⟩/⟨K⟩/⟨S⟩ за хешем без матеріалізації; товк матеріалізується лише коли його вимагає leftmost-outermost пошук."
+
+When step(t) reaches the third case: "elif t matches R-I|R-K|R-S at root: fire". The pattern R-S requires the left spine to be APPLY nodes. But if the left children are thunks, how do we know they are APPLY nodes? Perhaps the machine only checks the topmost combinators by hash, and the structure is implicit? No, the pattern requires the root to be an APPLY. After forcing the root, we know it's an APPLY. To check the root's left child, maybe we don't need to force it: we can check if its hash matches the hash of an APPLY node? But the hash of an APPLY node depends on its children. We don't know the children of the left child without forcing it. So we can't compute its hash.
+
+Wait, but the left child of the root is a thunk. Its hash is known (it's the hash of the node it represents). However, we don't know if that node is an APPLY, LITERAL, REF, or DISSONANCE. The hash alone doesn't reveal the kind. So to pattern match R-S, we need to know the kind of the left child. Thus we must force it.
+
+But if we force the left child (middle), its left child is inner, a thunk. To check if middle is an APPLY, we need its kind, which we get after forcing. Then to check if middle's left child is an APPLY? The pattern R-S says: root is APPLY, root.left is APPLY, root.left.left is ⟨S⟩. Wait, root.left.left is the left child of middle. That's inner. The pattern says root.left.left is ⟨S⟩? No, the pattern says:
+R-S: APPLY(APPLY(APPLY(⟨S⟩,x),y),z)
+Let's label:
+- A1 = APPLY( A2, z )
+- A2 = APPLY( A3, y )
+- A3 = APPLY( ⟨S⟩, x )
+So root = A1. root.left = A2. root.left.left = A3. root.left.left.left = ⟨S⟩.
+
+Wait, that's 4 levels? No, A3 is an APPLY node. Its left child is ⟨S⟩. So:
+- A1 is an APPLY (level 1)
+- A2 is an APPLY (level 2)
+- A3 is an APPLY (level 3)
+- A3.left is ⟨S⟩ (level 4)
+
+So to match R-S, we need to know that the root is an APPLY, its left child is an APPLY, its left child's left child is an APPLY, and that left child's left child is ⟨S⟩. That's three levels of forcing beyond the root! But TV-5 says only three forces total. Let's recount.
+
+Wait, maybe the notation is different. In the machine, a node is either materialized or a thunk. When we force the root (hash of the whole term), we materialize the root. The root is an APPLY node. Its left and right children are thunks representing the hashes of the subterms. To match the pattern, we need to see if the left child (a thunk) corresponds to an APPLY node. We cannot know the kind from the hash. But maybe we don't need to know the kind of the left child; we just need to know that the left child is a thunk whose hash matches the hash of the *function part* of a potential redex? No.
+
+Actually, in a SKI machine operating on hash thunks, the reduction is not purely syntactic on the graph; it's by structural recursion with lazy loading. The leftmost-outermost search requires loading nodes along the left spine until it finds a combinator or a redex. So to evaluate `((S K) K) I`, the machine would:
+1. Force the root to see it's an APPLY (cost 3).
+2. Descend into the left child (the function). It's a thunk of `APPLY(S,K)`? Actually, the left child is a thunk of ((S K) K). Wait, the root is APPLY( ((S K) K), I ). Its left child is the node representing ((S K) K). Its hash is known. To evaluate that node, we need to force it (cost 3). Now we have an APPLY node with left child thunk of (S K) and right child thunk of K.
+3. Descend into its left child. It's a thunk of (S K). We need to force it (cost 3). Now we have an APPLY node with left child thunk of S and right child thunk of K.
+4. Descend into its left child. It's a thunk of S. Since S is intrinsic, we compare its hash to H(S). It matches. So step returns none for this thunk? Wait, step(thunk(H(S))) returns none because it's intrinsic. Then the recursion unwinds.
+
+But the pattern matching for R-S happens when the root of the *current term* matches. In the example, after step 3, the current term is the inner node (S K). That's not a redex. So the recursion unwinds to the middle node (S K) K. That is also not a redex. Then to the root ((S K) K) I. Is the root a redex? For R-S, the root must be APPLY( APPLY( APPLY(⟨S⟩,x), y), z). The root is APPLY( middle, I). middle is APPLY( inner, K). inner is APPLY( S, K). So the root is exactly APPLY( APPLY( APPLY(S, K), K), I). That matches R-S with x=K, y=K, z=I. But how does the machine detect this at the root without forcing middle and inner?
+
+The step function as written checks `elif t matches R-I|R-K|R-S at root` before recursing into children. But to know that the root matches R-S, it must verify the structure. Since the children are thunks, it must force them to check their kind. But the step function doesn't show forcing in the pattern match case. However, the cost of forcing is part of the calculation. Perhaps the machine forces nodes as needed to traverse the left spine, and the pattern match is done once the combinators are found.
+
+Wait, the step function in §3.3 is an abstraction. It may not be an atomic step; the cost of forcing is accounted in the "step" that forces. The text says: "Кожна дія машини — спрацювання правила АБО матеріалізація одного вузла — тарифікується". So a step is either a rule firing or the materialization of one node. The `step(t)` function might represent the *search* for the next redex, which includes forcing thunks along the way. But the pseudocode shows `if t = thunk(h): force(h)`. That is the case for a thunk. For an APPLY node, it recurses. So the recursion descends the left spine, and at each thunk encountered, it forces it (cost priced separately). This means the 3 forces in TV-5 correspond to forcing the root, forcing the left child of the root (middle), and forcing the left child of middle (inner). But inner is APPLY(S,K). After forcing inner, we have an APPLY node. We try step on it: left child is S (intrinsic, none). Doesn't match R-S (needs 3 levels). So step(inner) = none. Then step(middle): after inner returns none, step(middle) checks step(a) = step(K) = none. So step(middle) = none. Then step(root): after step(f) = step(middle) = none, it checks step(a) = step(I) = none. So step(root) = none? That still implies the root is normal form! But that can't be.
+
+Wait, the pattern match `elif t matches R-I|R-K|R-S at root` is checked for the current t at each recursion level. So when t = inner (APPLY(S,K)), it doesn't match R-S. When t = middle (APPLY(APPLY(S,K),K)), it doesn't match R-S? Let's check: middle is APPLY( inner, K ). To match R-S, it would need to be APPLY( APPLY( APPLY(⟨S⟩,x), y), z). But it's only two levels. So no. When t = root (APPLY(middle, I)), it is three levels. But does the pseudocode allow the root to match R-S when we are recursing? The step function is called on the root. It goes to the APPLY case because the root is an APPLY. The APPLY case says: `if step(f) exists: act in f`. So it first tries step on the left child f = middle. It does not check if the root itself matches R-S in the `elif` case because the root is an APPLY, so the earlier `elif t matches ...` already was checked and false? Wait, the `elif t matches R-S at root` is checked before the `elif t = APPLY(f,a)`. For the root to match R-S, the root must satisfy the pattern. The root is APPLY(f,a) where f = middle and a = I. The pattern R-S is `APPLY(APPLY(APPLY(⟨S⟩,x),y),z)`. The root is `APPLY(middle, I)`. Is `middle` equal to `APPLY(APPLY(⟨S⟩,x),y)`? We don't know without forcing. But the match is a structural pattern match on the node. If the children are thunks, the pattern might compare hashes? No.
+
+I think the pseudocode in §3.3 is a high-level description, not a literal algorithm that an implementation must follow step-by-step. The actual intended semantics is leftmost-outermost reduction on the lazy graph, and the cost model is defined by the size-priced rules. The test vectors define the expected behavior. The pseudocode might be slightly inaccurate, but the vectors are normative. However, if the pseudocode contradicts the vectors, that's a P0 (text contradicts vector suite). But does it? Let's see.
+
+If step(root) recurses into f first, then the redex at the root is never found because it descends into normal subterms. But standard leftmost-outermost evaluation for combinators does reduce at the root when the root is a redex. The pseudocode `elif t matches R-I|R-K|R-S at root` is checked before recursing. But for the root to match R-S, the root's structure must be visible. The root is an APPLY node. The pattern requires the root's left child to be an APPLY node. Since the root's left child is a thunk, the machine cannot see that it's an APPLY without forcing it. But forcing it is a priced step. So perhaps the machine forces it *as part of* checking the pattern? But the pattern match case in the pseudocode doesn't price a force.
+
+Wait, maybe the initial "step(t)" is not the whole step; maybe the "step" that forces a thunk is the step, and the pattern match is done after enough forces. Let's re-read the description: "Абстрактна машина v0.5 оперує хеш-товками... Товк порівнюється з ⟨I⟩/⟨K⟩/⟨S⟩ за хешем без матеріалізації; товк матеріалізується лише коли його вимагає leftmost-outermost пошук. Кожна дія машини — спрацювання правила АБО матеріалізація одного вузла — тарифікується."
+
+So the machine action is either a rule firing OR a materialization. The leftmost-outermost search requires materialization to inspect the node kind. To find a redex at the root of SKKI, the machine needs to know the root is APPLY, then the root's left is APPLY, then root's left's left is APPLY, then root's left's left's left is ⟨S⟩. But each of those nodes must be materialized to be inspected. That's 3 materializations (root, root.left, root.left.left). After materializing the third one (inner=APPLY(S,K)), its left child is ⟨S⟩, so we know we have a combinator spine of length 3. Then the redex is at the root. So the three forces are: root, middle, inner. Then R-S is fired. The cost is 3+3+3 = 9. Then R-S creates two new APPLY nodes: APPLY(S x, z) and APPLY(y, z)? Wait, R-S: APPLY(APPLY(APPLY(⟨S⟩,x),y),z) → APPLY(APPLY(x,z), APPLY(y,z)). The result has two new APPLY nodes. The current materialization size of z (which is I) is 1 (thunk). So cost(R-S) = 1 + size(z) = 1 + 1 = 2. But wait, size(z) is the size of z in the current materialization. z is the right child of the root, which is ⟨I⟩. That's a thunk, size 1. So cost = 2. Total cost = 9 + 2 = 11. Then we need R-K? Let's see: after R-S, the term becomes APPLY( APPLY(K, I), APPLY(K, I) ). Actually, x=K, y=K, z=I. So result is APPLY( APPLY(K, I), APPLY(K, I) ). Now we need to reduce this. The root is APPLY. Its left child is APPLY(K, I). That's a redex for R-K? R-K is APPLY(APPLY(⟨K⟩, x), y) → x. The left child of the root is APPLY(APPLY(⟨K⟩, I), something)? Wait, the left child is APPLY(K, I). That matches R-K with x=I, y=... wait, R-K requires two levels: root is APPLY, left child is APPLY(⟨K⟩, x). Here the left child is exactly APPLY(⟨K⟩, ⟨I⟩). But we need the root of the redex to be this left child? No, the redex is the left child itself: APPLY(APPLY(⟨K⟩, ⟨I⟩), ⟨I⟩)? Wait, after R-S, the term is APPLY( APPLY(K, I), APPLY(K, I) ). Let's call left = APPLY(K, I). This is a normal form? No, APPLY(K, I) by itself is a redex for R-K? R-K is APPLY(APPLY(⟨K⟩, x), y) → x. To match R-K, we need the root to be APPLY(APPLY(⟨K⟩, x), y). But left = APPLY(K, I) has only one APPLY. So it's not a redex. It's a partial application of K to I, waiting for a second argument. But in the term APPLY(left, right), the root is an APPLY with left = APPLY(K,I). The root itself is not a redex for any rule. We need to reduce left? But left is stuck waiting for an argument. However, the root provides the argument: right = APPLY(K, I). So the root is APPLY(APPLY(K, I), APPLY(K, I)). This matches R-K! Because R-K is APPLY(APPLY(⟨K⟩, x), y) → x. Here the root is APPLY, its left child is APPLY(K, I). That matches APPLY(⟨K⟩, x) with x = I. And the root's right child is APPLY(K, I), which is y. So R-K fires at the root, discarding y and returning x = I.
+
+So R-K cost = 1. Total = 11 + 1 = 12. Spent = 12. The result is I. That matches TV-5.
+
+But my earlier concern about the pseudocode recursing before matching at the root is still valid: the step pseudocode checks `elif t matches R-S at root` before recursing. But to know that t matches R-S, t's structure must be visible. If t is the root and its left child is a thunk, the pattern match fails because the left child is not an APPLY node (it's a thunk). So the pseudocode would not match R-S at the root until the left child is forced. But forcing is done in the `thunk` case, not in the pattern match case. This means the pseudocode as written would not find the R-S redex at the root without first recursing? Actually, the pseudocode for step(t) is called on the root. If the root is an APPLY node, it falls to the `elif t = APPLY(f,a)` case, not the `elif t matches R-S` case, because the root is an APPLY node but its children are thunks, so the pattern "APPLY(APPLY(APPLY(⟨S⟩,x),y),z)" does not match the root node object if we consider the children must be materialized APPLY nodes. Wait, but the root node object is of kind APPLY. The pattern is structural. Does the pattern require the children to be materialized? In a typical pattern match, yes. But here the children are hashes, not nodes.
+
+However, the vector suite confirms the behavior: 12 ATP, 3 forces. So the intended behavior is as I reasoned. The pseudocode may be a simplification that expects the reader to understand that pattern matching on thunks requires forcing, but the pseudocode doesn't show that. Or perhaps the pattern is meant to match the *hash structure*: the root is an APPLY, its left hash is the hash of an APPLY node, etc. But you don't know the hash of the left child is an APPLY node unless you've seen it before. You could have a cache.
+
+Actually, in a content-addressed system, the hash of a node encodes its whole structure. If you have the hash of middle = APPLY(S,K), you know it's an APPLY node because you can look at the bytes after forcing. But you could also know from the hash if you've seen it. But generically, you don't know.
+
+Given that the pseudocode is in the spec, if it contradicts the vectors, that's a finding. But does it? Let's look at the pseudocode again:
+
+```text
+step(t):
+  if t = thunk(h):
+      if h ∈ {H(I),H(K),H(S)}: none
+      else: force(h)
+  elif t = REF(h):                fire R-R
+  elif t matches R-I|R-K|R-S at root: fire
+  elif t = APPLY(f,a):
+      if step(f) exists: act in f
+      elif step(a) exists: act in a
+      else: none
+  else: none
+```
+
+If we call step(root) and root is a materialized APPLY with thunk children, `t matches R-S at root` might match if we interpret the pattern as matching the *hash* of the left child against the hash of an expected structure? No, the pattern uses ⟨S⟩, which is a hash constant. The pattern `APPLY(APPLY(APPLY(⟨S⟩,x),y),z)` could be interpreted as: the top node is an APPLY, its left child is a node whose hash is the hash of APPLY(something, something), etc. But you can't compute that from the thunk.
+
+Perhaps the intended semantics is that the pattern match in the pseudocode is symbolic and the recursion into f is what actually traverses the spine, and the redex is found at the deepest level, not at the root. But that contradicts the leftmost-outermost order: the redex at the root is outermost, so it should be reduced before any inner redexes. However, in this case, the root is the outermost redex. If the machine descends into the left child, it would be descending into a normal form? No, the left child is not normal; but the redex is at the root, not inside the left child. In leftmost-outermost, you reduce the outermost redex first. So the machine should fire R-S at the root.
+
+How does the machine know the root is a redex without materializing the left spine? It materializes the left spine as part of the search. Each materialization is a separate step. After three materializations, it discovers the root is a redex. Then it fires R-S. But the pseudocode doesn't show this accumulation. However, the step function is called repeatedly until none. Each call to step does one action: either force a thunk or fire a rule. So the sequence is:
+- step(root): root is thunk? No, it's an APPLY. Does it match R-S? No, because left child is thunk. Does it match R-I? No. So it goes to APPLY case. step(f) where f = left child thunk. Now step(f) is called on the thunk. f is thunk(h). If h is intrinsic? No. So step(f) = force(h). Thus the machine forces the left child. That's one step.
+- Next call to step(root): now root is still an APPLY, left child is materialized APPLY, its left child is thunk. step(root) again: check R-S? left child is materialized APPLY, but its left child is thunk, so pattern still fails. Apply case: step(f) on middle. middle is APPLY, its left child is thunk. step on that thunk forces it. Second step.
+- Next call: root left.left materialized. Its left child is S thunk. step(root) again: R-S? root.left.left is APPLY(S,K). Its left child is S thunk. The pattern R-S requires the leftmost leaf to be ⟨S⟩, not a thunk? Actually, ⟨S⟩ is a thunk of H(S). So the left child of inner is a thunk of H(S). The pattern `APPLY(APPLY(APPLY(⟨S⟩,x),y),z)` has `⟨S⟩` as a thunk? In the machine representation, the node `APPLY(⟨S⟩, x)` has left child ⟨S⟩, which is a thunk. So after forcing inner, we have an APPLY node whose left child is ⟨S⟩ (a thunk). So now the root's left spine is fully visible as APPLY -> APPLY -> APPLY -> ⟨S⟩. The pattern match R-S at root now succeeds? The pseudocode compares t (the root) to the pattern. If the pattern requires the third-level left child to be ⟨S⟩, and it is a thunk of H(S), does that match? Yes, because ⟨S⟩ is defined as a node whose NodeHash equals H(S). A thunk of H(S) has the same hash. So it matches. Thus step(root) fires R-S. That's the third forced materialization before the rule firing? Wait, we forced root (step 1), middle (step 2), inner (step 3). Then step 4 fires R-S.
+
+But root was forced as the first step? Actually, the input term_hash is a hash. We start evaluation with a thunk of term_hash. The very first step might need to force the root to know it's an APPLY. Did TV-5 count that? Let's check TV-4: APPLY(I,K) with atp=4: "force кореня 3 + R-I 1". So yes, the root must be forced first. That accounts for 3 ATP. Then R-I costs 1.
+
+For TV-5: root is the hash of SKKI. The machine starts with a thunk of that hash. The first step forces the root (cost 3). Then the next step forces the left child (cost 3). Then the next step forces the left-left child (cost 3). Then R-S (cost 2). Then we have the new term. Then another step: we need to force anything else? After R-S, the term is APPLY(APPLY(K, I), APPLY(K, I)). The root is an APPLY. To check R-K, we need to see that the left child is APPLY(K, I). The left child is a newly created APPLY node (materialized by the rule). Its children are thunks? Actually, R-S constructs new APPLY nodes. The new left child is APPLY(K, I). Since K and I are thunks (hashes), the new node is an APPLY with thunk children. Is it materialized? The rule synthesizes it, so it's materialized? Or is it a thunk? The text says "вузли, синтезовані редукціями, рахуються" (nodes synthesized by reductions count). The size of the term after reduction includes synthesized nodes. So the new APPLY nodes are materialized. Thus after R-S, the root's left child is a materialized APPLY(K, I). The root itself is also materialized (it was the original root). But after R-S, the original root is replaced by the new term. The new term has root APPLY( APPLY(K,I), APPLY(K,I) ). The left child is APPLY(K,I), which is materialized. To match R-K at the root, we need root to be APPLY, left child to be APPLY(⟨K⟩, x). That is true. So we fire R-K without further forcing. Cost = 1. Total = 3+3+3+2+1 = 12. Correct.
+
+So the pseudocode is consistent with the vectors if we interpret pattern matching as requiring the left spine to be materialized, and the step function being called iteratively on the root until no action. The recursion in the APPLY case triggers forcing of the left spine.
+
+But there's a subtle issue: `elif t matches R-I|R-K|R-S at root` is checked before `elif t = APPLY(f,a)`. For the root to match R-S, we need the left spine to be materialized. The step pseudocode doesn't show materialization *for* pattern matching; it shows materialization only in the thunk case when step recurses. So the sequence is: step(root) -> APPLY case -> step(f) -> thunk case -> force f. Next step(root) -> APPLY case -> step(f) -> APPLY case -> step(f.f) -> thunk case -> force f.f. Next step(root) -> matches R-S. This works. The pseudocode is correct as a recursive search algorithm that returns the *next action* to take (either a force somewhere in the left spine or a rule at the root). It's not a single-step state transition; it's a function that finds the next redex. The naming "step" is slightly ambiguous, but the explanation says "step(t): // одна тарифікована дія". Hmm, it says "one priced action". But the recursive version seems to search without pricing the intermediate steps? No, the recursion just locates the thunk to force. Each call to step on the root that ends up forcing a thunk is one priced action. So the algorithm is: while step(root) returns an action, perform it. Each iteration does one priced action. The recursion inside step is just a search to find which thunk to force or whether a rule can fire. But the recursion itself doesn't cost anything; only the action taken costs.
+
+This is subtle but probably correct. The vector suite confirms it. So no P0 there.
+
+Now, back to checking the English rendering for discrepancies.
+
+I need to carefully compare the two texts for any normative difference. Since the user provides both full texts, I should spot-check key sections.
+
+Let's check §5.1 Axioms. Ukrainian:
+"Для X ∈ {I,K,S} вираз SHA-256("X") означає SHA-256 рівно одного ASCII-байта X, без лапок і термінатора. Значення повністю визначені цією конструкцією і навмисно не дублюються, щоб не створювати друге джерело істини; референсна реалізація не є нормативним джерелом цих значень."
+
+English:
+"For X ∈ {I,K,S}, SHA-256("X") denotes SHA-256 of exactly one ASCII byte X, with no quotation marks and no terminator. The values are fully determined by this construction and are deliberately not duplicated here, to avoid creating a second source of truth; the reference implementation is not a normative source for them."
+
+Okay.
+
+§3.5 English: "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+Ukrainian: "Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+Okay.
+
+§3.6 English: "Input outside the declared domain (MUST). An atp that is not a uint32, and a term_hash that is not exactly 32 bytes, MUST be refused the same way — locally, before the environment is consulted, and not as a canonical exit."
+Ukrainian: "Вхід поза оголошеною областю (MUST). atp, що не є uint32, і term_hash, що не є рівно 32 байтами, MUST бути відхилені так само — локально, до звернення до середовища, і не як канонічний вихід."
+
+Okay.
+
+Let's check the test vectors notation.
+Ukrainian: "Позначення §7 (MUST читати так). У векторах нижче eval(·, atp) — скорочення для обчислення вказаного терма з бюджетом atp над середовищем вмісту цього видання, тобто над об'єктами objects набору tests/spec_conformance/vectors.json; третій вхід (§3.4) не опускається, а фіксується набором. Запис = ⟨X⟩ стверджує вихід normal_form із expected.result_hash рівним H(X); «ATP Exhausted» — вихід atp_exhausted; «Unresolved Reference» — вихід unresolved_reference. Скорочення не додає і не змінює жодної вимоги: нормативними лишаються поля запису, перелічені вище."
+
+English: "§7 notation (MUST be read this way). In the vectors below, eval(·, atp) abbreviates evaluation of the named term with budget atp over this edition's content environment — the objects of tests/spec_conformance/vectors.json. The third input (§3.4) is not omitted; it is fixed by the set. = ⟨X⟩ asserts the exit normal_form with expected.result_hash equal to H(X); "ATP Exhausted" asserts atp_exhausted; "Unresolved Reference" asserts unresolved_reference. The shorthand adds and changes no requirement: the normative statements remain the record fields listed above."
+
+Looks identical.
+
+Now, look at the vector TV-4. Ukrainian: "`eval(·,0)` = ATP Exhausted, spent 0 — без жодного звернення до сховища; `eval(·,2)` = ATP Exhausted, spent 0 — байти кореня відкинуті (force коштує 3 > 2); `eval(·,3)` = ATP Exhausted, spent 3."
+
+English: "eval(·,0) = ATP Exhausted, spent 0 — with no access to storage at all; eval(·,2) = ATP Exhausted, spent 0 — the root bytes discarded (force costs 3 > 2); eval(·,3) = ATP Exhausted, spent 3."
+
+Consistent.
+
+TV-8: Ukrainian: "APPLY(⟨I⟩, ghost) при відсутньому ghost → DISSONANCE(Unresolved Reference), spent 4: R-I спрацьовує ліниво БЕЗ форсування ghost, потім ghost стає вимаганим коренем і не форсується."
+
+English: "APPLY(⟨I⟩, ghost) with ghost absent → DISSONANCE(Unresolved Reference), spent 4: R-I fires lazily WITHOUT forcing ghost, then ghost becomes the demanded root and is not forced."
+
+Wait, English says "spent 4". Let's compute: root is APPLY(I, ghost). Force root (3). R-I (1). Total 4. Yes. Then the result is the right child, ghost. Since ghost is absent, we have unresolved reference. But the English says "then ghost becomes the demanded root and is not forced." Wait, "is not forced"? Actually, after R-I, the term reduces to ghost (a thunk of ghost hash). Since it's the whole term, we need to evaluate it. step(ghost) = thunk(h). h is not intrinsic. So step returns force(h)? Wait, step(thunk(h)) says: if h not intrinsic, force(h). But if atp is spent = 4 (assuming atp was at least 4), then after R-I, spent = 4. If original atp was 4, then atp - spent = 0. Next step is force(ghost), cost at least 1 > 0, so exhaustion. But TV-8 says the result is Unresolved Reference, spent 4. That means atp must have been exactly 4? Let's see: with atp=4, after root force (3) + R-I (1), spent = 4 = atp. Then the next step would be force ghost, but exhaustion check says cost 1 > 0, so ATP Exhausted. But TV-8 says Unresolved Reference. That implies the budget must have been at least 5? Wait, no. Let's read the Ukrainian: "APPLY(⟨I⟩, ghost) при відсутньому ghost → DISSONANCE(Unresolved Reference), spent 4". It doesn't specify atp. It just says the result is Unresolved Reference. How can that be? If atp is large enough, after R-I, we reduce to ghost. Then we force ghost. Ghost is missing, so Unresolved Reference. Force ghost costs 2? Wait, ghost is a REF? No, ghost is just a missing hash. Let's say the term is APPLY(⟨I⟩, ⟨ghost⟩) where ⟨ghost⟩ is a thunk of a missing hash? But the text says ghost is відсутній у сховищі. What is the structure? The term is APPLY(⟨I⟩, ghost). ghost is a hash? Actually, in the notation, ghost is presumably a hash leaf. Let's assume it's a LITERAL or a REF. But if it's just a missing hash leaf (thunk), then after R-I, the term becomes ghost (a thunk). Then step on ghost: since it's a thunk and not intrinsic, the next step is to force it. If the environment doesn't have it, resolve fails → Unresolved Reference. That would cost 1 (force) or 2? Wait, force(h) cost depends on the node kind. But since the bytes are missing, resolve fails. The spec says "Невдала дія (відмова resolve) не тарифікується." So forcing a missing hash does not cost anything? Wait, but the text says: "Невдала дія (відмова resolve) не тарифікується." But earlier: "Дія з ціною c > atp − spent не виконується". Does the missing hash count as a failed action? The text says: "resolve(h)/force(h) — єдина операція матеріалізації вузла за хешем. Два режими відмови розрізняються явно: (a) h не знаходиться у сховищі ... → DISSONANCE(Unresolved Reference)". So the resolve operation returns a failure. Is this failure a "дія" (action) that is priced? The text says "Невдала дія (відмова resolve) не тарифікується." This means a failed resolve is unpriced. But what is the cost of the step that attempts to resolve? The action is force(h). The cost is determined by the kind. But if the bytes are missing, the cost is 0? Or is the action considered not taken? The text says "Невдала дія ... не тарифікується." So the spent ATP does not increase. But the result is Unresolved Reference.
+
+Thus for TV-8: Force root (3) + R-I (1) = 4 spent. Then the term is ghost (a thunk of missing hash). step(ghost) attempts force(ghost). It fails (missing). No ATP spent. So total spent = 4. Exit = Unresolved Reference. This requires that the budget was enough to cover the first 4 steps. The text doesn't state atp for TV-8. It just says spent 4. So atp could be 4 or more. If atp=4, then after spent=4, the next step would be force(ghost), but exhaustion check says cost > atp - spent = 0. But force cost is at least 1. However, the resolve failure is not priced, but does the exhaustion check apply? The exhaustion check applies before the action. But if the action is a force that would cost 1 (if bytes existed), and atp-spent = 0, then the action is not performed, result is ATP Exhausted. But if the bytes are missing, the action is attempted? The text says the resolve failure yields Unresolved Reference. It doesn't say whether the exhaustion check prevents attempting a resolve on a missing hash when spent == atp. Wait, the text says: "Мінімальна ціна будь-якої дії — 1, тому при spent == atp вичерпання вирішується до будь-якого звернення до сховища (eval(REF(missing), 0) = ATP Exhausted)." So if atp=0 and the term is REF(missing), you get ATP Exhausted, not Unresolved Reference. Because the action costs at least 1. But what if the term is a missing thunk that is not a REF? In TV-8, after R-I, the term is ghost (a thunk). If atp=4 and spent=4, the next action would be force(ghost). The minimum price is 1, so exhaustion check says c=1 > 0, so ATP Exhausted. But TV-8 says Unresolved Reference with spent 4. So for TV-8 to yield Unresolved Reference, atp must be at least 5? But the text doesn't specify atp. It just says the result is Unresolved Reference. Maybe the vector suite specifies atp. Since the text says "при відсутньому ghost → DISSONANCE(Unresolved Reference), spent 4", and the vectors are the normative source of the budget.
+
+This is getting too deep into the weeds. The normative fields are in vectors.json. The prose is explanatory. As long as the prose doesn't contradict the vectors, it's fine. The text says: "Решта прози §7 пояснює правила... і не є самостійним нормативним твердженням цього параграфа". So the exact atp values in the prose are not independently normative. Good.
+
+Now, what about the English rendering of §3.4? It says: "A single step whose price exceeds 2³²−1 is unreachable for any canonical budget → ATP Exhausted, not implementation-defined."
+
+Wait, the English says "unreachable for any canonical budget → ATP Exhausted". But if the step price exceeds 2^32-1, how can it be unreachable? It's unreachable because the bound ensures it can't happen. But the phrasing "unreachable ... → ATP Exhausted" is odd: if it's unreachable, the consequence is moot. But it's just a figure of speech. Not a bug.
+
+Now, look at the English rendering §3.5: "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+
+The English uses "resolved hash". The Ukrainian uses "розв'язаному хеші". OK.
+
+One more area: The English rendering of the memory bound: "Semantic memory bound (a theorem, a normative invariant): along any execution materialized_size(t) − 1 ≤ spent... Consequence for implementations: the bound gives a preflight estimate of memory from the budget (memory never exceeds 1 + atp), but spent is an upper, NOT a lower, bound on size, so a fault-guard keyed on spent wrongly fails divergent terms of tiny size (Ω); a guard MUST measure the actual size(t)/depth."
+
+Ukrainian: "Семантична межа пам'яті (теорема, нормативний інваріант): уздовж будь-якого виконання materialized_size(t) − 1 ≤ spent... Наслідок для реалізацій: межа дає префлайт-оцінку пам'яті з бюджету (пам'ять ніколи не перевищить 1 + atp), але spent — верхня, НЕ нижня межа розміру, тож fault-guard за spent хибно валить дивергентні терми крихітного розміру (Ω); guard MUST міряти фактичний size(t)/глибину."
+
+The English says "preflight", Ukrainian says "префлайт". Good.
+
+Now, is there any P0 in Book II or III?
+
+Book II §5: "div_round_half_up(n, d): round-half-away-from-zero; d > 0". The formula is given. The text says: "floor-варіанти розходяться на від'ємних непарних сумах — конформанс: вектор WV-NEG-TIE (avg(−1,−2) = −2, разом −258, не −257)." Let's check: avg(-1, -2) = (-1 + -2) / 2 = -3/2 = -1.5. Round half away from zero: -1.5 → -2. Then delta_en = -2. The sum of en? w1.en + w2.en? Actually, the formula is `new_en = clamp_i16(div_round_half_up(int32(w1.en)+int32(w2.en), 2) + delta_en)`. If w1.en = -1 and w2.en = -2 (maybe in a test vector), `div_round_half_up(-3, 2) = -2`. Then plus delta_en. For WV-NEG-TIE, maybe delta_en is -256? The text says "разом -258". So -2 + (-256) = -258. If you used floor, -3/2 floor = -2? Actually floor(-1.5) = -2. That's the same as round half away from zero for negative half integers? Wait, round half away from zero for -1.5: |-1.5| = 1.5, 2r = 3 >= d=2, so q+1 = 1+1 = 2, return -2. Floor(-1.5) = -2. So they agree. But if w1.en=-1 and w2.en=-3, sum=-4, avg=-2, floor and away-from-zero agree. If sum=-5, avg=-2.5. Round half away from zero: -3. Floor: -3. Same. For odd negative sums: sum=-3, avg=-1.5. Round half away from zero: -2. Floor: -2. Same. Sum=-1, avg=-0.5. Round half away from zero: -1. Floor: -1. Same. So why does the text say floor variants diverge on negative odd sums? Let's check: the formula is `div_round_half_up(n, d)` where n is sum. For negative n, `s = -1`, `a = |n|`, `q = a//d`, `r = a%d`. Then if `2r >= d`, q += 1. Return `s*q`. Let's compute n=-3, d=2: a=3, q=1, r=1. 2r=2 >= 2, so q=2. return -2. Floor(-3/2) = floor(-1.5) = -2. Same. n=-1, d=2: a=1, q=0, r=1. 2r=2 >= 2, q=1. return -1. Floor(-0.5) = -1. Same. Hmm, maybe they mean round half up (towards +∞) vs round half away from zero? "div_round_half_up" is defined as "round-half-away-from-zero". Actually, the name "half_up" usually means towards +∞. But the code defines it as round-half-away-from-zero: `s = -1 if n<0 else 1`. So it's round half away from zero. The text says "div_round_half_up — строго за §3 (round-half-away-from-zero); floor-варіанти розходяться на від'ємних непарних сумах". Let's compute a floor variant of round half up (towards +∞). For negative numbers, round half up (towards +∞) would round -1.5 to -1 (since -1 > -2). That diverges from away-from-zero. So the text is correct. No issue.
+
+Now, check Book II vectors. The text says "Вичерпний машинний набір WaveVectorQ — tests/spec_conformance/wave_vectors.json; при розбіжності з прозою виграє оракул sigma_wave.py." Wait, this is from the adopted version. The candidate replaced that with the new rule. In the candidate text, Book II §5 says: "Машинні вектори: tests/spec_conformance/wave_vectors.json. Набір є нормативною частиною цього видання...". Good. English: "Machine vectors: tests/spec_conformance/wave_vectors.json. The set is a normative part of this edition...". In the diff, the candidate removed the "oracle wins" sentence. I should verify that the English rendering was updated too. But Book II English is not included in the prompt. Only Book I English is included.
+
+The prompt says: "The English rendering spec/book-1-truth.en.md is informative, not normative. It is included because the candidate claims it carries the same requirements as the Ukrainian text; disagreement between them is a finding."
+
+So I only need to compare Book I English to Book I Ukrainian. I don't have Book II English or Book III English.
+
+Alright, let's do a systematic comparison of Book I English vs Ukrainian for any discrepancies.
+
+I'll scan section by section.
+
+1.1 SigmaNodeV2:
+Ukrainian: "Біти Flags поза маскою 0x07 MUST be zero."
+English: "Flags bits outside the mask 0x07 MUST be zero."
+OK.
+
+1.1 LITERAL: "Book I validates only canonical bytes of SigmaNodeV2."
+Ukrainian: "Книга I валідує лише канонічні байти SigmaNodeV2."
+English: "Book I validates only the canonical bytes of a SigmaNodeV2." OK.
+
+1.2: "Будь-який опкод поза таблицею §1.1 (включно з 0x03) робить буфер невалідним (§4)."
+English: "Any opcode outside the table in §1.1 (including 0x03) makes the buffer invalid (§4)." OK.
+
+2. Serialization: identical.
+
+3.1: "R-R розгортає рівно один рівень за крок (MUST)."
+English: "R-R unfolds exactly one level per step (MUST)." OK.
+
+3.2: identical meaning.
+
+3.3: "Абстрактна машина v0.5 оперує хеш-товками"
+English: "The v0.5 abstract machine operates on hash thunks"
+OK.
+"The divergence class is closed normatively:" UK: "Клас розбіжностей закрито нормативно:" EN: "The divergence class is closed normatively:" OK.
+"APPLY(APPLY(⟨K⟩, x), missing) → x, а не Unresolved Reference; S (K I) (K K) missing → ⟨K⟩."
+EN: "APPLY(APPLY(⟨K⟩, x), missing) → x, not Unresolved Reference; S (K I) (K K) missing → ⟨K⟩." OK.
+
+3.4:
+Ukrainian: "Розмір — семантична міра матеріалізації"
+English: "Size — the semantic materialization measure"
+OK.
+"Чим ця межа не є (MUST NOT тлумачити ширше)."
+English: "What this bound is not (MUST NOT be read more widely)."
+OK.
+"Інтерфейс (MUST). eval(term_hash, atp: uint32, env) → Receipt, де env — середовище вмісту (§3.5): часткове відображення NodeHash → байти. Три входи, не два"
+English: "Interface (MUST). eval(term_hash, atp: uint32, env) → Receipt, where env is a content environment (§3.5): a partial map from NodeHash to bytes. Three inputs, not two"
+OK.
+"Receipt (MUST). Receipt = { exit, result_hash, atp_spent }, де exit ∈ { normal_form, atp_exhausted, unresolved_reference }. Усі три виходи — канонічні, детерміновані й однакові на всіх нодах за однакового вимаганого середовища (§3.5). result_hash — NodeHash терма, який машина повернула."
+English: "Receipt (MUST). Receipt = { exit, result_hash, atp_spent }, where exit ∈ { normal_form, atp_exhausted, unresolved_reference }. All three exits are canonical, deterministic and identical on all nodes given the same demanded environment (§3.5). result_hash is the NodeHash of the term the machine returned."
+OK.
+"result_hash сам по собі не визначає exit (MUST NOT покладатися)."
+English: "result_hash alone does not identify exit (MUST NOT rely on it)." OK.
+
+"Профіль сумісності (MAY)."
+English: "Compatibility profile (MAY)." OK.
+
+"ATP-бюджет — uint32. Значення поза цією областю не є бюджетом: воно MUST бути відхилене згідно з §3.6 (локально, до звернення до середовища, і не як канонічний вихід). Реалізація MUST NOT приймати його, обрізавши до 2³²−1: обрізання перетворює відмову у прийомі на результат обчислення, а два рушії, один із яких обрізає, розійдуться на тому самому вході. Консенсус-критичні лише канонічні результати. Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined."
+
+English: "The ATP budget is a uint32. A value outside that domain is not a budget: it MUST be refused per §3.6 — locally, before the environment is consulted, and not as a canonical exit. An implementation MUST NOT accept it by clamping to 2³²−1: clamping turns a refusal to admit into a result of evaluation, and two engines, one of which clamps, diverge on the same input. Only canonical results are consensus-critical. A single step whose price exceeds 2³²−1 is unreachable for any canonical budget → ATP Exhausted, not implementation-defined."
+
+Wait! The English says "unreachable for any canonical budget → ATP Exhausted". This is slightly different from Ukrainian: "Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined."
+Both say the same.
+
+"Перевірка вичерпання передує дії. Дія з ціною c > atp − spent не виконується: результат DISSONANCE(ATP Exhausted) зі spent без змін. Мінімальна ціна будь-якої дії — 1, тому при spent == atp вичерпання вирішується до будь-якого звернення до сховища (eval(REF(missing), 0) = ATP Exhausted). Якщо ціна force стає відомою лише після отримання байтів (вид вузла), недоступні за бюджетом байти відкидаються без матеріалізації — детерміновано. Невдала дія (відмова resolve) не тарифікується. eval тотальний: жодна внутрішня відмова MUST NOT покидати eval інакше, ніж канонічним DISSONANCE."
+
+English: "The exhaustion check precedes the action. An action whose price is c > atp − spent is not performed: the result is DISSONANCE(ATP Exhausted) with spent unchanged. The minimum price of any action is 1, so at spent == atp exhaustion is decided before any access to storage (eval(REF(missing), 0) = ATP Exhausted). When the cost of a force becomes known only after fetching the bytes (the node's kind), bytes unaffordable under the budget are discarded without materialization — deterministically. A failed action (a resolve failure) is not priced. eval is total: an internal failure MUST NOT leave eval as anything other than a canonical DISSONANCE."
+
+Looks consistent.
+
+"Семантична межа пам'яті... Наслідок для реалізацій: межа дає префлайт-оцінку... guard MUST міряти фактичний size(t)/глибину."
+
+English: "Semantic memory bound... Consequence... the bound gives a preflight estimate... guard MUST measure the actual size(t)/depth." OK.
+
+"Нормативна модель обліку — tree semantics над матеріалізованим графом: шаринг MAY застосовуватись у виконанні, але звітований ATP MUST збігатися з tree-обліком."
+
+English: "The normative accounting model is tree semantics over the materialized graph: sharing MAY be used in execution, but the reported ATP MUST match the tree accounting." OK.
+
+3.5:
+Ukrainian: "Середовище вмісту (MUST). env — часткове відображення хеш → байти з однією властивістю: SHA-256(bytes) = key для кожного запису. Перевірка йде над сирим буфером і до валідації §4.1: буфер, що не проходить валідацію, цієї властивості не порушує — він є режимом відмови (b) нижче й дає Canonical Invalid Object. Питання «чи це валідний вузол» і питання «чи ці байти належать цьому ключу» — різні, і плутати їх не можна: перше має канонічну відповідь, друге канонічної відповіді не має взагалі."
+
+English: "Content environment (MUST). env is a partial map from hash to bytes with one property: SHA-256(bytes) = key for every entry. The check is over the raw buffer and before §4.1 validation: a buffer that fails validation does not violate this property — it is failure mode (b) below and yields the Canonical Invalid Object. "Is this a valid node" and "do these bytes belong under this key" are different questions and must not be conflated: the first has a canonical answer, the second has no canonical answer at all."
+
+OK.
+
+Ukrainian: "Байти під ключем, у який вони не хешуються, MUST NOT виконуватися як вузол цього ключа... Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат."
+
+English: "Bytes under a key they do not hash to MUST NOT be evaluated as that key's node... The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield a local refusal (§3.6), not a canonical result."
+
+OK.
+
+Ukrainian: "Запис, якого виконання не вимагало, MUST NOT змінювати жоден канонічний Receipt... Це не забороняє верифікаторові не допустити середовище з власних причин... Такий крок є допуском (§3.6), а не обчисленням: він не дає жодного Receipt, тож і розходитися немає в чому, і подавати його як результат обчислення MUST NOT."
+
+English: "An entry the evaluation never demanded MUST NOT change any canonical Receipt... That does not forbid a verifier from declining an environment for its own reasons... Such a step is admission (§3.6), not evaluation: it produces no Receipt, so there is nothing to disagree about, and it MUST NOT be presented as a result of evaluation."
+
+OK.
+
+Ukrainian: "Детермінізм — за вимаганим середовищем (MUST). Дві реалізації, які розв'язують ті самі вимагані хеші в ті самі байти, повертають однаковий Receipt. Твердження про однаковість результату без цієї умови було б хибним..."
+
+English: "Determinism is over the demanded environment (MUST). Two implementations that resolve the same demanded hashes to the same bytes return the same Receipt. Stating identity of results without that condition would be false..."
+
+OK.
+
+Ukrainian: "Розширення середовища (MUST). Додавання вмісту може змінити лише вихід unresolved_reference. Усталений вихід — normal_form або atp_exhausted — MUST лишатися тим самим Receipt за будь-якого розширення середовища..."
+
+English: "Extending the environment (MUST). Adding content can change only an unresolved_reference exit. A settled exit — normal_form or atp_exhausted — MUST remain the same Receipt under any extension that preserves the answers to already-demanded hashes."
+
+OK.
+
+Ukrainian: "resolve(h)/force(h) — єдина операція матеріалізації вузла за хешем. Два режими відмови розрізняються явно: (a) h не знаходиться у сховищі і не є intrinsic-аксіомою §5.1 → DISSONANCE(Unresolved Reference); (b) байти не проходять валідацію §4.1 → матеріалізується Canonical Invalid Object (§4.2), дія тарифікується як force вузла DISSONANCE (1)."
+
+English: "resolve(h)/force(h) is the single node-materialization operation by hash. Two failure modes are distinguished explicitly: (a) h is not found in storage and is not an intrinsic axiom of §5.1 → DISSONANCE(Unresolved Reference); (b) the bytes fail §4.1 validation → the Canonical Invalid Object (§4.2) is materialized, and the action is priced as a force of a DISSONANCE node (1)."
+
+OK.
+
+Ukrainian: "Матеріалізація — лінива, за вимогою пошуку (нормативно з v0.5). Форсується лише товк, що його вимагає leftmost-outermost пошук..."
+
+English: "Materialization is lazy, on demand of the search (normative since v0.5). Only the thunk demanded by the leftmost-outermost search is forced..."
+
+OK.
+
+3.6:
+Ukrainian: "Канонічні відмови... З v0.5 пам'ять обмежена семантично... Конкретні ліміти — поза цією Книгою (implementation notes)."
+English: "Canonical failures... Since v0.5 memory is bounded semantically... The concrete limits are outside this Book (implementation notes)." OK.
+
+Ukrainian: "Допуск — обов'язкова межа розгортання (MUST), і не канонічний вихід (MUST NOT)."
+English: "Admission is a required deployment boundary (MUST), and not a canonical exit (MUST NOT)." OK.
+
+Ukrainian: "Вхід поза оголошеною областю (MUST). atp, що не є uint32, і term_hash, що не є рівно 32 байтами, MUST бути відхилені так само — локально, до звернення до середовища, і не як канонічний вихід. Це змінює поведінку відносно 0.5.2..."
+English: "Input outside the declared domain (MUST). An atp that is not a uint32, and a term_hash that is not exactly 32 bytes, MUST be refused the same way — locally, before the environment is consulted, and not as a canonical exit. This changes behaviour relative to 0.5.2..."
+
+OK.
+
+3.7: identical meaning.
+
+4.1: identical.
+
+4.2: identical.
+
+5.1: identical meaning.
+
+5.2: "Перша теорема" vs "The First Theorem". OK.
+
+5.3: Reason Hashes. English includes "Reserved". OK.
+
+6: "Canonical Lambda→SKI Compiler, Profile C1". English says "A theorem, not an axiom: ... Decidable extensional equality does not exist (Rice)". Wait, Ukrainian says: "C1 не мінімізує і не канонізує екстенсіонально... Розв'язної екстенсіональної рівності не існує (Rice); канонічність C1 — синтаксична, не семантична." English: "C1 does not minimize and does not canonicalize extensionally... Decidable extensional equality does not exist (Rice); C1's canonicity is syntactic, not semantic." OK.
+
+7. Vectors: We already checked.
+
+8. Specification Anchor: identical.
+
+Now, is there any arithmetic claim I can check? Let's compute the hash of FALSE in §5.2. The text says:
+Ukrainian: `FALSE ≡ APPLY(K,I)`; Bytes `0206‖H(K)‖H(I)`; Hash `65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098`.
+English: `FALSE ≡ APPLY(K,I)`; Bytes `0206‖H(K)‖H(I)`; Hash `65cd957f...38a32098`.
+
+I cannot compute SHA-256 directly without a tool, but the bytes can be derived: APPLY OpCode=0x02, Flags=0x06 (F_LEFT|F_RIGHT). Then 32 bytes H(K), 32 bytes H(I). The length is 2 + 32 + 32 = 66 bytes. The hash is given as 65cd957f... I can't verify the hash without SHA-256, but the bytes structure is correct.
+
+Can I check the intrinsic I bytes? CanonicalBytes = 0001 || SHA-256("I"). SHA-256("I") of a single ASCII byte 'I' (0x49). I can't compute the exact hash easily in my head. But the construction is clear.
+
+Let's check the "preflight" typo fix: Ukrainian changed from "преф лайт" to "префлайт". English uses "preflight". OK.
+
+Now, GOV-anchors issue. The candidate leaves GOV-anchors.md unchanged with old pin. The ADR admits this is a known disagreement: "Gemini's and DeepSeek's reading is that a governance verifier treating the pin as binding rejects the bundle while one applying only §3's seven steps authorizes it, which is a divergence about whether the release may be adopted at all." It says "Not fixed, deliberately, and the disagreement is left standing rather than resolved by the author."
+
+Is this a P0? The question is whether the candidate can be adopted as a bundle if GOV-anchors still pins old versions. But the adoption process is described in GOV-anchors §3. The candidate does not change GOV-anchors. So the adoption of the candidate would be governed by the existing GOV-anchors mechanism. The pin is a normative dependency of GOV-anchors. If the new Books change behavior, then under GOV-anchors, re-pinning is a breaking change requiring a new MAJOR version of GOV-anchors. Since the candidate doesn't change GOV-anchors, a governance verifier following the pin strictly might reject the candidate. However, another verifier might ignore the pin and adopt anyway. This is a divergence about adoption, not about computation.
+
+But is this a P0 within the scope of reviewing the candidate revision? The prompt says: "spec/GOV-anchors.md is unchanged by this candidate, and pins its normative dependencies as 'Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1'. The authors did not edit it and say so. Whether that is correct is in scope."
+
+If the text of GOV-anchors.md is part of the candidate bundle (it's unchanged), and it contradicts the new Book versions, is that a text contradiction? The GOV doc says: "Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0)." The new Books are changes. So under GOV-anchors.md as written, the new Books are a breaking change to the governance standard. The governance standard says breaking changes require a new MAJOR version. Since the candidate doesn't provide one, the candidate bundle appears to violate the governance standard.
+
+Is this a P0 (text contradicts itself)? GOV-anchors.md is unchanged; the Books are changed. The contradiction is between the new Books and GOV-anchors' pinned dependencies. But GOV-anchors is not changed by the candidate, so it's not part of the diff. The prompt explicitly says it's in scope, but the GOV text is part of the repository. The candidate proposes releasing v0.7.0 containing the new Books and the old GOV. If GOV says "this profile is defined against Book I v0.5.2", then the bundle v0.7.0 containing Book I 0.6.0 is inconsistent with GOV.
+
+However, the prompt also says: "THE CANDIDATE'S OWN ARGUMENT ... The English rendering ... GOV-anchors' dependency pin ... Not fixed, deliberately, and the disagreement is left standing rather than resolved by the author."
+
+The ADR presents two readings. One reading (Kimi) is that the pin is about semantics, and the semantics of `NodeHash(LITERAL, SHA-256(bytes))` haven't changed, so it's fine. The other reading (Gemini, DeepSeek) is that the pin is binding and the bundle is inconsistent.
+
+If the text of GOV-anchors.md is ambiguous about whether the pin covers only the `NodeHash` semantics or the entire Books, that could be a P1. But the text says: "and against Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1 as anchored in this release (the anchor definition NodeHash(LITERAL, SHA-256(bytes)) rides Book I's hashing)." The parenthetical seems to narrow the reason for the pin to the hashing definition. But the sentence says "defined against Book I v0.5.2 / ...". That seems broad.
+
+If a governance verifier implements the text strictly, it might reject. If another implements it loosely (only checking hashing), it accepts. Two conforming implementations of the governance protocol could disagree on whether the adoption warrant is valid. Since the governance protocol is part of the specification set (though meta), disagreement on adoption validity is a P0 for the governance layer. However, the prompt might not consider governance as "two conforming implementations can disagree on a result" of the computational core. But the scope includes whether GOV-anchors is correct.
+
+I think this is a tricky issue. The ADR explicitly leaves it unresolved. Since I'm a reviewer, I should evaluate it. If I think it's a P0, I need a counterexample: two governance verifiers, one strict pin, one loose; same candidate blob; one rejects, one accepts. That's a divergence. But is the pin normative? Yes, it's a MUST in GOV: "_normative dependencies (pinned — MUST)_". So a governance verifier MUST validate against the pinned versions. Since the candidate Books are new versions, the verifier must reject. Another verifier that ignores the version numbers and just checks the hashing semantics would accept. Thus two verifiers disagree.
+
+But is the candidate at fault? The candidate intentionally did not edit GOV-anchors.md because the author thought it shouldn't be amended by the author of the bytes. That's a process argument, not a normative one. The candidate includes the GOV file unchanged. If the GOV file pins old versions, then the bundle is inconsistent. The candidate ADR says the pin "is left standing rather than resolved by the author." The reviewer should call this out.
+
+Given that GOV-anchors.md is a STANDARD and explicitly says "Re-pinning to a newer dependency is itself a breaking change", the candidate bundle v0.7.0 (as a set of anchored files) appears to violate the governance standard if the new Books are not exact semantics matches. Are they exact? The ADR says Book I has behavioral changes (out-of-domain refusal, foreign-key refusal, suite arbitration). So semantics changed. Thus re-pinning is required. Since it's not done, the bundle contradicts GOV.
+
+But does the text contradict itself? The Book I text says it's v0.6.0. GOV says it pins v0.5.2. The bundle says it's v0.7.0. ANCHORS.txt would contain the new Book I anchor. A governance verifier checking the anchor-set blob would see the path spec/book-1-truth.md anchored with a NodeHash that corresponds to the 0.6.0 bytes. The GOV verifier might check that the NodeHash matches the expected v0.5.2 anchor? No, GOV doesn't pin the anchor hash; it pins the semantics. The verifier would need to know that the new Book I bytes are not v0.5.2. But the version header is inside the document, not part of the governance schema.
+
+I think this is a governance question beyond the Books' core semantics. The prompt says "Whether that is correct is in scope." So I should decide if it's a P0, P1, or not a finding.
+
+If I treat the governance profile as part of the specification, then the bundle contains a contradiction: the release bundles new Book versions that are breaking changes relative to the GOV's pinned dependencies, and the GOV standard says such changes require a new MAJOR version of GOV. The GOV version remains 1.0.2. So the bundle violates GOV-anchors.md's own rules. This is a text contradiction (GOV says "MUST NOT change without MAJOR", but the bundle changes). However, the GOV text was not edited by the candidate. So the candidate didn't introduce the contradiction; the contradiction arises from the candidate not editing GOV. But the candidate is proposing a bundle that includes the unchanged GOV file. So the bundle as a whole is inconsistent.
+
+Is this adoptable? The ADR says the choice is the roster's. I think the honest review is to note this as a P1 (text is silent on precedence between governance-pin and new Book versions; implementer must guess whether to treat the pin as binding the version number or the hashing semantics). Or as a P0 if two verifiers can disagree.
+
+Actually, the GOV text says: "Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0)." So an implementation MAY track later versions if semantics are preserved. If semantics are NOT preserved (as they are not), then tracking later versions is NOT permitted. Therefore, a conforming governance verifier MUST reject the bundle. Another verifier that ignores this rule and accepts the bundle is non-conformant. So there is no divergence among *conforming* implementations. Wait, but the ADR says "Gemini's and DeepSeek's reading is that a governance verifier treating the pin as binding rejects the bundle while one applying only §3's seven steps authorizes it". The §3 steps are the verification procedure. Step 2 checks schema and jurisdiction. Step 3 checks settlement closure. Step 6 checks adoption warrant signatures. None of these steps check the version numbers of the Books. So a verifier following only §3 would not reject based on the pinned versions. But the pin is stated in the normative dependencies paragraph. Is that part of the verification procedure? The verifier is supposed to validate against the pinned dependencies. But the §3 steps don't include version checks of dependencies. So there's a gap: the normative dependencies paragraph says the profile is defined against certain versions, but the verification steps don't enforce it. An implementer might not know they need to check the version. This is a P1: the GOV text says the dependency is pinned but doesn't give a mechanizable way to check it, so one verifier does, another doesn't.
+
+But wait, the prompt says "Some things you must NOT treat as evidence: ... that previous releases were gated. You are reviewing these bytes." And "The adopted release is v0.6.7. The candidate is v0.7.0... GOV-anchors.md is unchanged by this candidate."
+
+I need to decide if this is a P0 or P1. I think it's a P1 because the text is silent on how a verifier checks the pin (the version numbers are inside the Book files, not part of the anchor-set blob structure). Two verifiers could produce different results: one checks the version header inside the anchored file and rejects if it doesn't match the pin; the other checks only the anchor hash and signature. The pin is stated in GOV but there is no procedure for verifying it. So it's unenforceable as written. Counterexample: Candidate anchor-set blob B contains spec/book-1-truth.md with Version 0.6.0. Verifier A checks the pinned version string inside the file and refuses. Verifier B runs §3 steps 1-7 and accepts. Different results for the same blob. That's a P1 (normative requirement unenforceable as written because §3 doesn't include the version check). Actually, is it P0? The text contradicts itself: the pin is MUST, but §3 doesn't enforce it. The pin says "defined against Book I v0.5.2". That is a statement about the profile. But verifying the profile is part of verification. The text says "This profile is defined against Book I v0.5.2 ... Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD." So the profile itself is defined against that version. If the anchor-set blob contains a different version, is the profile still valid? The text says a breaking change requires a new MAJOR version. Since GOV is still 1.0.2, the profile hasn't changed. But the blob contains a new Book. This is a contradiction
