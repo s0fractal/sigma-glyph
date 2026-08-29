@@ -35,6 +35,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+STORE = ".warrants"
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 # The governance policy pair in force, from the v0.6.7 adoption warrant's `under`.
 GOVERNANCE_PROFILE = "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c"
@@ -46,9 +48,16 @@ def canon(body):
                       ensure_ascii=False).encode()
 
 
-def blob_of(store, digest):
-    """A blob, if it is one and parses. Not every blob in the store is JSON."""
-    path = ROOT / store / "blobs" / digest
+def blob_of(digest):
+    """A blob, if it is one and parses. Not every blob in the store is JSON.
+
+    A content address is a filename, not a path: the digest is checked against
+    hex64 before it is joined to anything, because some of these values arrive
+    from records this tool did not write.
+    """
+    if not isinstance(digest, str) or HEX64.fullmatch(digest) is None:
+        return None
+    path = ROOT / STORE / "blobs" / digest
     if not path.is_file():
         return None
     try:
@@ -60,12 +69,12 @@ def blob_of(store, digest):
 
 def prior_adoption():
     """The currently adopted anchor set's warrant, which this one succeeds."""
-    records = ROOT / ".warrants" / "records"
+    records = ROOT / STORE / "records"
     latest = None
     for path in sorted(records.glob("*.json")):
         record = json.loads(path.read_text())
         subject = record.get("body", {}).get("subject", {}).get("hash")
-        blob = blob_of(".warrants", subject) if subject else None
+        blob = blob_of(subject) if subject else None
         if blob and blob.get("governance") == "sigma-glyph.anchor-set@v1":
             ts = record["body"].get("ts", 0)
             if latest is None or ts > latest[0]:
@@ -89,7 +98,7 @@ def main():
     blob = json.loads(blob_bytes)
     subject = hashlib.sha256(blob_bytes).hexdigest()
 
-    threshold = blob_of(".warrants", THRESHOLD_POLICY)
+    threshold = blob_of(THRESHOLD_POLICY)
     if threshold is None:
         sys.exit(f"threshold policy blob {THRESHOLD_POLICY[:12]} is not in the store")
     roster = threshold["threshold"]["actors"]
@@ -102,9 +111,9 @@ def main():
     if previous is None:
         sys.exit("no prior anchor-set adoption found in .warrants/")
     _, prior_id, prior_release = previous
-    if blob.get("ancestor") and blob["ancestor"] != json.loads(
-            (ROOT / ".warrants" / "records" / f"{prior_id}.json").read_text()
-    )["body"]["subject"]["hash"]:
+    prior_record = json.loads(
+        (ROOT / STORE / "records" / f"{prior_id}.json").read_text())
+    if blob.get("ancestor") and blob["ancestor"] != prior_record["body"]["subject"]["hash"]:
         print(f"warning: this set's ancestor is not the currently adopted "
               f"{prior_release} set; that makes it a fork, not a successor",
               file=sys.stderr)
@@ -141,8 +150,8 @@ def main():
     print(f"WarrantID        {warrant_id}")
     print(f"\nwritten unsigned to {out.relative_to(ROOT)} — 0 signatures\n")
     print("To file it, the holder of the first key runs, from the repository root:\n")
-    print(f"    cp {out.relative_to(ROOT)} .warrants/records/{warrant_id}.json")
-    print(f"    cp {(freeze / 'anchor-set.json')} .warrants/blobs/{subject}")
+    print(f"    cp {out.relative_to(ROOT)} {STORE}/records/{warrant_id}.json")
+    print(f"    cp {(freeze / 'anchor-set.json')} {STORE}/blobs/{subject}")
     print(f"    python3 tools/cosign.py {warrant_id} <actor-id> <keyfile>\n")
     print(f"and {minimum - 1} further roster actor(s) run the last line with their "
           f"own id and key.\nThen, to check that it settles rather than merely "

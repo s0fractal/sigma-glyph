@@ -51,3 +51,17 @@ review records.
 candidate's ADR and the ADR carries earlier dispositions, so a later round can
 inherit an earlier round's argument — one family reversed a P0 that way. Count
 independent judgments, not verdicts. `ADR-010` states this at length.
+
+## One defect in this tooling, found while cleaning it
+
+`build_prompt` diffed the Books between the adopted tag and **`HEAD`**, not the
+working tree. The freeze verifies the files on disk, so the prompt depended on
+which commit happened to be checked out rather than on the bytes being gated:
+re-running the tool after any later commit produced a different prompt for the
+same frozen bytes, and wrote it over the record of what that round's reviewers
+had actually seen. It diffs the working tree now, and `prompt.txt` is refused
+rather than overwritten when it already records something different.
+
+The evidence of a round is what its reviewers were shown. A tool that can quietly
+replace that is the same defect class as everything else in this repository's
+history: a check whose subject can be changed by the thing being checked.

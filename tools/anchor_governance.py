@@ -628,6 +628,49 @@ def cmd_status(trust_path, enforce):
     return 0 if all_ok else 1
 
 
+def _choose_section(release, candidate):
+    """The ANCHORS.txt section to serialize, or None with a reason on stderr."""
+    sections = parse_anchors(ANCHORS)
+    if release is None:
+        chosen = next((s for s in sections if not s[1]), None)
+        if chosen is None:
+            print("no un-annotated section in ANCHORS.txt; name one with "
+                  "--release", file=sys.stderr)
+            return None
+        if sections[0] is not chosen:
+            print(f"note: the newest section is {sections[0][0]}, which is "
+                  f"annotated; serializing {chosen[0]} instead. Pass --release "
+                  f"{sections[0][0]} --candidate for that one.", file=sys.stderr)
+        return chosen
+    chosen = next((s for s in sections if s[0] == release), None)
+    if chosen is None:
+        print(f"no section {release} in {ANCHORS}", file=sys.stderr)
+        return None
+    if chosen[1] and not candidate:
+        print(f"{release} is annotated in ANCHORS.txt (a candidate or an "
+              f"ancestor). Serializing it needs --candidate, which says you "
+              f"know these bytes are not an adopted set.", file=sys.stderr)
+        return None
+    return chosen
+
+
+def _ancestor_is_self(ancestor, release):
+    """True when --ancestor names a set for the release being built.
+
+    Read through `parse_json_blob`, which rejects anything that is not a bare
+    lowercase hex64 filename before touching the filesystem: a content address is
+    a filename, not a path, and this value comes straight off the command line.
+    """
+    if ancestor is None:
+        return False
+    prior = parse_json_blob(os.path.join(STORE, "blobs"), ancestor)
+    if prior is None or prior.get("release") != release:
+        return False
+    print(f"--ancestor {ancestor[:12]} is itself a {release} anchor set; "
+          f"a release cannot descend from itself", file=sys.stderr)
+    return True
+
+
 def cmd_make_blob(jurisdiction, ancestor, release=None, candidate=False):
     """Serialize one ANCHORS.txt section as its canonical anchor-set blob.
 
@@ -645,40 +688,12 @@ def cmd_make_blob(jurisdiction, ancestor, release=None, candidate=False):
     -- these are bytes, not a warrant -- but bytes nobody asked for are how the
     wrong ones get signed.
     """
-    sections = parse_anchors(ANCHORS)
-    if release is None:
-        chosen = next((s for s in sections if not s[1]), None)
-        if chosen is None:
-            print("no un-annotated section in ANCHORS.txt; name one with "
-                  "--release", file=sys.stderr)
-            return 2
-        if sections[0] is not chosen:
-            print(f"note: the newest section is {sections[0][0]}, which is "
-                  f"annotated; serializing {chosen[0]} instead. Pass --release "
-                  f"{sections[0][0]} --candidate for that one.", file=sys.stderr)
-    else:
-        chosen = next((s for s in sections if s[0] == release), None)
-        if chosen is None:
-            print(f"no section {release} in {ANCHORS}", file=sys.stderr)
-            return 2
-        if chosen[1] and not candidate:
-            print(f"{release} is annotated in ANCHORS.txt (a candidate or an "
-                  f"ancestor). Serializing it needs --candidate, which says you "
-                  f"know these bytes are not an adopted set.", file=sys.stderr)
-            return 2
+    chosen = _choose_section(release, candidate)
+    if chosen is None:
+        return 2
     release, annotated, entries = chosen
-    if ancestor is not None:
-        prior = os.path.join(STORE, "blobs", ancestor)
-        if os.path.isfile(prior):
-            try:
-                prior_release = json.loads(open(prior, "rb").read()).get("release")
-            except (ValueError, OSError):
-                prior_release = None
-            if prior_release == release:
-                print(f"--ancestor {ancestor[:12]} is itself a {release} "
-                      f"anchor set; a release cannot descend from itself",
-                      file=sys.stderr)
-                return 2
+    if _ancestor_is_self(ancestor, release):
+        return 2
     if annotated:
         print(f"# {release} is a CANDIDATE section: these bytes are not an "
               f"adopted anchor set", file=sys.stderr)
