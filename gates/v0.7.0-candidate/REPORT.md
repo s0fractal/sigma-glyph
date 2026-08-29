@@ -417,7 +417,8 @@ by guess.
   created no jobs at all. SonarCloud raised 11 issues, all in the tooling written
   here: two cognitive-complexity refactors, one path built from a command-line
   value without validating it as a content address, and eight smells. All are
-  fixed; the re-run is pending at the time of writing, and this line will be
-  wrong rather than right if it is not checked.
+  fixed and SonarCloud passes at `b4421b5`, so every check on the pull request is
+  green — which, per the system prompt every reviewer was given, is a fact about
+  scripts that live in this revision and is not evidence for anything in §8.
 - No tag, release, publication or deposit was made; no history was rewritten; no
   force-push was performed; no key was used.
