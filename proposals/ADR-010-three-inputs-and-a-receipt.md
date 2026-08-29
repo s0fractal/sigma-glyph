@@ -1,0 +1,169 @@
+# ADR-010: three inputs, a receipt, and one rule about who arbitrates
+
+**Status:** CANDIDATE — **NOT ADOPTED**. Nothing in this document is in force.
+Adoption is a threshold-authorised warrant over the `v0.7.0` anchor-set blob under
+[`spec/GOV-anchors.md`](../spec/GOV-anchors.md) §3, preceded by a blind
+multi-family gate over the exact bytes this candidate freezes. Merging the branch
+does not adopt anything, and this file is written **before** the normative bytes
+are edited so that its scope can be read against what was actually done.
+
+**Supersedes** the candidate closed as `#24` (ADR-009), whose one correct move —
+removing the reference oracle's precedence over Book I's prose — is carried
+forward here inside a larger and coherent change. Its frozen anchors belong to a
+tree that no longer exists and are not reused.
+
+**Numbered 010.** `ADR-008` is the Resonant Precedent work on
+`adr-008-rev15-candidate`; `ADR-009` is the superseded candidate. Two documents
+under one number is a provenance collision even when only one is adopted.
+
+## Why one candidate and not five
+
+Each of the defects below is small. Together they are one defect: **Book I
+describes a machine that is not the machine the model, the oracle and the suite
+implement**, and every consumer has been reading the description.
+
+- The Book prints `eval(term_hash, atp: uint32)`. The evaluator takes a store.
+- An absent hash is a *canonical* outcome (§3.5), so availability is already
+  inside consensus — and nothing bounded how far that reaches.
+- A store is any object with `get`. Nothing said what makes it a content-addressed
+  store, so bytes filed under a foreign key executed as that key's node until the
+  audit of 2026-08-29.
+- `result_hash` is offered as the answer, and it cannot say which of the three
+  exits happened, because `DISSONANCE(ATP Exhausted)` is an ordinary term.
+- The memory bound is a count of materialized nodes, and the word used for it in
+  the paper's title is "memory".
+- §7 makes the reference implementation the arbiter of the Book's own prose, and
+  Books II and III repeat the construction — Book III attributing it to Book I §7.
+
+Fixing any one of these while leaving the rest produces a Book that is precise
+about one thing and wrong about its neighbours. That is why they move together.
+
+## Scope, exactly
+
+### Book I — the interface
+
+`eval` is stated over **three** inputs: a term hash, a `uint32` budget, and a
+**content environment**. A content environment is a partial map from NodeHash to
+bytes with one property: the bytes under a key hash to that key. Bytes filed under
+any other key MUST NOT be evaluated as that key's node — they may be a perfectly
+valid SigmaNodeV2, and executing them would let two conforming engines disagree
+while both believe they are following the Book.
+
+Determinism is stated over the **demanded** environment: two engines that resolve
+the same demanded hashes to the same bytes return the same receipt. That is what
+the suite actually tests, since every implementation is handed the same store.
+
+### Book I — how far availability reaches
+
+Extending a content environment can change an `Unresolved` outcome and nothing
+else. A settled answer — a normal form or an exhaustion — is stable under
+everything an environment can gain. This is already a theorem
+(`EvalMachine.evalHash_stable`) with a differential bridge; the candidate moves it
+from something the repository proves into something the Book promises.
+
+### Book I — the receipt
+
+`eval` returns `{exit, result_hash, atp_spent}`. `exit` is one of `normal_form`,
+`atp_exhausted`, `unresolved_reference`.
+
+`result_hash` alone does not identify the exit and never did: a
+`DISSONANCE(ATP Exhausted)` node can sit in a store and evaluate to a normal form,
+so one hash means "finished" or "ran out" depending on how it was reached. The
+Book says so rather than leaving a caller to discover it.
+
+**Compatibility is explicit, not silent.** The existing two-value form
+`eval_hash(h, atp, store) -> (term, spent)` remains available as a named
+compatibility profile. It is not deprecated by this candidate and it loses no
+guarantee; what it cannot do is answer "which exit", and the Book now says which
+question it cannot answer. Four call sites in `warrant` use that form, all through
+a store adapter keyed by node hash, and all were exercised against the current
+oracle: identical results.
+
+### Book I — admission is a boundary, not an outcome
+
+A verifier MUST be able to refuse a computation before performing it, on a budget
+it declines to spend. That refusal is **not** a canonical outcome and MUST NOT be
+serialized as a DISSONANCE — it says the verifier declined, not what the term
+evaluates to. Confusing the two lets the party supplying the term decide what the
+verifier reports.
+
+Input outside the declared domain — a budget that is not a `uint32`, a term hash
+that is not 32 bytes — is refused the same way, and refused *before* the
+environment is consulted. **This is a behavioural change with a consumer-visible
+edge**: before the 2026-08-29 audit, `atp = -1`, `1.5` and `True` were accepted.
+They now raise. A consumer that passed a malformed budget got an answer and now
+gets an error, and the Book must say that this is a refusal rather than a result.
+
+### Book I — the bound is semantic
+
+The mechanized bound is `size ≤ spent + 1` where `size` counts materialized nodes.
+The Book names it a **semantic materialization bound** and states in the same
+paragraph what it is not: not resident set size, not heap bytes, not evaluator
+stack, not the store's own index, not allocator behaviour. Those live in a
+refinement layer nobody here has proved.
+
+### Books II and III — one rule, and no new arbiter
+
+Both carry the same construction as Book I §7: on a disagreement between prose and
+the machine-readable suite, the reference oracle wins. All three are replaced by
+one rule: **the suite is a normative part of the edition; prose and records MUST
+be mutually consistent; an edition where they disagree is non-conformant and MUST
+NOT be used as a source of consensus until corrected and re-anchored; no
+implementation, the reference one included, takes precedence.**
+
+No tool is named in normative text. An earlier draft of ADR-009 put
+`tools/spec_audit.py` into §7, which would have replaced one implementation's
+authority with another's. Where a checker reaches, and where it does not, belongs
+in `spec/IMPLEMENTING.md` and in CI.
+
+Book III additionally attributes its rule to "the discipline of Book I §7". After
+this edition that discipline is a different sentence, so the attribution is
+corrected rather than left pointing at something that no longer says it.
+
+### Versions
+
+`spec/VERSIONS.md` is applied, and its decision is checked rather than quoted.
+
+- **Book I 0.5.2 → 0.6.0.** MINOR, not PATCH: an implementation conformant to
+  0.5.2 can be non-conformant here without changing a line. Foreign-key bytes that
+  used to execute must now be refused, an out-of-domain budget that used to be
+  accepted must now be refused, and an edition whose prose and suite disagree used
+  to be usable and is now non-conformant. Each is a changed verdict for a
+  documented state.
+- **Books II and III 0.6.1 → 0.7.0.** MINOR for the same reason and no other: the
+  conformance verdict for a prose/suite disagreement changes. Nothing else in
+  either Book moves.
+- **Bundle `v0.7.0`**, carrying all of them.
+- Each suite's `spec_version` is set to the version of the Book it conforms to,
+  which closes the two discrepancies `version_check.py` has been carrying by name
+  since they were found. `suite_version` is the suite package's own number and is
+  not touched by a Book moving.
+- Every vector file is **regenerated by its generator**. No expected value is
+  edited by hand, and the generators refuse to write a suite that disagrees with
+  the values declared by hand from the spec.
+
+## What this candidate does not do
+
+It does not adopt anything. It does not promote the `v0.7.0` ANCHORS section from
+CANDIDATE. It does not tag, release, publish or deposit. It does not make the
+English rendering normative. It does not touch the old adopted anchors or the
+blobs of any prior release, which stay exactly as they are.
+
+It also does not claim the gate rounds behind ADR-009 transfer. Those reviewed a
+different tree, and most of them reviewed the *enforcement* rather than the norm.
+
+## How to check what it says against what it did
+
+    python3 tools/version_check.py          # the six numbers agree
+    python3 tools/spec_audit.py             # constants, §7 predicates, both texts
+    python3 tests/spec_audit_selftest.py    # and the audit can still fail
+    python3 tools/verify_anchors.py         # the candidate section's anchors
+    python3 tests/spec_conformance/run_reference.py
+    python3 proofs/store_mono_bridge_check.py
+
+The unsigned `v0.7.0` anchor-set blob and the exact command that reproduces it
+byte-for-byte are recorded in this branch once the bytes are frozen.
+
+| Date | Change | Bytes already edited? |
+| --- | --- | --- |
+| 2026-08-29 | scope fixed, before any normative edit | no |
