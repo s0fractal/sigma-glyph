@@ -226,7 +226,57 @@ Round 1's verdicts do not carry to round 2: the bytes moved, so the gate is
 re-run over the new freeze and the earlier REJECTs stand as a record of a
 revision that is no longer proposed.
 
+## Round 2 of the gate
+
+Same three families, fresh contexts, over the frozen bytes of round 2:
+**ADOPT** (Gemini 3.1 Pro), **REJECT** (DeepSeek v4 Pro), **NO VERDICT** (Kimi
+k3). Raw responses: `gates/v0.7.0-candidate/round-2/`.
+
+- **P0, DeepSeek — round 1's own fix contradicted itself.** §3.5 said an
+  undemanded entry "does not affect the result" and, one sentence later, that a
+  permitted wider check MUST end in a local refusal. So a poisoned entry nobody
+  demands both must not and may change the outcome. Counterexample: `H(I)`,
+  `atp = 10`, canonical `I` bytes filed under the zero key. **Fixed** — the
+  confusion was between *the result* and *whether a verifier agrees to compute at
+  all*. An undemanded entry MUST NOT change any canonical `Receipt`; a verifier
+  declining such an environment is exercising admission (§3.6), which produces no
+  `Receipt` and therefore has nothing to disagree about.
+- **P1, DeepSeek — `NodeHash(bytes) = key` was undefined for invalid buffers.**
+  A buffer failing §4.1 is not a node, so it has no NodeHash — yet failure mode
+  (b) prices materializing the Canonical Invalid Object, which is reachable only
+  if the key check passed. **Fixed** — the property is `SHA-256(bytes) = key`
+  over the raw buffer, checked before validation, and the two questions are named
+  as different: whether a buffer is a valid node has a canonical answer, whether
+  bytes belong under a key has none. This is what the reference oracle has always
+  done (`node_hash(b) != h` before `deser(b)`), so no vector changes.
+- **NO VERDICT, Kimi.** Cut off mid-reasoning at a 24 000-token reply budget.
+  That is a fact about the budget, not about the candidate; `--max-tokens` now
+  exists, defaults to 40 000, and is recorded in every review.
+- **GOV-anchors.** Gemini reversed its round-1 P0 to "not a P0", citing Kimi's
+  round-1 reasoning by name. DeepSeek held it at P0.
+
+### A weakening of this gate, recorded rather than glossed
+
+From round 2 the prompt carries this ADR, and this ADR carries the previous
+round's dispositions — which necessarily include why a reviewer was disagreed
+with. Reviewers are blind to each other **within** a round and are **not** blind
+to earlier rounds' arguments. Round 2 made that concrete: one family reversed a
+P0 on the strength of another family's round-1 argument. That is a legitimate
+change of mind and it is **not** independent confirmation. On the GOV-anchors
+question the honest count is therefore one line of reasoning with two
+subscribers, not two independent findings, against one standing P0.
+
+The alternative — withholding the dispositions — would leave reviewers unable to
+see what changed and why, which trades a known weakness for a worse one. The
+weakness is named here so that nobody reads the vote total as more than it is.
+
+## Round 3 of the gate
+
+Frozen at `gates/v0.7.0-candidate/round-3/`, anchor set `4c93717a…`. Verdicts
+recorded there.
+
 | Date | Change | Bytes already edited? |
 | --- | --- | --- |
 | 2026-08-29 | scope fixed, before any normative edit | no |
 | 2026-08-29 | round 1: three REJECT; four findings fixed, one recorded unresolved | yes, after the gate saw them |
+| 2026-08-29 | round 2: ADOPT / REJECT / NO VERDICT; both findings were round 1's own repair | yes, after the gate saw them |
