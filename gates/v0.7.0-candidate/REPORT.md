@@ -384,6 +384,13 @@ signature threshold: adoption needs a completed three-family round over
 the one whose findings produced them. Re-running needs credit on the account;
 about $3–4 covers a full round at the current prompt size.
 
+A re-run should also use a different third reviewer. `moonshotai/kimi-k3`
+returned nothing in two of the three rounds it was asked, and once for a reason
+that was the model's rather than the account's — it reasoned past a
+24 000-token reply budget while both other families answered well inside it.
+`tools/candidate_gate.py` now names `moonshotai/kimi-k2.6`. A reviewer that
+returns nothing does not cost a third of a round; it costs the round.
+
 **3. The GOV-anchors dependency pin is unresolved, by choice.**
 `spec/GOV-anchors.md` is defined against "Book I v0.5.2 / Book II v0.6.1 / Book
 III v0.6.1 as anchored in this release", and this candidate makes that sentence
