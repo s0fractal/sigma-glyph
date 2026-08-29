@@ -39,25 +39,52 @@ here is reachable from a stranger's input. It is not the same shape as
 and is now checked for being a regular file before its contents are believed —
 that one was fixed rather than accepted.
 
+### `pythonsecurity:S8705` — a revision from `argv` reaching `git`
+
+`tools/hermes_review.py`.
+
+**The defect was fixed and the finding remains, and those are two different
+sentences.** A revision taken from `argv` reached `git`, where a leading `-` is an
+option rather than a revision — the same shape that was an actual defect in the
+agent gate. It is now refused by pattern, and the refusal is exercised: `--` and
+`--upload-pack=evil` are both rejected.
+
+What the analyser reports is the *taint*: a value from the command line reaches a
+subprocess. For a command-line tool that takes a revision, that is the tool. No
+validation clears it, and pretending otherwise by restructuring would be theatre.
+Accepted with the guard in place, not accepted as-was.
+
 ### `python:S2245` — a seeded PRNG in a differential bridge
 
 `proofs/c1_bridge_check.py`, corpus generation.
 
 `random.Random(20260717)` generates a fixed λ-term corpus for a differential
 comparison. The seed is the point: the corpus must be the same on every run. No
-security decision reads it. Suppressed at the line.
+security decision reads it.
+
+`# NOSONAR` at the line does not clear it — with the rule key and without. The
+comment stays because it is true for a reader; the finding is accepted here
+because the mechanism for suppressing it does not work in this analyser, and
+silently pretending it is gone would be worse than saying so.
 
 ## Fixed rather than accepted, in the same pass
 
 | Rule | Site | What it actually was |
 | --- | --- | --- |
-| `pythonsecurity:S8705` | `tools/hermes_review.py` | a revision taken from `argv` reached `git` where a leading `-` is an option, not a revision — the same shape that was a real defect in the agent gate. Now refused by pattern |
 | `pythonsecurity:S8707` | `tools/anchor_governance.py` | `replay` opened whatever path it was given; a symlink, a device or a file outside the tree would have been read as governance vectors. Now required to be a regular file **inside the repository** — the vectors it replays are repository artifacts, which is the whole set of inputs the command is for |
 | `python:S1192`, `python:S3776` | `tools/repo_map.py` | the salvaged row check grew past reading; the ref, liveness and resolution questions are three named functions now, and `"origin/"` is one constant |
 | `python:S8786` | `tools/spec_audit.py`, `tools/paper_claims.py` | two patterns that scanned super-linearly. Bounded |
 | `python:S1481` | the DA-SIGMA-0002 reproducer | two prices recomputed and discarded; `at_price` is pure, so it was work nobody read. Deleted |
 | `python:S5713` | `experiments/exp-002/validate_fixtures.py` | `UnicodeDecodeError` and `JSONDecodeError` named beside `ValueError`, which they both subclass |
 | `python:S3776` | `proofs/store_mono_bridge_check.py` | the grow and shrink directions are now their own functions; the bridge reports the same 67 and 1153 |
+
+## Where the numbers stand
+
+At `master@9a32283` the analyser reported **7 unresolved**: 3 for the demo, 1 for
+the hermes taint, 1 for the seeded PRNG, and 2 maintainability items now fixed.
+Security rating **C**, driven entirely by the four `pythonsecurity` findings above.
+The quality gate is green on new code, which is not the same as the project being
+clean, and this file exists so the difference is legible.
 
 ## Not accepted, and not fixable here
 

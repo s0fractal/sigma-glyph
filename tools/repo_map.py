@@ -174,17 +174,18 @@ def check_committed_map(ids):
 
 
 REMOTE = "origin/"
+TICK = "`"
 
 
 def _row_ref_and_path(cells):
     """`(ref, path)` for a citation row, or `None` if the row is not one."""
-    if len(cells) < 5 or not cells[1].startswith("`") or cells[2] == "Lives in":
+    if len(cells) < 5 or not cells[1].startswith(TICK) or cells[2] == "Lives in":
         return None
     where, quoted = cells[2], cells[3]
     if "this repo" not in where:
         return "sibling", ""
-    ref = where.split("`")[1] if "`" in where else "master"
-    path = quoted.split("`")[1] if "`" in quoted else ""
+    ref = where.split(TICK)[1] if TICK in where else "master"
+    path = quoted.split(TICK)[1] if TICK in quoted else ""
     return (ref, path) if path else None
 
 
