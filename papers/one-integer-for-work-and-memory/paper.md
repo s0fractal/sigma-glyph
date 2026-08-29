@@ -1153,11 +1153,15 @@ adversarial pass by a reviewer we did not prompt.
 The artifact is the repository:
 
 > **https://github.com/s0fractal/sigma-glyph** [@sigmaglyph2026]
-> commit `1c2b6ca42cb95cdc035fc887cd0587a5758862d7`,
-> branch `spec/book1-v0.7.0-candidate`
+> branch `spec/book1-v0.7.0-candidate`, figures measured at commit
+> `1c2b6ca42cb95cdc035fc887cd0587a5758862d7`
 
-Every figure in §6 was measured at that commit, and it is where this paper's
-claims were recounted. It is **not** `master` and **not** an adopted release: it
+Every figure in §6 was measured at that commit. The paper text itself is later on
+the same branch, because a paper cannot state the hash of the commit that carries
+it; what the two commits differ in is this file, `tools/paper_claims.py`,
+`tools/test-all.sh` and `.github/workflows/ci.yml`. Every surface §6 measures —
+`proofs/`, `impl/`, `impl-rs/`, `impl-go/`, `tests/` and `spec/` — is
+byte-identical between them, which `git diff` reports as empty. It is **not** `master` and **not** an adopted release: it
 is the head of the draft pull request carrying the v0.7.0 specification
 candidate, and the Book bytes on it have not passed a gate. What it carries that
 `master` does not is the candidate spec text of §3.9 and the store-monotonicity
