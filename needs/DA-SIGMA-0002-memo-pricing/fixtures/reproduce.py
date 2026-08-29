@@ -42,8 +42,13 @@ HERE = Path(__file__).resolve().parent
 # The oracle this packet was measured against. The first version cited this
 # digest in prose and loaded whichever sigma_glyph.py it found first, so it would
 # have reported REPRODUCED against a different machine. Verified now, and fatal.
-PINNED_ORACLE_SHA256 = ("413d1f9805cdbdf42f13d967a17be26eb959c692"
-                        "eeb067e7146203ed9cebe64d")
+# Re-pinned at owner disposition, 2026-08-29. The packet was measured against
+# 413d1f9805cdbdf4…; the oracle has moved twice since — the verifier
+# admission boundary and then the CAS-key/uint32 input boundary — and all ten
+# values were re-measured under this one and are unchanged. The original is kept
+# above so what the requester measured stays legible.
+PINNED_ORACLE_SHA256 = ("a1029f9ab579d6905cd4edf9529247678b978089"
+                        "e55c72a08385712328b51540")
 
 
 

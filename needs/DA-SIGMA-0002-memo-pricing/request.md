@@ -8,6 +8,16 @@ turns out to be ALife-side rather than Σ-GLYPH's.
 It is filed as a record of demand and routing. It proposes no specification text
 and asks for no change.
 
+> **Owner disposition, 2026-08-29 — `already-supported`.** §3.4 permits the reuse
+> and fixes the reported price; nothing in Book I changes. The disposition does
+> not endorse the request as filed: its opening hypothesis was false, and the
+> correction below — not the original — is what was answered. If the ALife
+> substrate wants a metabolic or cached-work metric, that is a different quantity
+> and must not be called Σ-GLYPH `atp_spent`; where it lives is the requester's
+> decision and this disposition takes no position on it. Recorded in
+> `disposition.json`. This is routing and classification, not adoption, and it
+> carries no threshold authority.
+
 ## Correction, 2026-08-26 — the premise was wrong
 
 The filed version said: *"Book I's text never mentions memoization. The
