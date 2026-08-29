@@ -52,7 +52,8 @@ security decision reads it. Suppressed at the line.
 | Rule | Site | What it actually was |
 | --- | --- | --- |
 | `pythonsecurity:S8705` | `tools/hermes_review.py` | a revision taken from `argv` reached `git` where a leading `-` is an option, not a revision — the same shape that was a real defect in the agent gate. Now refused by pattern |
-| `pythonsecurity:S8707` | `tools/anchor_governance.py` | `replay` opened whatever path it was given; a symlink or a device would have been read as governance vectors. Now required to be a regular file |
+| `pythonsecurity:S8707` | `tools/anchor_governance.py` | `replay` opened whatever path it was given; a symlink, a device or a file outside the tree would have been read as governance vectors. Now required to be a regular file **inside the repository** — the vectors it replays are repository artifacts, which is the whole set of inputs the command is for |
+| `python:S1192`, `python:S3776` | `tools/repo_map.py` | the salvaged row check grew past reading; the ref, liveness and resolution questions are three named functions now, and `"origin/"` is one constant |
 | `python:S8786` | `tools/spec_audit.py`, `tools/paper_claims.py` | two patterns that scanned super-linearly. Bounded |
 | `python:S1481` | the DA-SIGMA-0002 reproducer | two prices recomputed and discarded; `at_price` is pure, so it was work nobody read. Deleted |
 | `python:S5713` | `experiments/exp-002/validate_fixtures.py` | `UnicodeDecodeError` and `JSONDecodeError` named beside `ValueError`, which they both subclass |

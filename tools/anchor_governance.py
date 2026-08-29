@@ -31,7 +31,7 @@ Commands:
   make-blob --jurisdiction HEX64 [--ancestor HEX64]   canonical anchor-set blob
   selftest                                   deterministic fixtures (fixed seeds)
 """
-import argparse, hashlib, json, os, re, sys, tempfile
+import argparse, hashlib, json, os, pathlib, re, sys, tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import warrant_sig  # noqa: E402  (the one signing-message construction)
@@ -1031,12 +1031,18 @@ def cmd_replay(path):
     if not HAVE_ED25519:
         print("replay needs the 'cryptography' package")
         return 2
-    # The operator names this file, but "the operator named it" is not the same
-    # as "it is a file". A symlink or a device here would be read as governance
-    # vectors, so the shape is checked before the contents are trusted.
-    target = pathlib.Path(path)
-    if target.is_symlink() or not target.is_file():
-        print(f"ERR: {path} is not a regular file")
+    # The operator names this file, and "the operator named it" is not the same
+    # as "it is a governance artifact of this repository". A symlink, a device,
+    # or a path outside the tree would be read as governance vectors, so the
+    # location and the shape are both settled before the contents are believed.
+    # The vectors this replays are repository artifacts; that is the whole set of
+    # inputs this command is for.
+    target = pathlib.Path(path).resolve()
+    if not target.is_relative_to(pathlib.Path(REPO).resolve()):
+        print(f"ERR: {path} is outside the repository")
+        return 1
+    if pathlib.Path(path).is_symlink() or not target.is_file():
+        print(f"ERR: {path} is not a regular file in this tree")
         return 1
     doc = json.loads(target.read_text(encoding="utf-8"))
     if doc.get("format") != "sigma-glyph.governance-vectors@v1":

@@ -173,6 +173,42 @@ def check_committed_map(ids):
     return 1 if missing or stale or wrong else 0
 
 
+REMOTE = "origin/"
+
+
+def _row_ref_and_path(cells):
+    """`(ref, path)` for a citation row, or `None` if the row is not one."""
+    if len(cells) < 5 or not cells[1].startswith("`") or cells[2] == "Lives in":
+        return None
+    where, quoted = cells[2], cells[3]
+    if "this repo" not in where:
+        return "sibling", ""
+    ref = where.split("`")[1] if "`" in where else "master"
+    path = quoted.split("`")[1] if "`" in quoted else ""
+    return (ref, path) if path else None
+
+
+def _ref_is_live(ref):
+    """A remote-tracking ref the remote no longer has resolves only here."""
+    if not ref.startswith(REMOTE):
+        return True
+    return subprocess.run(
+        ["git", "-C", str(ROOT), "ls-remote", "--exit-code", "--heads",
+         "origin", ref.split("/", 1)[1]], capture_output=True).returncode == 0
+
+
+def _resolvable(ref, path):
+    """Which spellings of `ref` this checkout has, and whether any holds `path`."""
+    spellings = [ref, f"{REMOTE}{ref}", f"refs/remotes/{REMOTE}{ref}"]
+    present = [r for r in spellings
+               if subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify",
+                                  "--quiet", r], capture_output=True).returncode == 0]
+    if not present:
+        return None
+    return any(subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", f"{r}:{path}"],
+                              capture_output=True).returncode == 0 for r in present)
+
+
 def check_rows_resolve(text):
     """Does each row's (ref, path) actually hold that document?
 
@@ -185,52 +221,34 @@ def check_rows_resolve(text):
     # Only the citation table. The refs table below it lists branches rather than
     # documents, and counting its rows as sibling citations reported nineteen
     # unverifiable rows where there is one — a true check with a false scope.
-    table = text.split("## Refs that exist", 1)[0]
-    for line in table.splitlines():
+    for line in text.split("## Refs that exist", 1)[0].splitlines():
         cells = [cell.strip() for cell in line.split("|")]
-        if len(cells) < 5 or not cells[1].startswith("`") or cells[2] == "Lives in":
+        row = _row_ref_and_path(cells)
+        if row is None:
             continue
-        where, quoted = cells[2], cells[3]
-        if "this repo" not in where:
+        ref, path = row
+        if ref == "sibling":
             unverifiable += 1
-            continue
-        ref = where.split("`")[1] if "`" in where else "master"
-        path = quoted.split("`")[1] if "`" in quoted else ""
-        if not path:
-            continue
-        # A remote-tracking ref the remote no longer has resolves locally and
-        # nowhere else. The generated map named one such ref as a document's
-        # home; `git cat-file` was happy and nobody could fetch it.
-        if ref.startswith("origin/") and subprocess.run(
-                ["git", "-C", str(ROOT), "ls-remote", "--exit-code", "--heads",
-                 "origin", ref.split("/", 1)[1]],
-                capture_output=True).returncode != 0:
+        elif not _ref_is_live(ref):
             wrong += 1
             print(f"STALE REF: MAP.md says {cells[1]} lives at {ref}, which the "
                   "remote does not have. It resolves only in this checkout",
                   file=sys.stderr)
-            continue
-        # A shallow checkout has no local branches at all, so `master:path`
-        # resolves nowhere and every row would read as misplaced. Not being able
-        # to look is a different fact from looking and finding nothing, and
-        # collapsing the two would make this check fire hardest where it is least
-        # informative.
-        spellings = [ref, f"origin/{ref}", f"refs/remotes/origin/{ref}"]
-        present = [r for r in spellings
-                   if subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify",
-                                      "--quiet", r], capture_output=True).returncode == 0]
-        if not present:
-            absent += 1
-            print(f"UNCHECKED: MAP.md says {cells[1]} lives at {ref}, which this "
-                  "checkout does not have. Fetch it to verify the row",
-                  file=sys.stderr)
-            continue
-        if all(subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", f"{r}:{path}"],
-                              capture_output=True).returncode != 0 for r in present):
-            wrong += 1
-            print(f"MISPLACED: MAP.md says {cells[1]} lives at {ref}:{path}, and "
-                  "no such object is there. A row nobody resolves is a row that "
-                  "can say anything", file=sys.stderr)
+        else:
+            # Not being able to look is a different fact from looking and finding
+            # nothing: a shallow checkout has no local branches, and collapsing
+            # the two would make this fire hardest where it is least informative.
+            held = _resolvable(ref, path)
+            if held is None:
+                absent += 1
+                print(f"UNCHECKED: MAP.md says {cells[1]} lives at {ref}, which "
+                      "this checkout does not have. Fetch it to verify the row",
+                      file=sys.stderr)
+            elif not held:
+                wrong += 1
+                print(f"MISPLACED: MAP.md says {cells[1]} lives at {ref}:{path}, "
+                      "and no such object is there. A row nobody resolves is a "
+                      "row that can say anything", file=sys.stderr)
     return wrong, unverifiable, absent
 
 
