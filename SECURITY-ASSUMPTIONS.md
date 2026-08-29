@@ -41,10 +41,11 @@ because a reviewer did exactly that.
 
 One sentence, because everything below bounds it:
 
-> Given a term hash and a budget, any two conforming implementations compute the
-> same result hash or the same deterministic budget-exhaustion outcome —
-> integer-only, total, with work **and peak memory** bounded in advance, and with
-> no float, clock or network anywhere in the reduction.
+> Given the same term hash, uint32 budget and valid partial content store, two
+> conforming implementations compute the same result term and reported spend —
+> integer-only and total, with no float, clock or network in reduction. ATP
+> bounds priced work and peak **semantic materialized-node count**. It does not
+> bound process memory, and the verifier must apply a local admission policy.
 
 ## Scoped assumptions
 
@@ -249,7 +250,8 @@ fixed only by `lean-toolchain`) is likewise trust rather than verification.
 `eval` is total: a stranger's term always terminates. That is a real guarantee and
 it is not the same as being safe to run. A 32-bit ATP admits up to
 **4,294,967,295** priced actions, and because the memory bound is `size ≤ atp + 1`
-the budget a stranger chooses is also their licence over the verifier's memory. The
+the budget a stranger chooses is also their licence over the evaluator's semantic
+materialized size. The
 party supplying the term therefore decides how much a verifier spends discovering
 that it terminates.
 

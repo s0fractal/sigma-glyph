@@ -852,11 +852,13 @@ paper.
 >
 > Found by external review, registered at
 > `reviews/2026-08-codex-store-parameter.md` without disposition. The repair being
-> pursued is a monotonicity lemma — extending a store can change only an
-> `Unresolved` outcome — which would make the third input safe rather than merely
-> disclosed. Until it is proved, the honest statement of the result is: *one
+> is now merged: `evalHash_mono` / `evalHash_stable` prove that extending a valid
+> content store can change only an `Unresolved` answer, never a settled normal
+> form or exhaustion, and `store_mono_bridge_check.py` exercises both directions
+> against every live eval vector. The honest statement of the result is: *one
 > integer bounds semantic reduction cost and peak semantic materialization, for a
-> fixed content environment.*
+> fixed content environment; a settled answer is stable under valid store
+> extension.*
 
 **The model–code gap is empirical and finite.** No theorem relates
 `EvalMachine.lean` to `impl/sigma_glyph.py`. What relates them is 33 evaluation
