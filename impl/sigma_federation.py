@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sigma_wave import (W, interfere, FULL_PINS, ALIASES, complete,  # noqa: E402
+                        structural_pin, wave as book2_wave,
                         require_checkout)
 
 ASSERTION_TAG = "sigma-glyph.wave-assertion@v1"
@@ -220,7 +221,14 @@ def wave_fed(term, resolve_selection):
         wr = wave_fed(term[2], resolve_selection)
         if wl is None or wr is None:
             return None
-        return interfere(wl, wr)
+        # Book III §5's fallback is Book II §2's derived case, pin included. It
+        # used to be `interfere(...)` alone, so a node reached structurally lost
+        # the Pin a node reached by name kept -- one NodeHash, two waves, which
+        # is Identity by Hash (Book I §3.2) failing rather than a wrong vector.
+        # The pin lookup is Book II's, keyed by NodeHash, not a second copy.
+        derived = interfere(wl, wr)
+        pin = structural_pin(term)
+        return derived if pin is None else complete(derived, pin)
     raise ValueError(f"bad term: {term!r}")
 
 
@@ -428,7 +436,7 @@ def gen_vectors():
                             "byte-identical regardless of any annotation state - federation "
                             "is a pure-function domain that eval() cannot observe"})
     doc = {"format": "sigma-glyph-federation-conformance", "format_version": 1,
-           "spec_version": "0.6.0",
+           "spec_version": "0.7.0",   # Book III
            "notes": ["Book III (DRAFT) oracle: impl/sigma_federation.py; selection-only "
                      "federation per ADR-006 gate 3/3 (F1-strict).",
                      "string order fields compare by Unicode scalar values directly; desc "
@@ -514,8 +522,27 @@ def selftest():
         wave_fed("K", lambda t: r2 if t == "K" else None) is None)
     chk("assertion overrides pin",
         wave_fed("K", lambda t: r if t == "K" else None) == W(16384, 30000, 50))
-    chk("no assertions -> Book II wave",
-        wave_fed(["APPLY", "K", "I"], lambda t: None) == W(32768, 0, -32512))
+    # Compared against Book II itself rather than against a copied constant: the
+    # claim is "with no assertions, wave_fed IS wave", and a hardcoded triple
+    # says only "wave_fed is whatever I typed here". The constant that stood here
+    # was W(32768, 0, -32512) -- the un-pinned value -- so this check agreed with
+    # the defect the round-5 gate found instead of catching it.
+    # Four relations, four checks. Chained into one expression they are correct
+    # and unreadable: a failure tells you the chain broke, not which link. The
+    # constant that stood here, W(32768, 0, -32512), was the un-pinned value --
+    # this check agreed with the defect the round-5 gate found.
+    fed_structural = wave_fed(["APPLY", "K", "I"], lambda t: None)
+    fed_named = wave_fed("FALSE", lambda t: None)
+    book2_structural = book2_wave(["APPLY", "K", "I"])
+    book2_named = book2_wave("FALSE")
+    chk("no assertions: federation structural == Book II structural",
+        fed_structural == book2_structural)
+    chk("no assertions: federation named == Book II named",
+        fed_named == book2_named)
+    chk("no assertions: named == structural (one node, one wave)",
+        fed_named == fed_structural)
+    chk("no assertions: none of the four is absent",
+        None not in (fed_structural, fed_named, book2_structural, book2_named))
     da = select([_cand("1", "a", 1, 1, W(0, 1, 0)), _cand("2", "aa", 1, 1, W(0, 2, 0))],
                 POLICY_ACTOR_DESC, J, NODE, 1)
     chk("actor desc: 'aa' beats 'a' (prefix pair)",

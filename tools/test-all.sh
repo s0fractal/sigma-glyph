@@ -31,6 +31,25 @@ python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
 python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
 python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION: ALL PASS"
 
+# A specification that calls a JSON file normative has to say what shape that
+# file has. The shape is an anchored schema, closed-world, and the selftest
+# breaks each rule to prove the validator can fail.
+say "Suite schemas: the anchored shape of every normative vector file"
+python3 tools/suite_schema.py --selftest | tee /dev/stderr | grep -q "SUITE-SCHEMA-SELFTEST: ALL PASS"
+python3 tools/suite_schema.py          | tee /dev/stderr | grep -q "SUITE-SCHEMA: ALL PASS"
+
+# exit, outcome, result_hash and atp_spent are four claims, and the runner used
+# to check two of them. The selftest mutates each and requires it to fail alone.
+say "Conformance runner: four observables, each failing on its own"
+python3 tests/conformance_runner_selftest.py | tee /dev/stderr | grep -q "CONFORMANCE-RUNNER-SELFTEST: ALL PASS"
+
+# One node, one wave. The pin belongs to the NodeHash, not to the spelling, and
+# the annotation profile is validated at load rather than at whichever query
+# happens to reach the pinned node. The controls mutate the implementation and
+# require the specific break to be caught.
+say "Identity by hash in the wave algebra, and admission at load"
+python3 tests/wave_identity_selftest.py | tee /dev/stderr | grep -q "WAVE-IDENTITY-SELFTEST: ALL PASS"
+
 say "Version-state guard: candidates are not adopted releases"
 python3 tests/version_check_selftest.py | tee /dev/stderr | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
 
@@ -125,6 +144,19 @@ PY
 # the resource fences, the JSON parser and the suite-size accounting had no
 # unit coverage whatsoever.
 ( cd impl-rs && cargo test ) | tee /dev/stderr | grep -qE "test result: ok\. [1-9][0-9]* passed"
+
+# The same lesson, the other language. `impl-go/jcs_test.go` has guarded a
+# Go/Python canonicalization split -- a federation-consensus fork -- since it was
+# written, and NOTHING ever ran it: cargo test was wired in at v0.6.7 and go test
+# was not. A test no gate executes is a comment. The grep demands a positive
+# count for the same reason cargo's does.
+say "Go unit tests actually run (they never did before 2026-08-30)"
+# NOT `go test | grep '^ok'`: `ok` is a successful PACKAGE, which a package with
+# no test functions also reports, and Go serves cached results. The gate names
+# the tests it expects, runs them with -count=1, and fails on a missing one, an
+# unexpected one, or a cached one.
+python3 tools/go_test_gate.py --selftest | tee /dev/stderr | grep -q "GO-TEST-GATE-SELFTEST: ALL PASS"
+python3 tools/go_test_gate.py            | tee /dev/stderr | grep -q "GO-TEST-GATE: ALL PASS"
 ./impl-rs/target/release/book1 selftest    | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
 # The count is pinned HERE, by whoever names the canonical file — it used to be
 # hardwired inside the binary, which made every other vectors file report FAIL.
@@ -172,8 +204,12 @@ say "Guard regression: WARRANT_PIN extraction fails hard on duplicate/malformed 
 python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUARD: ALL PASS"
 
 # The papers in papers/ state numbers about this repository -- guard line counts,
-# pin totals, Lean size. They were correct on the day they moved in and nothing
-# enforced that, which is the defect the second paper is about.
+# pin totals, Lean size, front distributions, vector totals, implementation line
+# counts. They were correct on the day they moved in and nothing enforced that,
+# which is the defect the second paper is about. The selftest runs first and on
+# its own line: a claims checker whose checks cannot fail is the same defect one
+# level up, and it is the cheaper of the two, so it fails faster.
+python3 tools/paper_claims.py --selftest   | tee /dev/stderr | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
 python3 tools/paper_claims.py              | tee /dev/stderr | grep -q "PAPER-CLAIMS: ALL PASS"
 
 # Network-gated surfaces that CI runs against pinned out-of-band sources (the

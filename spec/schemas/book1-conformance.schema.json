@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigma-glyph.org/schemas/book1-conformance/3",
+  "title": "Sigma-GLYPH Book I conformance suite, format version 3",
+  "description": "The normative shape of tests/spec_conformance/vectors.json. This file is anchored in spec/ANCHORS.txt: the suite's schema is fixed by bytes, not by a version number a reader has to interpret. Closed-world throughout - an unknown field makes a record invalid, so a suite cannot grow a meaning nobody declared.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "spec_version",
+    "suite_version",
+    "book1_anchor",
+    "oracle",
+    "notes",
+    "objects",
+    "vectors"
+  ],
+  "properties": {
+    "format": {
+      "const": "sigma-glyph-conformance"
+    },
+    "format_version": {
+      "const": 3
+    },
+    "spec_version": {
+      "$ref": "#/$defs/semver"
+    },
+    "suite_version": {
+      "$ref": "#/$defs/semver"
+    },
+    "book1_anchor": {
+      "$ref": "#/$defs/hex64"
+    },
+    "oracle": {
+      "type": "string",
+      "minLength": 1
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "objects": {
+      "type": "object",
+      "description": "CAS preload: NodeHash -> canonical bytes, hex. The key is the raw SHA-256 of the value (Book I 3.5); a suite whose entry violates that is not a suite of this edition.",
+      "propertyNames": {
+        "$ref": "#/$defs/hex64"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/hexbytes"
+      }
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/object_vector"
+          },
+          {
+            "$ref": "#/$defs/deserialize_vector"
+          },
+          {
+            "$ref": "#/$defs/eval_vector"
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "hexbytes": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})+$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "uint32": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9-]*$"
+    },
+    "object_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "bytes",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "object"
+        },
+        "note": {
+          "type": "string"
+        },
+        "bytes": {
+          "$ref": "#/$defs/hexbytes"
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hash"
+          ],
+          "properties": {
+            "hash": {
+              "$ref": "#/$defs/hex64"
+            }
+          }
+        }
+      }
+    },
+    "deserialize_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "bytes",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "deserialize"
+        },
+        "note": {
+          "type": "string"
+        },
+        "bytes": {
+          "$ref": "#/$defs/hexbytes_or_empty"
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "valid"
+          ],
+          "properties": {
+            "valid": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "eval_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "term",
+        "atp",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "eval"
+        },
+        "note": {
+          "type": "string"
+        },
+        "term": {
+          "$ref": "#/$defs/hex64"
+        },
+        "atp": {
+          "$ref": "#/$defs/uint32"
+        },
+        "store_subset": {
+          "type": "array",
+          "description": "Optional. The vector runs against a fresh store holding ONLY these objects; the shared preload would contaminate availability vectors.",
+          "items": {
+            "$ref": "#/$defs/hex64"
+          }
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exit",
+            "outcome",
+            "result_hash",
+            "atp_spent"
+          ],
+          "properties": {
+            "exit": {
+              "description": "Receipt.exit (Book I 3.4). Exactly three values exist and this enum is closed.",
+              "enum": [
+                "normal_form",
+                "atp_exhausted",
+                "unresolved_reference"
+              ]
+            },
+            "outcome": {
+              "description": "A suite-level classification of the result, NOT the exit. invalid_object names a normal_form exit whose result is the Canonical Invalid Object (Book I 4.2); it is not a fourth exit.",
+              "enum": [
+                "normal_form",
+                "atp_exhausted",
+                "unresolved_reference",
+                "invalid_object"
+              ]
+            },
+            "result_hash": {
+              "$ref": "#/$defs/hex64"
+            },
+            "atp_spent": {
+              "$ref": "#/$defs/uint32"
+            }
+          }
+        }
+      }
+    },
+    "hexbytes_or_empty": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$",
+      "description": "Hex bytes, possibly empty: the empty buffer is a negative vector in its own right (Book I 4.1(1) requires length >= 2)."
+    }
+  }
+}

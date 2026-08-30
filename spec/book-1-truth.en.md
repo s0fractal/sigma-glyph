@@ -1,11 +1,11 @@
 # Σ-GLYPH — Book I: TRUTH
 
-**Version:** 0.5.2
+**Version:** 0.6.0
 **Type:** Bit-Exact Computational Core
 **Status:** DRAFT STANDARD
 
 > **Informative English translation.** This is an English rendering of the
-> normative Σ-GLYPH Book I v0.5.2. The canonical, anchored source of record is
+> normative Σ-GLYPH Book I v0.6.0. The canonical, anchored source of record is
 > [`book-1-truth.md`](book-1-truth.md) (Ukrainian). In any discrepancy the
 > anchored source governs, until the maintainer roster adjudicates and re-anchors
 > an English normative edition (§8). All hashes, byte strings, code, tables, ADR
@@ -140,10 +140,17 @@ findings by Codex + Gemini + DeepSeek, 2026-07.)
 
 ### 3.4. ATP: size-priced, hash-leaf model (MUST)
 
-**Size** (hash-leaf model): each materialized node counts as 1; an unresolved
+**Size — the semantic materialization measure** (hash-leaf model): each materialized node counts as 1; an unresolved
 hash leaf counts as **exactly 1** regardless of what it denotes; a materialized
 REF counts as 2 (the node + the thunk of its target); `size(APPLY) = 1 +
 size(left) + size(right)`.
+
+**What this bound is not (MUST NOT be read more widely).** `size` counts
+materialized nodes. The bound `size ≤ spent + 1` is a statement about **semantic
+materialization** and MUST NOT be presented as a bound on resident set size, heap
+bytes, evaluator stack, the store's own index, hashing buffers or allocator
+behaviour. The correspondence between this measure and a process's physical
+resources is a separate refinement layer that this Book does not prove.
 
 **Action prices:**
 
@@ -156,12 +163,33 @@ cost(R-K)      = 1        // the discarded argument is NOT forced and NOT priced
 cost(R-S)      = 1 + size(z)   // z in its current materialization; thunks in z = 1, not forced
 ```
 
-* `eval(term_hash, atp: uint32)` → normal form | `DISSONANCE(ATP Exhausted)` |
-  `DISSONANCE(Unresolved Reference)`. All three are canonical, deterministic, and
-  identical on all nodes. The result is a node; its NodeHash is the canonical
-  address of the result.
-* The ATP budget is a `uint32`; ATP > 2³²−1 is implementation-defined (MAY
-  reject/clamp); only canonical results are consensus-critical. A single step
+* **Interface (MUST).** `eval(term_hash, atp: uint32, env)` → `Receipt`, where
+  `env` is a **content environment** (§3.5): a partial map from NodeHash to bytes.
+  Three inputs, not two — a demanded hash absent from the environment is a
+  canonical result (§3.5), so content availability sits inside the semantics
+  rather than beside them.
+
+* **Receipt (MUST).** `Receipt = { exit, result_hash, atp_spent }`, where
+  `exit ∈ { normal_form, atp_exhausted, unresolved_reference }`. All three exits
+  are canonical, deterministic and identical on all nodes given the same
+  **demanded** environment (§3.5). `result_hash` is the NodeHash of the term the
+  machine returned.
+
+* **`result_hash` alone does not identify `exit` (MUST NOT rely on it).**
+  `DISSONANCE(ATP Exhausted)` is an ordinary term: it can sit in an environment
+  and evaluate to a normal form, so the same `result_hash` means "finished" or
+  "ran out" depending on how it was reached. A caller that must tell them apart
+  MUST read `exit`.
+
+* **Compatibility profile (MAY).** An implementation MAY offer the two-value form
+  `eval(term_hash, atp, env) → (result_term, atp_spent)`. It loses no guarantee of
+  this Book and is not deprecated; the one question it cannot answer is `exit`.
+* The ATP budget is a `uint32`. A value outside that domain is not a budget: it
+  MUST be refused per §3.6 — locally, before the environment is consulted, and
+  not as a canonical exit. An implementation MUST NOT accept it by clamping to
+  2³²−1: clamping turns a refusal to admit into a result of evaluation, and two
+  engines, one of which clamps, diverge on the same input. Only canonical results
+  are consensus-critical. A single step
   whose price exceeds 2³²−1 is unreachable for any canonical budget → ATP
   Exhausted, not implementation-defined.
 * **The exhaustion check precedes the action.** An action whose price is `c > atp
@@ -193,6 +221,42 @@ cost(R-S)      = 1 + size(z)   // z in its current materialization; thunks in z 
 
 ### 3.5. Resolution Contract (MUST)
 
+**Content environment (MUST).** `env` is a partial map from hash to bytes with one
+property: `SHA-256(bytes) = key` for every entry. The check is over the **raw
+buffer and before §4.1 validation**: a buffer that fails validation does not
+violate this property — it is failure mode (b) below and yields the Canonical
+Invalid Object. "Is this a valid node" and "do these bytes belong under this key"
+are different questions and must not be conflated: the first has a canonical
+answer, the second has no canonical answer at all.
+
+Bytes under a key they do not hash to **MUST NOT** be evaluated as that key's
+node: they may be a perfectly valid SigmaNodeV2, and evaluating them would
+violate Identity by Hash (§3.2) and let two conforming engines disagree while
+both believe they are following the Book. The property MUST be checked for every
+hash the evaluation actually resolves, and a mismatch detected on a resolved hash
+MUST yield a local refusal (§3.6), not a canonical result.
+
+An entry the evaluation never demanded **MUST NOT** change any canonical
+`Receipt`: given the same answers to the demanded hashes, two conforming
+implementations return the same `Receipt`, whatever else the environment holds.
+That does not forbid a verifier from declining an environment for its own
+reasons, including checking it more widely than the evaluation requires. Such a
+step is **admission** (§3.6), not evaluation: it produces no `Receipt`, so there
+is nothing to disagree about, and it MUST NOT be presented as a result of
+evaluation.
+
+**Determinism is over the demanded environment (MUST).** Two implementations that
+resolve the same **demanded** hashes to the same bytes return the same `Receipt`.
+Stating identity of results without that condition would be false: a node holding
+the bytes reaches a normal form where a node without them returns
+`DISSONANCE(Unresolved Reference)`.
+
+**Extending the environment (MUST).** Adding content can change **only** an
+`unresolved_reference` exit. A settled exit — `normal_form` or `atp_exhausted` —
+MUST remain the same `Receipt` under any extension that preserves the answers to
+already-demanded hashes. (Mechanized as `EvalMachine.evalHash_stable`; the
+differential bridge is `proofs/store_mono_bridge_check.py`.)
+
 `resolve(h)`/`force(h)` is the single node-materialization operation by hash. Two
 failure modes are distinguished explicitly: (a) `h` is not found in storage **and
 is not an intrinsic axiom of §5.1** → `DISSONANCE(Unresolved Reference)`; (b) the
@@ -214,6 +278,23 @@ execution failure that MUST NOT be serialized as a DISSONANCE. Since v0.5 memory
 is bounded semantically (§3.4: size ≤ 1 + spent), so size faults are reachable
 only at budgets on the order of the limit; guards remain a second fence. The
 concrete limits are outside this Book (implementation notes).
+
+**Admission is a required deployment boundary (MUST), and not a canonical exit
+(MUST NOT).** `eval` is total, so a stranger's term always terminates; that is not
+the same as being affordable to run. A `uint32` admits up to 4,294,967,295 priced
+actions, and because `size ≤ spent + 1` the budget chosen is also a licence over
+memory. A verifier MUST therefore be able to refuse **before** executing, on a
+budget it declines to spend. Such a refusal MUST NOT be serialized as a DISSONANCE
+and MUST NOT be presented as the result of the computation: it says the verifier
+declined, not what the term is. The concrete limit is local policy, outside this
+Book.
+
+**Input outside the declared domain (MUST).** An `atp` that is not a `uint32`, and
+a `term_hash` that is not exactly 32 bytes, MUST be refused the same way —
+locally, before the environment is consulted, and not as a canonical exit. This
+changes behaviour relative to 0.5.2, where such values were accepted; the change
+is deliberate, and an implementation MUST NOT present a refusal to admit as a
+canonical result.
 
 ### 3.7. Tooling (MAY, non-consensus)
 
@@ -249,9 +330,10 @@ Hash:  af69b5176c7ac3855c2eac3d1f6159c74d5328e92aac0a33cdba68bbaeba4507
 | K | `0001`+SHA-256("K") | `bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c` |
 | S | `0001`+SHA-256("S") | `887045bc22935aec5cba2dc11400d4e4357bc34d06681a6e92f06e7795b1f8a6` |
 
-The full 32-byte values of SHA-256("I"/"K"/"S") are in `impl/sigma_glyph.py`
-(TV-1); they are deliberately not duplicated here, to avoid creating a second
-source of truth.
+For `X ∈ {I,K,S}`, `SHA-256("X")` denotes SHA-256 of exactly one ASCII byte `X`,
+with no quotation marks and no terminator. The values are fully determined by this
+construction and are deliberately not duplicated here, to avoid creating a second
+source of truth; the reference implementation is not a normative source for them.
 
 **Genesis intrinsic (MUST, since v0.5).** The three axioms I, K, S are intrinsic
 constants: a conforming implementation MUST serve `resolve/force` of their
@@ -327,8 +409,51 @@ A(x, (M N))  = APPLY(APPLY(⟨S⟩, A(x,M)), A(x,N))
 `8bb0006f4c0a51a645877c10db80b7360b0d34f6f826e5737d0847f8b1493176`.
 
 The prices below are v0.5 (size-priced, hash-leaf, §3.4). The exhaustive
-machine-checkable set is `tests/spec_conformance/vectors.json` (normative; on any
-discrepancy with the prose, the oracle `impl/sigma_glyph.py` wins).
+machine-checkable set `tests/spec_conformance/vectors.json` is a normative part of
+this edition. The prose of §7 and the records of the set MUST be mutually
+consistent. An edition in which they disagree is non-conformant and MUST NOT be
+used as a source of consensus until it is corrected and re-anchored. No
+implementation, the reference one included, takes precedence over the normative
+artifacts of the edition.
+
+**What exactly must agree (MUST).** For each §7 test vector, the normative
+representation of the prose's statement in the set is the record's fields: the
+subject of the evaluation (`term` or `bytes`), the budget (`atp`), the
+**canonical exit** (`expected.exit`), the **result classification**
+(`expected.outcome`), the result hash (`expected.result_hash`) and the ATP spent
+(`expected.atp_spent`). A disagreement between the prose and any of these
+fields makes the edition non-conformant. The remainder of §7's prose explains
+rules established in §3–§5 — environment access, lazy materialization, the
+materialization bound — and is not an independent normative statement of this
+section; those rules remain normative where they are established.
+
+**The suite's schema (MUST).** The suite being normative, its shape is normative
+too — and a shape cannot be declared by a version number: `format_version` names
+a version and defines nothing. The suite's schema is a separate anchored file,
+`spec/schemas/book1-conformance.schema.json`, anchored in `spec/ANCHORS.txt`
+beside the suite it describes. It is **closed**: an unknown field makes a record
+invalid, so the suite cannot grow a value that means something to one reader and
+nothing to another. A record the schema rejects is not a record of this edition.
+
+**`expected.exit` and `expected.outcome` are two different levels (MUST).**
+`expected.exit` is `Receipt.exit` (§3.4) and its enum is closed: exactly
+`normal_form`, `atp_exhausted`, `unresolved_reference`. `expected.outcome` is
+**not an exit** but a suite-level classification of the result, and it adds one
+value, `invalid_object`, which denotes a `normal_form` exit whose result is the
+Canonical Invalid Object (§4.2). Such a run carries `exit = normal_form` and
+`result_hash` = that object's hash. The two must not be conflated, which is why
+they are separate fields: `exit` says **how** the evaluation ended, `outcome`
+says **what** it ended on. An implementation that derives either from the other
+is checking neither.
+
+**§7 notation (MUST be read this way).** In the vectors below, `eval(·, atp)`
+abbreviates evaluation of the named term with budget `atp` over this edition's
+content environment — the `objects` of `tests/spec_conformance/vectors.json`. The
+third input (§3.4) is not omitted; it is fixed by the set. `= ⟨X⟩` asserts the
+exit `normal_form` with `expected.result_hash` equal to `H(X)`; "ATP Exhausted"
+asserts `atp_exhausted`; "Unresolved Reference" asserts `unresolved_reference`.
+The shorthand adds and changes no requirement: the normative statements remain
+the record fields listed above.
 
 **TV-4 (I·K):** `APPLY(⟨I⟩,⟨K⟩)` hash
 `51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e`;
@@ -347,8 +472,10 @@ the root bytes discarded (force costs 3 > 2); `eval(·,3)` = ATP Exhausted, spen
 semantic memory bound, §3.4).
 
 **TV-7 (Omega):** `Ω = (SII)(SII)` hash
-`0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211`; `∀n:
-eval(Ω,n) = DISSONANCE(ATP Exhausted)`.
+`0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211`; `∀n : uint32 —
+eval(Ω,n) = DISSONANCE(ATP Exhausted)`. The quantifier is bounded by the
+declared budget domain: a value outside `uint32` is not a budget and yields a
+local refusal (§3.6), not a canonical exit, so nothing is claimed about it here.
 
 **TV-8 (Unresolved Child):** `APPLY(⟨I⟩, ghost)` with ghost absent →
 `DISSONANCE(Unresolved Reference)`, spent 4: R-I fires lazily WITHOUT forcing
@@ -369,7 +496,8 @@ ATP; `APPLY(S (K I) (K K), ghost)` → ⟨K⟩, 20 ATP. In 0.4.x both gave Unres
 Reference — this is a deliberate breaking change (ADR-003).
 
 **TV-12 (Genesis intrinsic, v0.5):** `REF(H(K))` on an **empty** store → ⟨K⟩, 3
-ATP. A bare intrinsic thunk: `eval(H(I), n)` = ⟨I⟩, 0 ATP, no store needed.
+ATP. A bare intrinsic thunk: `eval(H(I), n)` = ⟨I⟩, 0 ATP for any `n : uint32`, no
+store needed.
 
 **Negatives:** flags outside 0x07; Flags not matching the opcode; opcode 0x03;
 length ≠ expected — all → Canonical Invalid Object.

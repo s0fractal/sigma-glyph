@@ -1,0 +1,28 @@
+{
+ "body": {
+  "actor": {
+   "id": "s0fractal@sigma-glyph"
+  },
+  "because": [
+   {
+    "kind": "prose",
+    "text": "ADOPT v0.7.0 anchor-set: eval is a relation over three inputs, the receipt carries the exit, admission is a deployment boundary, one arbiter for all three Books"
+   }
+  ],
+  "decision": "accept",
+  "evidence": [],
+  "prior": [
+   "b4dc05e307b81e7415536a2e2442ff5db41d29ea5b392423735e1892236e095c"
+  ],
+  "subject": {
+   "hash": "4c93717a7007ef8af179ae39ee62492a59594e23be8fdc4a4eef5e04a98f3ae9"
+  },
+  "ts": 1788000000,
+  "under": [
+   "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c",
+   "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+  ],
+  "warrant": "0.2"
+ },
+ "sigs": []
+}

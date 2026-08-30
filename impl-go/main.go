@@ -62,6 +62,12 @@ type Selection struct {
 
 func main() {
 	lutCos = genLUT()
+	// Book III §5: the annotation profile is validated before anything is
+	// answered. A contradictory profile is refused here, at load, rather than
+	// discovered by whichever query happens to reach the pinned node.
+	if err := requireAnnotationProfile(); err != nil {
+		die("annotation profile refused: " + err.Error())
+	}
 	if len(os.Args) < 2 {
 		die("usage: sigma-federation-go <replay|gov-replay|select|wave|viewid|setroot|validate-assertion|validate-policy|interfere|book1-unreachable>")
 	}
@@ -648,7 +654,364 @@ func applyWave(term []any, resolver map[string]map[string]any) (any, error) {
 	}
 	leftMap, _ := asMap(left)
 	rightMap, _ := asMap(right)
-	return interfere(leftMap, rightMap), nil
+	// Book III §5's fallback is Book II §2's derived case, pin included. It was
+	// `interfere` alone, so a node reached structurally lost the Pin a node
+	// reached by name kept: one NodeHash, two waves. That is Identity by Hash
+	// (Book I §3.2) failing, not a wrong vector.
+	derived := interfere(leftMap, rightMap)
+	pin, err := structuralPin(term)
+	if err != nil {
+		return nil, err
+	}
+	if pin == nil {
+		return derived, nil
+	}
+	return complete(derived, pin), nil
+}
+
+// ---- Identity by Hash, enough of Book I to name a node ----------------------
+//
+// Book II §6.2 pins FALSE ≡ APPLY(K,I) BY NODEHASH, so a conforming Book II/III
+// implementation has to be able to say which node it is looking at. That needs
+// Book I's canonical serialization for APPLY and the three genesis LITERALs,
+// and nothing else: this file still contains no evaluator.
+
+func sigmaLeafHash(name string) ([32]byte, bool) {
+	atom, ok := map[string][32]byte{
+		"I": sha256.Sum256([]byte("I")),
+		"K": sha256.Sum256([]byte("K")),
+		"S": sha256.Sum256([]byte("S")),
+	}[name]
+	if !ok {
+		return [32]byte{}, false
+	}
+	// ser(LITERAL, F_ATOM, atom): opcode 0x00, flags 0x01, then the atom.
+	buf := append([]byte{0x00, 0x01}, atom[:]...)
+	return sha256.Sum256(buf), true
+}
+
+// nodeHashOf returns Book I's NodeHash for a wave term, or ok=false when this
+// term language carries no bytes for it (Ph-only leaves, unpinned LITERALs).
+// Such a term has no derived pin rather than a pin under an improvised key.
+func nodeHashOf(term any) ([32]byte, bool) {
+	if name, ok := asString(term); ok {
+		if digest, found := sigmaLeafHash(name); found {
+			return digest, true
+		}
+		// Ph-only NODES have identity even though their wave is absent (2.1).
+		// Treating them as identity-less was the same wrong model the Python
+		// mirror carried: absent wave is not absent node.
+		if pin, found := nodePins[name]; found {
+			raw, err := hex.DecodeString(pin.NodeHash)
+			if err != nil || len(raw) != 32 {
+				return [32]byte{}, false
+			}
+			var digest [32]byte
+			copy(digest[:], raw)
+			return digest, true
+		}
+		return [32]byte{}, false
+	}
+	parts, ok := term.([]any)
+	if !ok || len(parts) != 3 {
+		return [32]byte{}, false
+	}
+	if head, _ := asString(parts[0]); head != "APPLY" {
+		return [32]byte{}, false
+	}
+	left, okL := nodeHashOf(parts[1])
+	right, okR := nodeHashOf(parts[2])
+	if !okL || !okR {
+		return [32]byte{}, false
+	}
+	// ser(APPLY, F_LEFT|F_RIGHT, left, right): opcode 0x02, flags 0x06.
+	buf := append([]byte{0x02, 0x06}, left[:]...)
+	buf = append(buf, right[:]...)
+	return sha256.Sum256(buf), true
+}
+
+func canonicalTerm(term any) any { return canonicalTermIn(aliases, term) }
+
+func canonicalTermIn(table map[string]aliasDef, term any) any {
+	if name, ok := asString(term); ok {
+		if alias, found := table[name]; found {
+			return canonicalTermIn(table, alias.Term)
+		}
+		return term
+	}
+	if parts, ok := term.([]any); ok && len(parts) == 3 {
+		if head, _ := asString(parts[0]); head == "APPLY" {
+			return []any{"APPLY", canonicalTermIn(table, parts[1]),
+				canonicalTermIn(table, parts[2])}
+		}
+	}
+	return term
+}
+
+// loadAnnotationProfile validates a profile and returns its NodeHash -> Pin
+// index. Book III §5 requires a profile with two different Pins for one NodeHash
+// to be refused AT LOAD, before it answers anything: it is accepted whole or it
+// does not exist for the engine.
+//
+// This used to be called from the lookup, so a contradictory profile loaded
+// fine, answered every query that missed the contradiction, and refused only
+// when a wave query happened to reach the pinned node. The normative sentence
+// said load time and the code did query time.
+// It admits EVERY node-level section 6 source in one pass, and resolves identity
+// WITHIN the profile it is handed.
+//
+// Three defects this shape closes, all found by review of the Python mirror:
+// validating the alias table alone left fullPins and aliases as separate
+// authorities; re-reading a global identity table split one label into two nodes
+// by route; and a Pin whose node could not be named was skipped, so an
+// unresolvable Pin produced an empty profile that admitted cleanly.
+//
+// Ph-only entries are not all alike. SATOSHI (6.3) and the six Pantheon nodes
+// (6.4) have NodeHashes printed in the Book: their wave is absent because am/en
+// are underived (2.1), but their identity and their {ph} Pin are real and
+// admission MUST cover them. Only V (6.2) has no NodeHash and stays out.
+func loadAnnotationProfile(table map[string]aliasDef,
+	fulls map[string]map[string]any,
+	nodePins map[string]nodePin) (map[string]map[string]any, error) {
+
+	type binding struct {
+		digest string
+		source string
+	}
+	bindings := map[string]binding{}
+
+	// A label binds to one NodeHash, and every source naming it must agree.
+	// This is a determinism requirement on profile lookup, not a claim that a
+	// label is identity -- Book II 2.3 leaves labels as descriptors.
+	bindLabel := func(name, digest, source string) error {
+		if existing, seen := bindings[name]; seen && existing.digest != digest {
+			return fmt.Errorf(
+				"label %q is bound to %s by %s and to %s by %s. Within one "+
+					"admitted profile a lookup label must resolve unambiguously "+
+					"to one NodeHash; the label is not identity (Book II 2.3 "+
+					"leaves labels as descriptors). Two resolutions for one "+
+					"label make the profile inadmissible",
+				name, existing.digest, existing.source, digest, source)
+		}
+		bindings[name] = binding{digest, source}
+		return nil
+	}
+
+	for _, glyph := range []string{"I", "K", "S"} {
+		digest, ok := sigmaLeafHash(glyph)
+		if !ok {
+			return nil, fmt.Errorf("genesis leaf %q has no NodeHash", glyph)
+		}
+		if err := bindLabel(glyph, hex.EncodeToString(digest[:]), "Book I 5.1"); err != nil {
+			return nil, err
+		}
+	}
+	nodeNames := sortedKeysNodePin(nodePins)
+	for _, name := range nodeNames {
+		declared := nodePins[name].NodeHash
+		if !isHex64(declared) {
+			return nil, fmt.Errorf(
+				"%q declares %q, which is not a 32-byte NodeHash in lowercase "+
+					"hexadecimal", name, declared)
+		}
+		if err := bindLabel(name, declared, "node-level Pin table (6.3-6.4)"); err != nil {
+			return nil, err
+		}
+	}
+
+	// Cycles are found by the alias names already visited, not by a depth
+	// limit: a bound on chain length would invent a normative maximum, and a
+	// long acyclic chain is well-formed.
+	// The alias chain is followed ITERATIVELY, and the visited set is copied
+	// once per resolve() rather than once per link. Recursing per link made the
+	// admissible length depend on the stack, and copying per link made it
+	// quadratic: a 20 000-link chain did not finish. APPLY nesting is still
+	// structural recursion, bounded by how deeply a term is written.
+	// label -> resolved NodeHash. A label's resolution depends on the tables,
+	// never on the path taken to reach it, so a completed resolution is
+	// reusable. Only COMPLETED ones are memoized: a label on the current path
+	// is not yet resolved, so cycle detection still sees it.
+	memo := map[string]string{}
+
+	var resolve func(term any, seen map[string]bool) (string, error)
+	resolve = func(term any, seen map[string]bool) (string, error) {
+		visited := make(map[string]bool, len(seen)+8)
+		for k := range seen {
+			visited[k] = true
+		}
+		var chain []string
+		remember := func(digest string) string {
+			for _, label := range chain {
+				memo[label] = digest
+			}
+			return digest
+		}
+		for {
+			name, ok := asString(term)
+			if !ok {
+				break
+			}
+			if digest, cached := memo[name]; cached {
+				return remember(digest), nil
+			}
+			alias, found := table[name]
+			if !found {
+				if b, bound := bindings[name]; bound {
+					return remember(b.digest), nil
+				}
+				return remember(""), nil
+			}
+			if visited[name] {
+				return "", fmt.Errorf("alias chain revisits %q", name)
+			}
+			visited[name] = true
+			chain = append(chain, name)
+			term = alias.Term
+		}
+		seen = visited
+		parts, ok := term.([]any)
+		if !ok || len(parts) != 3 {
+			return remember(""), nil
+		}
+		if head, _ := asString(parts[0]); head != "APPLY" {
+			return remember(""), nil
+		}
+		left, err := resolve(parts[1], seen)
+		if err != nil {
+			return "", err
+		}
+		if left == "" {
+			return remember(""), nil
+		}
+		right, err := resolve(parts[2], seen)
+		if err != nil {
+			return "", err
+		}
+		if right == "" {
+			return remember(""), nil
+		}
+		leftBytes, err1 := hex.DecodeString(left)
+		rightBytes, err2 := hex.DecodeString(right)
+		if err1 != nil || err2 != nil {
+			return "", fmt.Errorf("unreadable child NodeHash under APPLY")
+		}
+		buf := append([]byte{0x02, 0x06}, leftBytes...)
+		buf = append(buf, rightBytes...)
+		sum := sha256.Sum256(buf)
+		return remember(hex.EncodeToString(sum[:])), nil
+	}
+
+	pins := map[string]map[string]any{}
+	claimedBy := map[string]string{}
+
+	admit := func(name, key string, pin map[string]any, what string) error {
+		// A Pin whose node cannot be named is REFUSED, not skipped.
+		if key == "" {
+			return fmt.Errorf(
+				"%s %q carries a Pin %v but no NodeHash can be resolved for it "+
+					"under this profile; a Pin with no node is not admissible. "+
+					"Sector coordinates (6.2 V) carry no Pin", what, name, pin)
+		}
+		if existing, seen := pins[key]; seen && !sameWavePin(existing, pin) {
+			return fmt.Errorf(
+				"%q and %q are the same node %s but pin it differently: %v vs "+
+					"%v. One node has one wave (Book I 3.2, Book II 2.3); pick "+
+					"one pin. This is an annotation-profile refusal at load "+
+					"time, not an eval exit: it is not a Receipt.exit and not a "+
+					"DISSONANCE",
+				claimedBy[key], name, key, existing, pin)
+		}
+		pins[key] = pin
+		claimedBy[key] = name
+		return nil
+	}
+
+	for _, name := range sortedKeysPin(fulls) {
+		if err := admit(name, bindings[name].digest, fulls[name], "full Pin"); err != nil {
+			return nil, err
+		}
+	}
+	for _, name := range nodeNames {
+		if err := admit(name, bindings[name].digest, nodePins[name].Pin,
+			"node-level Pin"); err != nil {
+			return nil, err
+		}
+	}
+	for _, name := range sortedKeysAlias(table) {
+		digest, err := resolve(table[name].Term, map[string]bool{})
+		if err != nil {
+			return nil, err
+		}
+		if digest != "" {
+			// An alias is also a label: it cannot name a node different from
+			// the one its own label is already bound to.
+			if err := bindLabel(name, digest, "alias table"); err != nil {
+				return nil, err
+			}
+		}
+		if err := admit(name, digest, table[name].Pin, "alias"); err != nil {
+			return nil, err
+		}
+	}
+	return pins, nil
+}
+
+// The edition's own profile, validated once at startup and read -- never
+// rebuilt -- by structuralPin.
+var annotationProfile map[string]map[string]any
+
+func requireAnnotationProfile() error {
+	profile, err := loadAnnotationProfile(aliases, fullPins, nodePins)
+	if err != nil {
+		return err
+	}
+	annotationProfile = profile
+	return nil
+}
+
+func sortedKeysPin(m map[string]map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sortedKeysAlias(m map[string]aliasDef) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sortedKeysNodePin(m map[string]nodePin) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sameWavePin(a, b map[string]any) bool {
+	return reflect.DeepEqual(a, b)
+}
+
+// structuralPin reads the profile loaded at startup. A lookup is not the place
+// to discover that the profile was never valid.
+func structuralPin(term any) (map[string]any, error) {
+	if annotationProfile == nil {
+		return nil, fmt.Errorf("annotation profile was never loaded: call " +
+			"requireAnnotationProfile() before answering wave queries (Book III §5)")
+	}
+	digest, ok := nodeHashOf(canonicalTerm(term))
+	if !ok {
+		return nil, nil
+	}
+	return annotationProfile[hex.EncodeToString(digest[:])], nil
 }
 
 func waveFed(term any, resolver map[string]map[string]any) (any, error) {
@@ -713,6 +1076,39 @@ var fullPins = map[string]map[string]any{
 var aliases = map[string]aliasDef{
 	"FALSE": {Term: []any{"APPLY", "K", "I"}, Pin: map[string]any{"ph": uint16(49152)}},
 }
+
+// A node-level Ph-only Pin: identity exists (6.3, 6.4), the wave does not (2.1).
+type nodePin struct {
+	NodeHash string
+	Pin      map[string]any
+}
+
+// 6.4 states the forging method normatively. 6.3 does NOT follow it: SATOSHI's
+// atom is the BTC genesis block hash rather than SHA-256 of its name, so its
+// NodeHash is the constant the Book prints and cannot be derived from the name.
+const satoshiNodeHash = "11c856acd4b6868a91c2cc2cf6331d57bf268f56adcae0c0f3070c4ec00ed3c7"
+
+func forgeNodeHash(name string) string {
+	atom := sha256.Sum256([]byte(name))
+	sum := sha256.Sum256(append([]byte{0x00, 0x01}, atom[:]...))
+	return hex.EncodeToString(sum[:])
+}
+
+var nodePins = func() map[string]nodePin {
+	out := map[string]nodePin{
+		"SATOSHI": {NodeHash: satoshiNodeHash, Pin: map[string]any{"ph": uint16(8192)}},
+	}
+	for name, ph := range map[string]uint16{
+		"TESLA": 8192, "TURING": 20480, "BACH": 21845,
+		"LEIBNIZ": 24576, "GODEL": 40960, "HEGEL": 57344,
+	} {
+		out[name] = nodePin{NodeHash: forgeNodeHash(name), Pin: map[string]any{"ph": ph}}
+	}
+	return out
+}()
+
+// 6.2's V row: a sector coordinate with no NodeHash, deliberately not a Pin.
+var sectorCoordinates = map[string]uint16{"V": 16384}
 
 func copyWave(w map[string]any) map[string]any {
 	return W(w["ph"].(uint16), w["am"].(uint16), w["en"].(int16))

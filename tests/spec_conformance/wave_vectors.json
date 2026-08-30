@@ -1,7 +1,7 @@
 {
   "format": "sigma-glyph-wave-conformance",
   "format_version": 2,
-  "spec_version": "0.5.2",
+  "spec_version": "0.7.0",
   "lut_arbiter": "c16701c44851da342f5d1f977ba5284e66dde3abd2c6740b979e39ac1d4d38b2",
   "notes": [
     "interfere() per Book II v0.5 (entropy-coherence coupling adopted).",

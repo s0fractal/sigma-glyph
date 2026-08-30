@@ -447,15 +447,38 @@ fn step(
     }
 }
 
-/// `Ok((result_hash, spent))` is one of the three canonical outcomes of §3.4.
-/// `Err(ResourceFault)` is §3.6: this implementation refused to run the term.
-/// The two are different types on purpose — a fault cannot be mistaken for, or
-/// silently widened into, a canonical DISSONANCE.
+/// The three exits of §3.4. The result hash never identified the exit:
+/// `DISSONANCE(ATP Exhausted)` is an ordinary term, so a run can settle on it
+/// with `Exit::NormalForm`. Carrying the exit separately is the point of the
+/// Receipt, and this engine has always known it at each return site — it used to
+/// throw it away, which left the conformance runner comparing two observables
+/// where the specification names four.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Exit {
+    NormalForm,
+    AtpExhausted,
+    UnresolvedReference,
+}
+
+impl Exit {
+    fn as_str(self) -> &'static str {
+        match self {
+            Exit::NormalForm => "normal_form",
+            Exit::AtpExhausted => "atp_exhausted",
+            Exit::UnresolvedReference => "unresolved_reference",
+        }
+    }
+}
+
+/// `Ok((result_hash, spent, exit))` is one of the three canonical outcomes of
+/// §3.4. `Err(ResourceFault)` is §3.6: this implementation refused to run the
+/// term. The two are different types on purpose — a fault cannot be mistaken
+/// for, or silently widened into, a canonical DISSONANCE.
 fn evaluate(
     term_hash_value: Hash,
     atp: u64,
     store: &HashMap<Hash, Vec<u8>>,
-) -> Result<(Hash, u64), ResourceFault> {
+) -> Result<(Hash, u64, Exit), ResourceFault> {
     let (i, k, s, _) = genesis();
     let glyphs = (i, k, s);
     let mut term = Term::Thunk(term_hash_value);
@@ -467,14 +490,14 @@ fn evaluate(
                 term = next;
                 spent += cost;
             }
-            Ok(None) => return Ok((term_hash(&term)?, spent)),
+            Ok(None) => return Ok((term_hash(&term)?, spent, Exit::NormalForm)),
             Err(StepError::Exhausted) => {
                 let dis = Term::Dissonance(reason_hash("ATP Exhausted"));
-                return Ok((term_hash(&dis)?, spent));
+                return Ok((term_hash(&dis)?, spent, Exit::AtpExhausted));
             }
             Err(StepError::Unresolved) => {
                 let dis = Term::Dissonance(reason_hash("Unresolved Reference"));
-                return Ok((term_hash(&dis)?, spent));
+                return Ok((term_hash(&dis)?, spent, Exit::UnresolvedReference));
             }
             Err(StepError::Fault(fault)) => return Err(fault),
         }
@@ -782,6 +805,7 @@ fn run_selftest() -> bool {
 fn check_vector(
     vector: &BTreeMap<String, Json>,
     all_objects: &HashMap<Hash, Vec<u8>>,
+    format_version: u64,
 ) -> Result<(), String> {
     let kind = field(vector, "kind")?.string()?;
     match kind {
@@ -834,11 +858,39 @@ fn check_vector(
             };
             // A fault is reported as a fault. It is NOT a conformance pass, and
             // it is NOT dressed up as a canonical DISSONANCE (§3.6).
-            let (actual_hash, actual_spent) =
+            let (actual_hash, actual_spent, actual_exit) =
                 evaluate(term, atp, &store).map_err(|fault| fault.to_string())?;
             let expected = field(vector, "expected")?.object()?;
             let expected_hash = field(expected, "result_hash")?.string()?;
             let expected_spent = field(expected, "atp_spent")?.number()?;
+            // The exit and the classification are separate claims, checked
+            // separately. `invalid_object` is not a fourth exit: it names a
+            // normal form whose result is the Canonical Invalid Object.
+            if let Ok(expected_exit) = field(expected, "exit").and_then(Json::string) {
+                if actual_exit.as_str() != expected_exit {
+                    return Err(format!(
+                        "expected exit {expected_exit}, got {}",
+                        actual_exit.as_str()
+                    ));
+                }
+            } else if format_version >= 3 {
+                return Err("format v3 requires expected.exit".into());
+            }
+            if let Ok(expected_outcome) = field(expected, "outcome").and_then(Json::string) {
+                let invalid = Term::Dissonance(reason_hash("Invalid Object"));
+                let actual_outcome = if actual_exit == Exit::NormalForm
+                    && actual_hash == term_hash(&invalid).map_err(|e| e.to_string())?
+                {
+                    "invalid_object"
+                } else {
+                    actual_exit.as_str()
+                };
+                if actual_outcome != expected_outcome {
+                    return Err(format!(
+                        "expected outcome {expected_outcome}, got {actual_outcome}"
+                    ));
+                }
+            }
             if encode_hex(&actual_hash) != expected_hash || actual_spent != expected_spent {
                 Err(format!(
                     "expected ({expected_hash}, {expected_spent}), got ({}, {actual_spent})",
@@ -856,7 +908,11 @@ fn run_conformance(path: &str) -> Result<bool, String> {
     let input = fs::read(path).map_err(|error| format!("cannot read {path}: {error}"))?;
     let root = JsonParser::parse(&input)?;
     let root = root.object()?;
-    if field(root, "format_version")?.number()? != 2 {
+    // v3 adds `expected.exit`. v2 is still readable, and a v2 file is checked
+    // on the observables it carries — but a v3 file MUST have its exit checked,
+    // which is why the version is remembered rather than merely accepted.
+    let format_version = field(root, "format_version")?.number()?;
+    if format_version != 2 && format_version != 3 {
         return Err("unsupported conformance format version".into());
     }
 
@@ -879,7 +935,7 @@ fn run_conformance(path: &str) -> Result<bool, String> {
         if !seen.insert(id.to_string()) {
             return Err(format!("duplicate vector id '{id}'"));
         }
-        match check_vector(vector, &objects) {
+        match check_vector(vector, &objects, format_version) {
             Ok(()) => {
                 println!("OK  {id}");
                 passed += 1;
@@ -952,7 +1008,7 @@ mod tests {
         // Well inside the fence: the fence must not fire on ordinary work.
         let (i, _, _, _) = genesis();
         let (root, store) = spine(64);
-        let (hash, spent) = evaluate(root, 1_000_000, &store).expect("no fault expected");
+        let (hash, spent, _exit) = evaluate(root, 1_000_000, &store).expect("no fault expected");
         assert_eq!(hash, i, "((…(I I) I)…) I reduces to I");
         assert!(spent > 0);
     }
@@ -997,9 +1053,11 @@ mod tests {
                 assert!(!text.contains(&encode_hex(&atp_exhausted)));
                 assert!(!text.contains(&encode_hex(&unresolved)));
             }
-            Ok((hash, spent)) => panic!(
-                "expected a §3.6 fault, got the canonical result {} / {spent} ATP",
-                encode_hex(&hash)
+            Ok((hash, spent, exit)) => panic!(
+                "expected a §3.6 fault, got the canonical result {} / {spent} ATP \
+                 with exit {}",
+                encode_hex(&hash),
+                exit.as_str()
             ),
         }
     }

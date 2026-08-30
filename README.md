@@ -127,7 +127,18 @@ the release gate does and does not prove.
 
 ---
 
-### Current: v0.6.7
+### Current: v0.7.0
+
+**v0.7.0** (2026-08-30) is the adopted repository bundle. PyPI remains at
+**0.6.7** until a separate distribution release. The governed anchor set is
+`abf10f2a…adf59`, authorised by threshold warrant `0e634c17…46e1` with two
+distinct roster signatures. Book I is 0.6.0; Books II and III are 0.7.0. The
+release makes evaluation explicitly a relation over a term hash, a uint32 budget
+and a content environment; returns a receipt carrying exit, result hash and ATP
+spent; removes reference-oracle precedence; anchors all three suite schemas; and
+enforces one Pin per NodeHash at annotation-profile admission.
+
+### Previous: v0.6.7
 
 **v0.6.7** (2026-07-31) is the adopted bundle and the version on PyPI. *Adopted*
 means this project's own governance ran — a 2-of-3 threshold warrant signed by its

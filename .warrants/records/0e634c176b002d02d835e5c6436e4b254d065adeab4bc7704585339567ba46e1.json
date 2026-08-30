@@ -1,0 +1,39 @@
+{
+  "body": {
+    "actor": {
+      "id": "codex@sigma-glyph"
+    },
+    "because": [
+      {
+        "kind": "prose",
+        "text": "ADOPT v0.7.0 anchor-set: eval is a relation over three inputs, the receipt carries the exit, admission is a deployment boundary, one arbiter for all three Books"
+      }
+    ],
+    "decision": "accept",
+    "evidence": [],
+    "prior": [
+      "b4dc05e307b81e7415536a2e2442ff5db41d29ea5b392423735e1892236e095c"
+    ],
+    "subject": {
+      "hash": "abf10f2a9c932f31e28973c41658ba728501fef438b35b7538e78c21d37adf59"
+    },
+    "ts": 1788113634,
+    "under": [
+      "b86122047ed676efa70975de368ba1e99582705163b8f5d61f4351b16003974c",
+      "f4fe3a55d7c2a62c18ab14eed3b38ee03d9822d0051c430ab6b9f7a41ad3f16f"
+    ],
+    "warrant": "0.2"
+  },
+  "sigs": [
+    {
+      "actor": "codex@sigma-glyph",
+      "key": "9411e8fe7feab215b4ac7fccd20001f64d1181ce8b5487880931e7f1a000c889",
+      "sig": "3c5162df52694db7f8e06a879256b206f5d276849c59a949891782d078982ef2f2f850fa626a4e65c88fa1c74930ae97187dab329d82c95fa83c60b5cd3b5f0f"
+    },
+    {
+      "actor": "s0fractal@sigma-glyph",
+      "key": "a44c7a84b7ab91a2d5654ebd0647cbb3224551dce294c87255d3538e0fc39ca3",
+      "sig": "b7edc53998b4ae6ed9f66d8bb4705058f405c025022b2046cf9c5514606e3bcf1fd526f7670925409bc1e91d948689c214fafb4c999b0959d877f986538fbb08"
+    }
+  ]
+}

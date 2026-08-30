@@ -1,0 +1,20 @@
+{
+  "answered_utc": "2026-08-30T08:50:42+00:00",
+  "attempt": 1,
+  "changed_mind_while_reasoning": null,
+  "family": "google",
+  "finish_reason": "stop",
+  "follows": null,
+  "frozen_commit": "45a1990aa2f29ba440826e7ec83fa7a6ffd70402",
+  "max_tokens": 24000,
+  "model_answered": "google/gemini-3.1-pro-preview",
+  "model_requested": "google/gemini-3.1-pro-preview",
+  "no_verdict_reason": null,
+  "prompt_sha256": "0c16b0e5424ff1911c86c9b97415d9fd5ce9695ffb8bb2eda3dee9a4956cd80c",
+  "requested_utc": "2026-08-30T08:48:28+00:00",
+  "response_sha256": "81458aaa56913f0723e3dea5d1c63e16990f2ae281a0c3737ebcdd8cf095205e",
+  "system_sha256": "b19b7bb5c66ee3ba68595b07cbaff4bba6925b9ffa833c5feee0cd2721f51150",
+  "verdict": "ADOPT",
+  "verdict_first_stated": "ADOPT",
+  "verdict_last_stated": "ADOPT"
+}

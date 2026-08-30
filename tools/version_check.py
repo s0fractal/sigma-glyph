@@ -26,6 +26,11 @@ BOOK_III = "Book III"
 BOOKS = {BOOK_I: "spec/book-1-truth.md",
          BOOK_II: "spec/book-2-navigation.md",
          BOOK_III: "spec/book-3-federation.md"}
+# Every anchored document that carries its own `**Version:**`, for the bundle
+# convention's example. It used to be readable only for Books, so illustrating
+# the convention with a document that does not move when a Book does -- which is
+# exactly what the convention is about -- was not expressible.
+VERSIONED = dict(BOOKS, **{"GOV-anchors": "spec/GOV-anchors.md"})
 
 # A suite's `spec_version` is the version of the Book it conforms to. Two suites
 # disagree with that on `master`, and correcting either means regenerating an
@@ -33,13 +38,12 @@ BOOKS = {BOOK_I: "spec/book-1-truth.md",
 # what the file declares and what the Book says, and the run fails when an entry
 # stops reproducing: a recorded discrepancy that outlives its defect is a lie
 # with a date on it.
-KNOWN = {
-    "tests/spec_conformance/wave_vectors.json": ("0.5.2", BOOK_II,
-        "declares Book I's version rather than Book II's; the suite was "
-        "generated when the two coincided and nothing moved it since"),
-    "tests/spec_conformance/federation_vectors.json": ("0.6.0", BOOK_III,
-        "declares a Book III version one patch behind the shipped one"),
-}
+# Empty, and that is the record: both entries this carried -- wave_vectors
+# declaring Book I's version, federation_vectors declaring a Book III version one
+# patch behind -- were closed by regenerating each suite against its own Book in
+# the v0.7.0 candidate. The checker fails when an entry stops reproducing, so
+# leaving them would have been the failure rather than the fix.
+KNOWN = {}
 
 
 def book_version(path: str) -> str:
@@ -95,7 +99,7 @@ def check_bundle_example(problems: list[str]) -> int:
     """ANCHORS explains its own convention with an example. The example is a
     claim about this tree, and it went stale once already."""
     text = (ROOT / "spec/ANCHORS.txt").read_text()
-    found = re.search(r'E\.g\. (Book [IV]+) ships in (v[0-9.x]+) bundles at its '
+    found = re.search(r'E\.g\. ([A-Za-z][\w -]{0,20}) ships in (v[0-9.x]+) bundles at its '
                       r'own version (\d+(?:\.\d+)*)', text)
     if not found:
         problems.append("the bundle convention in ANCHORS.txt no longer carries an "
@@ -103,7 +107,11 @@ def check_bundle_example(problems: list[str]) -> int:
                         "true")
         return 0
     book, bundle, version = found.groups()
-    actual = book_version(BOOKS[book])
+    if book not in VERSIONED:
+        problems.append(f"ANCHORS' example names {book}, which is not an "
+                        'anchored document carrying its own version')
+        return 0
+    actual = book_version(VERSIONED[book])
     if actual != version:
         problems.append(f"ANCHORS' example says {book} ships at its own version "
                         f"{version}; {book} is at {actual}")
@@ -151,10 +159,11 @@ def main() -> int:
         print("FAIL", problem, file=sys.stderr)
     if problems:
         return 1
-    print("\nVERSION-CHECK: every relation that is a fact about bytes holds, and "
-          "the two that do not are recorded by name and fail if they are fixed "
-          "without being removed here. Which number *ought* to move when a "
-          "document changes is not checkable and is stated in spec/VERSIONS.md.")
+    print(f"\nVERSION-CHECK: every relation that is a fact about bytes holds, with "
+          f"{len(KNOWN)} recorded discrepancy(ies) — each of which fails this run "
+          "if it is fixed without the record being removed. Which number *ought* "
+          "to move when a document changes is not checkable and is stated in "
+          "spec/VERSIONS.md.")
     return 0
 
 

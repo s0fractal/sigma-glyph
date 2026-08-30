@@ -22,21 +22,28 @@ Python reference implementations.
 | `run_reference.py` | Replays `vectors.json` against the Book I oracle; also executable documentation of runner semantics. |
 | `test_properties.py` | Seeded property tests (determinism, ATP exactness, canonicity round-trip, C1 purity, P7 memory bound). Stdlib-only. |
 
-## vectors.json format (`format_version: 2`)
+## vectors.json format (`format_version: 3`)
+
+The **normative** shape is
+[`spec/schemas/book1-conformance.schema.json`](../../spec/schemas/book1-conformance.schema.json),
+anchored in `spec/ANCHORS.txt` beside the suite. It is closed: an unknown field
+makes a record invalid. What follows is a reading aid, not the definition —
+`python3 tools/suite_schema.py` decides.
 
 Top level:
 
 ```jsonc
 {
   "format": "sigma-glyph-conformance",
-  "format_version": 2,
-  "spec_version": "0.5.2",        // Book I DOCUMENT version the vectors conform to
-  "suite_version": "0.5.0",       // conformance-suite PACKAGE version
-  "book1_anchor": "a98a03bd…",    // Specification Anchor of that Book I
+  "format_version": 3,
+  "spec_version": "0.6.0",        // Book I DOCUMENT version the vectors conform to
+  "suite_version": "0.6.0",       // conformance-suite PACKAGE version
+  "book1_anchor": "…",            // Specification Anchor of that Book I
   "oracle": "impl/sigma_glyph.py",
   "objects": { "<node-hash-hex>": "<canonical-bytes-hex>", … },
   "vectors": [ … ]                 // 49 in this release; eval vectors MAY carry
-                                   // store_subset (format v2) for isolation runs
+                                   // store_subset (format v2) for isolation runs,
+                                   // and carry expected.exit from format v3
 }
 ```
 
@@ -59,11 +66,23 @@ validity is decided at `resolve()` time (Book I §3.5b, §4.1).
   Object, §4.2). `expected.valid` is always `false`.
 
 - `kind: "eval"` — the core contract.
-  `eval(term, atp)` MUST produce a node whose NodeHash is
-  `expected.result_hash`, spending exactly `expected.atp_spent` ATP under
-  **tree semantics** (Book I §3.4, TV-6). `expected.outcome`
-  (`normal_form` | `atp_exhausted` | `unresolved_reference` | `invalid_object`)
-  is informative; the normative observables are `result_hash` and `atp_spent`.
+  `eval(term, atp, env)` MUST produce a `Receipt` whose `exit` is
+  `expected.exit`, whose result NodeHash is `expected.result_hash`, and which
+  spends exactly `expected.atp_spent` ATP under **tree semantics** (Book I §3.4,
+  TV-6).
+
+  **All four are normative, and `exit` and `outcome` are different things.**
+  `expected.exit` is `Receipt.exit`, a closed enum of three:
+  `normal_form` | `atp_exhausted` | `unresolved_reference`. `expected.outcome`
+  is a suite-level *classification* of the result and carries one more value,
+  `invalid_object`, which names a `normal_form` exit whose result is the
+  Canonical Invalid Object (§4.2) — **not a fourth exit**.
+
+  This README said `outcome` was informative until 2026-08-30, while the
+  candidate specification declared it normative and the runner checked neither
+  it nor the exit. `run_reference.py` now reads a `Receipt` and checks the four
+  as four separate claims; `tests/conformance_runner_selftest.py` mutates each
+  in turn and requires it to fail on its own.
 
 Dissonance outcomes need no special casing: `DISSONANCE(ATP Exhausted)` and
 `DISSONANCE(Unresolved Reference)` are canonical nodes with fixed hashes, so

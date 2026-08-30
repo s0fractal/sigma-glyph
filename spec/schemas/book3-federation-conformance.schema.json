@@ -1,0 +1,570 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigma-glyph.org/schemas/book3-federation-conformance/1",
+  "title": "Sigma-GLYPH Book III federation conformance suite, format version 1",
+  "description": "The normative shape of tests/spec_conformance/federation_vectors.json, anchored in spec/ANCHORS.txt. Closed-world: an unknown field makes a record invalid. Negative vectors carry `expected` as the reason string a conforming validator reports, or null when the document is valid.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "spec_version",
+    "notes",
+    "vectors"
+  ],
+  "properties": {
+    "format": {
+      "const": "sigma-glyph-federation-conformance"
+    },
+    "format_version": {
+      "const": 1
+    },
+    "spec_version": {
+      "$ref": "#/$defs/semver"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/validate_vector"
+          },
+          {
+            "$ref": "#/$defs/select_vector"
+          },
+          {
+            "$ref": "#/$defs/wave_fed_vector"
+          },
+          {
+            "$ref": "#/$defs/view_id_vector"
+          },
+          {
+            "$ref": "#/$defs/assertion_set_root_vector"
+          },
+          {
+            "$ref": "#/$defs/fold_probe_vector"
+          },
+          {
+            "$ref": "#/$defs/book1_unreachable_vector"
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "wave": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ph",
+        "am",
+        "en"
+      ],
+      "properties": {
+        "ph": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "am": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "en": {
+          "type": "integer",
+          "minimum": -32768,
+          "maximum": 32767
+        }
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "annotation": {
+          "type": "string"
+        },
+        "jurisdiction": {
+          "$ref": "#/$defs/hex64"
+        },
+        "node": {
+          "$ref": "#/$defs/hex64"
+        },
+        "epoch": {
+          "$ref": "#/$defs/epoch"
+        },
+        "wave": {
+          "type": "object"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "federation_policy": {
+          "type": "string"
+        },
+        "max_age_epochs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "order": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "dir": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "quota_per_actor_epoch": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "reason": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "validate_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "doc",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "validate_assertion",
+            "validate_policy"
+          ]
+        },
+        "note": {
+          "type": "string"
+        },
+        "doc": {
+          "type": [
+            "object",
+            "array",
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "expected": {
+          "$ref": "#/$defs/reason"
+        }
+      }
+    },
+    "select_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "policy",
+        "epoch",
+        "jurisdiction",
+        "node",
+        "candidates",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "select"
+        },
+        "note": {
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/policy"
+        },
+        "epoch": {
+          "$ref": "#/$defs/epoch"
+        },
+        "jurisdiction": {
+          "$ref": "#/$defs/hex64"
+        },
+        "node": {
+          "$ref": "#/$defs/hex64"
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "warrant_id",
+              "actor",
+              "ts",
+              "assertion"
+            ],
+            "properties": {
+              "warrant_id": {
+                "type": "string",
+                "description": "An INPUT field: vectors deliberately carry malformed ids (`not-hex`) to pin what a selector must reject, so this is any string. The OUTPUT `expected.selected_warrant` is hex64 or null."
+              },
+              "actor": {
+                "type": "string"
+              },
+              "ts": {
+                "type": "integer"
+              },
+              "assertion": {
+                "$ref": "#/$defs/assertion"
+              }
+            }
+          }
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "selected_warrant",
+            "conflict_set"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "selected",
+                "conflict",
+                "absent"
+              ]
+            },
+            "selected_warrant": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/hex64"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "conflict_set": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/hex64"
+              }
+            }
+          }
+        }
+      }
+    },
+    "wave_fed_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "term",
+        "selection",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "wave_fed"
+        },
+        "note": {
+          "type": "string"
+        },
+        "term": {
+          "$ref": "#/$defs/term"
+        },
+        "selection": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "selected_warrant",
+                "conflict_set"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "selected",
+                    "conflict",
+                    "absent"
+                  ]
+                },
+                "selected_warrant": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/hex64"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "conflict_set": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/hex64"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "selected_wave": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/wave"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected": {
+          "$ref": "#/$defs/wave"
+        }
+      }
+    },
+    "view_id_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "jurisdiction",
+        "node",
+        "policy_hash",
+        "epoch",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "view_id"
+        },
+        "note": {
+          "type": "string"
+        },
+        "jurisdiction": {
+          "$ref": "#/$defs/hex64"
+        },
+        "node": {
+          "$ref": "#/$defs/hex64"
+        },
+        "policy_hash": {
+          "$ref": "#/$defs/hex64"
+        },
+        "epoch": {
+          "$ref": "#/$defs/epoch"
+        },
+        "expected": {
+          "$ref": "#/$defs/hex64"
+        }
+      }
+    },
+    "assertion_set_root_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "warrant_ids",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "assertion_set_root"
+        },
+        "note": {
+          "type": "string"
+        },
+        "warrant_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hex64"
+          }
+        },
+        "expected": {
+          "$ref": "#/$defs/hex64"
+        }
+      }
+    },
+    "fold_probe_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "w1",
+        "w2",
+        "w3",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "fold_probe"
+        },
+        "note": {
+          "type": "string"
+        },
+        "w1": {
+          "$ref": "#/$defs/wave"
+        },
+        "w2": {
+          "$ref": "#/$defs/wave"
+        },
+        "w3": {
+          "$ref": "#/$defs/wave"
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "left",
+            "right"
+          ],
+          "properties": {
+            "left": {
+              "$ref": "#/$defs/wave"
+            },
+            "right": {
+              "$ref": "#/$defs/wave"
+            }
+          }
+        }
+      }
+    },
+    "book1_unreachable_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "book1_unreachable"
+        },
+        "note": {
+          "type": "string"
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "book1_vector",
+            "result_hash",
+            "atp_spent",
+            "matches_book1_suite"
+          ],
+          "properties": {
+            "book1_vector": {
+              "type": "string"
+            },
+            "result_hash": {
+              "$ref": "#/$defs/hex64"
+            },
+            "atp_spent": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "matches_book1_suite": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "term": {
+      "description": "As Book II's suite writes them; see that schema.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/term"
+          }
+        },
+        {
+          "type": "object"
+        }
+      ]
+    }
+  }
+}

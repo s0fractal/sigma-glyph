@@ -1,0 +1,20 @@
+{
+  "answered_utc": "2026-08-30T08:58:25+00:00",
+  "attempt": 1,
+  "changed_mind_while_reasoning": null,
+  "family": "qwen",
+  "finish_reason": "stop",
+  "follows": null,
+  "frozen_commit": "45a1990aa2f29ba440826e7ec83fa7a6ffd70402",
+  "max_tokens": 24000,
+  "model_answered": "qwen/qwen3-235b-a22b-2507",
+  "model_requested": "qwen/qwen3-235b-a22b-2507",
+  "no_verdict_reason": null,
+  "prompt_sha256": "0c16b0e5424ff1911c86c9b97415d9fd5ce9695ffb8bb2eda3dee9a4956cd80c",
+  "requested_utc": "2026-08-30T08:58:08+00:00",
+  "response_sha256": "c7702b77e2972482d1a084d65f065c63f2f77437d8c18c6bc4b9695ac5960ab3",
+  "system_sha256": "b19b7bb5c66ee3ba68595b07cbaff4bba6925b9ffa833c5feee0cd2721f51150",
+  "verdict": "REJECT",
+  "verdict_first_stated": "REJECT",
+  "verdict_last_stated": "REJECT"
+}

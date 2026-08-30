@@ -1,0 +1,17 @@
+{
+  "answered_utc": "2026-08-29T19:11:41+00:00",
+  "attempt": 1,
+  "family": "qwen",
+  "finish_reason": "stop",
+  "follows": null,
+  "frozen_commit": "e2b4f1eb2a0a7cff0fc2f42b39541c42873118a0",
+  "max_tokens": 24000,
+  "model_answered": "qwen/qwen3-235b-a22b-2507",
+  "model_requested": "qwen/qwen3-235b-a22b-2507",
+  "no_verdict_reason": null,
+  "prompt_sha256": "7711812198a43d715082c7fd1671d6558dd8a7c79d38aa7f86932f95780e2248",
+  "requested_utc": "2026-08-29T19:11:14+00:00",
+  "response_sha256": "4cd5ad7562ab06f637c8ac461fab620a64222b503eecbb9434c3a2de8139b021",
+  "system_sha256": "a87d162d7a1c13ce15756bcf1565daf55701b91fd7e47ed432dfae4d3a819d2a",
+  "verdict": "ADOPT"
+}

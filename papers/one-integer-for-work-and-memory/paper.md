@@ -1,12 +1,19 @@
 ---
-title: "One Integer for Work and Memory: A Mechanized, Content-Addressed Combinator Machine, and the Engineering of Trustworthy Proof Artifacts"
-author:
+title: "One Integer for Semantic Work and Materialization: A Mechanized, Content-Addressed Combinator Machine over Term, Budget and Content Environment, and the Engineering of Trustworthy Proof Artifacts"
+author: "Serhii Glova (independent) --- sergey.glova@gmail.com"
+# The structured form below is for deposit metadata. It is NOT the `author`
+# field: pandoc's default LaTeX template renders a list of maps by its
+# truthiness, which is why every build of this paper so far has printed the
+# word "true" on the title page where the author's name belongs.
+authors:
   - name: Serhii Glova
     affiliation: independent
     email: sergey.glova@gmail.com
-date: 2026-07-30
+date: 2026-08-29
 keywords:
   - combinatory logic
+  - content addressing
+  - semantic materialization
   - content-addressed computation
   - resource bounds
   - Lean 4
@@ -19,9 +26,36 @@ bibliography: references.bib
 # Abstract
 
 We present Σ-GLYPH Book I, a content-addressed combinator machine in which a
-single unsigned integer budget — *ATP* — prices both the work an evaluation
-performs and the *peak* memory it materializes, and we report a layered Lean 4
-mechanization of it. The central theorem, `EvalMachine.evalHash_peak_size`, is
+single unsigned integer budget — *ATP* — prices both the semantic work an
+evaluation performs and the *peak number of nodes it materializes*, and we report
+a layered Lean 4 mechanization of it. Three framing statements come first,
+because an earlier version of this paper stated the first two wrongly in its
+summary and did not state the third at all.
+
+**Evaluation is a relation over three inputs, not two.** `eval` takes a term hash,
+a `uint32` budget, **and a content environment** — a partial map from NodeHash to
+bytes whose entries hash to their own key. A demanded hash absent from that
+environment is a *canonical* outcome, so availability sits inside the semantics: a
+node holding the bytes reaches a normal form where a node without them returns
+`Unresolved Reference`, on the same term and the same budget. What bounds this is
+a monotonicity theorem, `evalHash_stable`: extending an environment can change
+**only** an unresolved outcome, never a normal form and never an exhaustion.
+
+**The bound is semantic, not physical.** `size` counts materialized nodes. The
+theorem says nothing about resident set size, heap bytes, evaluator stack, the
+store's index, hashing buffers or allocator behaviour; the correspondence between
+the two is a refinement layer we do not prove and do not claim.
+
+**A result hash does not say how the run ended.** `eval` returns a receipt —
+exit, result hash, ATP spent — and the hash alone never carried the exit:
+`DISSONANCE(ATP Exhausted)` is an ordinary term, so one digest is reachable both
+as an exhaustion and as a normal form. A consumer reading only the hash cannot
+tell "finished" from "ran out", and because the budget is also the licence over
+the verifier's memory, a verifier must be able to refuse a term *before*
+evaluating it — a refusal that is a deployment decision and not a canonical
+outcome.
+
+The central theorem, `EvalMachine.evalHash_peak_size`, is
 $\mathit{size} \le \mathit{atp} + 1$ at **every** configuration the run passes
 through, proven *on a model of the actual hash-thunk evaluator* rather than on an
 abstract cost algebra: the per-step accounting lemma `size_step` establishes that
@@ -34,7 +68,7 @@ through exactly one of normal form, ATP-exhausted or unresolved-reference. The
 mechanization is layered down to bytes — a from-scratch FIPS 180-4 SHA-256 in
 core Lean, serialization injectivity, round-trip canonicity and validation
 totality — so that redex recognition by hash is *derived* rather than
-re-axiomatized. Thirty-six theorems across five fronts are guarded; all eleven
+re-axiomatized. Forty-one theorems across five fronts are guarded; all sixteen
 evaluator theorems have axiom cone
 $\{\texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound}\}$ exactly,
 with `native_decide` confined to ten theorems in other fronts whose documented
@@ -43,11 +77,11 @@ trusted base already names the compiler.
 We are equally explicit about what is *not* proven. The correspondence between
 the Lean model and the running implementations is empirical: three differential
 bridges execute the compiled Lean model against the reference oracle on 33
-evaluation vectors, 334 byte buffers and 582 wave cases; two further bridges
-check a weaker correspondence (861 oracle steps against the premise the proof
-consumes, and 3000 random closed $\lambda$-terms against a transcription of the
-Lean compiler model); and a three-engine randomized fuzzer generates 5185
-evaluation vectors per CI run.
+evaluation vectors, 334 byte buffers and 582 wave cases; three further bridges
+check a weaker correspondence — 861 oracle steps against the premise the proof
+consumes, 3000 random closed $\lambda$-terms against a transcription of the Lean
+compiler model, and 1220 store perturbations against the monotonicity bound; and
+a three-engine randomized fuzzer generates 5347 evaluation vectors per CI run.
 
 Our second contribution is methodological, and we state it here in one paragraph
 because it changes how much the first should be believed. The CI machinery that
@@ -143,8 +177,8 @@ accountant.
    hash is a derived fact about the proven byte layer, not a fresh axiom.
 
 4. **An honest, per-theorem account of the trusted base** (§4.4, §7). Ten of the
-   36 guarded theorems are permitted `native_decide`, which puts the Lean
-   compiler in the trusted base; the other 26 are not, and all eleven evaluator
+   41 guarded theorems are permitted `native_decide`, which puts the Lean
+   compiler in the trusted base; the other 31 are not, and all sixteen evaluator
    theorems — including the peak-memory bound and the settling theorems — depend
    on the three standard Lean axioms alone. Where a property is empirical, we say
    so in the sentence that makes the claim.
@@ -341,14 +375,106 @@ separate citizen, extensionally equal to $K$. Rice's theorem is the reason the
 spec gives, and it is the right one: syntactic canonicity is achievable,
 semantic canonicity is not.
 
+## 3.6 The third input, and how far it reaches
+
+`eval(term_hash, uint32 atp, env)`. The Lean model has always been
+`evalHash (h) (atp) (st)` and the reference oracle has always been
+`eval_hash(h, atp, store, …)`; what was missing was the third argument in the
+sentence people read. A demanded hash absent from `env` is a canonical outcome, so
+two conforming engines with the same term and the same budget can return different
+canonical results — the counterexample is one line long, and the conformance suite
+could not have caught it, because every implementation is handed the same prepared
+store.
+
+`env` is not "anything with a `get`". It is a partial map whose bytes hash to
+their own key. Bytes filed under a foreign key are a real hazard rather than a
+theoretical one: until the audit of 2026-08-29 the reference oracle **executed**
+them as that key's node, which is an Identity-by-Hash violation that would let two
+engines disagree while both believed they were following the Book.
+
+What bounds the third input is `EvalMachine.evalHash_stable`: if `env2` answers
+every lookup `env1` answers, a settled exit — normal form or exhaustion — is the
+same receipt under both. Only `unresolved_reference` can change. The hypothesis is
+stated on lookups rather than as set inclusion on purpose: `storeGet` returns the
+first entry whose hash matches, so a larger store could answer with different
+bytes of the same hash, and ruling that out by assuming SHA-256 injective would
+assume something false by counting.
+
+The differential bridge is `proofs/store_mono_bridge_check.py`, and it is the
+sixth: it grows each vector's store with the rest of the suite and with eight
+nodes belonging to no vector, and shrinks it by removing each demanded node in
+turn — **67 grown and 1153 shrunk over 33 evaluation vectors**. The shrink
+direction carries the weight: removing bytes must yield `Unresolved` or nothing,
+never a different verdict.
+
+## 3.7 The receipt, and what a result hash cannot say
+
+`eval` returns `{exit, result_hash, atp_spent}`, where `exit` is exactly one of
+`normal_form`, `atp_exhausted` and `unresolved_reference`.
+
+The hash alone never identified the exit. `DISSONANCE(ATP Exhausted)` is an
+ordinary term: put it in a store and evaluate it, and it is a normal form. So
+`8bb0006f4c0a…` is reachable both as an exhaustion and as a normal form, and a
+caller reading only the hash cannot tell "finished" from "ran out". This is not a
+hypothetical — `tests/receipt_test.py` produces both and fails if either half
+stops being true.
+
+The two-value form remains available as a named compatibility profile, and a
+receipt still unpacks as a pair, so the four call sites in `warrant` that consume
+`ski@v1` reasons are unchanged and were exercised against this oracle.
+
+## 3.8 Admission: totality is not affordability
+
+`eval` is total, so a stranger's term always terminates. A `uint32` budget admits
+up to 4,294,967,295 priced actions, and because
+$\mathit{size} \le \mathit{spent} + 1$ the budget the stranger chooses is also
+their licence over the verifier's memory. The party
+supplying the term was deciding how much the verifier spends discovering that it
+terminates.
+
+A verifier must therefore be able to refuse **before** executing. That refusal is
+not a canonical outcome and must not be serialized as a DISSONANCE: it says the
+verifier declined, not what the term evaluates to. `impl/sigma_glyph.py` carries
+`admit()` and a `VERIFIER_LIMITS` preset; the default limits leave the cap unset,
+because this module is also the conformance oracle and an oracle that refuses is
+not an oracle. Nothing forces a verifier to choose the preset, and no consumer of
+Σ-GLYPH reasons elsewhere has been changed — which is the assumption, not the
+mitigation.
+
+## 3.9 Where the specification stands
+
+The adopted edition is bundle **v0.6.7**, with Book I at its own version 0.5.2,
+anchor `a98a03bd…`. Book I 0.5.2 prints the two-argument interface. A candidate —
+`proposals/ADR-010`, bundle `v0.7.0` — states the three inputs, the receipt, the
+CAS condition, the monotonicity bound, admission, and one arbitration rule shared
+by all three Books. **It is not adopted**, and this paper does not describe it as
+in force. What this section describes is the machine, which has always had three
+inputs; what the Book prints is a separate fact, and the candidate is the proposal
+to make them agree.
+
+It has been through three rounds of the project's three-family blind gate, and
+the record is worth reading before the text is believed. Round 1: three REJECTs,
+all three families finding that the candidate had added a clause requiring an
+out-of-domain budget to be refused while leaving the neighbouring clause saying it
+may be clamped. Round 2: the repair contradicted itself, and a reviewer produced
+the environment on which two engines citing the same sentence diverge. Both
+defects were introduced by the revision immediately before, both were invisible to
+every test in this repository, and both shipped with a green CI — which is §5's
+thesis arriving in the specification text rather than in the guard. The rounds are
+recorded verbatim, with prompts, model identifiers and timestamps, in
+`gates/v0.7.0-candidate/`, including a NO VERDICT that was a truncated reply and
+an occasion where one family reversed a finding after reading another's argument
+in the candidate's own ADR — which is a change of mind and not independent
+confirmation, and is counted as such.
+
 ---
 
 # 4. The mechanization
 
 All proofs are Lean 4 v4.31.0 [@demoura2021lean4], **core only, no mathlib**.
 The pinned toolchain is `proofs/lean-toolchain`. Ten `.lean` files total 1404
-lines: `Sha256.lean` (110), `MachineBytes.lean` (282), `EvalMachine.lean` (340),
-`WaveAlgebra.lean` (203), `C1Compiler.lean` (138), `SizeBound.lean` (95),
+lines: `Sha256.lean` (110), `MachineBytes.lean` (282), `EvalMachine.lean` (440),
+`WaveAlgebra.lean` (203), `C1Compiler.lean` (138), `SizeBound.lean` (97),
 `LutData.lean` (17 lines holding a 206 KB generated table), and three `*Run.lean`
 I/O runners (49 + 49 + 19) which prove nothing and exist to feed the differential
 bridges.
@@ -478,16 +604,17 @@ from $k \ge 5$, so `eval_settles`'s hypothesis
 $\mathit{atp} - \mathit{spent} < \mathit{fuel}$ is load-bearing too. (We
 reproduced both traces against the branch's unmodified `EvalMachine.lean`.)
 
-**Status.** All eleven evaluator theorems are guarded on `master`. The three that
-close the settling and peak claims — `eval_settles`, `evalHash_settles`,
+**Status.** All sixteen evaluator theorems are guarded on `master`. The three
+that close the settling and peak claims — `eval_settles`, `evalHash_settles`,
 `evalHash_peak_size` — were developed on a branch and merged at `35d8aea`, where
 they were re-pinned against a guard that had moved twice underneath them (§5.4,
-§5.5). We verified the merged state independently: the eval bridge reports eleven
-guarded theorems with standard axioms only, and we reproduced both traces above
-against `master`'s unmodified `EvalMachine.lean`. One nuance the project's own
-governance discipline demands: the most recent *adopted* anchor set is `v0.6.7`
-at `16a1355`, and these three theorems merged after it, so they are on the branch
-in force but are not covered by an adoption warrant (§7).
+§5.5); the five that state store monotonicity (§3.6) merged later still. We
+verified the merged state independently: the eval bridge reports sixteen guarded
+theorems with standard axioms only, and we reproduced both traces above against
+`master`'s unmodified `EvalMachine.lean`. One nuance the project's own governance
+discipline demands: the most recent *adopted* anchor set is `v0.6.7` at
+`16a1355`, and all eight of these theorems merged after it, so they are on the
+branch in force but are not covered by an adoption warrant (§7).
 
 This is the paper's main technical claim, so it is worth being precise about what
 `SizeBound.lean` adds and what it does not. `SizeBound.lean` abstracts the
@@ -530,12 +657,11 @@ Book I depends on it; ignoring Book II entirely leaves Book I intact.
 
 ## 4.4 The trusted base, per theorem
 
-Thirty-six theorems are guarded, distributed as: `size` 2, `bytes` 12, `eval` 11,
-`wave` 6, `c1` 5. The registry pins **39** statements: the three extra are
+Forty-one theorems are guarded, distributed as: `size` 2, `bytes` 12, `eval` 16,
+`wave` 6, `c1` 5. The registry pins **44** statements: the three extra are
 unguarded wave lemmas whose `native_decide` trust axioms guarded theorems borrow,
-pinned in what they say — see [@paperB2026]. Seventeen further theorems are registered as
-deliberately
-unguarded (helper lemmas: list-append inverses, LUT range facts, `divRoundHalfUp`
+pinned in what they say — see [@paperB2026]. Nineteen further theorems are
+registered as deliberately unguarded (helper lemmas: list-append inverses, LUT range facts, `divRoundHalfUp`
 bounds). The per-front axiom policy is machine-enforced, not documentary:
 
 | Front | Allowed axioms | `native_decide` permitted for |
@@ -617,7 +743,7 @@ remedy is a script that compiles, queries each headline theorem's axiom
 dependencies with `#print axioms`, and fails the build on anything unexpected.
 Ours was about forty lines. Over eight days of adversarial review it became 1465
 lines of Python, a 179 KB pin registry and a 981-line regression suite asserting
-122 properties — machinery 2.3× the size of the 1404 lines of Lean it guards.
+122 properties — machinery 2.4× the size of the 1404 lines of Lean it guards.
 Every bypass in that history was demonstrated end-to-end: not "this check has a
 theoretical gap" but *here is a file, here is the green CI output, here is the
 falsehood it certified.*
@@ -691,41 +817,50 @@ allowed; regeneration can launder any drift and is therefore never run by CI; an
 who wants the evidence behind those sentences should read the companion paper;
 the reader who wants only the calibration should take away that §4's numbers are
 as good as a human reading of one JSON diff.
+
 ---
 
 # 6. Evaluation
 
-All figures below were measured at commit `35d8aea` on `master`, on an
-Apple-silicon macOS host (arm64-darwin 24.6.0) with Lean 4.31.0, from a clean
-tree extracted with `git archive` and containing no `.olean` cache. Every number
-is reproducible with the commands named.
+All figures below were measured at commit `1c2b6ca` — the frozen v0.7.0
+candidate — on an Apple-silicon macOS host (arm64, Darwin 25.5.0) with Lean
+4.31.0, from a clean tree extracted with `git archive` and containing no `.olean`
+cache. Every number is reproducible with the commands named. Figures in the
+deposited version of this paper were taken at `35d8aea` on a different host OS
+release and are not directly comparable; these replace them rather than
+supplementing them.
 
 ## 6.1 Proof checking
 
 | Bridge | Wall (s) | Guarded theorems | Differential |
 |---|---:|---:|---|
-| `bridge_check.py` (SizeBound) | 1.10 | 2 | 861 oracle steps, 0 premise violations |
-| `byte_bridge_check.py` | 1.96 | 12 | 334 / 334 buffers agree |
-| `eval_bridge_check.py` | 4.30 | 11 | 33 / 33 eval vectors agree (hash **and** `atp_spent`) |
-| `wave_bridge_check.py` | 33.14 | 6 | 582 / 582 boundary cases agree |
-| `c1_bridge_check.py` | 1.19 | 5 | 3000 random closed $\lambda$-terms agree |
-| **all five, one cold sequential run** | **42.3** | **36** | |
-| `tests/proof_guard_test.py` | 38.86 | — | 122 checks, 0 failures |
+| `bridge_check.py` (SizeBound) | 5.07 | 2 | 861 oracle steps, 0 premise violations |
+| `byte_bridge_check.py` | 2.15 | 12 | 334 / 334 buffers agree |
+| `eval_bridge_check.py` | 4.96 | 16 | 33 / 33 eval vectors agree (hash **and** `atp_spent`) |
+| `wave_bridge_check.py` | 37.39 | 6 | 582 / 582 boundary cases agree |
+| `c1_bridge_check.py` | 1.32 | 5 | 3000 random closed $\lambda$-terms agree |
+| `store_mono_bridge_check.py` | 0.07 | — | 67 grown / 1153 shrunk over 33 eval vectors |
+| **all six, one cold sequential run** | **47.4** | **41** | |
+| `tests/proof_guard_test.py` | 43.11 | — | 122 checks, 0 failures |
 
-The per-bridge figures and the all-five figure are separate measurements (the
-per-bridge column sums to 41.7 s). Each bridge builds its own `.olean` artifacts
-in a private temporary directory, so no figure benefits from a warm cache. The
-guard regression suite now costs about as much as all five bridges together,
+The per-bridge figures and the all-six figure are separate measurements (the
+per-bridge column sums to 51.0 s, slightly above the sequential run — run-to-run
+variance on a laptop, not a warm cache). Each Lean bridge builds its own `.olean`
+artifacts in a private temporary directory, so no figure benefits from one. The
+guard regression suite now costs about as much as all six bridges together,
 because most of its 122 checks compile a fixture through `lean`.
 
-Adding the three theorems of §4.2 did not measurably change the evaluator
-bridge's cost — they are short inductions over already-elaborated definitions and
-add no new pinned definitions, the dependency set staying at 155 constants. The
-equational form of `eval_settles` — `step … = .nf` rather than a
-`match … | .step _ _ => False` phrasing — was chosen for that reason: the
-registry pins compiler-generated auxiliaries like `EvalMachine.step.match_3`
-alongside ordinary definitions, and a match-shaped statement would have added
-another.
+The store-monotonicity bridge is the one entry that invokes no `lean` at all: it
+is a differential over the reference oracle alone, which is why it costs 0.07 s
+and guards no statement of its own. The theorem it exercises, `evalHash_stable`,
+is one of the sixteen the evaluator bridge guards.
+
+The evaluator front carries the growth of this revision: eleven guarded theorems
+became sixteen with the store-monotonicity chain, and the registry now pins 156
+definitions. The equational form of `eval_settles` — `step … = .nf` rather than a
+`match … | .step _ _ => False` phrasing — was chosen deliberately: the registry
+pins compiler-generated auxiliaries like `EvalMachine.step.match_3` alongside
+ordinary definitions, and a match-shaped statement would have added another.
 
 The wave front dominates the bridges: `LutData.lean`'s 32769-entry table and the
 `native_decide` scans account for roughly four-fifths of the total. Bare kernel
@@ -757,30 +892,34 @@ deliberately absent "ghost" REFs) crossed with an ATP grid per term — includin
 $0$, $\mathit{spent}-1$, $\mathit{spent}$, $\mathit{spent}+1$ and $2^{32}-1$ —
 and replays every generated vector through three engines: the Python oracle, the
 Rust implementation, and `warrant-go`'s native evaluator. CI runs three fixed
-seeds at 200 terms each on every push, which we measured as 1706, 1737 and 1742
-vectors — **5185 generated evaluation vectors per CI run**, all agreeing, in
-about 0.14 s per seed. The seeds are fixed so that a divergence is reproducible.
+seeds — 1337, 4242, 20240717 — at 200 terms each on every push, which at
+`1c2b6ca` generate 1792, 1776 and 1779 vectors: **5347 generated evaluation
+vectors per CI run**, all agreeing, at about 9.8 s per seed locally with two of
+the three engines present. The seeds are fixed so that a divergence is
+reproducible.
 
 ## 6.3 Implementations
 
 | Implementation | Lines | SHA-256 | Book I evaluator |
 |---|---:|---|---|
-| `impl/sigma_glyph.py` (oracle) | 448 | `hashlib` | yes |
-| `impl-rs/src/main.rs` | 778 | from scratch, zero crate dependencies | yes |
+| `impl/sigma_glyph.py` (oracle) | 618 | `hashlib` | yes |
+| `impl-rs/src/main.rs` | 1170 | from scratch, zero crate dependencies | yes |
 | `warrant-go` (external repo, CI-pinned) | — | Go stdlib | yes |
-| `impl-go/main.go` (in-tree) | 1737 | Go stdlib | **no** — Book III / governance only |
+| `impl-go/main.go` (in-tree) | 2344 | Go stdlib | **no** — Book III / governance only |
 
-The Rust implementation is worth a sentence: 778 lines, no dependencies at all,
+The Rust implementation is worth a sentence: 1170 lines, no dependencies at all,
 its own SHA-256, `overflow-checks = true` in the release profile, and it replays
 the oracle-generated vectors byte-exact. The in-tree Go implementation covers
 Books II–III and governance and contains no Book I evaluator; the third Book I
 engine is `warrant-go`, in a separate repository, pinned in CI by commit hash.
-Anyone reading "three independent implementations" should read it that way.
+So the honest phrase is **three separately implemented engines from one
+development lineage**, not "three independent implementations", and anyone
+reading the latter anywhere in this repository should read it as the former.
 
-The Lean artifact is 1304 lines across ten files. The integrity machinery around
-it — `proof_guard.py` (1465), `theorem_pins.json` (175 KB),
-`tests/proof_guard_test.py` (981) and five bridge scripts (731 lines total) —
-is now **2.3×** the size of the proofs it guards, up from 1.8× before the last
+The Lean artifact is 1404 lines across ten files. The integrity machinery around
+it — `proof_guard.py` (1465), `theorem_pins.json` (179 KB),
+`tests/proof_guard_test.py` (981) and six bridge scripts (929) —
+is now **2.4×** the size of the proofs it guards, up from 1.8× before the last
 three rounds. That ratio is the honest cost of the second claim in §5. It is also
 the strongest quantitative argument for §7's concern that the guard work, while
 the most visible output of this period, may not have been the most valuable one.
@@ -818,51 +957,16 @@ specification is settled by code they must read to consult. No external party ha
 implemented Book I. That is the single most valuable missing datum in this
 paper.
 
-> **Correction (2026-08-24), after the version deposited at
-> [10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651).** The
-> deposited text gave a different reason: that §5.1 defers the three 32-byte
-> genesis atom values to `impl/sigma_glyph.py` "so an implementer must currently
-> read the reference code". The premise is true and the inference is not. §5.1
-> states the construction, §2 states the hash, §5.3 pins what `SHA-256("…")`
-> means, and §7's TV-1 prints `SHA-256("I")` in full; three lines of arithmetic
-> derive all three atoms with no store and no reference implementation.
-> `tools/spec_audit.py` now re-derives every constant the Book prints from the
-> Book alone, in both languages, on every CI run, and
-> `tests/spec_audit_selftest.py` breaks that property nine ways and requires the
-> audit to fail for each. The sentence above states what the audit found instead.
-> See `spec/IMPLEMENTING.md` and `proposals/ADR-008-specification-is-the-arbiter.md`.
-
-> **Correction (2026-08-27), same deposit.** The evaluator this paper describes
-> has three inputs, and the paper's own summary line names two. A node holding the
-> referenced bytes reaches a normal form where a node without them reaches
-> `DISSONANCE(Unresolved Reference)`: same term hash, same budget, two conforming
-> implementations, two different canonical results. Availability is inside the
-> semantics. Nothing in the mechanization changes — `evalHash` has always taken a
-> `Store`, and Book I §3.5 has always made an unresolved demand a canonical
-> outcome — but the sentence a reader takes away was wrong, and the conformance
-> suite cannot have caught it, since all three implementations are handed the same
-> prepared store.
->
-> Two consequences this paper should not paper over. The determinism theorem is
-> over `(term, ATP, store)`, not `(term, ATP)`. And `result_hash` alone does not
-> say which of the three exits occurred: `DISSONANCE(ATP Exhausted)` is an ordinary
-> term that can sit in a store and evaluate to a normal form, so the same hash can
-> mean "finished" or "ran out". The trichotomy is about the machine exit rather
-> than the term; the summary line does not say so.
->
-> Found by external review, registered at
-> `reviews/2026-08-codex-store-parameter.md` without disposition. The repair being
-> is now merged: `evalHash_mono` / `evalHash_stable` prove that extending a valid
-> content store can change only an `Unresolved` answer, never a settled normal
-> form or exhaustion, and `store_mono_bridge_check.py` exercises both directions
-> against every live eval vector. The honest statement of the result is: *one
-> integer bounds semantic reduction cost and peak semantic materialization, for a
-> fixed content environment; a settled answer is stable under valid store
-> extension.*
+> **Both corrections this paper carried as notes are now in its text.** The
+> deposited version at [10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651)
+> gave a wrong reason for the missing independent implementation, and named two
+> arguments where the evaluator takes three. Those were repaired here by
+> rewriting the claims rather than by appending a third note; the deposited PDF
+> is unchanged and remains the historical artifact.
 
 **The model–code gap is empirical and finite.** No theorem relates
 `EvalMachine.lean` to `impl/sigma_glyph.py`. What relates them is 33 evaluation
-vectors, 334 byte buffers, 582 wave cases, 3000 $\lambda$-terms and 5185
+vectors, 334 byte buffers, 582 wave cases, 3000 $\lambda$-terms and 5347
 fuzzer-generated vectors per CI run — a large finite sample of a space we make no
 claim to have covered. There is no verified refinement, no extraction, and no
 proof that the Lean `Store` (a list with linear `find?`) is a faithful model of a
@@ -892,14 +996,16 @@ no equivalence proof against a reference specification of the kind HACL*
 provides [@zinzindohoue2017hacl]. Collision resistance is assumed, not proven,
 and the specification says so.
 
-**The reported commit is ahead of the adopted one.** Everything this paper
-describes is on `master` at `35d8aea`. The most recent governance-adopted anchor
-set is `v0.6.7` at `16a1355`; the three evaluator theorems of §4.2 merged after
-it. So they are on the branch in force but are not covered by an adoption
-warrant, and under this project's own rules location is a fact about git while
-adoption is a threshold signature. A reader who wants only adopted material
-should check out the tag and will find eight evaluator theorems rather than
-eleven.
+**The reported commit is ahead of the adopted one, twice over.** The proofs and
+implementation this paper describes are on `master`; the specification text of
+§3.9 is on a candidate branch that has passed no gate. The most recent
+governance-adopted anchor set is `v0.6.7` at `16a1355`, and eight of the sixteen
+evaluator theorems of §4.2 and §3.6 merged after it. So they are on the branch
+in force but are not covered by an adoption warrant, and under this project's own
+rules location is a fact about git while adoption is a threshold signature. A
+reader who wants only adopted material should check out the tag and will find
+eight evaluator theorems rather than sixteen, thirty-three guarded theorems
+rather than forty-one, and a Book I that states two arguments to `eval`.
 
 **The threshold was met; independent custody was not.** The v0.6.7 adoption
 warrant carries two valid signatures against a 2-of-3 policy — but the signers
@@ -930,6 +1036,33 @@ paper gives the full table [@paperB2026].
 **Reproduction is not read-only.** `tests/proof_guard_test.py` writes and then
 deletes a real `proofs/Helper.lean` while testing the unaudited-file vector. Run
 it on a clean tree.
+
+**The guard lives in the artifact it guards.** An external review named this
+**V22, "Edit the Cop"**: `proof_guard.py`, `theorem_pins.json`,
+`GUARD_CLAIMS.txt`, the regression suite and the workflow that runs them all sit
+in the repository they police. `GUARD_CLAIMS.txt` says as
+much itself — whoever can change the registry can change the claims; it is
+visibility control, not authority. §5's thesis, applied one level up, lands on
+§5's own machinery.
+
+The reviewer marked it a candidate rather than a reproduced exploit, because they
+could not read the repository's protection settings. Those were then read and the
+condition held: **rulesets empty, `master` unprotected**. Anyone with push could
+move the branch, guard and all.
+
+`master` now requires a pull request and five checks read from live runs, with
+branches up to date, force-pushes and deletions refused, and admin enforcement on.
+That was tested rather than assumed: with enforcement off, an admin's direct push
+succeeded and had to be reverted by a forward commit; with it on, the same push is
+rejected.
+
+**The recursion is narrowed to one door, not closed.** A pull request can still
+change a theorem, the guard, the tests and the workflow together, and the required
+checks are the ones that pull request defines; no review is required, so an author
+can merge their own. Closing it needs a verifier that does not live in the
+candidate revision — a reusable workflow pinned to a protected ref, a separate
+verifier repository, or a governance commitment over the verifier's hash. None
+exists, and no claim of an independent guard should rest on branch protection.
 
 Finally, an honest note about scope: this paper describes Book I plus the Book II
 algebra. Books II and III (navigation and federation) exist, are specified, and
@@ -1042,13 +1175,29 @@ adversarial pass by a reviewer we did not prompt.
 The artifact is the repository:
 
 > **https://github.com/s0fractal/sigma-glyph** [@sigmaglyph2026]
-> commit `8d6b8234959a97be564a0301ca0b3d130c8c8c2f`, `master`
+> branch `spec/book1-v0.7.0-candidate`, figures measured at commit
+> `1c2b6ca42cb95cdc035fc887cd0587a5758862d7`
 
-That commit carries all eleven evaluator theorems of §4.2 and the guard of §5 in
-its current form. All figures in §6 were measured at `35d8aea`, three commits
-earlier; `proofs/` and `tests/proof_guard_test.py` are byte-identical between the
-two, which we verified with `git diff`. The most recent governance-adopted anchor
-set is the tag `v0.6.7` at `16a1355`; §7 explains the difference.
+Every figure in §6 was measured at that commit. The paper text itself is later on
+the same branch, because a paper cannot state the hash of the commit that carries
+it, and the branch has since gone through three rounds of the specification gate.
+
+What that costs the reproduction is worth stating exactly rather than waving at.
+`proofs/`, `impl/`, `impl-rs/` and `impl-go/` are byte-identical between the
+measured commit and the branch head: `git diff` over those four paths is empty,
+so every proof figure, every guarded-theorem count and every implementation line
+count in §6 stands unchanged. Inside `tests/`, the only change is the
+hand-declared `book1_anchor` pin in `tests/spec_conformance/generate.py` and the
+copy of it in `vectors.json` — no vector, no budget and no expected value moves,
+so no agreement count in §6.1 or §6.2 changes either. `spec/` changed
+substantially, and none of §6 measures it. The gate rounds themselves are in
+`gates/v0.7.0-candidate/`. It is **not** `master` and **not** an adopted release: it
+is the head of the draft pull request carrying the v0.7.0 specification
+candidate, and the Book bytes on it have not passed a gate. What it carries that
+`master` does not is the candidate spec text of §3.9 and the store-monotonicity
+theorems and bridge; the evaluator, the guard and the conformance vectors it runs
+are the ones described throughout. The most recent governance-adopted anchor set
+remains the tag `v0.6.7` at `16a1355`; §7 and §3.9 explain the difference.
 
 MIT for the implementation, CC-BY-4.0 for the specification texts. The v0.6.7
 anchor set was adopted under the project's 2-of-3 threshold policy (adoption
@@ -1073,13 +1222,22 @@ checkout, not the wheel.
 surfaces additionally need `cargo` and `go`; the Lean surfaces need nothing else
 — no mathlib, no network.
 
-**One command reproduces everything in §6.1 and §6.2:**
+**One command re-runs every surface behind §6.1 and §6.2:**
 
 ```bash
 git clone https://github.com/s0fractal/sigma-glyph && cd sigma-glyph
-git checkout 8d6b8234959a97be564a0301ca0b3d130c8c8c2f
+git checkout 1c2b6ca42cb95cdc035fc887cd0587a5758862d7
 tools/test-all.sh
 ```
+
+That reproduces the *agreement* columns — the vector, buffer, boundary-case,
+$\lambda$-term and perturbation counts, and the pass verdicts. It does **not** reproduce
+the wall-clock column: `test-all.sh` times nothing and reports no durations. Each
+figure in that column was taken by timing the named script on its own, from a
+tree extracted with `git archive`, and the sequential figure by timing the six in
+one loop. Nor does `test-all.sh` run the three CI fuzz seeds of §6.2; it runs one
+smaller seed (`--terms 60 --seed 20260730`), and the 5347-vector figure comes
+from `.github/workflows/ci.yml`'s three.
 
 `test-all.sh` prints `ALL GREEN` only if every surface ran. A surface that could
 not be checked — no `lean` on `PATH`, no network for the cross-repo parity pulls
@@ -1096,13 +1254,14 @@ python3 proofs/byte_bridge_check.py   # BYTE-BRIDGE: ALL AGREE (334/334)
 python3 proofs/eval_bridge_check.py   # EVAL-BRIDGE: ALL AGREE (33/33)
 python3 proofs/wave_bridge_check.py   # WAVE-BRIDGE: ALL AGREE (582/582)
 python3 proofs/c1_bridge_check.py     # C1-BRIDGE: ALL AGREE (3000 terms)
+python3 proofs/store_mono_bridge_check.py  # STORE-MONO: ALL AGREE (67 / 1153)
 python3 tests/proof_guard_test.py     # PROOF-GUARD: ALL PASS (122 checks)
 ```
 
-Each bridge runs the integrity guard of §5 before it runs anything else, and
-fails closed if `lean` is absent (exit 2, never a silent skip). Total cold wall
-time for the five bridges on the machine described in §6 is 42.3 s; the guard
-regression adds 38.9 s. Run the guard regression on a clean tree: several of its
+Each Lean bridge runs the integrity guard of §5 before it runs anything else,
+and fails closed if `lean` is absent (exit 2, never a silent skip). Total cold
+wall time for the six bridges on the machine described in §6 is 47.4 s; the guard
+regression adds 43.1 s. Run the guard regression on a clean tree: several of its
 vectors write and then remove real files under `proofs/`, including a
 subdirectory, as part of testing the unaudited-file and non-recursive-walk cases.
 
