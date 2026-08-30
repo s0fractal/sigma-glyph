@@ -104,6 +104,17 @@ def build(rng):
     return sg.term_hash(root), objects, store
 
 
+INVALID_OBJECT = sg.term_hash(("dis", sg.R_INVALID)).hex()
+
+
+def classify(receipt):
+    """The suite-level classification: `invalid_object` is a normal form whose
+    result is the Canonical Invalid Object, not a fourth exit."""
+    if receipt.exit == "normal_form" and receipt.result_hash.hex() == INVALID_OBJECT:
+        return "invalid_object"
+    return receipt.exit
+
+
 def atp_grid(rng, term_hash, store):
     r, spent = sg.eval_hash(term_hash, EVAL_CAP, store)
     cand = {0, 1, 2, 3, spent, spent + 1, EVAL_CAP, 2**32 - 1}
@@ -133,18 +144,27 @@ def main():
         objects.update(objs)
         for atp in atp_grid(rng, th, store):
             eval_atp = min(atp, EVAL_CAP)
+            receipt = sg.eval_receipt(th, eval_atp, store)
             r, spent = sg.eval_hash(th, eval_atp, store)
             rh = sg.term_hash(r).hex()
             terminated = rh != atp_exhausted
             # emit the REAL atp when the term halts within EVAL_CAP (result valid
             # for any atp >= spent); otherwise the capped value the oracle ran.
             emit_atp = atp if (atp <= EVAL_CAP or terminated) else eval_atp
+            # The exit rides along from format v3, so the engines are compared on
+            # it too. `terminated` above shows why that is worth thousands of
+            # random cases: it infers the exit from the RESULT HASH, which is
+            # exactly the inference the receipt exists to make unnecessary --
+            # DISSONANCE(ATP Exhausted) is an ordinary term that can be a normal
+            # form, and only the receipt can tell the two apart.
             vectors.append({
                 "id": f"FUZZ-{i}-{atp}",
                 "kind": "eval",
                 "term": th.hex(),
                 "atp": emit_atp,
-                "expected": {"result_hash": rh, "atp_spent": spent},
+                "expected": {"exit": receipt.exit,
+                             "outcome": classify(receipt),
+                             "result_hash": rh, "atp_spent": spent},
             })
 
     # Reuse the pinned suite's metadata header so both engines' strict parsers

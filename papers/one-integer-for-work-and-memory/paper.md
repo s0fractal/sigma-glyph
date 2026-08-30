@@ -903,11 +903,11 @@ reproducible.
 | Implementation | Lines | SHA-256 | Book I evaluator |
 |---|---:|---|---|
 | `impl/sigma_glyph.py` (oracle) | 618 | `hashlib` | yes |
-| `impl-rs/src/main.rs` | 1112 | from scratch, zero crate dependencies | yes |
+| `impl-rs/src/main.rs` | 1170 | from scratch, zero crate dependencies | yes |
 | `warrant-go` (external repo, CI-pinned) | — | Go stdlib | yes |
 | `impl-go/main.go` (in-tree) | 1948 | Go stdlib | **no** — Book III / governance only |
 
-The Rust implementation is worth a sentence: 1112 lines, no dependencies at all,
+The Rust implementation is worth a sentence: 1170 lines, no dependencies at all,
 its own SHA-256, `overflow-checks = true` in the release profile, and it replays
 the oracle-generated vectors byte-exact. The in-tree Go implementation covers
 Books II–III and governance and contains no Book I evaluator; the third Book I

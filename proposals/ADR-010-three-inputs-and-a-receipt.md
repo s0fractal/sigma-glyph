@@ -346,6 +346,68 @@ instructs and signs on the gate as well. That is a change to the gate's own
 composition, it weakens comparability across rounds, and `round-4/FREEZE.md` says
 so rather than absorbing it.
 
+**ADOPT** (Gemini), **ADOPT-WITH-AMENDMENTS** (DeepSeek), **ADOPT** (Qwen).
+**No P0 from any family.** DeepSeek states it: "the round-1 P0 is fixed, the
+round-2 P0 is fixed, and the GOV-anchors pin is not a P0 under my ladder because
+no conforming verifier diverges on a specific blob" — it downgraded its own
+standing P0 to P1 on its own reasoning, having read the owner's disposition but
+not deferring to it.
+
+DeepSeek's P1-1 is the finding that moves the bytes, and checking it found
+something sharper than it argued.
+
+- **What it argued:** §7 declares `expected.outcome` normative without pinning
+  its vocabulary or the suite's JSON schema, so two conforming checkers can
+  disagree about whether a record is well-formed and therefore about whether the
+  edition is conformant. The same gap in Books II and III, where `expected` is
+  declared normative "entirely" with no schema anywhere.
+- **What was actually there:** §3.4 enumerates three exits and the normative
+  suite carries a **fourth value** — `EV-BAD-BYTES-CHILD` records
+  `expected.outcome: "invalid_object"`, while the reference oracle's receipt for
+  that vector reads `exit = normal_form, atp_spent = 5`. §7 called
+  `expected.outcome` "the canonical exit". So the Book, the suite and the engine
+  disagreed about the same field, which is precisely what §7 says makes an
+  edition non-conformant.
+
+Round 5 answers it, and the answer is wider than the finding because the finding
+was a symptom:
+
+- `expected.exit` is a new field carrying `Receipt.exit`, closed enum of three.
+  `expected.outcome` stays as a **suite-level classification** and keeps
+  `invalid_object`, which names a `normal_form` exit whose result is the
+  Canonical Invalid Object — not a fourth exit. Book I says the two levels must
+  not be conflated and that deriving either from the other checks neither.
+- The suite format goes to **v3** and the suite package to 0.6.0.
+- The schema of each suite is a **separate anchored file** under
+  `spec/schemas/`, closed-world, anchored in `ANCHORS.txt` beside the suite it
+  describes. `format_version` names a version and defines nothing; three files
+  now define the shape, and the anchor set grows from 10 entries to 13.
+- `run_reference.py` reads a `Receipt` and checks `exit`, `outcome`,
+  `result_hash` and `atp_spent` as four separate claims (49 checks → 148).
+  `generate.py` takes both from the receipt and puts **both** through the
+  hand-declared check; they were emitted from the oracle and compared against
+  nothing, so a wrong classification confirmed itself on every regeneration. The
+  old derivation was wrong in a way worth naming: it classified by the *result
+  term*, so a run settling on `DISSONANCE(ATP Exhausted)` would have been
+  labelled `atp_exhausted` while its exit is `normal_form`.
+- `impl-rs` hard-required `format_version == 2`. It now carries an `Exit` enum —
+  it always knew the exit at each return site and discarded it — and checks the
+  exit and the classification, so **two independently written engines agree on
+  the exit**. `tests/book1_fuzz.py` carries them too, across thousands of
+  generated vectors per run.
+- Negative controls: `tools/suite_schema.py --selftest` breaks ten schema rules
+  per suite; `tests/conformance_runner_selftest.py` mutates exit, outcome,
+  result_hash and atp_spent independently and requires each to fail **alone** —
+  the exit mutation where exit and outcome agree, the outcome mutation on the one
+  vector where they differ.
+- `tests/spec_conformance/README.md` said `outcome` was informative while the
+  candidate declared it normative. Corrected, with the date it was wrong.
+
+**Not fixed, and named:** `warrant-go`, the third Book I engine, still checks
+only `result_hash` and `atp_spent`. It lives in a repository under a feature
+freeze, so the exit is agreed by two engines of three. DeepSeek's P2s are left as
+written and listed in `round-5/FREEZE.md`.
+
 | Date | Change | Bytes already edited? |
 | --- | --- | --- |
 | 2026-08-29 | scope fixed, before any normative edit | no |

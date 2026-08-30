@@ -31,6 +31,18 @@ python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
 python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
 python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION: ALL PASS"
 
+# A specification that calls a JSON file normative has to say what shape that
+# file has. The shape is an anchored schema, closed-world, and the selftest
+# breaks each rule to prove the validator can fail.
+say "Suite schemas: the anchored shape of every normative vector file"
+python3 tools/suite_schema.py --selftest | tee /dev/stderr | grep -q "SUITE-SCHEMA-SELFTEST: ALL PASS"
+python3 tools/suite_schema.py          | tee /dev/stderr | grep -q "SUITE-SCHEMA: ALL PASS"
+
+# exit, outcome, result_hash and atp_spent are four claims, and the runner used
+# to check two of them. The selftest mutates each and requires it to fail alone.
+say "Conformance runner: four observables, each failing on its own"
+python3 tests/conformance_runner_selftest.py | tee /dev/stderr | grep -q "CONFORMANCE-RUNNER-SELFTEST: ALL PASS"
+
 say "Version-state guard: candidates are not adopted releases"
 python3 tests/version_check_selftest.py | tee /dev/stderr | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
 

@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigma-glyph.org/schemas/book2-wave-conformance/2",
+  "title": "Sigma-GLYPH Book II wave conformance suite, format version 2",
+  "description": "The normative shape of tests/spec_conformance/wave_vectors.json, anchored in spec/ANCHORS.txt. Closed-world: an unknown field makes a record invalid.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "spec_version",
+    "lut_arbiter",
+    "notes",
+    "vectors"
+  ],
+  "properties": {
+    "format": {
+      "const": "sigma-glyph-wave-conformance"
+    },
+    "format_version": {
+      "const": 2
+    },
+    "spec_version": {
+      "$ref": "#/$defs/semver"
+    },
+    "lut_arbiter": {
+      "$ref": "#/$defs/hex64"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/interfere_vector"
+          },
+          {
+            "$ref": "#/$defs/term_vector"
+          },
+          {
+            "$ref": "#/$defs/iterate_vector"
+          },
+          {
+            "$ref": "#/$defs/coordinate_vector"
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wave": {
+      "type": "object",
+      "description": "WaveVectorQ (Book II section 2): three integers, no others.",
+      "additionalProperties": false,
+      "required": [
+        "ph",
+        "am",
+        "en"
+      ],
+      "properties": {
+        "ph": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "am": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "en": {
+          "type": "integer",
+          "minimum": -32768,
+          "maximum": 32767
+        }
+      }
+    },
+    "interfere_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "note",
+        "w1",
+        "w2",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "note": {
+          "type": "string"
+        },
+        "w1": {
+          "$ref": "#/$defs/wave"
+        },
+        "w2": {
+          "$ref": "#/$defs/wave"
+        },
+        "expected": {
+          "$ref": "#/$defs/wave"
+        }
+      }
+    },
+    "term_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "term"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "term"
+        },
+        "note": {
+          "type": "string"
+        },
+        "term": {
+          "$ref": "#/$defs/term"
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/wave"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "iterate_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "start",
+        "expected_am_sequence"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "iterate"
+        },
+        "note": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/wave"
+        },
+        "expected_am_sequence": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        }
+      }
+    },
+    "coordinate_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "note",
+        "name",
+        "expected_ph"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "coordinate"
+        },
+        "note": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "expected_ph": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      }
+    },
+    "term": {
+      "description": "A term as the wave suite writes them: a glyph name, a nested application written as an array, or a tagged object such as {\"lit\": ...}. Inputs are deliberately loose because some vectors feed shapes a conforming reader must handle without deriving a wave.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/term"
+          }
+        },
+        {
+          "type": "object"
+        }
+      ]
+    }
+  }
+}

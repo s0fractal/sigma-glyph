@@ -418,13 +418,33 @@ artifacts of the edition.
 
 **What exactly must agree (MUST).** For each §7 test vector, the normative
 representation of the prose's statement in the set is the record's fields: the
-subject of the evaluation (`term` or `bytes`), the budget (`atp`), the canonical
-exit (`expected.outcome`), the result hash (`expected.result_hash`) and the ATP
-spent (`expected.atp_spent`). A disagreement between the prose and any of these
+subject of the evaluation (`term` or `bytes`), the budget (`atp`), the
+**canonical exit** (`expected.exit`), the **result classification**
+(`expected.outcome`), the result hash (`expected.result_hash`) and the ATP spent
+(`expected.atp_spent`). A disagreement between the prose and any of these
 fields makes the edition non-conformant. The remainder of §7's prose explains
 rules established in §3–§5 — environment access, lazy materialization, the
 materialization bound — and is not an independent normative statement of this
 section; those rules remain normative where they are established.
+
+**The suite's schema (MUST).** The suite being normative, its shape is normative
+too — and a shape cannot be declared by a version number: `format_version` names
+a version and defines nothing. The suite's schema is a separate anchored file,
+`spec/schemas/book1-conformance.schema.json`, anchored in `spec/ANCHORS.txt`
+beside the suite it describes. It is **closed**: an unknown field makes a record
+invalid, so the suite cannot grow a value that means something to one reader and
+nothing to another. A record the schema rejects is not a record of this edition.
+
+**`expected.exit` and `expected.outcome` are two different levels (MUST).**
+`expected.exit` is `Receipt.exit` (§3.4) and its enum is closed: exactly
+`normal_form`, `atp_exhausted`, `unresolved_reference`. `expected.outcome` is
+**not an exit** but a suite-level classification of the result, and it adds one
+value, `invalid_object`, which denotes a `normal_form` exit whose result is the
+Canonical Invalid Object (§4.2). Such a run carries `exit = normal_form` and
+`result_hash` = that object's hash. The two must not be conflated, which is why
+they are separate fields: `exit` says **how** the evaluation ended, `outcome`
+says **what** it ended on. An implementation that derives either from the other
+is checking neither.
 
 **§7 notation (MUST be read this way).** In the vectors below, `eval(·, atp)`
 abbreviates evaluation of the named term with budget `atp` over this edition's

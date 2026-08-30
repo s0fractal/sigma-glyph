@@ -64,6 +64,23 @@ jobs:
             | grep -q "VERSION-CHECK:"
       - name: Reference map (every cited document is located in MAP.md)
         run: python3 tools/repo_map.py --check-map
+      # A normative JSON artifact needs a normative shape. The shape is an
+      # anchored closed-world schema; the selftest breaks each rule so the
+      # validator is known to be able to fail.
+      - name: Every normative suite matches its anchored schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/suite_schema.py --selftest | tee /dev/stderr \
+            | grep -q "SUITE-SCHEMA-SELFTEST: ALL PASS"
+          python3 tools/suite_schema.py | tee /dev/stderr \
+            | grep -q "SUITE-SCHEMA: ALL PASS"
+      - name: The conformance runner checks four observables, not two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/conformance_runner_selftest.py | tee /dev/stderr \
+            | grep -q "CONFORMANCE-RUNNER-SELFTEST: ALL PASS"
       # The papers state numbers about this tree. Every one of them is recounted
       # from the file it describes, and the selftest rewrites each number in turn
       # and demands the audit go red -- a claim the gate does not gate on is

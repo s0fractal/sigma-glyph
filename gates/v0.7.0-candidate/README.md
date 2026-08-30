@@ -10,7 +10,8 @@ after the round; a round whose findings are answered is superseded, not amended.
 | [round 1](round-1/) | anchor set `0bac2605…` | REJECT / REJECT / REJECT |
 | [round 2](round-2/) | anchor set `79bf939a…` | ADOPT / REJECT / NO VERDICT |
 | [round 3](round-3/) | anchor set `4c93717a…` | ADOPT / REJECT / NO VERDICT — completed on the third delivery attempt |
-| [round 4](round-4/) | anchor set `91b4182c…` | pending |
+| [round 4](round-4/) | anchor set `91b4182c…` | ADOPT / ADOPT-WITH-AMENDMENTS / ADOPT — no P0 from any family |
+| [round 5](round-5/) | anchor set pending | pending |
 
 Reviewers, in that column order: Google, DeepSeek, and a third family. The third
 was `moonshotai/kimi-k3` in rounds 1–3 and `moonshotai/kimi-k2.6` for round 3's
@@ -52,6 +53,15 @@ review; Moonshot never produced one under either model tried. Every attempt is
 filed beside the last, never over it, and the retries were delivered from the
 **recorded** prompt file rather than a rebuilt one, so all three families were
 asked the same question.
+
+Round 4 was the first with no P0 from anyone — DeepSeek downgraded its own
+standing GOV-anchors P0 on its own reasoning. Its remaining P1 was that the
+Books declare a JSON artifact normative without defining its shape; checking it
+found the instance, which was worse than the argument: §3.4 enumerates three
+exits and the normative suite carried a fourth value for the field §7 called
+"the canonical exit". Round 5 splits the two levels into `expected.exit` and
+`expected.outcome`, anchors a closed schema per suite, and makes the runner check
+four observables instead of two.
 
 Round 3's REJECT rested on GOV-anchors, which the owner has since dispositioned.
 What moved the bytes was an observation beside it: §7's test vectors quantified
