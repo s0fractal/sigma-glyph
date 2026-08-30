@@ -51,14 +51,26 @@ guess.
 
 Minimal, and the authority lives in one place.
 
-- **Book II §2 gains clause 3**: `pin(x)` MUST resolve by the NodeHash of `x`
-  under Book I §3.2, never by a label, name or alias spelling; the §6 tables show
-  a label for the reader and the NodeHash column is the normative key; two
-  different `WavePin`s for one NodeHash make the annotation profile
-  non-conformant, which MUST be refused at load/admission **before any wave is
-  answered**, and MUST NOT be resolved by write order. It says why it is
-  normative there: an implementation of Book II without Book III must have it
-  whole, and until 2026-08-30 the reference oracle looked pins up by name.
+- **Book II §2 gains clause 3**, stated **extensionally**:
+  `NodeHash(x) = NodeHash(y)` ⇒ `pin(x) = pin(y)`. Two spellings of one node
+  yield one `WavePin`. Labels and alias names are permitted as **descriptors** —
+  an implementation MAY accept them and MAY keep an internal index by name, since
+  the equality constrains the result and not the mechanism. What makes a
+  descriptor safe is profile admission: two different `WavePin`s for one NodeHash
+  make the profile non-conformant, which MUST be refused at load/admission
+  **before any wave is answered** and MUST NOT be resolved by write order. The §6
+  NodeHash column is the normative key of a row; rows **without** one — `V` in
+  §6.2, for instance — are sector coordinates (§2.1) and assign no `WavePin` at
+  all.
+
+  The first draft of this clause said lookup MUST be by NodeHash and "never by a
+  label, name or alias spelling". That was **stronger than all three
+  implementations and over-specified the mechanism**: Python's `wave("FALSE")`
+  applies `ALIASES[term]` directly, `sigma_federation` does the same, and Go's
+  `namedWave()` applies `alias.Pin` directly. Their observable semantics are
+  correct because admission guarantees equivalent spellings cannot disagree — so
+  the specification states that guarantee, not an internal map. Caught by
+  `codex@sigma-glyph` on exact-diff review of `032f83f`.
 - **Book III §5 cites Book II §2.3 instead of restating it.** Two copies of one
   MUST drift apart. Book III keeps only the federation-specific addition: that
   the refusal is an annotation-profile refusal and not a Book I exit — not a
@@ -70,6 +82,16 @@ states an existing requirement in the Book that already owned it and changes no
 behaviour. `verify_anchors`, `version_check`, `spec_audit` and the full matrix
 are green, including the mutation controls that prove the identity invariant and
 the load-time admission are load-bearing.
+
+**The amended anchor set is a committed artifact, not a reproducible
+computation.** `round-6/anchor-set.json` is the **pre-amendment** subject the
+gate saw and is left untouched. What adoption would bind is
+`round-6/post-amendment-anchor-set.json`:
+
+    SHA-256  abf10f2a9c932f31e28973c41658ba728501fef438b35b7538e78c21d37adf59
+
+An earlier revision of this file named a digest that existed only as a command a
+reader could re-run. Adoption must bind bytes that are in the repository.
 
 ## Why there is no Round 7
 
@@ -91,8 +113,27 @@ reviewed by both standing reviewers, and handed to the roster without pretending
 it carries independent ratification. It is **not** a rule that normative bytes
 may now move without a gate.
 
-## Standing
+## Review standing
 
-This amendment was reviewed by Claude Opus 5 and by `codex@sigma-glyph` on an
-exact diff. It adopts nothing. Adoption remains a threshold warrant filed by the
-roster, and no model verdict — `ADOPT` included — substitutes for it.
+| Reviewer | Exact head | Verdict |
+| --- | --- | --- |
+| `codex@sigma-glyph` | `032f83f` | **REQUEST CHANGES** — four findings, all accepted and addressed here |
+| `codex@sigma-glyph` | this head | **pending** |
+| Claude Opus 5 | this head | authored the amendment; not an independent review of it |
+
+An earlier revision of this file recorded Codex as having reviewed the exact diff
+**before that review happened**. It had not. The actual first verdict was REQUEST
+CHANGES, and it is recorded above with the SHA it was given against; the second
+row stays `pending` until a verdict exists to put in it. Writing down an approval
+that has not been given is the same failure as any other check whose description
+outruns what it did.
+
+Codex's four findings on `032f83f`, all accepted: the new MUST was stronger than
+the implementations and over-specified mechanism (fixed extensionally, above);
+the post-amendment anchor set existed only as a computation (committed, above);
+this file claimed a review that had not occurred (corrected, here); and clause 3
+sat after an unnumbered paragraph, splitting `1, 2` from `3` while Book III cites
+§2.3 (moved directly under item 2).
+
+It adopts nothing. Adoption remains a threshold warrant filed by the roster, and
+no model verdict — `ADOPT` included — substitutes for it.
