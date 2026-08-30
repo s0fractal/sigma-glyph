@@ -113,11 +113,57 @@ reviewed by both standing reviewers, and handed to the roster without pretending
 it carries independent ratification. It is **not** a rule that normative bytes
 may now move without a gate.
 
+## The admission seam, and what six rounds of focused review found
+
+The amendment's own MUST said admission establishes `NodeHash(x) = NodeHash(y)`
+⇒ `pin(x) = pin(y)`. The implementations established it over a convenient
+subset. Each of these was reproduced as an executable counterexample before it
+was fixed, and each fix was then mutated to confirm the control catches it.
+
+1. **Admission validated `ALIASES` alone.** `FULL_PINS` and `ALIASES` were
+   separate authorities, so `{"ALSO-K": ("K", {"ph": 1})}` was admitted while
+   `FULL_PINS["K"]` said `{ph 32768, am 65535, en −32768}`: two Pins for
+   `bc0c2fe2…`, because no single check looked at both.
+2. **`SATOSHI` and the six Pantheon nodes were treated as identity-less.** They
+   were lumped with `V`. But `V` (§6.2) has no NodeHash, while §6.3 prints
+   SATOSHI's in full and §6.4 gives a normative forging method for the other
+   six. Absent wave is not absent node: their `wave()` is absent because `am`/
+   `en` are underived (§2.1), and their `{ph}` Pin is real. The profile went from
+   4 entries to the **11** node-level sources §6 actually has.
+3. **A declared NodeHash was ignored.** A node entry's hash was re-derived from
+   a global table, so an injected profile could not say anything about its own
+   identity.
+4. **Identity was not resolved within the profile.** With `SATOSHI → aaaa…`
+   declared, the alias `ALSO-SATOSHI → SATOSHI` resolved through the *edition's*
+   `11c856ac…`, so one label became two nodes by route.
+5. **A label could be re-bound.** `node_pins={"K": ("aaaa…", …)}` moved genesis
+   K to a hash of the caller's choosing and dropped the real one.
+6. **A Pin whose node could not be named was skipped.** `full_pins={"X": …}`
+   produced `ADMITTED {}` — an empty profile reported as success.
+
+The contract now: identity resolves within the admitted profile; a label binds to
+one NodeHash and a conflict names both sources; a Pin with no resolvable node is
+refused rather than skipped; cycles are found by the alias names visited rather
+than by an invented depth limit, so a long acyclic chain is well-formed. Python
+and Go implement the same contract and each has its own controls.
+
+**One limit stated without exaggeration:** removing Go's cycle detection is
+caught as the test binary dying and the gate reporting *missing expected tests* —
+it fails closed, but not with a reason-specific `AliasCycle` as the Python mirror
+does. Reading that line as the cycle control firing would be wrong.
+
+**And one thing the tests caught in me.** A Go test literal carried a full
+64-character TESLA digest whose middle bytes I had invented; the Book prints only
+`193e0542…d9de3748`. The assertion now separates the two claims it should always
+have separated: Book II §6.4's formula is the oracle for the value, and the
+printed edges are the oracle for the formula.
+
 ## Review standing
 
 | Reviewer | Exact head | Verdict |
 | --- | --- | --- |
-| `codex@sigma-glyph` | `032f83f` | **REQUEST CHANGES** — four findings, all accepted and addressed here |
+| `codex@sigma-glyph` | `032f83f` | **REQUEST CHANGES** — four findings, all accepted |
+| `codex@sigma-glyph` | `a447a67` | **REQUEST CHANGES** — the admission seam, six findings across five rounds of review, all accepted |
 | `codex@sigma-glyph` | this head | **pending** |
 | Claude Opus 5 | this head | authored the amendment; not an independent review of it |
 

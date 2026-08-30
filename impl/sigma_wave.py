@@ -10,6 +10,7 @@ zero effect on Book I hashes — waves are views, never identity.
 """
 import hashlib
 import json
+import re
 import math
 import struct
 import sys
@@ -85,6 +86,40 @@ ALIASES = {
 }
 
 
+# Ph-only entries (§6.2-§6.4): a Pin on `ph`, with `am`/`en` underived, so
+# `wave()` is ABSENT for them (§2.1). Absent wave is not absent identity, and
+# conflating the two was a real defect: `SATOSHI` and the six Pantheon nodes have
+# NodeHashes printed in the Book and are node-level Pin entries that admission
+# MUST cover, while `V` has no NodeHash at all and is only a sector coordinate.
+#
+# §6.4 states the forging method normatively. §6.3 does NOT follow it: SATOSHI's
+# atom is the BTC genesis block hash rather than SHA-256 of its name, so its
+# NodeHash is the constant the Book prints and cannot be derived from "SATOSHI".
+SATOSHI_NODE_HASH = "11c856acd4b6868a91c2cc2cf6331d57bf268f56adcae0c0f3070c4ec00ed3c7"
+
+
+def forge_node_hash(name):
+    """Book II §6.4: `NodeHash = SHA-256(0x00 0x01 ‖ SHA-256(ASCII-name))`."""
+    return hashlib.sha256(bytes([0x00, 0x01])
+                          + hashlib.sha256(name.encode("ascii")).digest()).hexdigest()
+
+
+PANTHEON_PH = {"TESLA": 8192, "TURING": 20480, "BACH": 21845,
+               "LEIBNIZ": 24576, "GODEL": 40960, "HEGEL": 57344}
+
+# name -> (NodeHash hex, partial WavePin). Node-level: admission covers these.
+PH_ONLY_NODE_PINS = {"SATOSHI": (SATOSHI_NODE_HASH, {"ph": 8192})}
+PH_ONLY_NODE_PINS.update({name: (forge_node_hash(name), {"ph": ph})
+                          for name, ph in PANTHEON_PH.items()})
+
+# §6.2's V row: a sector coordinate with no NodeHash. NOT a node-level pin, and
+# deliberately outside the annotation profile.
+SECTOR_COORDINATES = {"V": 16384}
+
+# Every phase coordinate a reader can ask for, whether or not it names a node.
+PH_ONLY_LEAVES = dict(SECTOR_COORDINATES)
+PH_ONLY_LEAVES.update({name: pin["ph"] for name, (_h, pin) in PH_ONLY_NODE_PINS.items()})
+
 def canonical(term, alias_table=None):
     """A term reduced to what it IS: every alias replaced by its structure.
 
@@ -131,6 +166,9 @@ def node_hash_of(term):
     import sigma_glyph as book1
 
     leaves = {"I": book1.I_H, "K": book1.K_H, "S": book1.S_H}
+    # Ph-only NODES have identity even though their wave is absent (§2.1).
+    leaves.update({name: bytes.fromhex(digest)
+                   for name, (digest, _pin) in PH_ONLY_NODE_PINS.items()})
     if isinstance(term, str):
         return leaves.get(term)
     if isinstance(term, list) and term and term[0] == "APPLY":
@@ -142,52 +180,157 @@ def node_hash_of(term):
     return None
 
 
-class ContradictoryPin(ValueError):
+HEX64 = re.compile(r"[0-9a-f]{64}")
+
+
+class AnnotationProfileError(ValueError):
+    """The annotation profile is not admissible."""
+
+
+class ContradictoryPin(AnnotationProfileError):
     """Two names for one node, pinning it differently."""
 
 
-def load_annotation_profile(alias_table=None):
-    """Validate an annotation profile and return its NodeHash -> Pin index.
+class MalformedNodeHash(AnnotationProfileError):
+    """A node-level entry declares something that is not a NodeHash."""
 
-    Book III §5 says a profile with two different Pins for one NodeHash MUST be
-    refused at load, before it answers anything. So this is where a profile
-    becomes usable at all: it is accepted whole or it does not exist for the
-    engine. The index is built once, here, and never during a wave query.
 
-    It used to be built lazily inside `structural_pin`, which meant a
-    contradictory profile loaded fine, answered every query that missed the
-    contradiction, and refused only when evaluation happened to touch the pinned
-    node. The normative sentence said load time and the code did evaluation
-    time.
+class ContradictoryIdentity(AnnotationProfileError):
+    """One label bound to two different NodeHashes."""
 
-    Synonyms are fine: two names for one node with the SAME pin say one thing
-    twice. Two names for one node with DIFFERENT pins say two things, and a dict
-    would resolve that by whichever was written last -- which is a specification
-    defect being settled by iteration order. It fails closed instead, naming the
-    digest and both aliases.
 
-    This was found by review, and the check that should have caught it was the
-    one blessing it: a selftest asserted `len(pins) == 1` over a contradictory
-    table and reported "the contradiction is visible". The overwrite was silent
-    and the green check was the cover.
+class UnresolvableIdentity(AnnotationProfileError):
+    """A pin-bearing entry whose node cannot be named."""
+
+
+class AliasCycle(AnnotationProfileError):
+    """An alias chain that never reaches a node."""
+
+
+def load_annotation_profile(alias_table=None, full_pins=None, node_pins=None):
+    """Validate the node-level annotation profile and return NodeHash -> Pin.
+
+    Book II §2.3 says `NodeHash(x) = NodeHash(y)` implies `pin(x) = pin(y)`, and
+    that admission is what establishes it — so admission has to see EVERY
+    node-level §6 source at once, not one table at a time.
+
+    It used to validate `ALIASES` alone. `FULL_PINS` and `ALIASES` are separate
+    authorities, so `{"ALSO-K": ("K", {"ph": 1})}` was accepted while
+    `FULL_PINS["K"]` said `{ph 32768, am 65535, en -32768}` — two different Pins
+    for `bc0c2fe2…`, admitted, because no single check ever looked at both. The
+    invariant was global and the enforcement was per-table.
+
+    Ph-only entries are NOT all alike, and treating them as one class was the
+    second half of the same defect. `SATOSHI` (§6.3) and the six Pantheon nodes
+    (§6.4) have NodeHashes printed in the Book: their `wave()` is absent because
+    `am`/`en` are underived (§2.1), but their identity and their `{ph}` Pin are
+    real, and admission MUST cover them. Only `V` (§6.2) has no NodeHash at all;
+    it is a sector coordinate and stays out.
+
+    Node-level entries are admitted **at the NodeHash they declare**, not at one
+    re-derived from a global table — otherwise a caller could hand this function
+    a different hash and admission would quietly validate the old one.
     """
-    table = ALIASES if alias_table is None else alias_table
-    pins, claimed_by = {}, {}
-    for name, (term, pin) in table.items():
-        digest = node_hash_of(canonical(term, table))
-        if digest is None:
-            continue
-        key = digest.hex()
-        if key in pins and pins[key] != pin:
+    aliases = ALIASES if alias_table is None else alias_table
+    fulls = FULL_PINS if full_pins is None else full_pins
+    ph_only = PH_ONLY_NODE_PINS if node_pins is None else node_pins
+    import sigma_glyph as book1
+
+    # Identity is resolved WITHIN this profile. A node entry declares a
+    # NodeHash, and every reference to that label — an alias, or a composite
+    # term containing it — must resolve to the same one. Re-reading the
+    # edition's global tables here split one symbol into two nodes by route:
+    # with `SATOSHI -> aaaa…` declared, `ALSO-SATOSHI -> SATOSHI` was admitted
+    # under the *edition's* `11c856ac…`, so the profile held both.
+    # A label binds to exactly one NodeHash, and every source that names it
+    # must agree. `local[name] = declared` used to overwrite silently, so
+    # `node_pins={"K": ("aaaa…", …)}` moved genesis K to a hash of the caller's
+    # choosing and dropped the real one.
+    bindings = {}
+
+    def bind_label(name, digest, source):
+        if name in bindings and bindings[name][0] != digest:
+            existing, first_source = bindings[name]
+            raise ContradictoryIdentity(
+                f"label {name!r} is bound to {existing} by {first_source} and to "
+                f"{digest} by {source}. Within one admitted profile a lookup "
+                f"label must resolve unambiguously to one NodeHash; the label is "
+                f"not identity (Book II §2.3 leaves labels as descriptors). Two "
+                f"resolutions for one label make the profile inadmissible.")
+        bindings[name] = (digest, source)
+
+    for glyph, digest in (("I", book1.I_H), ("K", book1.K_H), ("S", book1.S_H)):
+        bind_label(glyph, digest.hex(), "Book I §5.1")
+    for name in sorted(ph_only):
+        declared = ph_only[name][0]
+        if not isinstance(declared, str) or HEX64.fullmatch(declared) is None:
+            raise MalformedNodeHash(
+                f"{name!r} declares {declared!r}, which is not a 32-byte "
+                f"NodeHash in lowercase hexadecimal")
+        bind_label(name, declared, "node-level Pin table (§6.3-§6.4)")
+
+    def resolve(term, seen=frozenset()):
+        """A term's NodeHash under THIS profile's labels, or None.
+
+        Cycles are detected by the alias names already visited, not by a depth
+        limit: a bound on chain length would invent a normative maximum, and a
+        long acyclic chain is well-formed.
+        """
+        if isinstance(term, str):
+            if term in aliases:
+                if term in seen:
+                    raise AliasCycle(
+                        f"alias chain revisits {term!r}: "
+                        f"{' -> '.join(sorted(seen | {term}))}")
+                return resolve(aliases[term][0], seen | {term})
+            binding = bindings.get(term)
+            return binding[0] if binding else None
+        if isinstance(term, list) and len(term) == 3 and term[0] == "APPLY":
+            left, right = resolve(term[1], seen), resolve(term[2], seen)
+            if left is None or right is None:
+                return None
+            return book1.node_hash(
+                book1.ser(book1.APPLY, book1.F_LEFT | book1.F_RIGHT,
+                          left=bytes.fromhex(left), right=bytes.fromhex(right))).hex()
+        return None
+
+    profile, claimed_by = {}, {}
+
+    def admit(name, key, pin, what):
+        # A pin whose node cannot be named is REFUSED, not skipped. Skipping it
+        # produced an empty profile that admitted cleanly -- a check whose
+        # subject had quietly gone away.
+        if key is None:
+            raise UnresolvableIdentity(
+                f"{what} {name!r} carries a Pin {pin!r} but no NodeHash can be "
+                f"resolved for it under this profile; a Pin with no node is not "
+                f"admissible. Sector coordinates (§6.2 V) carry no Pin and "
+                f"belong in SECTOR_COORDINATES, not here.")
+        if key in profile and profile[key] != pin:
             raise ContradictoryPin(
-                f"aliases {claimed_by[key]!r} and {name!r} are the same node "
-                f"{key} but pin it differently: {pins[key]!r} vs {pin!r}. "
-                f"One node has one wave (Book I §3.2); pick one pin. This is an "
-                f"annotation-profile refusal at load time (Book III §5), not an "
-                f"eval exit: it is not a Receipt.exit and not a DISSONANCE.")
-        pins[key] = pin
+                f"{claimed_by[key]!r} and {name!r} are the same node {key} but "
+                f"pin it differently: {profile[key]!r} vs {pin!r}. One node has "
+                f"one wave (Book I §3.2, Book II §2.3); pick one pin. This is an "
+                f"annotation-profile refusal at load time, not an eval exit: it "
+                f"is not a Receipt.exit and not a DISSONANCE.")
+        profile[key] = pin
         claimed_by[key] = name
-    return pins
+
+    # Sorted so a contradictory profile always names the same pair, whatever
+    # the dict order happens to be.
+    for name in sorted(fulls):
+        admit(name, bindings.get(name, (None,))[0], fulls[name], "full Pin")
+    for name in sorted(ph_only):
+        admit(name, bindings[name][0], ph_only[name][1], "node-level Pin")
+    for name in sorted(aliases):
+        term, pin = aliases[name]
+        digest = resolve(term)
+        if digest is not None:
+            # An alias is also a label: it cannot name a node different from the
+            # one its own label is already bound to.
+            bind_label(name, digest, "alias table")
+        admit(name, digest, pin, "alias")
+    return profile
 
 
 # The edition's own profile, validated at import. A contradictory ALIASES table
@@ -203,10 +346,6 @@ def structural_pin(term):
     """
     digest = node_hash_of(canonical(term))
     return None if digest is None else DERIVED_PINS.get(digest.hex())
-# Ph-only pins on non-APPLY leaves (§6.2-6.4): coordinates, but no derivable
-# am/en -> wave absent until a full annotation exists
-PH_ONLY_LEAVES = {"V": 16384, "SATOSHI": 8192, "TESLA": 8192, "TURING": 20480,
-                  "BACH": 21845, "LEIBNIZ": 24576, "GODEL": 40960, "HEGEL": 57344}
 
 
 def coordinate(name):

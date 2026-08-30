@@ -24,6 +24,7 @@ here: two aliases over different structures must hash apart, and two names for
 the SAME structure must be seen to collide.
 """
 import contextlib
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -193,7 +194,7 @@ def main():
         "ALSO-FALSE": (["APPLY", "K", "I"], {"ph": 49152}),
     }
     chk("identical pins under two names are allowed",
-        wave_module.load_annotation_profile(synonyms)
+        wave_module.load_annotation_profile(synonyms, full_pins={}, node_pins={})
         == {book1.FALSE_H.hex(): {"ph": 49152}})
 
     # 3b. The refusal is at LOAD, and the proof has to be about timing rather
@@ -213,7 +214,9 @@ def main():
                  "about the pinned node")
     built, shape = profile_exists_before_any_query()
     chk("after a bare import the index already exists (not None)",
-        built and shape == "dict 1", f"got {shape!r}")
+        # Eleven node-level sources of §6: I, K, S, FALSE, SATOSHI and the
+        # six Pantheon nodes, admitted together.
+        built and shape == "dict 11", f"got {shape!r}")
 
     # 3c. And the lookup reads the index built at load rather than rebuilding
     #     it. Break the loader after admission has succeeded; a query must still
@@ -234,13 +237,166 @@ def main():
     finally:
         wave_module.load_annotation_profile = saved_loader
 
+    # 3d. Admission sees every node-level source at once, not one table at a
+    #     time. FULL_PINS and ALIASES were separate authorities, so an alias
+    #     could re-pin a genesis node and be admitted: the invariant was global
+    #     and the enforcement was per-table.
+    cross_table = {"ALSO-K": ("K", {"ph": 1})}
+    try:
+        admitted = wave_module.load_annotation_profile(cross_table)
+        chk("an alias re-pinning a full-pinned node is refused", False,
+            f"admitted {admitted}")
+    except wave_module.ContradictoryPin as refusal:
+        message = str(refusal)
+        chk("an alias re-pinning a full-pinned node is refused", True)
+        chk("that refusal names the genesis node's own digest",
+            book1.K_H.hex() in message, message)
+        chk("and names both the full pin and the alias",
+            "'K'" in message and "ALSO-K" in message, message)
+    chk("a synonym of a full-pinned node is allowed",
+        wave_module.load_annotation_profile(
+            {"ALSO-K": ("K", dict(wave_module.FULL_PINS["K"]))})[book1.K_H.hex()]
+        == wave_module.FULL_PINS["K"])
+    # The eleven node-level sources of §6, listed here INDEPENDENTLY of the
+    # production tables. Building the expectation from `PH_ONLY_NODE_PINS` — the
+    # thing under test — meant both sides moved together: swapping HEGEL for an
+    # invented node kept the count at eleven and the test green.
+    #
+    # Names, phases and both ends of the printed digest come from Book II §6.3
+    # and §6.4. The forging formula is re-implemented below rather than imported,
+    # so the implementation is not also its own oracle.
+    PANTHEON = {
+        "TESLA":   (8192,  "193e0542", "d9de3748"),
+        "TURING":  (20480, "f7864d5e", "f6850375"),
+        "BACH":    (21845, "878c08d8", "221e50c2"),
+        "LEIBNIZ": (24576, "06696f7a", "5ab412cd"),
+        "GODEL":   (40960, "d5f715d7", "e467eb96"),
+        "HEGEL":   (57344, "5654c5dc", "8054a186"),
+    }
+    SATOSHI = (8192,
+               "11c856acd4b6868a91c2cc2cf6331d57bf268f56adcae0c0f3070c4ec00ed3c7")
+
+    def book_forge(name):
+        """Book II §6.4's method, written out here rather than imported."""
+        return hashlib.sha256(
+            bytes([0x00, 0x01])
+            + hashlib.sha256(name.encode("ascii")).digest()).hexdigest()
+
+    chk("the Pantheon table is exactly the six names and phases §6.4 prints",
+        {n: ph for n, (ph, _a, _b) in PANTHEON.items()} == wave_module.PANTHEON_PH,
+        f"module has {wave_module.PANTHEON_PH}")
+    for name, (_ph, prefix, suffix) in sorted(PANTHEON.items()):
+        digest = book_forge(name)
+        chk(f"§6.4 forging reproduces {name}'s printed NodeHash, both ends",
+            digest.startswith(prefix) and digest.endswith(suffix), digest)
+    chk("SATOSHI's NodeHash is the Book's constant, NOT the forging method",
+        wave_module.SATOSHI_NODE_HASH == SATOSHI[1]
+        and book_forge("SATOSHI") != SATOSHI[1])
+
+    expected_profile = {book1.I_H.hex(), book1.K_H.hex(), book1.S_H.hex(),
+                        book1.FALSE_H.hex(), SATOSHI[1]}
+    expected_profile |= {book_forge(name) for name in PANTHEON}
+    chk("the profile is exactly the eleven node-level sources of §6",
+        set(wave_module.DERIVED_PINS) == expected_profile
+        and len(expected_profile) == 11,
+        f"{len(wave_module.DERIVED_PINS)} entries: "
+        f"{sorted(set(wave_module.DERIVED_PINS) ^ expected_profile)} differ")
+    chk("V has no NodeHash, so it cannot be in the profile at all",
+        wave_module.node_hash_of("V") is None
+        and "V" in wave_module.SECTOR_COORDINATES
+        and "V" not in wave_module.PH_ONLY_NODE_PINS)
+    chk("a ph-only NODE keeps its identity even though its wave is absent",
+        wave_module.node_hash_of("SATOSHI").hex() == SATOSHI[1]
+        and wave_module.wave("SATOSHI") is None)
+
+    # Cross-source conflict on a ph-only NODE, not only on a genesis one.
+    clashing_node = dict(wave_module.PH_ONLY_NODE_PINS)
+    clashing_node["ALSO-SATOSHI"] = (wave_module.SATOSHI_NODE_HASH, {"ph": 3})
+    try:
+        wave_module.load_annotation_profile(node_pins=clashing_node)
+        chk("a second Pin on a ph-only node is refused", False, "admitted")
+    except wave_module.ContradictoryPin as refusal:
+        chk("a second Pin on a ph-only node is refused", True)
+        chk("that refusal names SATOSHI's digest",
+            wave_module.SATOSHI_NODE_HASH in str(refusal), str(refusal))
+    chk("node-level entries are admitted at the hash they DECLARE",
+        "a" * 64 in wave_module.load_annotation_profile(
+            node_pins={"SATOSHI": ("a" * 64, {"ph": 8192})}))
+    try:
+        wave_module.load_annotation_profile(node_pins={"X": ("not-a-hash", {"ph": 1})})
+        chk("a malformed declared NodeHash is refused", False, "admitted")
+    except wave_module.MalformedNodeHash:
+        chk("a malformed declared NodeHash is refused", True)
+
     # 4. An alias whose structure this language cannot hash has no derived pin,
     #    rather than a pin under some improvised key.
     unhashable = {"GHOST": (["APPLY", "V", "I"], {"ph": 7})}
     chk("an alias over a Ph-only leaf has no computable identity",
         wave_module.alias_node_hashes(unhashable)["GHOST"] is None)
-    chk("and therefore contributes no derived pin",
-        wave_module.load_annotation_profile(unhashable) == {})
+    # It used to "contribute no pin", which is a green result for a Pin nobody
+    # could place. A pin-bearing entry with no node is refused.
+    try:
+        wave_module.load_annotation_profile(unhashable, full_pins={}, node_pins={})
+        chk("a pinned entry with no NodeHash is refused, not skipped", False,
+            "admitted an empty profile")
+    except wave_module.UnresolvableIdentity as refusal:
+        chk("a pinned entry with no NodeHash is refused, not skipped", True)
+        chk("that refusal names the entry and points at SECTOR_COORDINATES",
+            "GHOST" in str(refusal) and "SECTOR_COORDINATES" in str(refusal),
+            str(refusal))
+
+    # --- the profile is closed under its own declared identities -------------
+    declared = {"SATOSHI": ("a" * 64, {"ph": 8192})}
+    cases = [
+        ("a declared hash conflicting through an alias is refused at that hash",
+         dict(alias_table={"ALSO-SATOSHI": ("SATOSHI", {"ph": 3})},
+              full_pins={}, node_pins=declared),
+         wave_module.ContradictoryPin, "a" * 64),
+        ("a composite APPLY over a declared label uses the declared child",
+         dict(alias_table={"PAIR": (["APPLY", "SATOSHI", "I"], {"ph": 7}),
+                           "ALSO-PAIR": (["APPLY", "SATOSHI", "I"], {"ph": 9})},
+              full_pins={}, node_pins=declared),
+         wave_module.ContradictoryPin, "PAIR"),
+        ("a node entry may not re-bind a genesis label",
+         dict(alias_table={}, full_pins={},
+              node_pins={"K": ("b" * 64, dict(wave_module.FULL_PINS["K"]))}),
+         wave_module.ContradictoryIdentity, "Book I §5.1"),
+        ("an alias may not re-bind a genesis label",
+         dict(alias_table={"K": ("I", {"ph": 5})}, full_pins={}, node_pins={}),
+         wave_module.ContradictoryIdentity, "alias table"),
+        ("a full Pin whose node cannot be named is refused",
+         dict(alias_table={}, full_pins={"X": {"ph": 1}}, node_pins={}),
+         wave_module.UnresolvableIdentity, "X"),
+        ("an alias cycle is refused as a cycle",
+         dict(alias_table={"A": ("B", {"ph": 1}), "B": ("A", {"ph": 1})},
+              full_pins={}, node_pins={}),
+         wave_module.AliasCycle, "revisits"),
+    ]
+    for name, kwargs, expected_error, needle in cases:
+        try:
+            wave_module.load_annotation_profile(**kwargs)
+            chk(name, False, "admitted")
+        except wave_module.AnnotationProfileError as refusal:
+            chk(name, isinstance(refusal, expected_error) and needle in str(refusal),
+                f"{type(refusal).__name__}: {refusal}")
+
+    # Positives, so "refuses everything" cannot masquerade as correctness.
+    synonym = wave_module.load_annotation_profile(
+        alias_table={"ALSO-SATOSHI": ("SATOSHI", {"ph": 8192})},
+        full_pins={}, node_pins=declared)
+    chk("a synonym at the declared hash yields one entry",
+        synonym == {"a" * 64: {"ph": 8192}}, str(synonym))
+    long_chain = {f"L{i}": (f"L{i + 1}", {"ph": 8192}) for i in range(64)}
+    long_chain["L64"] = ("SATOSHI", {"ph": 8192})
+    chk("a long acyclic alias chain is admitted (no invented depth limit)",
+        wave_module.load_annotation_profile(
+            alias_table=long_chain, full_pins={}, node_pins=declared)
+        == {"a" * 64: {"ph": 8192}})
+    reused = wave_module.load_annotation_profile(
+        alias_table={"BOTH": (["APPLY", "SATOSHI", "SATOSHI"], {"ph": 2})},
+        full_pins={}, node_pins=declared)
+    chk("one alias reused in both APPLY branches is not a cycle",
+        len(reused) == 2 and "a" * 64 in reused, str(sorted(reused)))
 
     print()
     if all(results):

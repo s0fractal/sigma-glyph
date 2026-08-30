@@ -51,7 +51,15 @@ EXPECTED = {
           "a term with no bytes here has no identity, not an improvised key",
       "TestDerivedPinsFailClosedOnContradiction":
           "synonyms allowed, contradictory pins refused with digest and names",
-      "TestStructuralPinRequiresALoadedProfile":
+      "TestAdmissionSpansFullPinsAndAliases":
+        "admission sees every node-level source at once: an alias re-pinning a "
+        "genesis node is refused, a synonym is allowed, sector coordinates stay "
+        "out",
+    "TestProfileIsClosedUnderDeclaredIdentity":
+        "identity resolves within the profile handed in: declared hashes are "
+        "honoured, labels bind once, unresolvable Pins and alias cycles are "
+        "refused, and synonyms and long acyclic chains still pass",
+    "TestStructuralPinRequiresALoadedProfile":
         "the profile is loaded once at startup; a query never builds it, and "
         "querying without one refuses instead of answering",
     "TestSameWavePinIsTypeSafe":
