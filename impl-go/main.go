@@ -62,6 +62,12 @@ type Selection struct {
 
 func main() {
 	lutCos = genLUT()
+	// Book III §5: the annotation profile is validated before anything is
+	// answered. A contradictory profile is refused here, at load, rather than
+	// discovered by whichever query happens to reach the pinned node.
+	if err := requireAnnotationProfile(); err != nil {
+		die("annotation profile refused: " + err.Error())
+	}
 	if len(os.Args) < 2 {
 		die("usage: sigma-federation-go <replay|gov-replay|select|wave|viewid|setroot|validate-assertion|validate-policy|interfere|book1-unreachable>")
 	}
@@ -648,7 +654,156 @@ func applyWave(term []any, resolver map[string]map[string]any) (any, error) {
 	}
 	leftMap, _ := asMap(left)
 	rightMap, _ := asMap(right)
-	return interfere(leftMap, rightMap), nil
+	// Book III §5's fallback is Book II §2's derived case, pin included. It was
+	// `interfere` alone, so a node reached structurally lost the Pin a node
+	// reached by name kept: one NodeHash, two waves. That is Identity by Hash
+	// (Book I §3.2) failing, not a wrong vector.
+	derived := interfere(leftMap, rightMap)
+	pin, err := structuralPin(term)
+	if err != nil {
+		return nil, err
+	}
+	if pin == nil {
+		return derived, nil
+	}
+	return complete(derived, pin), nil
+}
+
+// ---- Identity by Hash, enough of Book I to name a node ----------------------
+//
+// Book II §6.2 pins FALSE ≡ APPLY(K,I) BY NODEHASH, so a conforming Book II/III
+// implementation has to be able to say which node it is looking at. That needs
+// Book I's canonical serialization for APPLY and the three genesis LITERALs,
+// and nothing else: this file still contains no evaluator.
+
+func sigmaLeafHash(name string) ([32]byte, bool) {
+	atom, ok := map[string][32]byte{
+		"I": sha256.Sum256([]byte("I")),
+		"K": sha256.Sum256([]byte("K")),
+		"S": sha256.Sum256([]byte("S")),
+	}[name]
+	if !ok {
+		return [32]byte{}, false
+	}
+	// ser(LITERAL, F_ATOM, atom): opcode 0x00, flags 0x01, then the atom.
+	buf := append([]byte{0x00, 0x01}, atom[:]...)
+	return sha256.Sum256(buf), true
+}
+
+// nodeHashOf returns Book I's NodeHash for a wave term, or ok=false when this
+// term language carries no bytes for it (Ph-only leaves, unpinned LITERALs).
+// Such a term has no derived pin rather than a pin under an improvised key.
+func nodeHashOf(term any) ([32]byte, bool) {
+	if name, ok := asString(term); ok {
+		return sigmaLeafHash(name)
+	}
+	parts, ok := term.([]any)
+	if !ok || len(parts) != 3 {
+		return [32]byte{}, false
+	}
+	if head, _ := asString(parts[0]); head != "APPLY" {
+		return [32]byte{}, false
+	}
+	left, okL := nodeHashOf(parts[1])
+	right, okR := nodeHashOf(parts[2])
+	if !okL || !okR {
+		return [32]byte{}, false
+	}
+	// ser(APPLY, F_LEFT|F_RIGHT, left, right): opcode 0x02, flags 0x06.
+	buf := append([]byte{0x02, 0x06}, left[:]...)
+	buf = append(buf, right[:]...)
+	return sha256.Sum256(buf), true
+}
+
+func canonicalTerm(term any) any { return canonicalTermIn(aliases, term) }
+
+func canonicalTermIn(table map[string]aliasDef, term any) any {
+	if name, ok := asString(term); ok {
+		if alias, found := table[name]; found {
+			return canonicalTermIn(table, alias.Term)
+		}
+		return term
+	}
+	if parts, ok := term.([]any); ok && len(parts) == 3 {
+		if head, _ := asString(parts[0]); head == "APPLY" {
+			return []any{"APPLY", canonicalTermIn(table, parts[1]),
+				canonicalTermIn(table, parts[2])}
+		}
+	}
+	return term
+}
+
+// loadAnnotationProfile validates a profile and returns its NodeHash -> Pin
+// index. Book III §5 requires a profile with two different Pins for one NodeHash
+// to be refused AT LOAD, before it answers anything: it is accepted whole or it
+// does not exist for the engine.
+//
+// This used to be called from the lookup, so a contradictory profile loaded
+// fine, answered every query that missed the contradiction, and refused only
+// when a wave query happened to reach the pinned node. The normative sentence
+// said load time and the code did query time.
+func loadAnnotationProfile(table map[string]aliasDef) (map[string]map[string]any, error) {
+	pins := map[string]map[string]any{}
+	claimedBy := map[string]string{}
+	names := make([]string, 0, len(table))
+	for name := range table {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		digest, ok := nodeHashOf(canonicalTermIn(table, table[name].Term))
+		if !ok {
+			continue
+		}
+		key := hex.EncodeToString(digest[:])
+		if existing, seen := pins[key]; seen && !sameWavePin(existing, table[name].Pin) {
+			return nil, fmt.Errorf(
+				"aliases %q and %q are the same node %s but pin it differently: "+
+					"%v vs %v. One node has one wave (Book I §3.2); pick one pin. "+
+					"This is an annotation-profile refusal at load time (Book III §5), "+
+					"not an eval exit: it is not a Receipt.exit and not a DISSONANCE",
+				claimedBy[key], name, key, existing, table[name].Pin)
+		}
+		pins[key] = table[name].Pin
+		claimedBy[key] = name
+	}
+	return pins, nil
+}
+
+// The edition's own profile, validated once at startup by requireAnnotationProfile
+// and read — never rebuilt — by structuralPin.
+var annotationProfile map[string]map[string]any
+
+func requireAnnotationProfile() error {
+	profile, err := loadAnnotationProfile(aliases)
+	if err != nil {
+		return err
+	}
+	annotationProfile = profile
+	return nil
+}
+
+// sameWavePin decides synonym from contradiction, and must not be fooled by two
+// values that print alike. `fmt.Sprint(uint16(1))` and `fmt.Sprint("1")` are
+// both "1", so a stringly comparison would have accepted a table pinning one
+// node to a number and to a string as saying the same thing. For a fail-closed
+// contract the comparison has to be typed.
+func sameWavePin(a, b map[string]any) bool {
+	return reflect.DeepEqual(a, b)
+}
+
+// structuralPin reads the profile loaded at startup. A lookup is not the place
+// to discover that the profile was never valid.
+func structuralPin(term any) (map[string]any, error) {
+	if annotationProfile == nil {
+		return nil, fmt.Errorf("annotation profile was never loaded: call " +
+			"requireAnnotationProfile() before answering wave queries (Book III §5)")
+	}
+	digest, ok := nodeHashOf(canonicalTerm(term))
+	if !ok {
+		return nil, nil
+	}
+	return annotationProfile[hex.EncodeToString(digest[:])], nil
 }
 
 func waveFed(term any, resolver map[string]map[string]any) (any, error) {

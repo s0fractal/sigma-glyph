@@ -75,6 +75,12 @@ jobs:
             | grep -q "SUITE-SCHEMA-SELFTEST: ALL PASS"
           python3 tools/suite_schema.py | tee /dev/stderr \
             | grep -q "SUITE-SCHEMA: ALL PASS"
+      - name: One node, one wave — identity by hash, admission at load
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/wave_identity_selftest.py | tee /dev/stderr \
+            | grep -q "WAVE-IDENTITY-SELFTEST: ALL PASS"
       - name: The conformance runner checks four observables, not two
         shell: bash
         run: |
@@ -134,6 +140,10 @@ jobs:
         run: |
           set -euo pipefail
           cd impl-rs && cargo build --release --locked && cargo test --locked && cd ..
+          python3 tools/go_test_gate.py --selftest | tee /dev/stderr \
+            | grep -q "GO-TEST-GATE-SELFTEST: ALL PASS"
+          python3 tools/go_test_gate.py | tee /dev/stderr \
+            | grep -q "GO-TEST-GATE: ALL PASS"
           ./impl-rs/target/release/book1 selftest | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
           ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
             | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"

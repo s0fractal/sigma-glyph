@@ -789,7 +789,7 @@
       "selection": null,
       "selected_wave": null,
       "expected": {
-        "ph": 32768,
+        "ph": 49152,
         "am": 0,
         "en": -32512
       },

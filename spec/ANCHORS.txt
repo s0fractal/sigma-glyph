@@ -8,13 +8,13 @@ changed it. (E.g. GOV-anchors ships in v0.6.x bundles at its own version 1.0.2.)
 == v0.7.0 (CANDIDATE — NOT ADOPTED; see proposals/ADR-010) ==
 e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd  spec/book-1-truth.md
 95d2a4682b2d7bb42a9c3fb2222f1fdb26ababcd5957bb3030be5761297c7eb2  spec/book-2-navigation.md
-2c8abf070f53eacb8fd725be66283fa25392b9875813d889ddec3352930191fe  spec/book-3-federation.md
+8abc053a39a25d8f64170a20bb3435fa29964252d263eba1c82585a79cb9a7cc  spec/book-3-federation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
 2df9194b15734a98b185e1f42472ddc52b03597cd6fd48a8a6fbf50799091021  spec/appendix-a-complexity.md
 59bbb117978c75392045c2db57ea1d62122eb18c1e39d3e1c4c1353301799502  spec/GOV-anchors.md
 3816eeb95e3937a68a60f552399b38bd9e9bc1aaca2af6971d2ec10338cdaca1  tests/spec_conformance/vectors.json
 904395f210097f537f6c852816e5052e28dedf37b9b52ebe0f07bc115045cb36  tests/spec_conformance/wave_vectors.json
-392f74ef5320976cde1dcd5ade01e3d872d681ec1eddef9bd8edd36956e7b40f  tests/spec_conformance/federation_vectors.json
+35bf03c0f09011bce5f67923765a021f0e9f9dbfd38f560e5895e4888f5d8cf4  tests/spec_conformance/federation_vectors.json
 14ead59a1e79e349ff32a32526fb3b0abdf108ba3baa15e7ca9ac214002bcfbe  tests/spec_conformance/governance_vectors.json
 957283c5e8dc31e4f1d32b7f62879ea67c5a0c9a58050a6b32bd0394ee2265a0  spec/schemas/book1-conformance.schema.json
 fa70ecfbd7f2d89dff306fefde41252704153800421f2c68084bb5a24a55ec96  spec/schemas/book2-wave-conformance.schema.json

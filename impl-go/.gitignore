@@ -1,2 +1,4 @@
 /sigma-federation-go
 /.gocache/
+# `go build ./...` in this directory names the binary after the directory.
+/impl-go

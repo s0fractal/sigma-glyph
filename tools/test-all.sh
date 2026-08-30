@@ -43,6 +43,13 @@ python3 tools/suite_schema.py          | tee /dev/stderr | grep -q "SUITE-SCHEMA
 say "Conformance runner: four observables, each failing on its own"
 python3 tests/conformance_runner_selftest.py | tee /dev/stderr | grep -q "CONFORMANCE-RUNNER-SELFTEST: ALL PASS"
 
+# One node, one wave. The pin belongs to the NodeHash, not to the spelling, and
+# the annotation profile is validated at load rather than at whichever query
+# happens to reach the pinned node. The controls mutate the implementation and
+# require the specific break to be caught.
+say "Identity by hash in the wave algebra, and admission at load"
+python3 tests/wave_identity_selftest.py | tee /dev/stderr | grep -q "WAVE-IDENTITY-SELFTEST: ALL PASS"
+
 say "Version-state guard: candidates are not adopted releases"
 python3 tests/version_check_selftest.py | tee /dev/stderr | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
 
@@ -137,6 +144,19 @@ PY
 # the resource fences, the JSON parser and the suite-size accounting had no
 # unit coverage whatsoever.
 ( cd impl-rs && cargo test ) | tee /dev/stderr | grep -qE "test result: ok\. [1-9][0-9]* passed"
+
+# The same lesson, the other language. `impl-go/jcs_test.go` has guarded a
+# Go/Python canonicalization split -- a federation-consensus fork -- since it was
+# written, and NOTHING ever ran it: cargo test was wired in at v0.6.7 and go test
+# was not. A test no gate executes is a comment. The grep demands a positive
+# count for the same reason cargo's does.
+say "Go unit tests actually run (they never did before 2026-08-30)"
+# NOT `go test | grep '^ok'`: `ok` is a successful PACKAGE, which a package with
+# no test functions also reports, and Go serves cached results. The gate names
+# the tests it expects, runs them with -count=1, and fails on a missing one, an
+# unexpected one, or a cached one.
+python3 tools/go_test_gate.py --selftest | tee /dev/stderr | grep -q "GO-TEST-GATE-SELFTEST: ALL PASS"
+python3 tools/go_test_gate.py            | tee /dev/stderr | grep -q "GO-TEST-GATE: ALL PASS"
 ./impl-rs/target/release/book1 selftest    | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
 # The count is pinned HERE, by whoever names the canonical file — it used to be
 # hardwired inside the binary, which made every other vectors file report FAIL.

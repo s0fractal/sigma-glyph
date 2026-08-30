@@ -408,6 +408,74 @@ only `result_hash` and `atp_spent`. It lives in a repository under a feature
 freeze, so the exit is agreed by two engines of three. DeepSeek's P2s are left as
 written and listed in `round-5/FREEZE.md`.
 
+## Round 5 of the gate
+
+Frozen at `gates/v0.7.0-candidate/round-5/`, anchor set `edc0ede5…`, prompt
+`f2199026…`. **REJECT** (Gemini 3.1 Pro), **REJECT** (Qwen3 235B),
+**NO VERDICT** (DeepSeek, 82 177 characters of reasoning trace, truncated).
+
+The two REJECTs are not equal, and the difference matters more than the tally.
+
+### Gemini's P0 — real, and older than this candidate
+
+`wave(["APPLY","K","I"])` answered `ph 32768` while `wave("FALSE")` answered
+`ph 49152`. Same node. Book II §2 derives an APPLY node as
+`complete(interfere(wave(f), wave(a)), pin(APPLY(f,a)))` and §6.2 pins
+`FALSE ≡ APPLY(K,I)` at `Ph=49152` **by NodeHash**, leaving `Am`/`En` derived —
+so the pin belongs to the node. It was reachable only through an alias table
+keyed by NAME, so the `complete(…, pin(…))` step was absent from the structural
+path. Book III §5's fallback copied the omission. That is Identity by Hash
+(Book I §3.2) failing, not a wrong vector.
+
+**It is pre-existing.** v0.6.7 carries the same formula and the same oracle. It
+could not surface while Books II/III named the reference oracle as arbiter,
+because whatever the oracle did *was* the answer. Removing oracle precedence —
+this candidate's central change — is what let prose and suite contradict each
+other out loud. The change did not create the defect; it stopped hiding it.
+
+Answered in round 6:
+
+- Pins keyed by **NodeHash**, computed from the canonical structure with alias
+  expansion, in `sigma_wave`, `sigma_federation` and the Go mirror.
+- Book III §5's fallback carries `complete(…, pin(APPLY(f,a)))`, with a new MUST:
+  a profile giving **two different Pins for one NodeHash** is internally
+  contradictory and MUST be refused **at load/admission**, and MUST NOT be
+  resolved by write order. That refusal is an **annotation-profile** refusal, not
+  a Book I exit — not a `Receipt.exit`, not a DISSONANCE.
+- The profile is therefore an object that is accepted whole or does not exist:
+  Python validates at import, Go in `requireAnnotationProfile()` before dispatch,
+  and neither lookup builds an index. The first attempt validated lazily, so a
+  contradictory profile loaded fine and refused only when a query reached the
+  pinned node — the text said load time and the code did query time.
+- Go's `nodeHashOf` is bound to Book I's **printed digests** (`H(I)`, `H(K)`,
+  `H(S)`, `FALSE`, and two nested APPLY cases), because `derivedPins` and
+  `structuralPin` share it: a wrong serialization would key the store and the
+  lookup identically and stay green.
+
+**Blast radius, measured after regeneration:** `wave_vectors.json` byte-identical;
+`federation_vectors.json` changed in exactly one value,
+`FV-WAVE-STRUCTURAL.ph 32768 → 49152`. That vector's own note already claimed
+"structural derivation = Book II wave (FALSE derivation)" — true only now.
+
+### Qwen's P0 — `REFUTED_BY_FROZEN_BYTES`
+
+Kept in the record rather than deleted; it is a defect in the review transport,
+not in the candidate, and it is the more useful of the two findings about the
+gate itself.
+
+Qwen quoted `ATP > 2³²−1 — implementation-defined (MAY відхилити/clamp)` as
+present in §3.4 and wrote "the diff shows the §3.4 text was not updated to
+remove" it. That string occurs in the round-5 prompt exactly once, on line 36,
+prefixed `-`: a **deletion**. The frozen bytes contain zero occurrences in either
+language, and §3.4 reads `MUST NOT приймати його, обрізавши до 2³²−1`. A reviewer
+read a removed line as current text and built a P0 on it.
+
+The lesson is about the prompt, not the reviewer: leading with a raw unified diff
+invites exactly this. **Round 6 presents the current normative bytes and no raw
+diff as the source of truth**, and asks for the verdict at the head of the
+response as well as the tail, so a reviewer that reasons past its budget still
+delivers one.
+
 | Date | Change | Bytes already edited? |
 | --- | --- | --- |
 | 2026-08-29 | scope fixed, before any normative edit | no |
@@ -415,3 +483,5 @@ written and listed in `round-5/FREEZE.md`.
 | 2026-08-29 | round 2: ADOPT / REJECT / NO VERDICT; both findings were round 1's own repair | yes, after the gate saw them |
 | 2026-08-29 | round 3: ADOPT / REJECT / NO VERDICT after three delivery attempts; one observation moved the bytes | yes, after the gate saw them |
 | 2026-08-29 | round 4 frozen; third family changed to Qwen because Moonshot never delivered | no |
+| 2026-08-29 | round 4: ADOPT / ADOPT-WITH-AMENDMENTS / ADOPT, no P0; one P1 moved the bytes | yes, after the gate saw them |
+| 2026-08-30 | round 5: REJECT (real P0, pre-existing) / REJECT (refuted by the frozen bytes) / NO VERDICT | yes, after the gate saw them |

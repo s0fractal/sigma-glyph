@@ -1,0 +1,17 @@
+{
+  "answered_utc": "2026-08-30T06:39:08+00:00",
+  "attempt": 1,
+  "family": "deepseek",
+  "finish_reason": "no-reply",
+  "follows": null,
+  "frozen_commit": "61eb3ea88bcc3bc0a03ed5692c8d3f974ed5ebf1",
+  "max_tokens": 24000,
+  "model_answered": "deepseek/deepseek-v4-pro-0813",
+  "model_requested": "deepseek/deepseek-v4-pro-0813",
+  "no_verdict_reason": "the model returned no reply, only a 82177-character reasoning trace (finish_reason=length)",
+  "prompt_sha256": "f2199026e07469de308c4b35d42f7f6fa8f22d82ae5f2ca18a183a3641569486",
+  "requested_utc": "2026-08-30T06:35:46+00:00",
+  "response_sha256": null,
+  "system_sha256": "a87d162d7a1c13ce15756bcf1565daf55701b91fd7e47ed432dfae4d3a819d2a",
+  "verdict": "NO VERDICT"
+}

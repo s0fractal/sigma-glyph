@@ -11,7 +11,8 @@ after the round; a round whose findings are answered is superseded, not amended.
 | [round 2](round-2/) | anchor set `79bf939a…` | ADOPT / REJECT / NO VERDICT |
 | [round 3](round-3/) | anchor set `4c93717a…` | ADOPT / REJECT / NO VERDICT — completed on the third delivery attempt |
 | [round 4](round-4/) | anchor set `91b4182c…` | ADOPT / ADOPT-WITH-AMENDMENTS / ADOPT — no P0 from any family |
-| [round 5](round-5/) | anchor set pending | pending |
+| [round 5](round-5/) | anchor set `edc0ede5…` | REJECT / NO VERDICT / REJECT |
+| [round 6](round-6/) | anchor set pending | pending |
 
 Reviewers, in that column order: Google, DeepSeek, and a third family. The third
 was `moonshotai/kimi-k3` in rounds 1–3 and `moonshotai/kimi-k2.6` for round 3's
@@ -91,3 +92,22 @@ rather than overwritten when it already records something different.
 The evidence of a round is what its reviewers were shown. A tool that can quietly
 replace that is the same defect class as everything else in this repository's
 history: a check whose subject can be changed by the thing being checked.
+
+## Findings refuted by the frozen bytes
+
+Kept, not deleted. A reviewer's mistake about the subject is evidence about the
+**gate**, and deleting it would leave the gate looking better than it is.
+
+| Round | Family | Finding | Status |
+| --- | --- | --- | --- |
+| 5 | qwen | §3.4 still permits clamping an out-of-domain `atp`, contradicting §3.6 | `REFUTED_BY_FROZEN_BYTES` |
+
+The quoted string occurs in the round-5 prompt exactly once, on line 36, prefixed
+`-` — a deletion. The frozen bytes contain zero occurrences in either language.
+The reviewer read a removed diff line as current text.
+
+That is a defect in how the subject was presented, not in the reviewer: a raw
+unified diff invites reading `-` lines as the specification. From round 6 the
+prompt carries the current normative bytes and no raw diff as the source of
+truth, and asks for the verdict at the head of the response as well as the tail
+so that a reviewer which reasons past its budget still delivers one.

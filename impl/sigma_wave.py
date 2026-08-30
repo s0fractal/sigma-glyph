@@ -83,6 +83,126 @@ FULL_PINS = {
 ALIASES = {
     "FALSE": (["APPLY", "K", "I"], {"ph": 49152}),
 }
+
+
+def canonical(term, alias_table=None):
+    """A term reduced to what it IS: every alias replaced by its structure.
+
+    Identity is by hash (Book I §3.2), so `FALSE` and `APPLY(K,I)` are one node
+    and must have one wave. `canonical` is the identity handle this symbolic term
+    language can compute without Book I's serializer; `alias_node_hashes()` binds
+    it to the NodeHashes Book II §6.2 actually prints, so the handle is grounded
+    rather than merely conventional.
+    """
+    table = ALIASES if alias_table is None else alias_table
+    if isinstance(term, str) and term in table:
+        return canonical(table[term][0], table)
+    if isinstance(term, list) and term and term[0] == "APPLY":
+        return ["APPLY", canonical(term[1], table), canonical(term[2], table)]
+    return term
+
+
+# Pins on DERIVED nodes, keyed by canonical identity rather than by name.
+#
+# Book II §2 states the derived case as
+# `wave(APPLY(f,a)) = complete(interfere(wave(f), wave(a)), pin(APPLY(f,a)))`,
+# and §6.2 pins `FALSE ≡ APPLY(K,I)` at `Ph=49152` BY NODEHASH, leaving `Am`/`En`
+# derived field-by-field. The pin therefore belongs to the node.
+#
+# It used to be reachable only through the alias table, keyed by NAME, so the
+# `complete(..., pin(...))` step was absent from the structural path and one node
+# had two waves: `wave(["APPLY","K","I"])` answered ph 32768 and `wave("FALSE")`
+# answered ph 49152. That is a violation of Identity by Hash, not a wrong test
+# vector. Found by the round-5 gate (Gemini 3.1 Pro). The defect is older than
+# this candidate and could not surface while the oracle outranked the prose --
+# whatever the oracle did WAS the answer.
+# The key is the NodeHash itself. Keying by the JSON of the canonical structure
+# would have been a claim about structural equality after alias expansion, which
+# is a weaker statement than §3.2 makes and would have been worth saying out
+# loud rather than calling it identity.
+def node_hash_of(term):
+    """Book I's NodeHash for a term, or None when this language cannot name one.
+
+    Ph-only leaves (§6.2-§6.4) and unpinned LITERALs have a node somewhere, but
+    the wave term language does not carry their bytes; a term containing one has
+    no computable identity here and therefore no derived pin. Its wave is absent
+    for other reasons anyway (§2.1), so nothing hinges on the fallback.
+    """
+    import sigma_glyph as book1
+
+    leaves = {"I": book1.I_H, "K": book1.K_H, "S": book1.S_H}
+    if isinstance(term, str):
+        return leaves.get(term)
+    if isinstance(term, list) and term and term[0] == "APPLY":
+        left, right = node_hash_of(term[1]), node_hash_of(term[2])
+        if left is None or right is None:
+            return None
+        return book1.node_hash(book1.ser(book1.APPLY, book1.F_LEFT | book1.F_RIGHT,
+                                         left=left, right=right))
+    return None
+
+
+class ContradictoryPin(ValueError):
+    """Two names for one node, pinning it differently."""
+
+
+def load_annotation_profile(alias_table=None):
+    """Validate an annotation profile and return its NodeHash -> Pin index.
+
+    Book III §5 says a profile with two different Pins for one NodeHash MUST be
+    refused at load, before it answers anything. So this is where a profile
+    becomes usable at all: it is accepted whole or it does not exist for the
+    engine. The index is built once, here, and never during a wave query.
+
+    It used to be built lazily inside `structural_pin`, which meant a
+    contradictory profile loaded fine, answered every query that missed the
+    contradiction, and refused only when evaluation happened to touch the pinned
+    node. The normative sentence said load time and the code did evaluation
+    time.
+
+    Synonyms are fine: two names for one node with the SAME pin say one thing
+    twice. Two names for one node with DIFFERENT pins say two things, and a dict
+    would resolve that by whichever was written last -- which is a specification
+    defect being settled by iteration order. It fails closed instead, naming the
+    digest and both aliases.
+
+    This was found by review, and the check that should have caught it was the
+    one blessing it: a selftest asserted `len(pins) == 1` over a contradictory
+    table and reported "the contradiction is visible". The overwrite was silent
+    and the green check was the cover.
+    """
+    table = ALIASES if alias_table is None else alias_table
+    pins, claimed_by = {}, {}
+    for name, (term, pin) in table.items():
+        digest = node_hash_of(canonical(term, table))
+        if digest is None:
+            continue
+        key = digest.hex()
+        if key in pins and pins[key] != pin:
+            raise ContradictoryPin(
+                f"aliases {claimed_by[key]!r} and {name!r} are the same node "
+                f"{key} but pin it differently: {pins[key]!r} vs {pin!r}. "
+                f"One node has one wave (Book I §3.2); pick one pin. This is an "
+                f"annotation-profile refusal at load time (Book III §5), not an "
+                f"eval exit: it is not a Receipt.exit and not a DISSONANCE.")
+        pins[key] = pin
+        claimed_by[key] = name
+    return pins
+
+
+# The edition's own profile, validated at import. A contradictory ALIASES table
+# makes this module fail to load, which is what "refused at load" means.
+DERIVED_PINS = load_annotation_profile()
+
+
+def structural_pin(term):
+    """The Pin of a derived node, found by what the node is, not what it is called.
+
+    Reads the index built at load; never builds one. A lookup is not the place to
+    discover that the profile was never valid.
+    """
+    digest = node_hash_of(canonical(term))
+    return None if digest is None else DERIVED_PINS.get(digest.hex())
 # Ph-only pins on non-APPLY leaves (§6.2-6.4): coordinates, but no derivable
 # am/en -> wave absent until a full annotation exists
 PH_ONLY_LEAVES = {"V": 16384, "SATOSHI": 8192, "TESLA": 8192, "TURING": 20480,
@@ -124,7 +244,9 @@ def wave(term):
         wl, wr = wave(term[1]), wave(term[2])
         if wl is None or wr is None:
             return None                               # interfere with absent operand -> absent
-        return interfere(wl, wr)
+        derived = interfere(wl, wr)
+        pin = structural_pin(term)
+        return derived if pin is None else complete(derived, pin)
     raise ValueError(f"bad term: {term!r}")
 
 # id, w1, w2 — expected values are COMPUTED by the oracle, never hand-written
@@ -425,6 +547,50 @@ def gen_vectors():
           f"oracle-generated/regression-only)")
 
 
+def alias_node_hashes(alias_table=None):
+    """Each alias's canonical structure, hashed as Book I hashes it.
+
+    `canonical` is a handle this term language can compute; the identity the
+    Books speak of is a NodeHash. This binds the two, so "pins are keyed by
+    identity" is a checkable statement rather than a convention. Book I is
+    imported for this and for nothing else -- Book II's algebra does not depend
+    on the evaluator, only on its notion of identity (§3.2).
+    """
+    table = ALIASES if alias_table is None else alias_table
+    out = {}
+    for name, (term, _pin) in table.items():
+        digest = node_hash_of(canonical(term, table))
+        out[name] = None if digest is None else digest.hex()
+    return out
+
+
+def _check_identity_by_hash(chk):
+    """One node, one wave — however it is spelled.
+
+    Until the round-5 gate found it, `wave("FALSE")` answered ph 49152 and
+    `wave(["APPLY","K","I"])` answered ph 32768 for the same NodeHash. The pin
+    lived behind a name.
+
+    Each equality is written as two named checks over two named values. The
+    earlier one-liner `wave(name) == wave(term) is not None` was a chained
+    comparison -- it did mean "equal AND the structural side is not None" -- but
+    a reader has to know that to see it, and one of the two sides still went
+    unasserted. Two statements say it once each.
+    """
+    import sigma_glyph as book1
+
+    for name, (term, _pin) in ALIASES.items():
+        named = wave(name)
+        structural = wave(term)
+        chk(f"alias equivalence: wave({name}) == wave(structure)",
+            named == structural)
+        chk(f"alias equivalence is not vacuous: both sides are waves, not absent",
+            named is not None and structural is not None)
+    hashes = alias_node_hashes()
+    chk("FALSE's canonical structure hashes to Book I's FALSE_H, in full",
+        hashes["FALSE"] == book1.FALSE_H.hex())
+
+
 def _check_core_wave_properties(chk):
     chk("LUT arbiter", hashlib.sha256(
         b"".join(struct.pack(">h", v) for v in LUT_COS)).hexdigest() == LUT_ARBITER)
@@ -499,6 +665,7 @@ def selftest():
         print(("OK  " if cond else "FAIL"), name, "" if cond else detail)
 
     _check_core_wave_properties(chk)
+    _check_identity_by_hash(chk)
     _replay_recorded_vectors(chk, skipped)
 
     print(("\nWAVE: ALL PASS" if all(ok) else "\nWAVE: FAILURES PRESENT")
