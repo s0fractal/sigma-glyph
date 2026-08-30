@@ -147,7 +147,38 @@ refused rather than skipped; cycles are found by the alias names visited rather
 than by an invented depth limit, so a long acyclic chain is well-formed. Python
 and Go implement the same contract and each has its own controls.
 
-**One limit stated without exaggeration:** removing Go's cycle detection is
+### Three facts about the resolver's limits, kept apart
+
+They are separate claims and were repeatedly collapsed into one another, so they
+are listed separately and only the first two are closed.
+
+1. **The explicit limit of 64, and the implicit one, are both gone.** The first
+   version guarded alias chains with `depth > 64`, inventing a normative maximum
+   no Book states. Replacing it with per-link recursion replaced it with the
+   interpreter's own ceiling: 65 links passed, 900 passed, **1100 raised
+   `RecursionError`** while the control's name said "no invented depth limit" —
+   the control had been calibrated to clear the guard it replaced, at 65. Chain
+   resolution is iterative in both languages now, and the control uses
+   `sys.getrecursionlimit() * 3` links and names the ceiling in its own label so
+   it cannot be quietly re-calibrated beneath it.
+
+2. **Quadratic whole-profile resolution is gone, by memoization.** Removing the
+   per-link copy of the visited set fixed the *chain* and left the *profile*
+   quadratic, because every alias still resolved from scratch: Python 2000 links
+   0.13 s, 4000 0.52 s, 8000 2.20 s; Go did not finish 20 000 in ten minutes.
+   With a memo of completed resolutions: Python 8000 in 0.005 s and 64 000 in
+   0.036 s, Go 64 000 in 47 ms. The cache is sound because a label's resolution
+   is a function of the frozen `aliases` and `bindings` and never of the path
+   taken to reach it, and because only **completed** resolutions are stored — a
+   label still on the current path is not in the memo, so cycles are not masked.
+   `A -> APPLY(A, I)` is still refused as a cycle in both languages.
+
+3. **`APPLY` nesting remains structural recursion**, bounded by how deeply a term
+   is written. This is a named implementation resource boundary, not a guarantee:
+   the Books state no complexity or resource bound for admission, and none is
+   claimed here.
+
+**One further limit stated without exaggeration:** removing Go's cycle detection is
 caught as the test binary dying and the gate reporting *missing expected tests* —
 it fails closed, but not with a reason-specific `AliasCycle` as the Python mirror
 does. Reading that line as the cycle control firing would be wrong.
@@ -163,7 +194,8 @@ printed edges are the oracle for the formula.
 | Reviewer | Exact head | Verdict |
 | --- | --- | --- |
 | `codex@sigma-glyph` | `032f83f` | **REQUEST CHANGES** — four findings, all accepted |
-| `codex@sigma-glyph` | `a447a67` | **REQUEST CHANGES** — the admission seam, six findings across five rounds of review, all accepted |
+| `codex@sigma-glyph` | `a447a67` | **REQUEST CHANGES** — the admission seam, six findings, all accepted |
+| `codex@sigma-glyph` | `676284f` | **REQUEST CHANGES** — two resource boundaries in the resolver, both accepted |
 | `codex@sigma-glyph` | this head | **pending** |
 | Claude Opus 5 | this head | authored the amendment; not an independent review of it |
 

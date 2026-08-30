@@ -905,7 +905,7 @@ reproducible.
 | `impl/sigma_glyph.py` (oracle) | 618 | `hashlib` | yes |
 | `impl-rs/src/main.rs` | 1170 | from scratch, zero crate dependencies | yes |
 | `warrant-go` (external repo, CI-pinned) | — | Go stdlib | yes |
-| `impl-go/main.go` (in-tree) | 2309 | Go stdlib | **no** — Book III / governance only |
+| `impl-go/main.go` (in-tree) | 2344 | Go stdlib | **no** — Book III / governance only |
 
 The Rust implementation is worth a sentence: 1170 lines, no dependencies at all,
 its own SHA-256, `overflow-checks = true` in the release profile, and it replays

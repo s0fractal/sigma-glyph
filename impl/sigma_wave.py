@@ -158,10 +158,15 @@ def canonical(term, alias_table=None):
 def node_hash_of(term):
     """Book I's NodeHash for a term, or None when this language cannot name one.
 
-    Ph-only leaves (§6.2-§6.4) and unpinned LITERALs have a node somewhere, but
-    the wave term language does not carry their bytes; a term containing one has
-    no computable identity here and therefore no derived pin. Its wave is absent
-    for other reasons anyway (§2.1), so nothing hinges on the fallback.
+    `SATOSHI` (§6.3) and the six Pantheon nodes (§6.4) DO have identity here:
+    the Book prints or forges their NodeHashes, and this returns them. Their
+    `wave()` is still absent because `am`/`en` are underived (§2.1) — absent
+    wave, present node.
+
+    What has no identity is `V` (§6.2), a sector coordinate the Book gives no
+    NodeHash, and an unpinned LITERAL, whose bytes this term language does not
+    carry. A term containing either has no computable identity and no derived
+    pin.
     """
     import sigma_glyph as book1
 
@@ -269,30 +274,64 @@ def load_annotation_profile(alias_table=None, full_pins=None, node_pins=None):
                 f"NodeHash in lowercase hexadecimal")
         bind_label(name, declared, "node-level Pin table (§6.3-§6.4)")
 
+    # label -> resolved NodeHash (or None). A label's resolution depends on the
+    # alias table and the bindings, never on the path taken to reach it, so a
+    # completed resolution is reusable. Without it every alias was resolved from
+    # scratch and admission was quadratic in the profile: 2000 links 0.13 s,
+    # 4000 0.52 s, 8000 2.20 s. Removing the per-link copy fixed the chain; this
+    # fixes the profile.
+    #
+    # Only COMPLETED resolutions are memoized. A label on the current path is
+    # not yet resolved, so cycle detection still sees it.
+    memo = {}
+
     def resolve(term, seen=frozenset()):
         """A term's NodeHash under THIS profile's labels, or None.
 
-        Cycles are detected by the alias names already visited, not by a depth
-        limit: a bound on chain length would invent a normative maximum, and a
-        long acyclic chain is well-formed.
+        The alias chain is followed ITERATIVELY. Recursing once per link made
+        the admissible chain length depend on `sys.getrecursionlimit()` — an
+        implicit ceiling around 1000 that no Book states, and one the control
+        did not reach: 65 links passed, 900 passed, 1100 raised RecursionError
+        while the test claimed "no invented depth limit".
+
+        `APPLY` nesting is still structural recursion, bounded by how deeply a
+        term is written rather than by chain length. That is a real remaining
+        limit and it is named here rather than claimed away.
+
+        Cycles are found by the labels already visited on THIS path, which is
+        why `seen` is inherited into both branches: a cycle can run through a
+        structure, `A -> APPLY(A, I)`, not only along a chain.
         """
+        visited = set(seen)
+        chain = []
+
+        def remember(digest):
+            for label in chain:
+                memo[label] = digest
+            return digest
+
+        while isinstance(term, str) and term in aliases:
+            if term in memo:
+                return remember(memo[term])
+            if term in visited:
+                raise AliasCycle(
+                    f"alias chain revisits {term!r}: "
+                    f"{' -> '.join(sorted(visited | {term}))}")
+            visited.add(term)
+            chain.append(term)
+            term = aliases[term][0]
         if isinstance(term, str):
-            if term in aliases:
-                if term in seen:
-                    raise AliasCycle(
-                        f"alias chain revisits {term!r}: "
-                        f"{' -> '.join(sorted(seen | {term}))}")
-                return resolve(aliases[term][0], seen | {term})
             binding = bindings.get(term)
-            return binding[0] if binding else None
+            return remember(binding[0] if binding else None)
         if isinstance(term, list) and len(term) == 3 and term[0] == "APPLY":
-            left, right = resolve(term[1], seen), resolve(term[2], seen)
+            path = frozenset(visited)
+            left, right = resolve(term[1], path), resolve(term[2], path)
             if left is None or right is None:
-                return None
-            return book1.node_hash(
+                return remember(None)
+            return remember(book1.node_hash(
                 book1.ser(book1.APPLY, book1.F_LEFT | book1.F_RIGHT,
-                          left=bytes.fromhex(left), right=bytes.fromhex(right))).hex()
-        return None
+                          left=bytes.fromhex(left), right=bytes.fromhex(right))).hex())
+        return remember(None)
 
     profile, claimed_by = {}, {}
 

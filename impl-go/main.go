@@ -822,38 +822,73 @@ func loadAnnotationProfile(table map[string]aliasDef,
 	// Cycles are found by the alias names already visited, not by a depth
 	// limit: a bound on chain length would invent a normative maximum, and a
 	// long acyclic chain is well-formed.
+	// The alias chain is followed ITERATIVELY, and the visited set is copied
+	// once per resolve() rather than once per link. Recursing per link made the
+	// admissible length depend on the stack, and copying per link made it
+	// quadratic: a 20 000-link chain did not finish. APPLY nesting is still
+	// structural recursion, bounded by how deeply a term is written.
+	// label -> resolved NodeHash. A label's resolution depends on the tables,
+	// never on the path taken to reach it, so a completed resolution is
+	// reusable. Only COMPLETED ones are memoized: a label on the current path
+	// is not yet resolved, so cycle detection still sees it.
+	memo := map[string]string{}
+
 	var resolve func(term any, seen map[string]bool) (string, error)
 	resolve = func(term any, seen map[string]bool) (string, error) {
-		if name, ok := asString(term); ok {
-			if alias, found := table[name]; found {
-				if seen[name] {
-					return "", fmt.Errorf("alias chain revisits %q", name)
-				}
-				next := map[string]bool{name: true}
-				for k := range seen {
-					next[k] = true
-				}
-				return resolve(alias.Term, next)
-			}
-			if b, found := bindings[name]; found {
-				return b.digest, nil
-			}
-			return "", nil
+		visited := make(map[string]bool, len(seen)+8)
+		for k := range seen {
+			visited[k] = true
 		}
+		var chain []string
+		remember := func(digest string) string {
+			for _, label := range chain {
+				memo[label] = digest
+			}
+			return digest
+		}
+		for {
+			name, ok := asString(term)
+			if !ok {
+				break
+			}
+			if digest, cached := memo[name]; cached {
+				return remember(digest), nil
+			}
+			alias, found := table[name]
+			if !found {
+				if b, bound := bindings[name]; bound {
+					return remember(b.digest), nil
+				}
+				return remember(""), nil
+			}
+			if visited[name] {
+				return "", fmt.Errorf("alias chain revisits %q", name)
+			}
+			visited[name] = true
+			chain = append(chain, name)
+			term = alias.Term
+		}
+		seen = visited
 		parts, ok := term.([]any)
 		if !ok || len(parts) != 3 {
-			return "", nil
+			return remember(""), nil
 		}
 		if head, _ := asString(parts[0]); head != "APPLY" {
-			return "", nil
+			return remember(""), nil
 		}
 		left, err := resolve(parts[1], seen)
-		if err != nil || left == "" {
+		if err != nil {
 			return "", err
 		}
+		if left == "" {
+			return remember(""), nil
+		}
 		right, err := resolve(parts[2], seen)
-		if err != nil || right == "" {
+		if err != nil {
 			return "", err
+		}
+		if right == "" {
+			return remember(""), nil
 		}
 		leftBytes, err1 := hex.DecodeString(left)
 		rightBytes, err2 := hex.DecodeString(right)
@@ -863,7 +898,7 @@ func loadAnnotationProfile(table map[string]aliasDef,
 		buf := append([]byte{0x02, 0x06}, leftBytes...)
 		buf = append(buf, rightBytes...)
 		sum := sha256.Sum256(buf)
-		return hex.EncodeToString(sum[:]), nil
+		return remember(hex.EncodeToString(sum[:])), nil
 	}
 
 	pins := map[string]map[string]any{}

@@ -386,12 +386,31 @@ def main():
         full_pins={}, node_pins=declared)
     chk("a synonym at the declared hash yields one entry",
         synonym == {"a" * 64: {"ph": 8192}}, str(synonym))
-    long_chain = {f"L{i}": (f"L{i + 1}", {"ph": 8192}) for i in range(64)}
-    long_chain["L64"] = ("SATOSHI", {"ph": 8192})
-    chk("a long acyclic alias chain is admitted (no invented depth limit)",
+    # Longer than the interpreter's own recursion ceiling, because that ceiling
+    # WAS the invented limit. A 65-link chain — chosen to clear an earlier
+    # guard of 64 — passed while 1100 links raised RecursionError, under a
+    # control whose name said "no invented depth limit".
+    ceiling = sys.getrecursionlimit()
+    length = ceiling * 3
+    long_chain = {f"L{i}": (f"L{i + 1}", {"ph": 8192}) for i in range(length)}
+    long_chain[f"L{length}"] = ("SATOSHI", {"ph": 8192})
+    chk(f"an acyclic alias chain of {length} links is admitted "
+        f"(recursion limit is {ceiling})",
         wave_module.load_annotation_profile(
             alias_table=long_chain, full_pins={}, node_pins=declared)
         == {"a" * 64: {"ph": 8192}})
+
+    # A cycle can run through a structure, not only along a chain.
+    try:
+        wave_module.load_annotation_profile(
+            alias_table={"A": (["APPLY", "A", "I"], {"ph": 1})},
+            full_pins={}, node_pins={})
+        chk("a cycle through an APPLY is refused as a cycle", False, "admitted")
+    except wave_module.AliasCycle:
+        chk("a cycle through an APPLY is refused as a cycle", True)
+    except RecursionError:
+        chk("a cycle through an APPLY is refused as a cycle", False,
+            "RecursionError, so it is not detected as a cycle")
     reused = wave_module.load_annotation_profile(
         alias_table={"BOTH": (["APPLY", "SATOSHI", "SATOSHI"], {"ph": 2})},
         full_pins={}, node_pins=declared)
