@@ -113,11 +113,20 @@ and environment (or a concrete document state) plus the two different results \
 two conforming implementations would produce. A severity claim with no \
 counterexample is a P2.
 
-End your review with exactly one line, alone, of the form:
+**State your verdict on the FIRST line of your reply, and repeat it as the LAST \
+line.** Both must be identical and each must stand alone:
 
 VERDICT: ADOPT
 VERDICT: ADOPT-WITH-AMENDMENTS
 VERDICT: REJECT
+
+The first line is not a summary you may revise: write the verdict you would give \
+after reasoning, then reason, then repeat it. If reasoning changes your mind, \
+say so explicitly in the body and let the LAST line carry the change — a \
+disagreement between the two is recorded as a change of mind, not an error. This \
+is asked because a reviewer that reasons past its reply budget delivers nothing \
+at all, and a truncated review with a verdict at the top is worth more than a \
+complete one nobody receives.
 
 ADOPT-WITH-AMENDMENTS means every P0 is absent and the P1s you list are, in your \
 judgement, fixable by editing the text without changing what the machine does. \
@@ -180,16 +189,7 @@ def check_freeze(freeze):
 
 
 def build_prompt():
-    # Against the WORKING TREE, not HEAD. The files whose digests `check_freeze`
-    # has just verified are the ones on disk; diffing HEAD instead made the
-    # prompt depend on which commit happened to be checked out, so re-running
-    # the tool after any later commit produced a different prompt for the same
-    # frozen bytes — and silently overwrote the record of what a reviewer saw.
-    diff = subprocess.run(
-        ["git", "-C", str(ROOT), "diff", "v0.6.7", "--",
-         "spec/book-1-truth.md", "spec/book-2-navigation.md",
-         "spec/book-3-federation.md"],
-        capture_output=True, text=True, check=True).stdout
+
     sources = "\n\n".join(
         f"===== FILE: {p} (sha256 {digest(p)}) =====\n{(ROOT / p).read_text()}"
         for p in SOURCES)
@@ -200,10 +200,13 @@ carries no signature.
 The adopted release is v0.6.7 (Book I 0.5.2, Books II and III 0.6.1). The \
 candidate is v0.7.0 (Book I 0.6.0, Books II and III 0.7.0).
 
-THE CHANGE, as a diff of the three normative Books against the adopted release:
-
-```diff
-{diff}```
+**The subject of this review is the text below, exactly as it stands.** Earlier \
+rounds put a unified diff at the top of this prompt, and a reviewer read a line \
+prefixed `-` — a DELETION — as the current specification and raised a P0 about \
+a sentence that is not in the bytes. There is no diff here. What the candidate \
+changed, and why, is argued in its own ADR below; what the candidate SAYS is the \
+Book text below. Where the two disagree, the Book text is the specification and \
+the ADR is a claim about it.
 
 THE CANDIDATE'S OWN ARGUMENT, and then the full text of every Book at the \
 candidate revision, plus the versioning rules and the governance profile:
@@ -258,15 +261,34 @@ def no_verdict_reason(error, decision):
         return error
     if decision:
         return None
-    return "the response carries no single well-formed VERDICT line"
+    return ("the response carries no well-formed VERDICT line, at the head "
+            "or the tail")
+
+
+VERDICT_LINE = re.compile(
+    r"^\**VERDICT:\**\s*\**(ADOPT-WITH-AMENDMENTS|ADOPT|REJECT)\**\s*$", re.M)
 
 
 def verdict_of(text):
-    found = re.findall(r"^VERDICT:\s*(ADOPT-WITH-AMENDMENTS|ADOPT|REJECT)\s*$",
-                       text, re.M)
-    if len(found) != 1:
-        return None
-    return found[0]
+    """The reviewer's verdict, preferring the LAST statement of it.
+
+    From round 6 the verdict is asked for at the head as well as the tail, so a
+    reviewer cut off mid-reasoning still delivers one. The previous parser
+    required EXACTLY ONE such line and returned None otherwise -- against the new
+    instruction that would have scored every well-formed review NO VERDICT.
+
+    When head and tail differ the reviewer changed its mind while reasoning; the
+    last word is the verdict, and `verdict_positions` records both so the change
+    is visible instead of silently resolved.
+    """
+    found = VERDICT_LINE.findall(text)
+    return found[-1] if found else None
+
+
+def verdict_positions(text):
+    """(first, last) verdicts stated. Either may be None."""
+    found = VERDICT_LINE.findall(text)
+    return (found[0], found[-1]) if found else (None, None)
 
 
 def keep_prompt(path, text):
@@ -323,6 +345,7 @@ def review_one(freeze, family, model, context):
     except (OSError, RuntimeError, ValueError, LookupError) as failure:
         text, answered_by, finish, error = "", model, None, str(failure)
     decision = verdict_of(text) if text else None
+    first_verdict, last_verdict = verdict_positions(text) if text else (None, None)
     record = {
         "family": family,
         "model_requested": model,
@@ -339,6 +362,11 @@ def review_one(freeze, family, model, context):
         "response_sha256": (hashlib.sha256(text.encode()).hexdigest()
                             if text else None),
         "verdict": decision or "NO VERDICT",
+        "verdict_first_stated": first_verdict,
+        "verdict_last_stated": last_verdict,
+        "changed_mind_while_reasoning": (
+            True if first_verdict and last_verdict and first_verdict != last_verdict
+            else None),
         "no_verdict_reason": no_verdict_reason(error, decision),
     }
     header = "\n".join(f"{k}: {v}" for k, v in record.items() if v is not None)
