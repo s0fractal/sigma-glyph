@@ -1,0 +1,512 @@
+We need answer verdict on first line, repeat last. Need review candidate normative spec. We must analyze thoroughly. Need decide ADOPT/ADOPT-WITH-AMENDMENTS/REJECT. Need identify P0/P1 with concrete counterexamples. Candidate includes Book I v0.6.0 Ukrainian normative, English rendering, Book II 0.7.0, Book III 0.7.0, VERSIONS, GOV-anchors unchanged, ADR. We need judge text exactly. Need not use CI. We can check arithmetic/bytes.
+
+We need focus on possible contradictions. We need inspect normative texts deeply.
+
+We have huge prompt. Let's parse.
+
+Candidate changes from v0.6.7 to v0.7.0:
+- Book I: eval takes env, receipt, semantic bound, refusal, arbtration rule replaced, suite schema, exit/outcome, etc.
+- Books II/III: arbitration rule, schema files, structural pin complete fix, etc.
+- VERSIONS updates.
+- GOV-anchors unchanged with old pins.
+
+We need find P0/P1. Must maybe assume exact text.
+
+Let's read Book I normative Ukrainian? It is normative; English informative. We can use English, but conflict if English diverges from Ukrainian; if divergence, finding maybe P1? We need check translations? We can compare some things. The English says same hashes etc. Need identify perhaps English rendering has subtle discrepancy with Ukrainian normative? But English not normative; if it differs, the candidate says "carries same requirements"; disagreement is finding. But severity? It is informative; only if it changes implementer? It says canonical source governs. So maybe P1/P2 if translation says something wrong, but low.
+
+Need review candidate as normative spec. Potential issues.
+
+Let's examine Book I.
+
+Key parts:
+
+§3.4 ATP interface:
+`eval(term_hash, atp: uint32, env)` -> Receipt.
+`env` partial map NodeHash -> bytes with property `SHA-256(bytes) = key` for every entry.
+
+§3.5:
+- raw buffer check before validation; invalid buffer not violate property.
+- bytes under key they do not hash to MUST NOT be evaluated as that key's node; property checked for every hash evaluation actually resolves; mismatch on resolved hash MUST local refusal (§3.6), not canonical result.
+- undemanded entry MUST NOT change canonical Receipt. A verifier may decline env for own reasons including wider check; admission §3.6 no Receipt.
+- determinism over demanded environment.
+- extension can change only unresolved_reference; settled exit stable under extension preserving answers to already demanded hashes.
+- failure modes: (a) h not found and not intrinsic → DISSONANCE(Unresolved Reference); (b) bytes fail validation → Canonical Invalid Object, priced 1 force.
+
+Potential issue: when resolving a hash, if bytes don't hash to key: local refusal. But what about invalid buffer that does hash to key? Failure b. Fine.
+
+Potential issue: `resolve(h)` / `force(h)` with `h` intrinsic: must serve without storage. §5.1.
+
+Potential issue: What is "already-demanded hashes" in extension stability? "any extension that preserves answers to already-demanded hashes." If extension changes unresolved result to normal by adding a demanded hash previously absent, that extension does not preserve answer to already-demanded hashes? The old execution demanded the missing hash and got absent; adding it changes answer. So it can change unresolved_reference. Fine.
+
+Potential arithmetic in TV examples. We can check some.
+
+Need search for contradictions:
+- §3.4 says out-of-domain atp must be refused before environment and not canonical exit. §3.6 says atp not uint32, term_hash not 32 bytes MUST be refused same way. Does §3.4 also permit single step price > 2³²−1 unreachable: "Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined." But `atp` uint32 max 2^32-1. Step price c cannot exceed? They say unreachable for any canonical budget -> ATP Exhausted. But if c > max budget? Actually if c > atp-spent, exhaustion before action. If c > 2^32-1, for any atp <= max, c > atp-spent, so ATP Exhausted. Fine. But some might think step price can exceed max? ok.
+
+- In §3.3 step: if t = REF(h): fire R-R → thunk(h), one level. But then next step if thunk(h) with h intrinsic? If h in H(I)/H(K)/H(S): none. If h is normal? `none`: means t normal? Wait if t=thunk(h), if h ∈ {intrinsic} then none; else force(h). force(h) materializes one node. Fine.
+
+Potential issue: REF chain pricing and `force h` cost includes "size of materialized node with thunk children". For REF node, force cost = 2 (node + thunk target). Then R-R cost 1. If REF target is intrinsic maybe no force? TV-12 bare intrinsic thunk: eval(H(I), n) = <I>, 0 ATP. Fine.
+
+Potential P0: Definition of "content environment" says partial map from NodeHash to bytes with property SHA-256(bytes)=key for every entry. But later says "question 'do these bytes belong under this key' has no canonical answer" and "mismatch detected on resolved hash". Is the property normative? It says env with property. But then says mismatch on resolved hash yields local refusal. If env MUST have property globally, any mismatch means input not in domain and local refusal? They try define property checked per demanded. But "bytes under a key they do not hash to MUST NOT be evaluated..." Fine. However the first sentence says env is a partial map with one property: SHA-256(bytes)=key for every entry. Then later they say undemanded entry does not affect result, and verifier may decline if wider check. So an environment containing a poisoned entry that is never demanded: Is it "content environment" per §3.5? The first sentence says the property is for every entry, so such an env is not valid. But they say an entry never demanded MUST NOT change any Receipt; not forbid such entry. Actually they say "That does not forbid a verifier from declining..." This implies a non-property env is still an "environment"? Need parse Ukrainian/English: "`env` — часткове відображення хеш → байти з однією властивістю: `SHA-256(bytes) = key` для кожного запису." That is a definition of content environment: all entries satisfy. Then "Байти під ключем, у який вони не хешуються, MUST NOT виконуватися..." Maybe they acknowledge input might violate property? They say "Bytes under a key they do not hash to MUST NOT be evaluated as that key's node..." This is a correctness requirement. Later "перевіряється для кожного хеша, який виконання фактично розв'язує, і виявлена невідповідність ... локальну відмову". So implementation must check per resolved hash. Undemanded entry "does not change canonical Receipt". If env contains undemanded poisoned entry, does that violate the property and make env not content environment? It would, but they specify can ignore. They also say "за однакових відповідей на вимагані хеші дві конформні реалізації повертають той самий Receipt, хоч би що ще лежало в середовищі." Suggests env may contain poisoned undemanded entries and still produce Receipt. So the "property for every entry" is not an input validity requirement; it's a property demanded hashes must have. Wording ambiguous but fixed in ADR round 2. They removed contradiction by distinguishing result vs admission. It's okay maybe.
+
+Potential P0: `result_hash` of unresolved reference / ATP exhausted: Receipt includes result_hash. For `atp_exhausted`, what is result_hash? Text says result_hash is NodeHash of term machine returned. Section §3.4 says exhaustion result `DISSONANCE(ATP Exhausted)`? In rules "result is DISSONANCE(ATP Exhausted) with spent unchanged." Is result_hash = hash of DISSONANCE(ATP Exhausted)? likely yes. For unresolved_reference, result_hash = hash of DISSONANCE(Unresolved Reference)? But maybe Receipt.result_hash "NodeHash of term machine returned" and the term is DISSONANCE node. Fine.
+
+Potential issue: if `eval(term_hash, atp, env)` where `term_hash` itself is intrinsic? At §3.3 thunk with intrinsic hash normal form without materialization. In §3.4 TV-12: `eval(H(I), n)` = ⟨I⟩, 0 ATP. Fine.
+
+Potential issue: `term_hash` input itself might point to bytes in env that hash to key; if term_hash is an APPLY with children, force root if needed. Good.
+
+Potential issue: What if `term_hash` is not a valid NodeHash? length not 32 -> refusal. What if term_hash is 32 bytes but not in env and not intrinsic? Root is a thunk. Leftmost step: if t=thunk(h), h not intrinsic -> force h. Since h not found → DISSONANCE(Unresolved Reference). So canonical unresolved. Fine.
+
+Potential issue: what about `term_hash` being a hash of invalid bytes? If bytes in env for key h (hash matches h) but fail validation -> Canonical Invalid Object, exit normal_form, outcome invalid_object. Good.
+
+Potential P0: There is a statement in §3.4: "A single step whose price exceeds 2³²−1 is unreachable for any canonical budget → ATP Exhausted, not implementation-defined." But they earlier say step price c > atp−spent not performed, result ATP Exhausted. If c > 2^32-1, since atp <= 2^32-1, c > atp-spent always, so ATP Exhausted. Fine. But "not implementation-defined" maybe okay.
+
+Potential arithmetic: Check TV-4 I·K:
+- `APPLY(⟨I⟩,⟨K⟩)` hash given. Budget 4 ATP. Execution: root thunk h -> force root (cost size(APPLY with thunk children) = 1 + thunk? size of APPLY with thunk-left/right = 1+1+1=3) cost 3. then root APPLY I K matches R-I at root, fire R-I cost 1. total 4. result K. Good.
+- eval atp=0: root thunk? Initially t=thunk(h); step: if h not intrinsic, force h. Exhaustion check before action: c=3 > 0-0 -> ATP Exhausted, spent 0 no storage access. Good.
+- atp=2 force c=3 >2 -> exhausted spent 0; "root bytes discarded" maybe force cost known only after fetching bytes? Wait they say "When cost of force becomes known only after fetching bytes, bytes unaffordable under budget are discarded without materialization". For APPLY, cost 3 before materialize? Need know type from bytes. They said "when cost of force becomes known only after fetching bytes (the node's kind), bytes unaffordable ... discarded". So atp=2 fetch root bytes, detect APPLY cost 3 > 2, discard, spent 0. Fine.
+- atp=3: force cost 3 exactly <= atp-spent? atp=3 spent0, c=3 allowed. After force spent=3, current term APPLY(I,K); next step sees R-I at root? c=1 > atp-spent (0)? 1 > 0 yes, so before action ATP Exhausted, spent 3. Result DISSONANCE(ATP Exhausted), spent 3. Good.
+
+TV-5 SKK·I:
+term `APPLY(APPLY(⟨S⟩,⟨K⟩),⟨K⟩)`? Wait notation `SKK·I` maybe `S K K I` = (((S K) K) I). Actually SKK = S K K = ((S K) K). Then applied to I = (((S K) K) I). Hash given. eval(·,12)=⟨I⟩, 12 ATP (3 force по 3 + R-S 2 + R-K 1). Let's compute possible.
+Root APPLY (left = ((S K) K), right = I). Force root cost 3. spent3. Now root is APPLY. Search left. Left node is APPLY (left = (S K), right=K). Not redex at root? It is APPLY. descend left spine: force left node cost 3. spent6. Left-left node is APPLY(S,K) maybe root of S K? Need force? We eventually need identify left-left = (S K) = APPLY(S,K). Force cost 3. spent9. Now S (APPLY S K) has function S; need argument K perhaps thunk? We might not force K because to match S at root need three args? Let's trace. We need apply S to K? Actually term (((S K) K) I). Leftmost-outermost: The spine: t0=APPLY(A0,I) where A0=APPLY(B0,K) where B0=APPLY(S,K) maybe? Identification by hashes requires materialize each APPLY. Then at B0 = APPLY(S,K) maybe root is APPLY with left S, right K. Does S match? It's APPLY at root, no R-I/R-K/R-S? For R-S needs APPLY(APPLY(APPLY(S,x),y),z). At B0 only two args, not enough. step(B0): since left S is intrinsic thunk -> step(S thunk) none? f is normal? Actually step(f) for S thunk h∈intrinsic => none. step(a K thunk intrinsic) => none. So B0 no redex, normal. Then back to A0? Actually machine step algorithm: at t=APPLY(f,a): if step(f) exists act; elif step(a) exists act; else none. At B0, step(left S) none, step(right K) none => none, normal. Then current search? Need maybe whole tree? Hmm. To fire R-S, root must match S with three args. It requires constructing? Maybe force left spine until B0 normal and then maybe right? Actually root A0 applies B0 to K. A0 = B0 K. B0 normal. Then apply K to I? Wait term (((S K) K) I): this is A0 I, A0=(S K) K. R-S fire at root A0 I? For R-S pattern: APPLY(APPLY(APPLY(S,x),y), z): root = APPLY(APPLY(APPLY(S,K),K),I)? Wait parentheses: `S K K I` left-associative: (((S K) K) I). That is:
+root APPLY( f = ((S K) K), a = I )
+f = APPLY( g = (S K), a = K )
+g = APPLY( S, K )
+At g (S K): has only 2 of 3? Actually R-S needs APPLY(APPLY(APPLY(S,x),y),z), root with three APPLY nodes. g is just (S K), so no redex. But f = ((S K) K) = g K. Does this match R-S with x=K? Wait R-S pattern: APPLY(APPLY(APPLY(S,x),y),z). Here outermost APPLY at f: f = APPLY(g,K) where g=(S K)? That's APPLY(S,K)=g (first arg), y=K? Wait pattern requires left=APPLY(APPLY(S,x),y)? Let's label:
+R-S: APPLY(APPLY(APPLY(S,x),y), z)
+Left operand = APPLY(APPLY(S,x),y) (a two-arg APPLY chain).
+Our f = APPLY(g, K), where g=APPLY(S,K). So left operand = g = APPLY(S,K) (only one-arg apply S). Not matching.
+Maybe SKK I actually = ((S K) K) I: R-S applies only when S has three args? Actually SKI: S x y z = ((S x) y) z. At root term ((S K) K) I: This is S K K I = ((S K) K) I. For R-S, node t = APPLY(APPLY(APPLY(S,K),K),I)? Wait root is APPLY( f, I ) where f = APPLY(g,K) and g=APPLY(S,K). So f = ((S K) K). That's not applying S to two? It is S K K = (S K) K (two args to S). R-S triggers when S has three args, requiring root with three APPLY: APPLY(APPLY(APPLY(S,K),K),I)? Let's count root: root APPLY( f, I). f = APPLY( g, K ), g=APPLY(S,K). That's exactly: root left = APPLY(APPLY(S,K),K). Yes root = APPLY(APPLY(APPLY(S,K),K), I). So R-S pattern matches at root after recognizing S,K,I? Wait pattern root = APPLY(APPLY(APPLY(S,x),y),z) where innermost g=APPLY(S,x). In our tree root left f = APPLY(g,K). root = APPLY(f,I). So innermost is g=APPLY(S,K) = APPLY(S,x)? x=K. Then f=APPLY(APPLY(S,K),K), root=APPLY(...,I). Yes matches. So R-S at root after left spine forced? To match, need compare left-left-left S hash, left-left? Actually pattern matching is hash compares; arguments NOT forced. To know root matches R-S, it must know structure: root is APPLY, left f is APPLY, left of f (g) is APPLY, left of g is S hash etc. This requires materializing nodes f and g maybe? At initial root forced, then to match root as R-S, need inspect left child f; f is thunk? We force f? But f is left child of root, demanded by pattern. §3.3 says "patterns are hash comparisons, arguments NOT forced". Need know x,y,z? We need compare hashes of left children maybe without forcing? But f is a thunk? It is an unresolved hash representing a node that may be APPLY. To match root R-S, must know if left child f is APPLY, meaning force f. Then force g. Thus 3 force for root, f, g? The root force cost 3. Then step root? Wait after root force, current t=root APPLY. The step function sees t is APPLY, not redex yet? It hasn't recognized children? It checks `elif t matches R-I|R-K|R-S at root`. To match R-S at root, it may need materialize left child f and g? In abstract algorithm §3.3 pseudocode: step(t) at t=APPLY(f,a): if step(f) exists act; elif step(a)...; else none. That descends left spine immediately without matching root? It descends via step(f) before matching at root. Actually after materializing root, step(root): since root is APPLY, not REF, not thunk. It checks if t matches R-I/R-K/R-S at root. If it doesn't? Hmm the pseudocode order: first if thunk, elif REF, elif matches at root, elif APPLY(f,a): ... Wait it checks matches BEFORE descending. Does root match R-S? It could if children are known as hashes? Perhaps structural: root is APPLY(f,a); to check R-S, need know if f is APPLY(g,y), g is APPLY(⟨S⟩,x). But f and g are thunks if not forced. Yet pattern recognition by hash comparison maybe possible if f is a thunk (hash) but need know whether f itself is APPLY. You cannot know f is APPLY without forcing. However f is a child of root; when materializing root, its left/right are stored as hashes (thunks). The node representation includes child hashes, but not child opcodes. So cannot pattern match R-S until f is forced. Thus the algorithm first descends left spine (force f, force g) maybe until something. Let's simulate cost according to TV: three forces cost 3 each = 9, then R-S cost 1+size(z)=? z is K? Wait R-S cost = 1 + size(z) where z in current materialization; z in pattern is the third argument I? Actually root APPLY(APPLY(APPLY(⟨S⟩, x), y), z): z = I? In SKK I: x=K, y=K, z=I. After R-S, result APPLY(APPLY(x,z), APPLY(y,z)). They said "R-S cost 2" in TV-5. So size(z)=1 (z is thunk I), cost 1+1=2. Then R-K cost 1. Total 9+2+1=12. Which R-K? After R-S: APPLY(APPLY(K,I), APPLY(K,I))? Wait x=K,z=I -> first APPLY(K,I), y=K,z=I -> second APPLY(K,I). Then reduction leftmost? Actually result is APPLY(APPLY(K,I), APPLY(K,I)). This is FALSE FALSE? Then leftmost outer root: left = APPLY(K,I). R-K at left child? Wait term is A B where A=(K I), B=(K I). Leftmost-outermost: A = K I, is R-K? R-K pattern APPLY(APPLY(K,x), y) requires three args? Actually K I is K applied to one arg, no redex unless applied to two? Wait K x y -> x. (K I) by itself is a normal form? K I is partial application, no reduction. So then maybe no R-K? Hmm our result should be I? Let's check SKI: S K K I = K I (K I)? Wait S K K I -> K I (K I)? Then K I (K I) -> I. Actually term after R-S is `K I (K I)`, i.e., root APPLY(APPLY(K,I), APPLY(K,I)). That reduces via R-K at root with x=I, y=APPLY(K,I), result I. So R-K fire at root, cost 1. Total 12. Good.
+
+TV-6 Duplication Stress `S I I (I·K)`:
+Term maybe (((S I) I) (I K)). It promises 21 ATP. Let's trust.
+
+Potential P0 in TV-8:
+`APPLY(⟨I⟩, ghost)` when ghost absent -> DISSONANCE(Unresolved Reference), spent 4: "R-I fires lazily WITHOUT forcing ghost, then ghost becomes demanded root and is not forced." Wait if root is APPLY(I, ghost). Force root cost 3. Then step sees matches R-I? R-I pattern APPLY(⟨I⟩, x) -> x. Yes at root, fires cost 1, result ghost thunk. spent 4. Then next step t=thunk(ghost), h not intrinsic -> force h; ghost absent -> failure mode (a): DISSONANCE(Unresolved Reference). Is that an action? "A failed action (resolve failure) is not priced." So spent remains 4. They state spent 4. exit unresolved_reference. Good. But "R-I fires lazily WITHOUT forcing ghost" yes.
+
+Potential P0: In §3.3 step, when `t=APPLY(f,a)`, it says "elif step(f) exists: act in f; elif step(a) exists: act in a". This ordering is leftmost-outermost. But if f is an APPLY whose left child is intrinsic etc. Fine.
+
+Potential P0: When t = REF(h): fire R-R -> thunk(h), one level. But if h absent and not intrinsic, after R-R, thunk(h) then force -> unresolved. This prices R-R 1. Good. But if h = intrinsic, after R-R thunk(h), step says if h ∈ intrinsic: none. This means term normal? But if actual t remains? Wait R-R fired, term becomes thunk(h); then next step sees thunk(h) intrinsic and "none" means normal form without materialization, so REF(H(K)) reduces to K normal with cost force REF (2) + R-R (1). TV-12 says eval(REF(H(K))) = K, 3 ATP. Yes.
+
+Potential P0: In §3.4 exhaustion rule: "Минимальна ціна будь-якої дії — 1, тому при spent == atp вичерпання вирішується до будь-якого звернення до сховища (`eval(REF(missing), 0)` = ATP Exhausted)." But for `eval(REF(missing), 0)`, initial t=thunk(term_hash) maybe term_hash is REF node whose bytes are in env? Wait `eval(REF(missing), 0)`: the input term_hash is hash of a REF node in store. At start t=thunk(h). h not intrinsic -> force h. But atp=0, c for force REF = 2? Exhaustion c=2>0, so ATP Exhausted spent0, no storage. Good. They wrote REF(missing) maybe term already known? Fine.
+
+Potential issue: "The minimum price of any action is 1" but force cost for LITERAL/DISSONANCE =1, APPLY=3. Good.
+
+Potential P0: Book I §3.5 says if bytes under key don't hash to key, mismatch on resolved hash MUST local refusal. But §3.6 says local refusal (admission) is outside eval and no Receipt. Thus if evaluation attempts to resolve poisoned hash, the evaluator must return no Receipt. But `eval` is total? §3.4 says "eval тотальний: жодна внутрішня відмова MUST NOT покидати eval інакше, ніж канонічним DISSONANCE." This says internal failure MUST NOT leave eval except canonical DISSONANCE. But §3.5/3.6 says local refusal on input/domain/admission is not canonical. Is poisoned env an "internal failure"? They distinguish: `eval` total for valid domain? Actually §3.6 "eval тотальний" maybe all valid inputs? But it says "no internal failure leaves eval except canonical DISSONANCE". Is mismatch a local refusal with no Receipt? They state "виявлена невідповідність на розв'язаному хеші MUST давати локальну відмову (§3.6), а не канонічний результат." So it leaves eval as refusal, not canonical. That seems contradicts `eval` total. But maybe `eval` total over declared domain, and env with poisoned key is outside domain? Yet they call it local refusal, not canonical. Need assess severity. Two conforming implementations? Since refusal is not canonical; but if input outside domain, no canonical requirement? However text says env MUST have property; so poisoned env is not content environment? Then it's outside domain, can be refused. `eval` total applies to content environments maybe valid ones; but they say internal failures not leave as non-DISSONANCE. Is mismatch an input-domain refusal, not internal failure. Could be okay but wording ambiguous.
+
+Let's parse Ukrainian §3.4: "`eval` тотальний: жодна внутрішня відмова MUST NOT покидати `eval` інакше, ніж канонічним `DISSONANCE`." Internal failure = implementation fault? §3.6 says local resource limits are implementation fault, not DISSONANCE. Wait there is direct tension within §3.4/3.6: §3.4 says eval total, internal failure MUST only canonical DISSONANCE. §3.6 says implementation fault MUST NOT be serialized as DISSONANCE. What is "internal failure"? Maybe refers to something else. Let's read §3.6 first: "Канонічні результати — лише три з §3.4. Порушення локальних ресурсних лімітів реалізації (глибина, кількість fetch) — **implementation fault**: відмова виконання, яка MUST NOT серіалізуватися як DISSONANCE." So if implementation hits local resource limit, it refuses, not DISSONANCE. §3.4: "eval тотальний: жодна внутрішня відмова MUST NOT покидати eval інакше, ніж канонічним DISSONANCE." Then paragraph says "The v0.4.5 discipline, inherited with variable prices." Could parse internal failure as deterministic eval bug? Hmm. This is a potential contradiction: one sentence says an internal failure must become DISSONANCE; another says implementation faults (which could be internal) must not. But maybe "internal failure" = failure within eval due to term semantics? Need identify.
+
+Actually "жодна внутрішня відмова MUST NOT покидати eval інакше, ніж канонічним DISSONANCE" = any internal failure must not leave eval otherwise than a canonical DISSONANCE. That is: if eval fails internally, it must produce a canonical DISSONANCE (not propagate error). But §3.6 says implementation fault must not be DISSONANCE. So contradiction? Could be "internal failure" means e.g. a rule firing impossible, not resource limits. But undefined.
+
+Could be P0? Need concrete counterexample? To have two conforming implementations disagree, need input where one serializes implementation fault as DISSONANCE and other refuses, perhaps both? But if spec ambiguous, P1/P2? Severity requires disagreement. We can formulate a term/environment triggering local resource limit: an implementation-defined limit e.g. fetch count. One implementation follows §3.4 and returns DISSONANCE? Which DISSONANCE? No canonical reason for local fault. Another refuses per §3.6. That's disagreement? But resource limits are local policy, so no canonical result required; they might refuse differently. The text says concrete limits outside Book. So not a consensus divergence because not part of consensus? Maybe P1.
+
+Let's keep looking.
+
+Potential P0 in Book II / III.
+
+Book II §2 Priority: Pin > Derived field-by-field. Formula `wave(APPLY(f,a)) = complete(interfere(wave(f), wave(a)), pin(APPLY(f,a)))`. §8? Book II §6.2 FALSE Pin only Ph=49152; Am/En derived. §6.2 says derived gives am=0, en=-32512. Let's verify:
+wave(K) = {ph=32768, am=65535, en=-32768}
+wave(I) = {ph=0, am=65535, en=-32768}
+interfere(w1=K, w2=I):
+new_ph = 32768.
+x = int32 32768 - int32 0 = 32768; d32 = 32768; delta = min(32768, 65536-32768=32768)=32768.
+r = LUT_COS[32768] = -32767 (per LUT anchors [32768]=-32767).
+delta_en = div_round_half_up(-(-32767), 128) = div_round_half_up(32767,128). 128*256=32768, 128*255=32640, remainder127, 2r=254 >=128 -> q=255+1=256. So +256.
+new_en = clamp_i16(div_round_half_up(-32768 + -32768,2) + 256) = div_round_half_up(-65536,2) = -32768; +256 = -32512. clamp fine. am:
+amp_factor = div_round_half_up(int64(r+32767)*65535, 65534) = r+32767=0 -> 0.
+prod01 = div_round_half_up(65535*65535, 65535) = 65535.
+new_am = div_round_half_up(65535*0,65535)=0. Good. So FALSE en -32512.
+
+Now the candidate claims round 6 fixed pins keyed by NodeHash etc. Book III §5 formula includes complete with pin. Book II §2 already had complete; maybe pre-existing omission in oracle? We need inspect Book II normative text. It includes §2 formula with complete. Book III §5 now includes complete. Good.
+
+Potential P0 in Book III §5:
+"Структурна гілка — це Книга II §2, а не лише `interfere` (MUST)." They say "Пошук Pin MUST вестися за NodeHash, і суперечність — це відмова профілю анотацій (MUST)." Good.
+
+Potential issue: Book III §5 formula:
+```
+wave_fed(APPLY(f,a)) =
+  selected(APPLY(f,a), J, P, E).wave              if direct assertion
+  complete(interfere(wave_fed(f), wave_fed(a)),   otherwise (structural derivation)
+           pin(APPLY(f,a)))
+```
+But "pin(APPLY(f,a))" should be lookup by NodeHash. They mention later. Fine.
+
+Potential P0: Book II §6.2 says "Am/En — виведені ... interfere(wave(K), wave(I))..." This yields am=0 en=-32512. Good. But Book III §5 structural branch says if direct assertion absent, `complete(interfere(wave_fed(f), wave_fed(a)), pin(APPLY(f,a)))`. If wave_fed(f) or wave_fed(a) absent, interfere gives absent? Book II §2.1 says interfere with absent operand gives absent; then complete with pin? Need check: Book III §5 says "absent-операнд → absent". If one operand absent, result absent. But what if pin at APPLY node exists (e.g. FALSE has pin on ph; f=K, a=I both have waves; okay). If a pin exists on an APPLY but one child absent, should pin still apply? Book II §2 priority says Pin > Derived field-by-field. If derived absent but Pin has fields, complete substitutes fields from Pin. It may still produce a partial annotation. But Book III formula says if structural derivation and operand absent -> absent; likely overrides pin? Let's check text: `interfere(wave_fed(f), wave_fed(a))` then `complete(..., pin(...))`; they add "absent-операнд → absent". The parenthesis says structural derivation — exactly the derived case of Book II §2, together with Pin; absent-operand → absent. In Book II §2.1: "interfere з відсутнім операндом дає відсутню результуючу хвилю; вузли без хвилі..." But with Pin? Does complete with pin produce partial? In Book II §2 formula for wave(APPLY(f,a)): derived = complete(interfere(wave(f), wave(a)), pin). If interfere returns absent (because one operand absent), then complete with pin? If pin has fields, complete substitutes those fields, leaving others absent. So result could be a partial wave with only pin fields. But §2.1 says "For nodes not APPLY and no Pin wave absent." It doesn't explicitly say what happens when interfere one operand absent in the derived formula. It says "interfere with absent operand gives absent resulting wave; nodes without wave...". Then complete with Pin: Pin has priority field-by-field, so if derived absent, all computed fields absent; pin fields present. Could be partial wave (valid? WavePin partial?). But §1 WaveAnnotation is WaveVectorQ full? WavePin partial used in pins. Effective wave is full vector? Book II §6.2 false pin only ph; derived am/en. So complete can produce full if derived has am/en. If both derived absent and pin only ph, effective wave partial. Is that a legitimate "WaveAnnotation"? Book II says Pin is partial. Effective wave may be partial. Hmm.
+
+This might matter for false pin on an APPLY missing child? But pins defined for known nodes. Maybe not P0.
+
+Potential issue: Book II §10 says `interfere()` applied exclusively to structural derivation, not merging assertions. Good.
+
+Potential P0: In Book III §5, direct assertion priority for leaf: "Assertion (jurisdiction) > Pin (default zero jurisdiction, Book II §6, field-level per §2) > absent. Assertions are full vectors, so override pin entirely." Good.
+
+Potential P0 in Book III §4 Selection:
+Derivation steps. Candidate ADR says round 5 found real P0 in Book II/III identity by hash, fixed in round 6 by adding complete in Book III and structural pin. The text now includes.
+
+Need scrutinize candidate for consistency with own claims: It says "suite format goes to v3", "schema files anchored", "ANCHORS grows from 10 to 13." But we don't have ANCHORS.txt content; not in prompt? We have only files listed. The candidate text says schemas are separate anchored files `spec/schemas/...`. Are those files present? Not included in prompt? The candidate subject is "full text of every Book at candidate revision, plus versioning rules and governance profile." It does NOT include the actual suite files or schema files. We must review normative books only; but Books reference external files as normative parts. The prompt says full text of every Book, plus VERSIONS, GOV. It doesn't include `tests/spec_conformance/vectors.json`, schemas, ANCHORS. But those are normative by reference. We are not given them. Are we to consider only text below? The instruction: "The subject of this review is the text below, exactly as it stands." It says candidate's ADR and then full text of every Book at candidate revision, plus versioning rules and governance profile. So maybe we cannot check vector files. We can still find internal issues in Books.
+
+But potential P0: Book I §7 says `tests/spec_conformance/vectors.json` is normative. We don't have it. The text says schema closed etc. Maybe absence of vectors files isn't in scope because not supplied? But a normative document referencing nonexistent files? The ADR claims files exist. As reviewer of text, maybe we should not assume. But prompt says candidate full text; we cannot verify files. It says "candidate revision... full text of every Book..." We can only review text. But if text defines normative dependencies that are not supplied, perhaps not a defect of the text itself.
+
+Need identify any P0/P1 in exact book text.
+
+Let's compare Ukrainian normative and English rendering for any inconsistency. If English differs, since English informative, maybe not severe; but the candidate claims "carries same requirements". If contradictory, maybe P1 because implementers using translation could diverge? But English says canonical source governs, and audit checks hashes/keywords/code; not all semantics. We could find semantic divergence.
+
+Let's systematically analyze sections.
+
+### Book I normative (Ukrainian) details.
+
+#### §1.1 SigmaNodeV2.
+OpCode, flags. Layout.
+
+Potential issue: `expected_len = 2 + 32·popcount(Flags & 0x07)`. But Flags & 0x07 includes bits. F_ATOM=1, F_LEFT=2, F_RIGHT=4. popcount of flags equals number of optional fields. For LITERAL flags=1 -> expected 34. REF flags=1 -> 34. APPLY flags=6 -> expected 2+32*2=66. DISSONANCE flags=1 ->34. Good.
+
+#### §1.2 invalid opcode.
+Unknown bytes -> Canonical Invalid Object. Fine.
+
+#### §2 NodeHash = SHA-256(CanonicalBytes). Good.
+
+#### §3.1 R-R one level per step.
+Pricing n chain 3n. Let's verify TV-9:
+store r1=REF(H(K)), r2=REF(r1); eval(r2,6)=K, 6 ATP (2 force по 2 + 2 R-R по 1). Each REF force cost 2 (node+thunk target) =2. Force r2 cost 2; R-R cost1 -> thunk r1; force r1 cost2; R-R cost1 -> thunk H(K); then thunk H(K) intrinsic normal. Spent 6. Good. eval(r2,1): initial force cost 2 >1 -> exhausted, spent0. Good.
+
+Potential P0: R-R target might be intrinsic; after R-R, thunk intrinsic normal without materialization. Fine.
+
+#### §3.3 Hash-thunk machine.
+Potential ambiguity: "actions" include "none"? Step returns none for normal form. For t=thunk(h) and h intrinsic: none. Does that count as action? No, no priced action. OK.
+
+Potential issue: when t=REF(h), always fires R-R, even if h intrinsic? Yes. Then term thunk(h). Next no action. Good.
+
+Potential issue: "args are NOT forced" for rule pattern. Good.
+
+Potential issue in step pseudocode: `if step(f) exists: act in f` but if f is a thunk, step(f) can force. If f is intrinsic, step returns none, then step(a) maybe. This yields normal form if both none. Good.
+
+Potential issue: "leftmost-outermost" but step on t=APPLY(f,a) always descends left spine even if left child is normal, then right. That is fine.
+
+Potential P0: When f is an APPLY whose left spine eventually reaches a thunk, step descends and forces? Actually step(f) if f is APPLY might itself descend; recursive. Fine.
+
+#### §3.4 semantics.
+
+Important: "`size` counts materialized nodes." Prices:
+- force h = size(materialized node with thunk children): 1 for LITERAL/DISSONANCE; 2 for REF; 3 for APPLY.
+- R-R=1
+- R-I=1
+- R-K=1
+- R-S=1 + size(z) where z in current materialization; thunks in z=1, not forced.
+
+Potential issue: R-S cost = 1 + size(z). But if z is a thunk, size=1, cost=2. If z is materialized APPLY size maybe >1. But R-S pattern says arguments not forced, so z in current materialization may already be materialized if demanded earlier? Could be. Fine.
+Potential issue: price R-S could exceed budget because size(z) large. Exhaustion check before action uses c = 1+size(z). size(z) can be computed from current materialization without forcing. OK.
+
+Potential issue: `size(APPLY) = 1 + size(left)+size(right)`. For force h with APPLY containing thunk children, size = 1 + 1 +1 =3. Good.
+
+Potential issue: "materialized REF counts as 2 (node + thunk of target)" consistent.
+
+Potential issue: "nodes synthesized by reductions count" for semantic bound. But what is cost increments? R-I result is x (already existing node reference), no new size? Actually term after R-I: result x (a node/thunk). If x is thunk, size maybe 1. Before R-I term size = size(APPLY(I,x)) = 1+0? I is thunk? need count. Bound holds if R-I cost 1 > increase maybe. Fine.
+
+Potential issue: "Every action costs strictly more than size it adds." For R-K? R-K discards argument, result x, maybe term size decreases. ok.
+
+Potential issue: "materialized_size(t) -1 ≤ spent" along execution. Let's test initial t=thunk(h). size(thunk)=1. spent=0 => 0 ≤0. Good. After force root APPLY with thunk children size=3; spent=3 => 2≤3; they write size −1 ≤ spent, yes 2≤3. OK.
+
+Potential issue: "spent — верхня, НЕ нижня межа розміру" They say spent is upper, not lower, bound on size. Wait bound `materialized_size(t) − 1 ≤ spent` means `materialized_size ≤ spent +1`, so spent is a lower bound on? Actually spent >= size-1, so spent is an upper bound? No: If size-1 ≤ spent, then spent ≥ size-1. So spent is greater or equal to size-1; spent is an upper bound on size-1, i.e., spent is an upper bound on size? If size-1 ≤ spent => size ≤ spent+1. So `spent` itself is NOT an upper bound on size; `spent+1` is. Their sentence in English: "`spent` is an upper, NOT a lower, bound on size" — This contradicts the inequality: if size-1 ≤ spent, then spent is a lower bound on size-1? Let's be precise. Inequality: size - 1 ≤ spent. So spent is an upper bound on (size - 1), yes: spent >= something. That means spent is a lower bound on? No, "spent is an upper bound on X" means X ≤ spent. Yes! `size - 1 ≤ spent` means X=size-1 is bounded above by spent, so spent is an upper bound on size-1. It implies size ≤ spent + 1. Therefore spent is not an upper bound on size itself; spent+1 is. But phrase "спent — верхня, НЕ нижня межа розміру" literally "spent — upper, NOT lower bound of size" is false/misstated? Ukrainian text: "але `spent` — верхня, НЕ нижня межа розміру, тож fault-guard за `spent` хибно валить дивергентні терми крихітного розміру (Ω); guard MUST міряти фактичний `size(t)`/глибину."
+
+Let's parse: They mean if you interpret `size ≤ spent` (not +1), then spent would be upper bound, but it is not lower? Wait they want say fault-guard using `spent` as a threshold incorrectly fails terms of small size. Let's decode. The sentence: "the bound gives a preflight estimate of memory from budget (memory never exceeds 1 + atp), but `spent` is an upper, NOT a lower, bound on size, so a fault-guard keyed on `spent` wrongly fails divergent terms of tiny size (Ω); a guard MUST measure actual `size(t)`/depth."
+
+"memory never exceeds 1+atp": size(t) ≤ spent+1 ≤ atp+1. So spent is a lower bound? For each term, size(t) ≤ spent+1. Thus spent+1 is an upper bound on size. spent itself may be less than size. E.g., spent=3, size=4? Actually bound allows size ≤4; spent=3 lower than size. So spent is NOT an upper bound on size (it underestimates). But their statement says "spent is an upper, NOT a lower, bound on size". This is the opposite of the mathematical relation? Let's test with TV-4 after force root spent=3, size=3 (size-1=2 ≤3). Here spent=3 equals size, so both? Another case: after R-S, spent maybe 11? size? Could be size much larger? The theorem says size -1 ≤ spent, so size ≤ spent+1; size can exceed spent by 1. So `spent` is a lower bound on size-1? Hmm: lower bound means size ≥ spent? Not necessarily. The relation size ≤ spent+1 gives spent ≥ size-1. So spent is an upper bound on (size-1), but not on size. If they say "spent is an upper, not a lower, bound on size", they are using "upper bound on size" maybe intended as "spent is an upper bound [on size-1?]" But they explicitly say "of size" (розміру). This is an internal error but perhaps editorial. Does it produceimplementer divergence? Maybe no. But could confuse. It might be P1/P2.
+
+Let's read exact Ukrainian: "Наслідок для реалізацій: межа дає **префлайт**-оцінку пам'яті з бюджету (пам'ять ніколи не перевищить `1 + atp`), але `spent` — верхня, НЕ нижня межа розміру, тож fault-guard за `spent` хибно валить дивергентні терми крихітного розміру (Ω); guard MUST міряти фактичний `size(t)`/глибину."
+
+If `spent` were an upper bound on size, then fault-guard "if size > spent, fail" would not fail Ω if Ω size tiny (≤spent). But they say it wrongly fails Ω tiny. Wait Ω is divergent term of tiny size. A fault-guard keyed on `spent` (presumably fail if spent > limit, not if size > spent?) Hmm.
+
+Let's reason: They want guard cannot use `spent` to detect memory because divergent Ω has size small but spent grows. If guard keyed on `spent` as memory estimate, it will fault when spent exceeds configured memory, even though actual size Ω is tiny. That means spent is not a lower bound on size; it overestimates size. So spent is an upper bound on size? Actually if spent overestimates size, spent is an upper bound on size (size ≤ spent). But theorem says only size ≤ spent + 1, not size ≤ spent. It can exceed by 1. Maybe the sentence "spent — верхня, НЕ нижня" could mean in the sense of "spent is an upper bound on memory limit, not a lower bound"? Hmm.
+
+Actually if size-1 ≤ spent, then spent +1 is upper bound, not spent. They might have mistranslated: "spent is an upper, NOT lower, bound on size" is wrong; it is `spent+1` that is upper bound. But this is likely P2 (clarity), unless it implies impossible theorem. The normative invariant is clearly stated `materialized_size(t) − 1 ≤ spent`; that is correct. The sentence remains clarifying; contradiction? The phrase "spent is an upper bound on size" conflicts with invariant `size-1 ≤ spent`? Let's test if it can: If size=4, spent=3, size-1=3 ≤3 holds, but spent=3 < size, so spent is not upper bound. Thus the sentence asserts a false statement about the invariant. Could a conforming implementation follow the sentence and require size ≤ spent? That would be stricter than normative, causing fault where spec's theorem permits size=spent+1. But it's a MUST? The sentence has no RFC2119 keyword; it says "spent is an upper, NOT lower..." It's normative? It is under semantics; could influence. But the formal invariant is normative. P1 maybe: text contradicts itself within same paragraph. If a guard follows "spent upper bound" it would choose `size ≤ spent`, but the theorem allows `size = spent+1`. However it's not a canonical result; guard is local. Might not cause consensus.
+
+Potential P0 not likely.
+
+Other potential issues in §3.4:
+- "ATP-бюджет — `uint32`. Значення поза цією областю не є бюджетом: воно MUST бути відхилене згідно з §3.6... MUST NOT приймати його, обрізавши до 2³²−1..." Good.
+- "Окремий крок із ціною понад 2³²−1 недоступний для будь-якого канонічного бюджету → ATP Exhausted, не implementation-defined." If budget is uint32 max, step price > max impossible? cost is up to 1+size(z), size can be huge? size(z) can be materialized_size; bound says size(z) ≤ spent +? But before action spent<=atp. Could size(z) exceed 2^32-1 if atp max? The invariant size(t)-1 ≤ spent ≤ atp, so size(z) ≤ spent +1 ≤ atp +1. If atp max, size(z) could be atp+1 = 2^32. Then cost R-S=1+size(z) = 2^32+1? Wait if size(z)=2^32, cost 2^32+1 > max, but can such size(z) be materialized with budget atp=max? Need invariant before R-S: spent <= atp. size(z) ≤ current size(t)- something? Bound size(t)-1 ≤ spent. So size(z) is part of t; size(t) ≤ spent+1. Thus size(z) ≤ size(t) ≤ spent+1 ≤ atp+1. For atp=max=4294967295, spent could also max, size(t) ≤ 4294967296. Then R-S cost = 1+size(z). If size(z)=size(t)-1? For root APPLY(APPLY(APPLY(S,x),y),z), size(t)=1 + size(inner APPLY) + size(z). The inner part maybe >=? z can be huge, size(z) up to size(t)-2 maybe <= atp-1? Let's not. Could cost > 2^32-1? If z size = 2^32, cost 2^32+1 maybe impossible due to bound at spent max? At spent=max, size(t) ≤ max+1 = 2^32. Then size(z) ≤ size(t)-2 maybe? Could equal 2^32-2? cost 2^32-1 equal max. So perhaps step cost cannot exceed max? They assert "single step whose price exceeds 2³²−1 is unreachable" maybe okay.
+
+But issue: "A single step whose price exceeds 2³²−1 ... → ATP Exhausted, not implementation-defined." Actually if c > atp-spent, exhaustion, but c may be > max; no issue.
+
+#### §3.5 Resolution Contract.
+Detailed above. Need maybe find contradiction: "питання «чи ці байти належать цьому ключу» канонічної відповіді не має взагалі" (whether bytes belong under key has no canonical answer at all). But earlier they define property `SHA-256(bytes)=key`, which is checkable deterministically. The statement seems paradoxical: they mean whether bytes "belong" in a store under a foreign key (integrity) has no canonical answer? Actually SHA-256 equality is checkable and canonical. The English: "the second has no canonical answer at all." But there IS a canonical answer: compute SHA-256. This was noted in ADR round 2: they "fixed" by saying property is SHA-256(bytes)=key over raw buffer, checked before validation, and the two questions named as different: whether a buffer is a valid node has a canonical answer, whether bytes belong under a key has none. Wait we just saw they say "whether bytes belong under a key has no canonical answer." But the property itself is SHA-256 equality. That's a canonical answer! Unless they mean "do these bytes belong under this key" as an ownership/intent question; but they defined it as hash equality. This may be a residual contradiction. Let's quote exact normative Ukrainian §3.5:
+"Питання «чи це валідний вузол» і питання «чи ці байти належать цьому ключу» — різні, і плутати їх не можна: перше має канонічну відповідь, друге канонічної відповіді не має взагалі."
+But the property is: `SHA-256(bytes) = key` for every entry. That's a byte computation, canonical. If `bytes` under key not hash to key, it is mismatch. So the question "do these bytes belong to this key" is exactly hash equality (or not? They earlier define belonging as hash equality). There is definitely a canonical answer: SHA-256. They maybe mean "belong" as in store integrity not consensus? Yet they explicitly use it as property. This is an inconsistency, maybe P1/P2. The ADR says DeepSeek declined to raise it as confusing, left as written. The prompt asks us to review; we can raise.
+
+Severity? Does it cause implementer disagreement? They also state property MUST be checked; check is `SHA-256(bytes)=key` over raw buffer. So implementers know what to do. The statement "no canonical answer" contradicts that. But since the normative check is explicit, maybe no behavioral divergence. It's a clarity P2, unless it makes the requirement unenforceable? I'd classify P2.
+
+But let's continue.
+
+"Властивість MUST перевірятися для кожного хеша, який виконання фактично розв'язує" — check property for every hash evaluation actually resolves. If mismatch, local refusal §3.6, not canonical result. Good.
+
+Potential issue: For an entry where bytes fail validation but hash matches key, they say property not violated, it's failure mode (b) -> Canonical Invalid Object. Good.
+
+Potential issue: If bytes are invalid and hash matches key, you materialize Canonical Invalid Object, but what if the invalid bytes are under a demanded hash. Good.
+
+Potential issue: If bytes under foreign key are invalid too, which mismatch first? They say property checked over raw buffer before validation; so if SHA mismatch, local refusal, not invalid object. Good.
+
+Potential P0: What is the result_hash of a `unresolved_reference` exit? The machine returns DISSONANCE(Unresolved Reference). But how is this node constructed without storage? It's intrinsic? No §5.3 provides reason hash. DISSONANCE node bytes `ff01 || reasonhash`, hash computed. So result_hash determined. Good.
+
+Potential P0: In §3.5 extension stability: "A settled exit — normal_form or atp_exhausted — MUST remain same Receipt under any extension of environment that preserves answers to already-demanded hashes." For `atp_exhausted`, if an extension adds content, could it allow more evaluation without exhausted? No because extension only adds; it cannot remove missing. It preserves answers to already-demanded hashes, but may make previously absent hashes present? It can only add content; if the prior execution did not demand a hash because budget ran out, adding it won't change because no evaluation due to budget. If prior execution demanded a missing hash and got unresolved? That's not settled. For normal_form, if more content irrelevant. Fine.
+
+Potential issue: What if adding content introduces a foreign-key poisoned entry for a hash that was not demanded before and not demanded after; no effect. If it makes a previously unresolvable demanded hash available but with correct hash, then exit changes from unresolved to normal. That's allowed (only unresolved can change). Good.
+
+#### §3.6
+Potential contradiction with §3.4 "eval total" as noted. Let's formulate: §3.4 says "eval тотальний: жодна внутрішня відмова MUST NOT покидати eval інакше, ніж канонічним DISSONANCE." §3.6 says implementation fault MUST NOT be serialized as DISSONANCE. Is implementation fault an internal failure? The text: "Порушення локальних ресурсних лімітів реалізації (глибина, кількість fetch) — implementation fault: відмова виконання, яка MUST NOT серіалізуватися як DISSONANCE." Then admission is deployment boundary refusal. So when eval hits a local resource limit, it MUST NOT produce DISSONANCE, but §3.4 says no internal failure may leave eval other than canonical DISSONANCE. A local resource limit breach is an internal failure? The term "відмова виконання" = execution failure. It says must not be canonical. So directly contradicts "eval is total" if total means always returns a Receipt. But perhaps `eval` is defined for all inputs within domain and resource limits are outside Book? Then an eval that refuses due to resource is not returning Receipt, so not total. The phrase "eval тотальний: ... canonical DISSONANCE" could be read as for no internal failure, i.e., no exceptions. They might not consider resource guard an internal failure but external admission. They earlier: "Канонічні результати — лише три з §3.4. Порушення локальних ресурсних лімітів ... це implementation fault." Hmm.
+
+This could be a P1 because normative requirements ambiguous. But does it produce two conforming implementations disagreeing? A term that exceeds local depth limit: implementation A treats as local fault and refuses (no Receipt); implementation B reads §3.4 and returns DISSONANCE(ATP Exhausted) or some DISSONANCE? But which DISSONANCE? Not specified. However resource limits are local and outside Book, so maybe no canonical result; but the sentence requiring eval total may bind. Could be P1 maybe.
+
+But need concrete counterexample for P0/P1. We can make one: term Ω with atp=1,000,000; an implementation with fetch count limit 10. Under §3.6 it refuses (implementation fault). Another implementation with no fetch limit but hits ATP? Actually Ω never exhausts? It loops consuming ATP? Ω = (S I I)(S I I) diverges. With atp=1,000,000, maybe one implementation's fetch count guard trips at 10 before budget exhausted and refuses; another with higher limit or none computes until ATP exhausted and returns Receipt with atp_spent=1,000,000. Are both conforming? The Book says concrete limits outside Book, so local resource limits are implementation-defined and not canonical. Therefore two conforming implementations can differ: one refuses, one returns canonical Receipt. Is that allowed? §3.6 says local resource limit breaches are implementation fault, not canonical; but §3.4 says eval total. The contract seems to allow divergence locally? They say only canonical results are consensus-critical. If one refuses before canonical result, maybe acceptable because verifier declined. But they also say "eval тотальний: a stranger's term always terminates" — maybe false if local fault. Actually §3.6: "`eval` тотальний, тож терм незнайомця завершується завжди; це не те саме, що бути придатним до виконання." Then later is admission. Hmm.
+
+This is a repeated tension. Could be P1: text says eval total and internal failures only DISSONANCE, while also local refusal not DISSONANCE. But no P0 because canonical divergence? The answer could be "local refusals are not part of consensus; no canonical result." It's messy but maybe accepted.
+
+Let's search for concrete contradictions across Books.
+
+### Book II
+
+Key new bits: §2 formula and Pin field-level; §5 interfere; §6 pins; §7 Mass; §10 bridge.
+
+Potential P0: Book II §6.2 states "FALSE ≡ APPLY(K,I)" with NodeHash `65cd957f…`. Book I §5.2 says FALSE hash `65cd957fee7ec9fb310bc9d9712cec1726c78f8026fda679ac8f237938a32098`. We can verify bytes:
+Bytes `0206‖H(K)‖H(I)`. Op byte 0x02, flags 0x06 = F_LEFT|F_RIGHT. Children H(K), H(I). Hash should be 65cd... probably.
+Book III §5 mentions `APPLY(K,I)` and FALSE same node. Good.
+
+Potential P0: Book II §6.2 says FALSE Ph=49152, Am=0, En=-32512. But §2 says Pin only ph=49152; Am/En derived. So full vector normal. Good.
+
+Potential P0: In §6.2 "Pins keyed by NodeHash" not in Book II itself? Book II §2 formula uses `pin(APPLY(f,a))`. It does not explicitly say lookup by NodeHash; but Book I §3.2 Identity by Hash and Axiom "Identity defined only by NodeHash" at top. Book III §5 adds explicit. Is Book II §2 now enough? It says "Pin — partial annotation explicitly assigned in tables §6." It doesn't say lookup must be by NodeHash. Could a conforming implementation lookup by structural expression/alias table (name "FALSE") and violate identity? The Book's Axiom says Identity is defined ONLY by NodeHash, so any lookup by name is prohibited. Probably enough. The ADR says fixed in Book III? Actually "Pins keyed by NodeHash, computed from canonical structure with alias expansion, in sigma_wave, sigma_federation and Go mirror" not necessarily normative text. Book II Axiom at top is MUST. So okay.
+
+Potential issue: Book II §2.1 "For nodes not APPLY and no Pin, wave absent. This includes all unpinned LITERAL." What about DISSONANCE? It says includes all unpinned LITERAL, but earlier "For nodes that are not APPLY and no Pin, wave absent. This includes all unpinned LITERAL." Does it also include REF? It says nodes not APPLY and no Pin. So all non-APPLY without pin absent, including REF. Good.
+
+Potential issue: §2.1 "interfere with absent operand gives absent resulting wave; nodes without wave do not participate in Mass aggregations, but pinned phases remain visible as coordinates." This may be okay.
+
+Potential issue: `div_round_half_up` definition. They define for d > 0. For negative n, s=-1, a=|n|, q=a//d, r=a%d, if 2r>=d q+=1, return s*q. This is round half away from zero. Good. Example `WV-NEG-TIE`: avg(-1,-2) = -2? Let's compute sum -3, div_round_half_up(-3,2): n=-3, d=2, s=-1, a=3, q=1, r=1, 2r=2>=2 -> q=2, return -2. Good. Then sum + delta etc.
+
+Potential P0: In Book II §5, `delta = min(d32, 65536-d32)`. If `x=0`, d32=0, delta=0. Good.
+`r = int32(LUT_COS[delta])`. LUT_COS indexed by delta 0..32768. good.
+`delta_en = div_round_half_up(-r,128)`; if r=32767 delta_en=256; if r=-32767 delta_en=-256. Good.
+`new_en = clamp_i16(div_round_half_up(int32(w1.en)+int32(w2.en), 2) + delta_en)`. The sum `div_round_half_up` may be outside int16? w1.en,w2.en int16 -> sum within [-65536,65534]. div -> [-32768,32767]; plus delta_en [-256,256] -> [-33024,33023]; clamp. Good. But if sum is odd negative, round half away. Good.
+`amp_factor = div_round_half_up(int64(r+32767)*65535, 65534)`. `r+32767` in [0,65534]. d=65534. Numerator max 65534*65535. q=65535? Let's compute: 65534*65535 /65534 = 65535 exactly. Good. r=-32767 numerator 0*65535=0 -> amp_factor 0.
+`prod01 = div_round_half_up(uint64(w1.am)*uint64(w2.am), 65535)`. product max 65535^2. q =? 65535*65535/65535 = 65535. Good.
+`new_am = div_round_half_up(uint64(prod01)*uint64(amp_factor), 65535)`. max 65535*65535/65535=65535.
+Potential issue: `div_round_half_up` for unsigned? The definition assumes n can be negative? For amp_factor product positive. good.
+
+Potential issue: "Width (MUST): `ph`,`en` → int32 before ±; `am` → uint64 before ×; intermediate products int64/uint64; signed overflow prohibited; casts to multiplication." Could be interpret `int32(w1.ph) - int32(w2.ph)` safe; `int32(w1.en)+int32(w2.en)` safe as notes. Good.
+
+Potential P0: `LUT_COS` is generated with round_half_away_from_zero, but §3 defines div_round_half_up; same. Good.
+
+Potential issue: §4 `LUT_COS[d] = round_half_away_from_zero(32767·cos(π·d/32768))`. For d=32768, cos(π)=-1, *32767=-32767. Good. For d=0, 32767. Anchors. Good.
+
+Potential issue: The LUT blob hash given; no way to verify from spec alone.
+
+### Book III
+
+Potential P0 in §4 selection order/collation.
+
+Let's examine §4 step 6: "order by `order` (+`warrant_id asc` tiebreak for deterministic sorting); if top candidate unique under declared order — selected; if top candidates equivalent under declared order (tie) — ConflictSet with all equivalent." This is okay.
+
+Potential issue: Step 5 quota: group by (actor, assertion.epoch), order each group by same policy order with warrant_id asc, keep first Q, discard rest. Then final selection. Good.
+
+Potential issue: Step 4 future exclusion: `E - assertion.epoch > max_age_epochs`. E and assertion.epoch are uint64. If assertion.epoch > E, excluded before. Good. If max_age_epochs absent, no staleness. Good.
+
+Potential issue: Policy `order` allowed fields: epoch, ts, warrant_id, actor. Candidate metadata `warrant_id` lowercase hex64, `actor` non-empty, `ts` uint64. `epoch` field comes from assertion blob. Good.
+
+Potential P0: §2 assertion blob closed fields. `epoch` is uint64. `wave` full WaveVectorQ. Good.
+
+Potential P0: "JCS-canonical I-JSON" and sorting strings by Unicode scalar values per JCS. Fine.
+
+Potential issue: §4 step 1 "discard malformed metadata and invalid assertion blobs"; step 2 node filter; step 3 jurisdiction; step 4 future; step 5 quota; step 6 order.
+If a candidate has malformed metadata, is it still in policy? Discard. Good.
+
+Potential issue: "Candidate with missing or incorrectly typed order-field is not live (vector FV-SELECT-BAD-METADATA)." Good.
+
+Potential P0: `assertion_set_root` = SHA-256(JCS(array WarrantIDs active assertions sorted lexicographically lowercase hex)). §6 says sorted lexicographically. Good.
+
+Potential issue: In §6 ViewID, unknown fields invalid. Good.
+
+Potential P0: Book III §7 criterion 5 "State bounded — for caches: implementations MAY cache current view in O(annotated nodes), but authoritative state is settlement-active warrant DAG; no normative rule may require fold-and-forget." Fine.
+
+Potential P0: Book III §8 says vectors are normative. We don't have them. Fine.
+
+Potential P0 in Book III §5:
+"`wave_fed(h) = selected(h,J,P,E).wave if exactly one assertion; absent if no candidates or ConflictSet; — for leaf nodes (LITERAL, genesis, DISSONANCE)`"
+The dash line: "— для листових вузлів (LITERAL, genesis, DISSONANCE)" maybe means the leaf case applies to those. Then `wave_fed(APPLY(f,a)) = selected... if direct assertion; complete(interfere(...), pin(...)) otherwise." Good.
+
+Potential issue: For a pinned non-APPLY leaf node (e.g. I,K,S have pins in Book II §6.1), how does `wave_fed` include Pin? The leaf case says `selected` > Pin > absent. The bullet says "Priority for leaf: Assertion > Pin > absent. Assertions full vectors override pin entirely." But the formula line only mentions selected and absent; maybe the priority line adds Pin. In `wave_fed(h)` formula it says:
+```
+wave_fed(h) =
+  selected(h, J, P, E).wave     if policy selected exactly one assertion
+  absent                        if no candidates or ConflictSet
+  — for leaf nodes (LITERAL, genesis, DISSONANCE)
+```
+It does NOT explicitly show Pin in the leaf formula! Then after the code block, text: "Пріоритет для листа: **Assertion (юрисдикція) > Pin (дефолт нульової юрисдикції, Книга II §6, field-level за §2) > absent.** Твердження — повні вектори, тож перекривають пін цілком." This clarifies that for leaf nodes, if no selected assertion and no candidates, one should return Pin (from Book II §6), not absent? Wait priority says Assertion > Pin > absent. So for `wave_fed(leaf)` with no assertion, if a Pin exists, return that Pin (full or partial). The formula block says `absent` if no candidates or ConflictSet, ignoring Pin. This seems an internal contradiction! Let's read exactly:
+
+```text
+wave_fed(h) =
+  selected(h, J, P, E).wave     якщо політика обрала рівно одне твердження
+  absent                        якщо кандидатів нема або ConflictSet
+  — для листових вузлів (LITERAL, genesis, DISSONANCE)
+```
+Then text: "Пріоритет для листа: **Assertion (юрисдикція) > Pin (дефолт нульової юрисдикції, Книга II §6, field-level за §2) > absent.** Твердження — повні вектори, тож перекривають пін цілком."
+
+Actually they might intend formula line "absent if no candidates or ConflictSet" is after not selected, but then priority text says Pin should apply. Did they omit Pin in formula but text says Pin. Which is normative? The code block is part of normative text and the bullet establishes priority. If no candidates (no assertions) and the leaf is I/K/S, Pin exists; priority says Pin, formula says absent. This is a direct contradiction for leaf nodes with pins (e.g., I,K,S). That is a P0 or P1. Let's see Book II §6.1 pins Trinity for I/K/S; Book III §1 says pins are default zero jurisdiction; any jurisdiction MAY override with assertions. For a jurisdiction with policy and no assertions for a leaf, what is `wave_fed(I)`? Formula says absent; priority says Pin (full wave). Two conforming implementations can disagree: one returns Book II Pin {ph=0, am=65535, en=-32768} for I, another returns absent. This affects navigation; Book II §10 says effective wave per jurisdiction. Does this cause canonical consensus? Maybe outside Book I, but Book III conformance includes deterministic wave_fed per jurisdiction; vector suite maybe picks one? We need check if vectors define. The text itself contradictory. This is serious.
+
+Let's parse more carefully: The line "— для листових вузлів (LITERAL, genesis, DISSONANCE)" might indicate the formula applies to those leaf node kinds, which may include no pins? But I/K/S are LITERAL? Genesis? They are LITERAL with pins in Book II. `h` for I/K/S. The formula says absent if no candidates or conflict. The priority text says Pin > absent. So contradiction.
+
+However maybe they are defining `wave_fed(h)` for leaf nodes only absent if no draft? But direct assertions? Hmm.
+
+Let's read Book III §5 in full:
+"Для юрисдикції J, політики P, епохи E:
+```text
+wave_fed(h) =
+  selected(h, J, P, E).wave     якщо політика обрала рівно одне твердження
+  absent                        якщо кандидатів нема або ConflictSet
+  — для листових вузлів (LITERAL, genesis, DISSONANCE)
+
+wave_fed(APPLY(f, a)) =
+  selected(APPLY(f,a), J, P, E).wave              якщо є пряме твердження
+  complete(interfere(wave_fed(f), wave_fed(a)),   інакше (структурна деривація —
+           pin(APPLY(f,a)))                       рівно похідний випадок Книги II
+                                                  §2, разом із Pin; absent-операнд
+                                                  → absent)
+```
+Пріоритет для листа: Assertion > Pin > absent. Твердження — повні вектори, тож перекривають пін цілком."
+
+The priority line appears to supplement the formula; it says for leaf, if no assertion, Pin applies. The formula omitted Pin branch. This is a contradiction in normative text. Is there a way to reconcile: Maybe "Pin" for leaf is included in `selected`? No, selected is assertion. Maybe for leaf nodes, `pin` is not part of `wave_fed` because the formula for leaves is only when leaf kinds not pinned? But priority says leaf priority includes Pin. The code block line "absent if no candidates or ConflictSet" perhaps applies only after Pin, i.e., if no Pin and no assertion -> absent. But they didn't write Pin. Text could be read as priority dominates. Ambiguous.
+
+Similarly in leaf formula, they include `genesis` and `DISSONANCE`; those have no pins. LITERAL includes I/K/S etc which may have pins. The formula says absent if no candidates, which would mean the default pins in Book II §6 never apply in federation for leaves, contradicting Book III §1 "Pins are defaults of zero jurisdiction; any jurisdiction MAY override them." If no assertion, effective wave should be default Pin for a jurisdiction (since jurisdiction inherits zero jurisdiction defaults?) The book says any jurisdiction may override, meaning default pins apply unless overridden by assertion. So `wave_fed(I)` with no assertion should be Trinity pin. Thus formula absent is wrong. The priority text tries to fix but normative "absent" maybe not.
+
+This is a strong P0: two conforming implementations can disagree on `wave_fed(H(I))` (or I) with no assertions. Need provide concrete term/environment/document state. We can cite Book III §5 formula vs priority. Counterexample: jurisdiction J with policy P, epoch E, no assertions for node `H(I)` and no conflict. Engine A follows code block: `wave_fed(H(I)) = absent`. Engine B follows priority text "Pin > absent": returns Book II §6.1 Pin for I `{ph=0, am=65535, en=-32768}`. Both conforming? The text states both. This is a P0 because two implementations disagree. Also Book II §10 says effective wave is per jurisdiction; this affects federation. It is within candidate's scope.
+
+But we need ensure `H(I)` is a leaf node LITERAL; Book II §6.1 pins I with full vector. Good. NodeHash H(I) = `2f33694d...`. The pin is full, so no need derivation. Thus counterexample solid.
+
+Let's verify priority line exact: "Пріоритет для листа: **Assertion (юрисдикція) > Pin (дефолт нульової юрисдикції, Книга II §6, field-level за §2) > absent.**" Yes.
+
+The formula's "absent if no candidates or ConflictSet" does not include Pin, but priority says Pin > absent. That is P0. Unless they define pin as "default zero jurisdiction" and for leaf wave_fed defaults to zero-jurisdiction Pin before this priority? The formula says `wave_fed(h)` for leaf: selected...; absent if no candidates/ConflictSet. No mention Pin. Priority line clarifies; but the code block and line conflict. This is exactly the kind of contradiction.
+
+Could the "absent" line be intended only after Pin not exists? The priority line could be read as normative and formula incomplete. But code block is normative too. P0.
+
+Also for APPLY case, formula includes `pin(APPLY(f,a))`, so Pin applies there. For leaves, they forgot Pin in code block. Yes.
+
+This likely is P0. Need maybe mention round 6 fixed "Pins keyed by NodeHash" but not this? Hmm.
+
+We need see if candidate's ADR mentions this? Round 5/6 fixed structural pin for APPLY. Leaf pin maybe not tested? The ADR says Go mirror etc. But text has this inconsistency.
+
+Let's also check Book III §5 structural branch: If operand absent → absent. But if APPLY node has a Pin and children absent, should complete with pin produce partial wave? The formula says if absent operand → absent. But prior priority says Pin > absent? For APPLY structural, they say "complete(... pin(...))" with "absent-operand → absent". If one operand absent but pin exists, should complete apply pin? The text: "рівно похідний випадок Книги II §2, разом із Pin; absent-операнд → absent". This might mean if interfere gives absent, the whole result absent, ignoring pin, which contradicts Pin field priority where complete substitutes pin fields. But maybe leaf only. Let's analyze: For APPLY with pin and absent operand, Book II §2's derived formula `complete(interfere(w1,w2), pin)` would apply pin. The note "absent-operand → absent" could be about if there is no pin? Ambiguous. This is another possible contradiction. But we have a clear leaf P0.
+
+Potential P0: Book II §2.1 says "interfere with absent operand yields absent resulting wave; nodes without wave..." and formula for `wave(APPLY(f,a))` has complete; if interfere absent but pin exists, does pin apply? Not explicitly; but Pin has priority. If reviewer wanted, could raise similar. Let's stick with leaf P0 in Book III.
+
+Let's verify if `wave_fed(H(I))` with no assertions might instead return Pin due to some other rule. Book III §1: "Піни §6 Книги II — дефолти нульової юрисдикції; будь-яка юрисдикція MAY перекрити їх своїми твердженнями за власною політикою." That means for jurisdiction J, if no assertion, zero-jurisdiction default Pin applies? It says defaults of zero jurisdiction, any jurisdiction may override. In Book II §10: "Нормативні піни §6 цієї Книги — дефолти нульової юрисдикції; будь-яка юрисдикція MAY перекрити..." So yes, Book II §6 pins are fallback defaults. Thus `wave_fed` should fall back to Pin. The formula's `absent` directly contradicts.
+
+This is a solid P0. If one P0 stands, verdict REJECT (unless maybe ADOPT-WITH-AMENDMENTS only if P1s list, no P0). So verdict likely REJECT.
+
+Need see if there are other P0s/P1s to list. We should aim thorough. At least one P0 with counterexample.
+
+Let's continue find other contradictions.
+
+### Candidate v0.7.0 and VERSIONS
+
+Potential P0 in VERSIONS.md: It says Book I 0.5.2 -> 0.6.0 MINOR etc. But VERSIONS.md is non-normative. It lists six numbers. Book II/III version 0.7.0. Good.
+
+Potential issue: VERSIONS says suite_version in `tests/spec_conformance/vectors.json`. But Book II and III suites are separate files `wave_vectors.json`, `federation_vectors.json`; table says `suite_version` where `vectors.json` only. Is that a contradiction? Non-normative. Maybe P2.
+
+### GOV-anchors unchanged.
+
+GOV-anchors pins Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1 as anchored in this release. Candidate ships Book I 0.6.0 etc. The ADR says owner disposition: pin binds semantics consumed, not version strings. But the normative GOV text says:
+"this profile is defined against ... and against **Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1** as anchored in this release (the anchor definition `NodeHash(LITERAL, SHA-256(bytes))` rides Book I's hashing). Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0)."
+This is a normative dependency pin by version. The candidate bundle v0.7.0 anchor set (if adopted) would contain Book I v0.6.0, not v0.5.2. But GOV-anchors remains version 1.0.2 in candidate, and its text says dependencies pinned as old versions. Is this a P0? Earlier gate split. DeepSeek called P0: a governance verifier treating pin as binding rejects the bundle, one applying only §3's seven steps authorizes it. Owner disposition says semantics consumed preserved and re-pin is governed breaking change requiring its own MAJOR. But the text itself appears to be an internal contradiction within the candidate: GOV-anchors says profile is defined against Book I v0.5.2 etc. The candidate bundle if adopted has Book I v0.6.0. If GOV-anchors is part of candidate unchanged, it is a normative artifact of the release that references versions not in the release? Actually the subject: candidate is v0.7.0 bundle, with GOV-anchors unchanged at v1.0.2. GOV-anchors is a separate STANDARD, not part of Book versions. It could remain v1.0.2 while Books move, if its own version independent. Its normative dependency pin says it is defined against old Books. Does that make candidate non-conformant? The ADR says owner decides semantics preserved, and re-pin would be a new MAJOR for GOV. But is the candidate adopting GOV 1.0.2 as part of v0.7.0 anchor set? The ADR says `spec/GOV-anchors.md` ships unchanged in the `v0.7.0` anchor set. So the bundle includes a STANDARD that names dependencies as v0.5.2/v0.6.1, while the bundle also includes those Books at new versions. Does GOV text require the pinned versions be the ones anchored in "this release"? It says "as anchored in this release" but if GOV file is part of new release, "this release" would refer to v0.7.0 bundle? Or "this release" when GOV 1.0.2 was created? The document itself is version 1.0.2; it may be interpretable as pinned to versions at time of its own release, not future bundled releases. But the text says "this profile is defined against ... Book I v0.5.2 ... as anchored in this release." If the document is carried into a future bundle, "this release" could be ambiguous. However it also says "Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0)." So it allows later versions if exact semantics preserved. Owner says exact semantics consumed preserved. So no actual contradiction for semantics. But version strings in normative dependencies could be read as pinning. The ADR records split.
+
+As reviewer, is this a P0/P1 in the candidate text? We need assess. GOV-anchors is part of candidate exactly as text. The candidate includes Book I 0.6.0 etc. If GOV-anchors's pin is normative and says this profile is defined against Book I v0.5.2 as anchored in this release, and the candidate's Book I is 0.6.0, a verifier following GOV might reject the candidate because dependency pin doesn't match. But the owner disposition says semantics preserved. Is that enough? We are to review text, not owner's argument? The ADR is claim; Book text is spec. We should decide.
+
+The prompt says: "The candidate is v0.7.0 (Book I 0.6.0, Books II and III 0.7.0)." "What the candidate changed, and why, is argued in its own ADR below; what the candidate SAYS is the Book text below. Where the two disagree, the Book text is the specification and the ADR is a claim about it."
+
+GOV-anchors is a STANDARD, not Book? It is in spec. It pins old versions. We need review candidate as whole. The candidate's own ADR says owner disposition; but text remains. Could be P0 if it means candidate's governance dependency is contradictory. But the prompt includes GOV-anchors as governance profile. We can raise if text contradicts.
+
+Let's read GOV-anchors exact normative dependencies:
+"Normative dependencies (pinned — MUST): a STANDARD MUST NOT rest on a moving target (promotion gate P1, 3/3). This profile is defined against **Warrant SPEC v0.3** exactly as pinned ... and against **Book I v0.5.2 / Book II v0.6.1 / Book III v0.6.1** as anchored in this release (the anchor definition `NodeHash(LITERAL, SHA-256(bytes))` rides Book I's hashing). Implementations MAY track later dependency versions only where these exact semantics are preserved; any change is a breaking change to this STANDARD (§0)."
+
+So it explicitly pins Book I v0.5.2 etc. The candidate changes Book I to v0.6.0, Book II/III to v0.7.0. But GOV says later dependency versions allowed only where exact pin semantics preserved. The owner says semantics consumed by GOV (NodeHash(LITERAL, SHA-256(bytes)), serialization and validation) do not move. Does candidate preserve those exact semantics? Let's check: Book I had v0.5.2 hashing same as v0.6.0? Candidate changed eval etc but not NodeHash definition; serialization/validation same. Yes.
+
+But the phrase "against Book I v0.5.2 ... as anchored in this release" might be a pin on exact version bytes, not just semantics. It says any change is a breaking change to this STANDARD. If Book I changes from 0.5.2 to 0.6.0, is that a change? The document says implementations MAY track later dependency versions only where these exact semantics are preserved. "Track" implies using later versions is allowed if semantics same. So not necessarily contradiction. However normative dependency pin by version could mean a conforming GOV verifier must verify those exact versions are in the anchor set? The actual §3 verification does not check Book versions at all; it only checks anchor set blob and warrants. The dependency pin is definitional. If an implementation uses candidate with Book I 0.6.0 but semantics preserved, it may track. So maybe no P0.
+
+The candidate ADR says owner disposition chooses Kimi/Gemini reading, not DeepSeek. But as reviewer, we can have our own judgment. Could still be P1: ambiguity about whether GOV 1.0.2 applies to v0.7.0 bundle; two conforming verifiers might disagree on whether adoption warrant can be authorized. DeepSeek's counterexample: same adoption warrant for v0.7.0; verifier A treats dependency pin as binding and rejects bundle; verifier B applies only §3's seven steps and authorizes. That's a divergence about whether release may be adopted. Is that a P0/P1? The severity ladder says P0 two conforming implementations can disagree on a result, or text contradicts itself or vector suite. Here governance verifiers are implementations of GOV. They could disagree on authorization of the same candidate. That seems P0-ish. But the owner disposition says the pin binds semantics, not version strings. But the text says "against Book I v0.5.2 ... as anchored in this release" maybe not binding adoption verification. The text has no explicit statement that a bundle containing later Book versions is non-conformant; it says track later dependency versions only where exact semantics preserved. If semantics preserved, fine. So maybe the disagreement is not normative because "exact semantics preserved" is determined? But determining whether exact semantics preserved may require comparison; candidate claims yes. Could be objective. We might not raise as P0 if we accept.
+
+However there is a subtle issue: The candidate changes Book I §3.4/3.5/3.6; does any of those affect "NodeHash(LITERAL, SHA-256(bytes)), serialization and validation"? The ADR says GOV consumes only NodeHash(LITERAL, SHA-256(bytes)). Does candidate preserve? Book I §2 NodeHash same; §1/4 serialization/validation same. It does add eval inputs, receipt, refusals, but not NodeHash. So yes.
+
+Thus I might not make GOV a primary P0. But the leaf formula P0 is enough. Let's find more P1/P0s in Book I/II/III.
+
+### More on Book III §5 leaf formula
+
+Let's formulate exact counterexample:
+
+Document state: jurisdiction J with genesis root `a30bd...` (or any), policy P = a valid selection policy, epoch E. Warrant store S contains no accepted assertions for NodeHash H(I) = `2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162`. No conflict. Under Book III §5, engine A (following the displayed formula) computes `wave_fed(H(I)) = absent` because candidates empty. Engine B (following the priority sentence "Assertion > Pin > absent") returns the Book II §6.1 pin for I: `{ph: 0, am: 65535, en: -32768}`. Both can claim conformance because both sentences are normative MUST? The priority line has no MUST but is normative statement. The formula is in code block and under section "Ефективна хвиля (MUST)". This is a P0.
+
+Need perhaps mention Book II §5.2? No.
+
+### Another potential P0: Book III §5 structural formula for leaf `genesis`, `DISSONANCE`. If no Pin, absent; fine.
+
+### Potential P0: Book III §5 direct assertion vs Pin for leaf - priority says full assertions override pin entirely. Good.
+
+### Potential P0: Book III §5 "For leaf nodes (LITERAL, genesis, DISSONANCE)" includes LITERAL with Pin. The contradiction clear.
+
+### Potential P0: Book II §2 formula `wave(APPLY(f,a)) = complete(interfere(...), pin(...))` and §2.1 "interfere with absent operand yields absent resulting wave." If one operand absent but pin provided, does complete apply pin or absent? Let's check with an example: `APPLY(⟨I⟩, ghost)`? I has wave, ghost absent (unpinned LITERAL absent). `interfere(wave(I), absent)` yields absent. `pin(APPLY(I,ghost))` likely none. So result absent. If APPLY node had a pin (e.g., FALSE has K,I both wave), both present. A node with pin but missing child maybe not in tables. So not a concrete issue. Could ignore.
+
+### Potential P0: Book II §6.2 says "Наслідок (нормативний): будь-який APPLY, чиє виведене піддерево містить FALSE, має `am=0`..." They derive am=0 for false. Then propagation. Is that always true? If a node's derived subtree contains FALSE, wave includes interfere with false, false am=0 -> product with 0 = 0 unless pin overrides. They state if explicit Pin not override amplitude. Fine.
+
+### Potential P0 in Book I evaluation receipts vs suite.
+
+Book I §7 defines `expected.exit` closed enum three. `expected.outcome` includes invalid_object. It says "An implementation that derives either from the other is checking neither." Good.
+
+Potential issue: The Book says `expected.outcome` classification adds `invalid_object` which denotes `normal_form` exit whose result is Canonical Invalid Object. But what about a run that exhausts ATP and result is `DISSONANCE(ATP Exhausted)`; outcome maybe `atp_exhausted`? They say outcome is classification of result; not exit. They don't enumerate outcome values except invalid_object plus presumably correspond to result terms. Could be ambiguous what values outcome takes. But schema file (not supplied) defines. Text says `expected.outcome` is result classification; it adds one value. Not exhaustive. Maybe P1: outcome vocabulary not defined in Book, only in schema file which is separate anchored file. But schema is normative and anchored; if not in text, maybe okay by reference. But the Book text should be sufficient? It relies on schemas; we don't have them. Could be a concern: Normative spec references external schema files not included, but that's normal (ANCHORS). However the candidate says full text of every Book includes references; if schema files are normative parts, maybe not supplied. But review prompt says text below exactly as it stands; maybe external files are not part of the subject, but their existence is. We shouldn't invent absence.
+
+Potential issue: Book I §7: "The shorthand `eval(·, atp)` ... over this edition's content environment — the `objects` of `vectors.json`. The third input is not omitted; it is fixed by the set." This is okay.
+
+Potential issue: §7 TV-12: `eval(H(I), n)` = ⟨I⟩, 0 ATP for any `n : uint32`, no store needed. Is this consistent with §3.5 resolution? If term_hash is H(I), intrinsic thunk normal form without materialization. Good. But if `n=0`, no force. Good.
+
+Potential issue: TV-8 says `APPLY(⟨I⟩, ghost)` with ghost absent -> Unresolved Reference, spent 4. Let's calculate: Force root cost 3; R-I cost 1; then ghost unresolved failure not priced. spent 4. Good.
+
+Potential issue: Negative vectors say all invalid -> Canonical Invalid Object. But if bytes invalid and under a key not equal hash, §3.5 says property check first: mismatch on resolved hash -> local refusal, not canonical invalid. The §7 Negatives don't specify environment/content addressing. Maybe they test raw bytes as subject `bytes`? Term bytes maybe input hash? Need read §7: "Negative: flags outside 0x07; flags mismatch; opcode 0x03; length != expected — all → Canonical Invalid Object." If these invalid bytes are under a key that hashes to their SHA? For invalid bytes, if the bytes themselves are the subject `bytes`, maybe environment key? The suite has `bytes` field and `objects`; property check over raw buffer before validation. If a test vector provides invalid bytes under key equal SHA-256(bytes), validation fails -> Canonical Invalid Object. If under wrong key -> local refusal. The text says all invalid -> Canonical Invalid Object, but conditional on being valid content environment (bytes hash to key). Is that explicit? Not in Negatives. Could be a P1: The negative clause asserts canonical invalid object for invalid buffers without stating that content-environment hash property must hold. But §3.5 already requires property per resolved hash; if the test subject is given by `bytes`, maybe the environment is built with correct hash. Likely fine.
+
+Potential P0 in Book I: For `term_hash` not exactly 32 bytes, refusal before environment. Good.
+
+Potential P0: How does evaluator know term_hash is not exactly 32 bytes if input is a hash? `term_hash` is 32 raw bytes. If not, refusal. Fine.
+
+Potential issue: `atp` is uint32; what about negative/float in languages with dynamic types? They must refuse. Fine.
+
+Potential issue: `atp_spent` type? Receipt says `atp_spent` maybe uint? Not explicitly but likely uint32. Could be ambiguous but not major.
+
+Potential issue: `result_hash` for `unresolved_reference` and `atp_exhausted`: The Book says result_hash is NodeHash of term machine returned. For atp_exhausted, "result is DISSONANCE(ATP Exhausted) with spent unchanged." For unresolved, "DISSONANCE(Unresolved Reference)". Good.
+
+Potential P0: The reasons hashes §5.3 include `SHA-256("ATP Exhausted")` and `SHA-256("Unresolved Reference")`. Are they correct? We can compute? Not easily but possible. Could check if known? We cannot run code, but could maybe compute? Not feasible by hand. But we could spot if hex lengths 32 bytes? Each hash 64 hex. Good.
+
+Potential P0: Book I §5.1 axiom NodeHashes. Can verify I/K/S by construction? We can compute SHA-256 by hand? Not feasible. But the ADR says constants checked by tools, not in prompt. We must not treat tool claims. We could maybe not verify.
+
+Potential P0: §5.2 FALSE bytes `0206‖H(K)‖H(I)`. The `‖` notation maybe not defined in Book I? But understandable concatenation.
+
+Potential issue: §5.1 says "reference implementation is not a normative source for these values." Good.
+
+Potential P0: Book II §4 LUT hash. Not verifiable.
+
+### Book II/III version and consistency
+
+Potential P0: Book II §5 says "Машинні вектори: `tests/spec_conformance/wave_vectors.json`. Набір є нормативною частиною цього видання: проза і записи набору MUST бути взаємно узгодженими...". Later "Відображення на схему цього набору: нормативним представленням твердження прози в записі є поля входу (`w1`, `w2`) і поле `expected` цілком; поля `id` та `note` — пояснювальні." This defines normative representation. But if the suite has `expected` field with new schema, we don't know. Fine.
+
+Potential issue: Book II says `expected` field entirely normative. But the candidate ADR round 4 finding: `expected.outcome` had fourth value etc in Book I. Book II/III may have same? They say schema files separately anchored. The Book II text says input fields (`w1`, `w2`) and `expected` in full; no mention separate exit/outcome fields. We cannot verify. Could be P1 if `expected` schema not pinned in text. But they say schema file is normative separate anchored file. Text doesn't reproduce schema; but references it. Is that enough? A normative spec can reference external file. The file is anchored. But the prompt does not include it. We can't judge.
+
+Potential P0: Book II §5 statement "`div_round_half_up` is strictly per §3 (round-half-away-from-zero); floor variants diverge on negative odd sums — conformance vector `WV-NEG-TIE` (`avg(−1,−2) = −2`, total −258, not −257)." Let's check "total −258" maybe an example of an expression? `avg(-1,-2)=-2`, together with delta_en maybe? It says "together −258, not −257". But fine.
+
+Potential P0: Let's verify WV-NEG-TIE example in Book II §5:
+"floor-варіанти розходяться на від'ємних непарних сумах — конформанс: вектор `WV-NEG-TIE` (`avg(−1,−2) = −2`, разом −258, не −257)."
+What is "разом −258"? If w1.en=-1, w2.en=-2, avg = -2. Then delta_en maybe -256? Sum maybe -258? If r? They don't give. Fine.
+
+Potential issue: Book II §5.1 "Resonance Identity (наслідок, не правило; переписано у v0.5)" says "амплітудно 65535 лишається єдиною ненульовою нерухомою точкою — часткова прихильність згасає квадратично; повний WaveVector має єдину ненульову нерухому точку **`{am=65535, en=−32768}`** для запіненої фази". Is this correct? Self-application interfere(w,w) gives ph=w.ph, delta=0 r=32767 amp_factor=65535; prod01=am²/65535; new_am=prod01*65535/65535 = am²/65535. This maps am to am²/65535. Fixed points: f(am)=am => am²/65535=am => am=0 or am=65535. Good. en: avg(en,en)=en, delta_en=-256, so en -> en-256 until clamp. Fixed point en=-32768 only. Good.
+
+Potential P0: In §5.1 "амплітуда підноситься до квадрата в unit-шкалі (`am → am²/65535`)" Wait `interfere` formula amp_factor=65535 for delta=0; prod01=am*am/65535; new_am=prod01*65535/65535 = am²/65535. Yes. "підноситься до квадрата" maybe misleading but okay.
+
+### Check candidate's central theorem: evalHash_stable.
+
+§3.5 says "Extending environment can change only unresolved_reference. Settled exit — normal_form or atp_exhausted — MUST remain same Receipt under any extension preserving answers to already-demanded hashes." Is this theorem actually true for atp_exhausted? Suppose evaluation exhausts budget after resolving certain hashes. If you extend environment with bytes for a hash that the engine did NOT demand before (because budget run out before it tried), the new engine with same budget may still not demand it? It may alter? It could if the missing hash was not demanded due to branching? leftmost-outermost deterministic; adding content for undemanded hashes won't change path. It also preserves answers to demanded hashes. So same. Good.
+
+But what about adding content that makes a previously unresolved demanded hash available? That changes answers to already-demanded hashes, so condition doesn't hold. Good.
+
+Potential issue: "unresolved_reference" can change to `normal_form` or `atp_exhausted` by extension. Fine.
+
+### Potential P0: Book I §3.5 "The property MUST be checked for every hash the evaluation actually resolves, and a mismatch detected on a resolved hash MUST yield local refusal..." But §3.5 first defines `env` with property for every entry. If an environment has a poisoned undemanded entry, does the implementation need to check property only on resolved hashes? It says yes. But the definition "partial map with one property: SHA-256(bytes)=key for every entry" could be interpreted as input validity: if any entry violates, env is not a content environment and MUST be refused before evaluation. Then undemanded entry would also cause refusal, contradicting "undemanded entry MUST NOT change any canonical Receipt." The ADR round 2 tries to fix by saying undemanded entry does not affect result, and wider check is admission. But the first sentence still says property for every entry. Is there a P0? Two conforming implementations: eager validator refuses entire env with undemanded poisoned entry; lazy one returns normal form. The original round 1 P1 fixed? The ADR claims fixed:

@@ -12,7 +12,7 @@ after the round; a round whose findings are answered is superseded, not amended.
 | [round 3](round-3/) | anchor set `4c93717a…` | ADOPT / REJECT / NO VERDICT — completed on the third delivery attempt |
 | [round 4](round-4/) | anchor set `91b4182c…` | ADOPT / ADOPT-WITH-AMENDMENTS / ADOPT — no P0 from any family |
 | [round 5](round-5/) | anchor set `edc0ede5…` | REJECT / NO VERDICT / REJECT |
-| [round 6](round-6/) | anchor set pending | pending |
+| [round 6](round-6/) | anchor set `c826eaf5…` | ADOPT / NO VERDICT / REJECT — **final multifamily gate**; see [AMENDMENT.md](round-6/AMENDMENT.md) |
 
 Reviewers, in that column order: Google, DeepSeek, and a third family. The third
 was `moonshotai/kimi-k3` in rounds 1–3 and `moonshotai/kimi-k2.6` for round 3's
@@ -101,6 +101,7 @@ Kept, not deleted. A reviewer's mistake about the subject is evidence about the
 | Round | Family | Finding | Status |
 | --- | --- | --- | --- |
 | 5 | qwen | §3.4 still permits clamping an out-of-domain `atp`, contradicting §3.6 | `REFUTED_BY_FROZEN_BYTES` |
+| 6 | qwen | `wave(APPLY(K,I))` yields `Ph=32768`, diverging from `wave(FALSE)` | `REFUTED_BY_FROZEN_BYTES` — that is the pre-fix behaviour; both engines and the suite return 49152 |
 
 The quoted string occurs in the round-5 prompt exactly once, on line 36, prefixed
 `-` — a deletion. The frozen bytes contain zero occurrences in either language.
@@ -111,3 +112,19 @@ unified diff invites reading `-` lines as the specification. From round 6 the
 prompt carries the current normative bytes and no raw diff as the source of
 truth, and asks for the verdict at the head of the response as well as the tail
 so that a reviewer which reasons past its budget still delivers one.
+
+## What the final gate produced, named honestly
+
+Round 6 was **not** a clean three-family pass, and calling it one would be the
+kind of claim this directory exists to prevent. It produced **one adoption, one
+delivery failure, one refuted rejection, and one subsequently confirmed narrower
+P1** — the last found by auditing the refuted rejection rather than by the
+ensemble.
+
+The P1 was repaired without a Round 7, by explicit owner disposition:
+[`round-6/AMENDMENT.md`](round-6/AMENDMENT.md) states what changed, why another
+round of this ensemble would produce no new independent signal, and the narrow
+limit of that exception. Adoption remains a threshold warrant filed by the
+roster; no model verdict substitutes for it.
+
+`REVIEW-POLICY.md` governs when a multifamily gate runs at all from here.

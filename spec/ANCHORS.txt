@@ -7,8 +7,8 @@ changed it. (E.g. GOV-anchors ships in v0.6.x bundles at its own version 1.0.2.)
 
 == v0.7.0 (CANDIDATE — NOT ADOPTED; see proposals/ADR-010) ==
 e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd  spec/book-1-truth.md
-95d2a4682b2d7bb42a9c3fb2222f1fdb26ababcd5957bb3030be5761297c7eb2  spec/book-2-navigation.md
-8abc053a39a25d8f64170a20bb3435fa29964252d263eba1c82585a79cb9a7cc  spec/book-3-federation.md
+006742814a97cb8f6218dc87fc648dd4887e69b00d52bcaa7f75f9125e880d16  spec/book-2-navigation.md
+4fcf1599b33b0f6d0b23e0829c82fe6f852a0af7ac55a85c6fdf0bad84c4a66b  spec/book-3-federation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
 2df9194b15734a98b185e1f42472ddc52b03597cd6fd48a8a6fbf50799091021  spec/appendix-a-complexity.md
 59bbb117978c75392045c2db57ea1d62122eb18c1e39d3e1c4c1353301799502  spec/GOV-anchors.md
