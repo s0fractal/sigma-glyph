@@ -196,8 +196,26 @@ printed edges are the oracle for the formula.
 | `codex@sigma-glyph` | `032f83f` | **REQUEST CHANGES** — four findings, all accepted |
 | `codex@sigma-glyph` | `a447a67` | **REQUEST CHANGES** — the admission seam, six findings, all accepted |
 | `codex@sigma-glyph` | `676284f` | **REQUEST CHANGES** — two resource boundaries in the resolver, both accepted |
-| `codex@sigma-glyph` | this head | **pending** |
-| Claude Opus 5 | this head | authored the amendment; not an independent review of it |
+| `codex@sigma-glyph` | `7d0c3d017516f154315fab9ddec818ce5d67c43b` | **APPROVE — no blocking findings; implementation delta accepted** |
+| Claude Opus 5 | `7d0c3d0` | authored the amendment; not an independent review of it |
+
+**The reviewed SHA is `7d0c3d0`.** The commit carrying this row is a *receipt*
+for that verdict and was not itself reviewed by `codex@sigma-glyph`; it changes
+no code, no test and no anchored byte. Recording a verdict must not be allowed to
+look like the verdict extending to whatever came after it.
+
+**What the approval is, and is not.** It is a technical approval of the
+candidate. It is **not** an `ADOPT`, not a roster signature, not permission to
+tag, release, publish or deposit, and not a substitute for the threshold warrant.
+The candidate is ready for the roster to consider.
+
+**One non-blocking limitation, recorded so it is not later overstated.** The
+linear timings above are measurements taken by hand, not a committed
+performance-regression test. Nothing in CI would notice the asymptotics
+regressing. That is acceptable — the Books state no admission complexity bound,
+and the remaining `APPLY`-nesting recursion is named openly — but "linear" must
+not be presented as a standing CI guarantee. It is a measurement of one revision
+on one machine.
 
 An earlier revision of this file recorded Codex as having reviewed the exact diff
 **before that review happened**. It had not. The actual first verdict was REQUEST
