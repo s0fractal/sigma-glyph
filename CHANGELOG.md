@@ -2,7 +2,20 @@
 
 ## Unreleased
 
-On `master` after the `v0.6.7` tag; **not** in the adopted bundle and not on PyPI. No anchored file changes.
+No changes after the adopted `v0.7.0` bundle. The distribution on PyPI remains
+`0.6.7` until a separate publishing action.
+
+## v0.7.0 — Three inputs, a receipt, one arbiter (2026-08-30)
+
+Adopted by warrant `0e634c176b002d02d835e5c6436e4b254d065adeab4bc7704585339567ba46e1`
+(2-of-3: `codex@sigma-glyph`, `s0fractal@sigma-glyph`) over anchor-set
+`abf10f2a9c932f31e28973c41658ba728501fef438b35b7538e78c21d37adf59`.
+This is a governed repository bundle, not yet a PyPI release or Zenodo deposit.
+
+- Book I 0.6.0 defines evaluation over `(term_hash, uint32 atp, content environment)`, returns a full receipt, makes admission a local boundary, and states the semantic materialization bound without claiming RSS or heap bounds.
+- Books II and III 0.7.0 remove reference-oracle precedence. Prose and the anchored suite must agree; no implementation arbitrates the edition. Pins belong to NodeHash and contradictory annotation profiles refuse at admission.
+- All three suite schemas are now anchored. The full audit checks four receipt observables independently, and the candidate records six multifamily gate rounds plus focused exact-diff review.
+- The adopted set changes Books I–III and their three conformance suites; LORE, the complexity appendix, GOV-anchors and governance vectors carry over byte-identical from v0.6.7.
 
 - **The enforce gate accepted `NOT AUTHORIZED`.** `tools/test-all.sh`'s network-gated `status --enforce` step matched loosely enough that the refusal string passed the gate that exists to detect it.
 - `proposal/eval-trichotomy`: the evaluator's settling and its peak-memory price stated as three theorems and re-pinned against a proof guard that had moved twice underneath them.

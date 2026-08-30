@@ -3,9 +3,9 @@ Anchor = NodeHash(LITERAL, atom=SHA-256(document_bytes))
 Bundle convention: a release section lists EVERY anchored file at that
 release; a file untouched by the release keeps its bytes — and therefore its
 per-document Version header AND its anchor — from the last release that
-changed it. (E.g. GOV-anchors ships in v0.6.x bundles at its own version 1.0.2.)
+changed it. (E.g. GOV-anchors ships in v0.7.x bundles at its own version 1.0.2.)
 
-== v0.7.0 (CANDIDATE — NOT ADOPTED; see proposals/ADR-010) ==
+== v0.7.0 ==
 e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd  spec/book-1-truth.md
 0dff906ebcd19ae69eece2615d2b2a903ecb2907ba3f1066384387ef186d09dc  spec/book-2-navigation.md
 9ac5fcc572e2a8d3c4c8d01f236404c09a11f9a3f3266fcf6026e23024c244e9  spec/book-3-federation.md

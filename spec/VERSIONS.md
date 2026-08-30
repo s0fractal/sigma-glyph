@@ -39,9 +39,9 @@ was at 0.6.1; `federation_vectors.json` declared **0.6.0** while Book III was at
 both were carried by name in `version_check.py`, which fails when a recorded
 discrepancy stops reproducing without the record being removed.
 
-The `v0.7.0` candidate regenerates every suite against its own Book, which closes
-both. The records were removed in the same change — leaving them would have been
-the failure the mechanism exists to cause.
+The adopted `v0.7.0` bundle regenerates every suite against its own Book, which
+closes both. The records were removed in the same change — leaving them would
+have been the failure the mechanism exists to cause.
 
 ## What this page cannot check
 

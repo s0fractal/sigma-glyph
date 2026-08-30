@@ -1,11 +1,14 @@
 # ADR-010: three inputs, a receipt, and one rule about who arbitrates
 
-**Status:** CANDIDATE — **NOT ADOPTED**. Nothing in this document is in force.
-Adoption is a threshold-authorised warrant over the `v0.7.0` anchor-set blob under
-[`spec/GOV-anchors.md`](../spec/GOV-anchors.md) §3, preceded by a blind
-multi-family gate over the exact bytes this candidate freezes. Merging the branch
-does not adopt anything, and this file is written **before** the normative bytes
-are edited so that its scope can be read against what was actually done.
+**Status:** ADOPTED on 2026-08-30. The `v0.7.0` anchor-set blob
+`abf10f2a9c932f31e28973c41658ba728501fef438b35b7538e78c21d37adf59`
+was authorised by threshold warrant
+`0e634c176b002d02d835e5c6436e4b254d065adeab4bc7704585339567ba46e1`,
+signed by `codex@sigma-glyph` and `s0fractal@sigma-glyph` (2-of-3).
+The warrant, not the merge, is the act that adopted these bytes under
+[`spec/GOV-anchors.md`](../spec/GOV-anchors.md) §3. This document was written
+**before** the normative bytes were edited so that its original scope remains
+readable against what was actually done.
 
 **Supersedes** the candidate closed as `#24` (ADR-009), whose one correct move —
 removing the reference oracle's precedence over Book I's prose — is carried
@@ -151,12 +154,13 @@ corrected rather than left pointing at something that no longer says it.
   edited by hand, and the generators refuse to write a suite that disagrees with
   the values declared by hand from the spec.
 
-## What this candidate does not do
+## What the candidate did not do before adoption
 
-It does not adopt anything. It does not promote the `v0.7.0` ANCHORS section from
-CANDIDATE. It does not tag, release, publish or deposit. It does not make the
-English rendering normative. It does not touch the old adopted anchors or the
-blobs of any prior release, which stay exactly as they are.
+Before the threshold warrant was filed, the candidate did not adopt anything or
+promote the `v0.7.0` ANCHORS section. Adoption still does not tag, publish or
+deposit, and it does not make the English rendering normative. It does not touch
+the old adopted anchors or the blobs of any prior release, which stay exactly as
+they are.
 
 It also does not claim the gate rounds behind ADR-009 transfer. Those reviewed a
 different tree, and most of them reviewed the *enforcement* rather than the norm.
