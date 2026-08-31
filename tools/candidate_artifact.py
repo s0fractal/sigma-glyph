@@ -156,7 +156,7 @@ def adopted_inputs():
             continue
         try:
             document = json.loads(blob.read_text())
-        except (ValueError, OSError, UnicodeDecodeError):
+        except (ValueError, OSError):  # UnicodeDecodeError is a ValueError
             continue
         carried = {(entry.get("path"), entry.get("anchor"))
                    for entry in document.get("anchors", [])}
