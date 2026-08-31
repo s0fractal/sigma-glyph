@@ -419,6 +419,27 @@ def write_map(origin, head, rows, unresolved):
     return 0
 
 
+def _row_naming(text, branch):
+    """`(identifier, path)` of a citation row whose ref IS `branch`, or None.
+
+    The control needs a row for a document that lives on the branch under
+    review; which identifier that is depends on where it runs, so it is read
+    from the map instead of assumed.
+    """
+    for line in text.split("## Refs that exist", 1)[0].splitlines():
+        cells = [cell.strip() for cell in line.split("|")]
+        row = _row_ref_and_path(cells)
+        if row is None:
+            continue
+        ref, path = row
+        if ref == "sibling":
+            continue
+        bare = ref[len(REMOTE):] if ref.startswith(REMOTE) else ref
+        if bare == branch and path:
+            return cells[1].strip("`"), path
+    return None
+
+
 def selftest():
     """A wrong path must fail where CI actually stands: detached and shallow.
 
@@ -469,9 +490,16 @@ def selftest():
         # present; without this the clone fails for reasons that have nothing to
         # do with the control, and a control that cannot pass on a healthy tree
         # proves nothing when it fails on a broken one.
-        subprocess.run(["git", "-C", str(clone), "fetch", "--quiet", "--depth", "1",
-                        "origin", "master:refs/remotes/origin/master"],
-                       capture_output=True)
+        # Prefer the source's REMOTE-TRACKING master. Fetching plain `master`
+        # takes that repository's local branch, which in a worktree checkout is
+        # whatever it last had checked out — stale, and the staleness showed up
+        # as a baseline MISPLACED that had nothing to do with the mutation.
+        for spelling in ("refs/remotes/origin/master:refs/remotes/origin/master",
+                         "master:refs/remotes/origin/master"):
+            if subprocess.run(["git", "-C", str(clone), "fetch", "--quiet",
+                               "--depth", "1", "origin", spelling],
+                              capture_output=True).returncode == 0:
+                break
         detached = subprocess.run(["git", "-C", str(clone), "branch",
                                    "--show-current"], capture_output=True,
                                   text=True).stdout.strip()
@@ -506,15 +534,42 @@ def selftest():
 
         book = clone / "MAP.md"
         original = book.read_text()
-        broken = re.sub(r"(\| `ADR-012` \|[^|]*\| )`[^`]+`",
-                        r"\1`proposals/ADR-012-does-not-exist.md`", original,
-                        count=1)
-        if broken == original:
-            failures.append("could not plant a wrong path in the ADR-012 row")
+        # Pick the target row from the map rather than naming one. This
+        # hardcoded `ADR-012`, whose row named the feature branch; once that
+        # branch merged, the row named `master`, the control's target was no
+        # longer "the branch under review", and the selftest failed on master
+        # for a reason that had nothing to do with the property it guards.
+        # Strongest case: a row naming the branch under review. That is the
+        # exact hole this control exists for. Not every branch owns a cited
+        # document, so fall back to any row the clone can resolve — still a
+        # real MISPLACED test in a detached shallow checkout — and say which
+        # case ran, because a control that quietly weakens itself is the thing
+        # this whole file is about.
+        target = _row_naming(original, branch)
+        if target is None:
+            target = _row_naming(original, "master")
+            if target is not None:
+                print(f"    (no MAP row names {branch}; falling back to a "
+                      f"master-owned row — the detached/shallow property is "
+                      f"still tested, the branch-under-review one is not)")
+        if target is None:
+            failures.append(
+                f"no MAP row names {branch} or master, so this control has "
+                f"nothing to plant a wrong path in")
+            broken = original
+        else:
+            identifier, path = target
+            print(f"    target row: {identifier} -> {path}")
+            broken = original.replace(f"`{path}`", "`proposals/NOT-THERE.md`", 1)
+            if broken == original:
+                failures.append(f"could not plant a wrong path in the "
+                                f"{identifier} row")
         book.write_text(broken)
-        dirty = check("ADR-012 row pointing at a file that is not there")
+        dirty = check(f"{target[0] if target else 'a'} row pointing at a file "
+                      f"that is not there")
+        wanted = target[0] if target else ""
         misplaced = [line for line in dirty.stderr.splitlines()
-                     if "MISPLACED" in line and "ADR-012" in line]
+                     if "MISPLACED" in line and wanted and wanted in line]
         if not misplaced:
             failures.append("a wrong path for the CURRENT branch's document was "
                             "not reported MISPLACED in a detached shallow "
