@@ -1,0 +1,204 @@
+{
+  "artifact": "sigma-glyph/adr-011/church@v0 benchmark receipt",
+  "normative": false,
+  "oracle_source_commit": "1c2b6ca42cb95cdc035fc887cd0587a5758862d7",
+  "measurement_inputs": {
+    "proposals/adr-011/equality_profile.py": "97ec13cb2f6e57d73a7729dcf77995cc3e4f39ba44dc6cf3b618ddc6bddbc81b",
+    "proposals/adr-011/benchmark.py": "1ab5c3e4937cf12f0bb78609aa13219e5688667f3e75acd94540531e0b2e1ec4",
+    "impl/sigma_glyph.py": "55072bc02e63987898fd60125e8bb5b14a6233b081ba158e0253755652323825"
+  },
+  "co_released_context": {
+    "proposals/ADR-011-eq-by-normal-form-address.md": "ccb40b04f9246bda94bbdb2fd9645454cc4a59a0789778a34a87780dde28275f",
+    "proposals/adr-011/selftest.py": "edce73016ba8ad65819e57a9fdf07e1454372e61359c71ad470543fcf9b711ca",
+    "proposals/EXP-ADR011-01-church-nat-admission.md": "f93df0595e6bed6e6df63df0f697206f4c25398b6f8f8da90e4b6fd86a21a5c4"
+  },
+  "book_1_anchor": "e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd",
+  "book_1_edition": "Book I document version 0.6.0, adopted as part of anchor-set release v0.7.0 (Receipt with exit; \u00a73.4, \u00a73.6)",
+  "interpreter": "CPython 3.14.7 on macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "budget_each_side": 5000000,
+  "limits": "impl/sigma_glyph.py DEFAULT limits; no max_atp",
+  "markers": {
+    "F_atom": "1aec903338d944be00247cd7f226d6ef124575e063d788640ef4bcac8eae7739",
+    "F_node": "92b1cec9ba6035599d1977c2f6bab8fbc2d74b9248775260baf5c710664126c1",
+    "X_atom": "300cc959ca4b58fb7a0a86a518451899ede8be071d1fcc5df08e8d311742f7f8",
+    "X_node": "e37391c4fac298b26e097562e8411695e989d4dc3a391a28f2ac5287eaa80211",
+    "distinct": true,
+    "freshness": "domain-separated from the profile id and fixed before any term is submitted; a term naming either is refused"
+  },
+  "profile_id": "sigma-glyph/adr-011/church@v0",
+  "profile_commitment": "ba2ade815e2e2861f095af71cb0dd284c4b9dae3e85edb577b88478f938066a2",
+  "profile_commitment_is_interpreter_independent": "the receipt is GENERATED on the author's interpreter and VERIFIED in CI on CPython 3.12, so a commitment that depended on the interpreter would fail the build. It did: the first version digested `co_code` and produced 98d3432c\u2026 on 3.14 against f2592195\u2026 on 3.12. It now digests source text, and 3.12 and 3.14 agree on dab50213\u2026",
+  "profile_commitment_is_local": "identifies the profile to another run of THIS Python module. Not a content-addressed profile descriptor: another implementation of the same profile computes a different value. Portable settlement is blocked until such a descriptor exists.",
+  "measurements": [
+    {
+      "case": "church(0) vs church(0)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "1d8ed4a8be43773cf79f5dc651a32df4475fb742eb4b88d61a34555693aa375f",
+        "exit": "normal_form",
+        "result_hash": "e37391c4fac298b26e097562e8411695e989d4dc3a391a28f2ac5287eaa80211",
+        "atp_spent": 12
+      },
+      "rhs": {
+        "root": "1d8ed4a8be43773cf79f5dc651a32df4475fb742eb4b88d61a34555693aa375f",
+        "exit": "normal_form",
+        "result_hash": "e37391c4fac298b26e097562e8411695e989d4dc3a391a28f2ac5287eaa80211",
+        "atp_spent": 12
+      },
+      "spend_total": 24
+    },
+    {
+      "case": "church(1) vs church(1)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "46534185695b93546b5017c506180046dc4155d286203f6918a676f20759223f",
+        "exit": "normal_form",
+        "result_hash": "e83063aad00404bb35afb484f0997654462512b896278aa96b0c8f9b2ac3b083",
+        "atp_spent": 49
+      },
+      "rhs": {
+        "root": "46534185695b93546b5017c506180046dc4155d286203f6918a676f20759223f",
+        "exit": "normal_form",
+        "result_hash": "e83063aad00404bb35afb484f0997654462512b896278aa96b0c8f9b2ac3b083",
+        "atp_spent": 49
+      },
+      "spend_total": 98
+    },
+    {
+      "case": "church(3) vs church(3)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "282a8d5e03e07f880562def31ab51e0365421d60fb26cae353f2e615c41e47ac",
+        "exit": "normal_form",
+        "result_hash": "16c5fece766a38afc0e93d8e93add5b92a338863e0894401fef0101d15fb8d5f",
+        "atp_spent": 123
+      },
+      "rhs": {
+        "root": "282a8d5e03e07f880562def31ab51e0365421d60fb26cae353f2e615c41e47ac",
+        "exit": "normal_form",
+        "result_hash": "16c5fece766a38afc0e93d8e93add5b92a338863e0894401fef0101d15fb8d5f",
+        "atp_spent": 123
+      },
+      "spend_total": 246
+    },
+    {
+      "case": "church(5) vs church(5)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "307074fb5f6ff76606d902bf5e569965f193b348ee7103423caf39082c4917bc",
+        "exit": "normal_form",
+        "result_hash": "1bffd34cac2ac29f5db4a6548193ce459ebea528ec058835024e805a1b6e6608",
+        "atp_spent": 197
+      },
+      "rhs": {
+        "root": "307074fb5f6ff76606d902bf5e569965f193b348ee7103423caf39082c4917bc",
+        "exit": "normal_form",
+        "result_hash": "1bffd34cac2ac29f5db4a6548193ce459ebea528ec058835024e805a1b6e6608",
+        "atp_spent": 197
+      },
+      "spend_total": 394
+    },
+    {
+      "case": "church(12) vs church(12)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "ed46b2333144b8ed4ba2a25429f769afd47c5954282f0ce9ea3a7855df3981cb",
+        "exit": "normal_form",
+        "result_hash": "ecaaa7ced62463a5c226e686554d9832fe3b925751847ac4b13bd9538a43a796",
+        "atp_spent": 456
+      },
+      "rhs": {
+        "root": "ed46b2333144b8ed4ba2a25429f769afd47c5954282f0ce9ea3a7855df3981cb",
+        "exit": "normal_form",
+        "result_hash": "ecaaa7ced62463a5c226e686554d9832fe3b925751847ac4b13bd9538a43a796",
+        "atp_spent": 456
+      },
+      "spend_total": 912
+    },
+    {
+      "case": "church(50) vs church(50)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "9f83756ebdbc48749d17259621bcd3692b4f17894e471e770d8cc6984ebf0c49",
+        "exit": "normal_form",
+        "result_hash": "85aaa4d46a9152ef4c5a59d4b99358db826ef6d9f1df20fa32ecabbd8b18f435",
+        "atp_spent": 1862
+      },
+      "rhs": {
+        "root": "9f83756ebdbc48749d17259621bcd3692b4f17894e471e770d8cc6984ebf0c49",
+        "exit": "normal_form",
+        "result_hash": "85aaa4d46a9152ef4c5a59d4b99358db826ef6d9f1df20fa32ecabbd8b18f435",
+        "atp_spent": 1862
+      },
+      "spend_total": 3724
+    },
+    {
+      "case": "church(100) vs church(100)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "a88359f96d9cd9d151c9ee61dba2b3ecec9188b9e9046fd166db2da7d3f596be",
+        "exit": "normal_form",
+        "result_hash": "2fe2198204fd6cbdc26c21217bf07053765dfd9959fda55ccffb725495cf894f",
+        "atp_spent": 3712
+      },
+      "rhs": {
+        "root": "a88359f96d9cd9d151c9ee61dba2b3ecec9188b9e9046fd166db2da7d3f596be",
+        "exit": "normal_form",
+        "result_hash": "2fe2198204fd6cbdc26c21217bf07053765dfd9959fda55ccffb725495cf894f",
+        "atp_spent": 3712
+      },
+      "spend_total": 7424
+    },
+    {
+      "case": "church(200) vs church(200)",
+      "verdict": "EQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "c458f6690b249091a3e0b65a9450ad926a7b8686b5bd294358540c15d5e4b309",
+        "exit": "normal_form",
+        "result_hash": "4c84c5fe2611be2b87a739883f7e22f0d553b42f3ea7bbd89c6e1a00a8fd5e11",
+        "atp_spent": 7412
+      },
+      "rhs": {
+        "root": "c458f6690b249091a3e0b65a9450ad926a7b8686b5bd294358540c15d5e4b309",
+        "exit": "normal_form",
+        "result_hash": "4c84c5fe2611be2b87a739883f7e22f0d553b42f3ea7bbd89c6e1a00a8fd5e11",
+        "atp_spent": 7412
+      },
+      "spend_total": 14824
+    },
+    {
+      "case": "church(5) vs church(7)",
+      "verdict": "UNEQUAL",
+      "profile_id": "sigma-glyph/adr-011/church@v0",
+      "lhs": {
+        "root": "307074fb5f6ff76606d902bf5e569965f193b348ee7103423caf39082c4917bc",
+        "exit": "normal_form",
+        "result_hash": "1bffd34cac2ac29f5db4a6548193ce459ebea528ec058835024e805a1b6e6608",
+        "atp_spent": 197
+      },
+      "rhs": {
+        "root": "fbecd37509c8e5d3accb90788ccd17b10ec614ed4efebe3e0de9469fdf86cde3",
+        "exit": "normal_form",
+        "result_hash": "75ad097db0b7b4d32c12f746da19f87ad814e15eb4152b2e7b0b99539248eff3",
+        "atp_spent": 271
+      },
+      "spend_total": 468
+    }
+  ],
+  "profile_cannot_settle": "the case that motivated ADR-011. church@v0 refuses computed expressions, so `PLUS 7 5` is not measurable here; the 601-ATP figure belongs to manifesto/tools/glyphlib.py, which admitted any expression and argued no domain. See EXP-ADR011-01.",
+  "what_these_numbers_do_not_establish": [
+    "that normal-form equality is linear in general: this is the cost of obtaining the OBSERVATION normal form on one measured family, and it scaled roughly linearly with the length of the constructor spine F^n(X)",
+    "anything about terms outside the admitted domain; normalizing an arbitrary term may be expensive or may not terminate at all",
+    "an asymptotic bound of any kind \u2014 these are ATP measurements on one revision and one interpreter, not a complexity result, and nothing in CI protects the shape of the curve",
+    "any comparison against in-language equality: the EQN figures in the candidate ADR were measured by a different harness and are cited there, not reproduced here"
+  ],
+  "what_is_constant": "comparing two ALREADY-OBTAINED addresses is constant in the size of the data, because it compares two 32-byte digests. Obtaining them is the cost measured above."
+}
