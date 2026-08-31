@@ -244,6 +244,13 @@ def _ref_is_live(ref):
     """A remote-tracking ref the remote no longer has resolves only here."""
     if not ref.startswith(REMOTE):
         return True
+    # The branch under review is live by definition — we are standing on it.
+    # Without this, a row naming the PR's own branch is reported STALE REF
+    # whenever `ls-remote` cannot see it, and the row then fails for the wrong
+    # reason: "the remote does not have this branch" instead of "this path is
+    # not there". Two different defects must not share one message.
+    if ref[len(REMOTE):] in _current_branch_names():
+        return True
     return subprocess.run(
         ["git", "-C", str(ROOT), "ls-remote", "--exit-code", "--heads",
          "origin", ref.split("/", 1)[1]], capture_output=True).returncode == 0
