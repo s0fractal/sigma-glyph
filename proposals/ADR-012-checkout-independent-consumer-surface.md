@@ -1,27 +1,113 @@
-# ADR-012: A stranger-facing evaluation surface
+# ADR-012: A checkout-independent consumer surface
 
 **Status:** DRAFT — non-normative product-surface proposal. Not implemented,
 not gated, not adopted, and not part of any Specification Anchor. It proposes
 no change to Books I–III, their schemas, their vectors, ATP pricing, or
-governance.
+governance. **This revision is a proposal only; no implementation is authorised
+by it.**
 
-**Origin:** the repository says that Sigma-Glyph exists so a stranger can
-re-run someone else's bounded check. Today the shortest installed-package path
-mostly runs the repository's own self-tests. A 2026-08-31 ecosystem analysis by
-Kimi correctly identified the entry barrier, then proposed broad Python,
-Jupyter, ML and DeFi surfaces that the machine does not provide. This ADR keeps
-the diagnosis and rejects the scope expansion. The source is
+**Renamed and rescoped, 2026-08-31.** The earlier revision was
+`ADR-012-stranger-verification-surface.md`, written for a stranger who might
+arrive. It is preserved unedited at `9b45f7965a9e8105f65b0f9be05ebe27474daf6b`
+(local branch, unpublished; a bundle of that head was taken before the rebase).
+The technical contract below is that revision's and is kept; what changed is who
+it is for and how it is measured. Assume no outside implementer, user or
+reviewer ever arrives: build for the owner's repositories, for future
+clean-room rebuilds, and for agents that do not inherit the session in which a
+feature was written.
+
+External validation is still required for claims that are explicitly external —
+independent implementability, novelty, general usefulness, portability across
+uncontrolled implementations, public adoption. Nothing here claims any of
+those, and internal use is not offered as evidence for them.
+
+**Origin of the diagnosis:** a 2026-08-31 ecosystem analysis by Kimi correctly
+identified the entry barrier, then proposed broad Python, Jupyter, ML and DeFi
+surfaces that the machine does not provide. This ADR keeps the diagnosis and
+rejects the scope expansion. The source is
 `manifesto/quotes/Kimi/s0fractal_analysis.md` at manifesto commit
 `f6d1c22ee50d`, file SHA-256
 `1ba5b647d06290419f61ebb72cb3954140403dc2ba96707d08da6fafdb27742c`.
 
 **Working thesis:**
 
-> Sigma-Glyph should be a small, boring evaluator for content-addressed checks,
-> not a sandbox for arbitrary Python. A stranger should be able to install it,
-> re-run one foreign reason, inspect the full Receipt, and falsify the result by
-> changing one input — without reading the Three Books and without trusting a
-> repository checkout.
+> A consumer should be able to install one pinned artifact, supply the three
+> inputs, and obtain the full Receipt — without vendoring the evaluator,
+> without a Sigma source checkout, and without inheriting state from the
+> machine the check was written on.
+
+## 0. The gap this ADR exists to close
+
+Three things are currently distinct, and the distance between them is the whole
+problem:
+
+```text
+published package:       sigma-glyph 0.6.7
+adopted specification:   anchor-set v0.7.0
+current relation:        not yet one released, digest-pinned artifact
+```
+
+`0.6.7` is a real published package and a consumer can install it. `v0.7.0` is
+the adopted anchor set, carried by warrant
+`0e634c176b002d02d835e5c6436e4b254d065adeab4bc7704585339567ba46e1`. **Neither
+identifies the other.** Installing the package does not tell a consumer which
+specification edition it implements, and the anchor set does not name an
+artifact a consumer can install. Nothing today closes that.
+
+### 0.1 Four requirements already earned, not speculated
+
+These came out of Phase 2 (`manifesto`, PR #1) by running things, and they are
+the concrete content of the gap above.
+
+1. **Checkout coupling is real and current.**
+   `manifesto:tools/glyphlib.py` reaches the evaluator through a hardcoded
+   absolute path — `SIGMA_GLYPH`, defaulting to
+   `/Users/s0fractal/Projects/sigma-glyph` — and falls back to nothing. A
+   consumer that does this has a dependency on one machine's directory layout.
+   **Requirement:** no consumer may require a Sigma source checkout, a
+   repository-relative path, or a mutable environment variable to reach the
+   evaluator.
+
+2. **Clean install works. This is a positive witness, and its scope is exact.**
+   With `SIGMA_GLYPH` pointed at a path that does not exist and
+   `sigma-glyph==0.6.7` installed from PyPI, all eleven checks of
+   `manifesto:tools/aie_errata_check.py` pass in CI, reproducing the same ATP
+   figures (27 and 601) as the source checkout. That demonstrates
+   **clean-install consumption of a compatible evaluator API by a real
+   consumer**. It does not demonstrate that the PyPI artifact represents the
+   adopted anchor set, and it is not offered as that.
+
+3. **A version pin is not a content-addressed boundary.**
+   `pip install sigma-glyph==0.6.7` pins a *version*, not a wheel digest. Two
+   installs of one version can differ, and nothing in the consumer notices.
+   **Requirement:** the boundary is pinned by artifact digest, and a digest
+   mismatch fails closed at install or at first use.
+
+4. **Replay reads the bytes the receipt names.**
+   The `manifesto` SSD pack does not regenerate: its declared command reports
+   `refuted: 3` where the committed receipt records `refuted: 0`, because
+   repo-layer claims re-read the *current* file rather than the bytes their
+   own recorded `dep.sha256` names. **Requirement:** replaying a historical
+   receipt MUST read dependency bytes from the pack or the CAS, addressed by
+   digest. Reading the current file is a **drift check** — a different
+   operation, reported as drift, never as a refutation of the original
+   settlement.
+
+## 0.2 Honest scope statements
+
+Stated here rather than buried, because each one is a thing this ADR could be
+misread as providing:
+
+- `ADR-011` is a **merged, non-normative** proposal. Merging it adopted nothing.
+- `EXP-ADR011-01` **has not started**.
+- `church@v0` **cannot settle `PLUS 7 5`** — the case ADR-011 was written about.
+- **Portable equality settlement remains blocked**: Sigma has no adopted
+  content-addressed profile descriptor, and this ADR does not propose one.
+- This proposal exposes **adopted Book I evaluation**. It adds no kernel
+  equality, no raw-byte frontend, no Python-to-SKI compilation, and no
+  universal application language.
+- Internal use is evidence of usefulness **to this ecosystem**. It is not
+  evidence of general public utility or of independent implementability.
 
 ## 1. The problem
 
@@ -256,17 +342,21 @@ An implementation that passes the bundle may claim conformance to the named
 predicates and vectors. It may not claim independent validation, correctness of
 every sentence, physical-memory bounds, or external adoption.
 
-## 7. The first stranger walkthrough
+## 7. The first consumer walkthrough
 
-The first product demonstration is not another self-test. It starts in a fresh
-temporary directory with no checkout and uses the released wheel plus one
-existing Warrant evidence pack.
+The first demonstration is not another self-test, and it is not aimed at a
+stranger. It starts in a fresh temporary directory with **no Sigma checkout**
+and uses one digest-pinned artifact plus one existing Warrant evidence pack —
+because that is precisely the condition §13.3 requires and
+`manifesto:tools/glyphlib.py` currently fails.
 
 The page and its generated transcript must show:
 
 1. create a fresh virtual environment;
-2. download one pinned `sigma-glyph` wheel, verify its published SHA-256,
-   install that local artifact and print what was installed;
+2. download one `sigma-glyph` wheel, **verify its SHA-256 against the digest
+   the release names**, install that local artifact and print what was
+   installed. A version pin is not sufficient here (§0.1.3): the check is on
+   the artifact digest, and a mismatch aborts;
 3. download one evidence pack with a published SHA-256;
 4. identify the Warrant `ski@v1` term, budget and blob directory without
    rewriting them into a Sigma-specific envelope;
@@ -290,6 +380,10 @@ by mutation to fail for its own reason:
 | claim an ATP budget above local policy | local admission refusal, not `atp_exhausted` |
 | change only the expected exit in the Warrant check | Warrant check fails even if `result_hash` is unchanged |
 | change only the expected result hash | Warrant check fails and names the result field |
+| change the artifact digest of the installed wheel | install or first use fails closed, naming the expected and actual digest |
+| change the Book anchor or anchor-set digest the artifact declares | the consumer refuses rather than evaluating under an unnamed edition |
+| add or retype one JSON field of the Receipt | the consumer refuses the output shape rather than ignoring the field |
+| replay a receipt whose dependency bytes have since changed on disk | the **pinned** bytes are read from the pack/CAS and the replay still settles; a separate drift check reports the on-disk difference as drift, never as a refutation (§0.1.4) |
 
 The transcript is generated by running the commands on the page. A parser-only
 documentation gate is useful but cannot substitute for that execution.
@@ -419,16 +513,32 @@ only when all of the following are true:
 
 ## 13. Success metrics
 
-The first meaningful success is one person outside the author/model lineage who
-installs the released artifact and reproduces the Receipt on their machine.
+Every external-adoption metric is removed. The earlier revision measured
+success by "one person outside the author/model lineage", which is not
+measurable by this project and not what the surface is for. These seven are
+measurable inside it, and each is a gate rather than an impression.
 
-The second is an independent implementer who can say either:
+1. **Two owned repositories consume the same released, digest-pinned artifact.**
+   The first two are Warrant's `ski@v1` evidence/replay path and the
+   `manifesto` SSD pack.
+2. **Neither consumer vendors or reimplements the evaluator.** No copied
+   `sigma_glyph.py`, no reimplemented reduction, no second serializer.
+3. **Neither consumer requires a Sigma source checkout, a repository-relative
+   path, a mutable environment variable, or a hidden local cache.** Today
+   `manifesto:tools/glyphlib.py` fails this outright (§0.1.1).
+4. **A clean environment reproduces the same full Receipt from the same three
+   inputs** — same `exit`, same `result_hash`, same `atp_spent`.
+5. **An upgrade either reproduces the pinned behaviour or fails closed at the
+   boundary.** It never silently changes a receipt.
+6. **Mutating each of `exit`, `result_hash`, `atp_spent`, blob bytes, artifact
+   digest, Book anchor and output schema makes at least one consumer gate fail
+   for the named reason.** Seven mutations, seven named failures.
+7. **The shared layer deletes more consumer glue and duplicated semantic code
+   than it adds in packaging and integration machinery.** Counted in lines
+   removed versus lines added, per consumer, and reported even when negative.
 
-- "my implementation agrees," or
-- "I had to guess this exact sentence."
-
-Both are stronger evidence than stars, package downloads, internal sibling use,
-LLM agreement or another case study authored inside the same lineage.
+Both consumers must be inspected live before the integration seam is asserted.
+Nothing in §14's plan may be written from remembered repository structure.
 
 ## 14. Kill criteria and routing rules
 
@@ -494,3 +604,117 @@ ten integrations to compensate for the absence of one user.
 
 The proposal succeeds by making one already-existing guarantee easier to use.
 It fails if it needs to invent a larger machine to appear useful.
+
+---
+
+# Appendix A — Implementation plan (PLAN ONLY)
+
+**No implementation code is authorised by this ADR.** This appendix exists so
+that the two integrations can be falsified before anything is built. Phase 4
+does not start because this PR is green.
+
+## A.1 Minimal interface
+
+```text
+sigma-glyph eval \
+  --term <hex64> \
+  --atp <uint32> \
+  --blob-dir <path> \
+  --max-* <explicit-local-limits> \
+  --json
+```
+
+The executable/package name is a packaging decision, not a normative Book
+change. Nothing here alters `eval`'s three inputs or the Receipt.
+
+## A.2 Output and process status
+
+On successful Book I evaluation, the **full Receipt only**:
+
+```json
+{
+  "exit": "normal_form | atp_exhausted | unresolved_reference",
+  "result_hash": "<hex64>",
+  "atp_spent": 0
+}
+```
+
+**No `ok` field.** `atp_exhausted` and `unresolved_reference` are canonical
+exits — successful executions of the evaluator — and MUST NOT be reported as
+process failures. Malformed caller input, a rejected content environment, and
+local resource or tool faults need separate non-zero process exits with
+machine-readable diagnostics. The exact taxonomy is pinned before
+implementation; adding a code later is a contract change.
+
+## A.3 Store boundary
+
+- validate term hash, ATP value, path and local-limit arguments **before any
+  store read**;
+- fetch only hashes evaluation demands;
+- never recurse over or trust an entire directory;
+- reject path and symlink escapes;
+- verify every loaded blob against the hash used to request it;
+- distinguish missing content from malformed content from a local I/O or
+  resource fault;
+- state whether blob filenames are lowercase hex, and whether extra files are
+  ignored or rejected.
+
+## A.4 Release and conformance asset
+
+A release artifact installable in a clean environment and **pinned by
+cryptographic digest** — the requirement §0.1.3 names, and the thing
+`pip install sigma-glyph==0.6.7` does not provide. Its conformance asset derives
+from the adopted anchor-set bytes and identifies: release/package version;
+source commit; Book I anchor and anchor-set digest; suite/schema digests;
+supported platform and toolchain matrix; the exact command and a **closed** test
+inventory. No network access after installation for local replay.
+
+This is where §0's three-way gap closes, or does not: the artifact must name the
+anchor set it implements, and the anchor set must name an artifact.
+
+## A.5 Consumer integration plan
+
+For **Warrant** (`ski@v1` evidence/replay) and **manifesto** (SSD pack),
+each specified separately after inspecting the live consumer:
+
+- the exact current glue or evaluator code to be removed — for manifesto this
+  begins with the hardcoded `SIGMA_GLYPH` path in `tools/glyphlib.py`;
+- the pinned artifact digest and the installation boundary;
+- the three inputs the consumer supplies;
+- how the full Receipt is preserved without boolean collapse;
+- clean-environment reproduction;
+- upgrade procedure, and rollback / fail-closed behaviour;
+- negative controls proving the consumer depends on the released boundary
+  rather than on a copied implementation or a source checkout.
+
+**SSD replay specifically.** Dependency bytes are read from the pack or the CAS
+by digest. The current-file read becomes a separate drift check with its own
+output. A receipt that no longer reproduces because a file moved underneath it
+is a drift report, not a refutation — today it is reported as `refuted`, which
+is the defect (§0.1.4).
+
+### Breaking-change drill
+
+Each mutated independently; each must fail at the consumer that claims to bind
+that field, and for the stated reason:
+
+`exit` · `result_hash` · `atp_spent` · one demanded blob byte · package/artifact
+digest · Book anchor or anchor-set digest · a JSON field name/type or an
+unexpected field.
+
+A **closed** test set is preferred: adding or removing a test is itself a
+visible contract change.
+
+## A.6 Kill criteria
+
+Freeze or delete the surface if, after the two integrations, any of these
+remains true:
+
+- it requires a new language or frontend to be useful;
+- it creates a second envelope, signing or authority protocol;
+- consumers still vendor evaluator logic or require a Sigma checkout;
+- it adds more maintained glue than it removes;
+- full Receipt fields are collapsed or discarded at either consumer;
+- upgrades cannot be pinned and made fail-closed;
+- the only demonstrated benefit is that Sigma can call itself through a new
+  wrapper.
