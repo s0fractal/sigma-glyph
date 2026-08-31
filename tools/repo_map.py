@@ -276,7 +276,12 @@ def _resolvable(ref, path):
     # If the row names the branch we are standing on, HEAD *is* that branch —
     # detached or not. Checking it here is what makes the row under review
     # verifiable in CI rather than skipped.
-    if ref in _current_branch_names():
+    #
+    # Compare with the remote prefix removed: rows are written `origin/<branch>`
+    # while GITHUB_HEAD_REF is the bare name, and matching them literally missed
+    # every time — which left the row under review UNCHECKED exactly as before.
+    bare = ref[len(REMOTE):] if ref.startswith(REMOTE) else ref
+    if bare in _current_branch_names():
         spellings.insert(0, "HEAD")
     present = [r for r in spellings
                if subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify",
@@ -433,21 +438,32 @@ def selftest():
     failures = []
     work = tempfile.mkdtemp(prefix="repo-map-selftest-")
     try:
+        # Built from HEAD's SHA, never from a branch name: in CI this runs
+        # inside an ALREADY detached checkout, where `clone --branch <name>`
+        # fails outright — which is how the first CI run of this control died.
         clone = Path(work) / "checkout"
-        if subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch",
-                           branch, f"file://{ROOT}", str(clone)],
-                          capture_output=True).returncode != 0:
-            print("SELFTEST: could not make a shallow clone", file=sys.stderr)
-            return 1
+        head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+                              capture_output=True, text=True).stdout.strip()
+        steps = [
+            ["git", "init", "--quiet", str(clone)],
+            ["git", "-C", str(clone), "remote", "add", "origin", f"file://{ROOT}"],
+            ["git", "-C", str(clone), "fetch", "--quiet", "--depth", "1",
+             "origin", head],
+            ["git", "-C", str(clone), "checkout", "--quiet", "--detach",
+             "FETCH_HEAD"],
+        ]
+        for step in steps:
+            done = subprocess.run(step, capture_output=True, text=True)
+            if done.returncode != 0:
+                print(f"SELFTEST: {' '.join(step[:4])} failed: "
+                      f"{done.stderr.strip()[:200]}", file=sys.stderr)
+                return 1
         # Give the clone the base ref too. actions/checkout leaves origin refs
         # present; without this the clone fails for reasons that have nothing to
         # do with the control, and a control that cannot pass on a healthy tree
         # proves nothing when it fails on a broken one.
         subprocess.run(["git", "-C", str(clone), "fetch", "--quiet", "--depth", "1",
                         "origin", "master:refs/remotes/origin/master"],
-                       capture_output=True)
-        # Detach, exactly as actions/checkout leaves a pull_request checkout.
-        subprocess.run(["git", "-C", str(clone), "checkout", "--quiet", "--detach"],
                        capture_output=True)
         detached = subprocess.run(["git", "-C", str(clone), "branch",
                                    "--show-current"], capture_output=True,
