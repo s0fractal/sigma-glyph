@@ -17,6 +17,12 @@ jobs:
       # Pinned so two builds of one commit are byte-identical. Without it only
       # the dist-info zip timestamps move — every member's bytes are the same —
       # but "reproducible" without naming the condition would be false.
+      # The freeze check rebuilds from the commit the receipt names, which a
+      # shallow checkout does not have. Fetched rather than skipped: a freeze
+      # nobody can re-derive is a number in a file.
+      - name: Fetch enough history to re-derive the frozen artifact
+        run: git fetch --no-tags --unshallow || git fetch --no-tags
+
       - name: Build the candidate artifact and its manifest
         env:
           SOURCE_DATE_EPOCH: '1788134400'
@@ -37,6 +43,16 @@ jobs:
           python3 tools/candidate_install_check.py --out dist/candidate \
             | tee install.log
           grep -q "CANDIDATE-INSTALL: ALL PASS" install.log
+
+      # The committed receipt froze a digest BEFORE this run existed. Rebuilding
+      # it here is what makes the freeze mean something: without it, CI would
+      # only be checking that a generator agrees with itself.
+      - name: The committed receipt's artifact still re-derives
+        run: |
+          set -euo pipefail
+          python3 tools/candidate_freeze_check.py \
+            --receipt campaigns/phase-4a/candidate-receipt.json | tee freeze.log
+          grep -q "FREEZE-CHECK: the rebuild reproduces" freeze.log
 
       - name: Every artifact-boundary control fails for its own reason
         run: |
