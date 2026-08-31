@@ -4,12 +4,12 @@
   "oracle_source_commit": "1c2b6ca42cb95cdc035fc887cd0587a5758862d7",
   "measurement_inputs": {
     "proposals/adr-011/equality_profile.py": "be264861c5d4a039c5b46a72d6feba83553345852b71cb74d79191fe20dfa710",
-    "proposals/adr-011/benchmark.py": "875be27ec4d9641cffcd56e5f71678ab46bcf6035736b60f6717f25cefe4ec59",
+    "proposals/adr-011/benchmark.py": "105145fc84afa0bcb0da19317b345569b3e0035940c1fc4ea8707ff370b86c2b",
     "impl/sigma_glyph.py": "55072bc02e63987898fd60125e8bb5b14a6233b081ba158e0253755652323825"
   },
   "co_released_context": {
     "proposals/ADR-011-eq-by-normal-form-address.md": "a848f1ec891e907d3e14c27fd7c69c39e8e4477e5393f026429cdc4a0c141c46",
-    "proposals/adr-011/selftest.py": "61518fa8c15cd37af130b6887e8b3db0de88461002f9a91c5f9d8f71927d84e0",
+    "proposals/adr-011/selftest.py": "e19f25a2eef5c0f1adec3db4ce1cae673e9b10a31f965cae0b142ccfb1725aee",
     "proposals/EXP-ADR011-01-church-nat-admission.md": "f93df0595e6bed6e6df63df0f697206f4c25398b6f8f8da90e4b6fd86a21a5c4"
   },
   "book_1_anchor": "e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd",

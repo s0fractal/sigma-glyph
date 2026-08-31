@@ -357,10 +357,25 @@ def digest_problems():
         elif independent not in adr:
             problems.append(f"marker {label}: the ADR does not print {independent}")
 
-    blob = subprocess.run(
+    # The preserved original. A shallow checkout does not have this commit, and
+    # the first CI run of this selftest died on the raw CalledProcessError. It
+    # must not be skipped when unreachable — the point of the check is that the
+    # ADR's stated digest of the original IS the git object's digest, and an
+    # unverifiable claim is the failure, not an exemption. So it reports a
+    # problem that names the remedy.
+    ORIGINAL = "3f58ab6ed2eb26d48e2323dc09d50a3c4d86bf6e"
+    fetched = subprocess.run(
         ["git", "-C", str(HERE.parents[1]), "show",
-         "3f58ab6:proposals/ADR-011-eq-by-normal-form-address.md"],
-        capture_output=True, check=True).stdout
+         f"{ORIGINAL}:proposals/ADR-011-eq-by-normal-form-address.md"],
+        capture_output=True)
+    if fetched.returncode != 0:
+        problems.append(
+            f"cannot reach the preserved original {ORIGINAL[:7]}, so the ADR's "
+            f"digest of it is unverified here — a shallow clone needs "
+            f"`git fetch --depth=1 origin {ORIGINAL}` first "
+            f"({fetched.stderr.decode().strip().splitlines()[-1:] or ['']}[0])")
+        return problems
+    blob = fetched.stdout
     import hashlib
     original = hashlib.sha256(blob).hexdigest()
     if original not in adr:

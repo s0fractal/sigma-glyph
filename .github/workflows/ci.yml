@@ -270,5 +270,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # actions/checkout is shallow, and two checks here need real history.
+          # The selftest verifies that the ADR's digest of the PRESERVED
+          # ORIGINAL is the git object's digest, and the benchmark receipt
+          # records the commit that last changed impl/sigma_glyph.py — which
+          # `git log` answers WRONGLY, not not-at-all, in a truncated history.
+          # Both now refuse rather than skip, so unshallow first.
+          git fetch --no-tags --unshallow || git fetch --no-tags
           python3 proposals/adr-011/selftest.py | tee /dev/stderr | grep -q "ADR-011-SELFTEST: ALL PASS"
           python3 proposals/adr-011/benchmark.py --check

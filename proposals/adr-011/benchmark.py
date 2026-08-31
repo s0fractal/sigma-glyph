@@ -30,7 +30,22 @@ def oracle_source_commit():
     every time anything in the repository is committed, including this ADR, so
     regenerating the receipt after a commit dirtied it although
     `impl/sigma_glyph.py` had not changed by a byte.
+
+    In a SHALLOW clone this question has no honest answer: `git log` walks only
+    the commits that were fetched, so it reports the newest one that touched
+    the file WITHIN that window — which in a `--depth 1` checkout is simply
+    HEAD. That is a wrong answer returned in the shape of a right one, so refuse
+    it. CI unshallows before running this.
     """
+    shallow = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"],
+        capture_output=True, text=True, check=True).stdout.strip()
+    if shallow == "true":
+        raise RuntimeError(
+            "shallow clone: `git log -1 -- impl/sigma_glyph.py` would report "
+            "HEAD rather than the commit that last changed the oracle. Run "
+            "`git fetch --unshallow` before generating or checking this "
+            "receipt.")
     return subprocess.run(
         ["git", "-C", str(ROOT), "log", "-1", "--format=%H",
          "--", "impl/sigma_glyph.py"],
