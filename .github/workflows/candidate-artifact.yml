@@ -1,0 +1,70 @@
+name: candidate-artifact
+
+# NON-NORMATIVE. Builds a candidate artifact and proves its boundary. It does
+# not publish, tag, release, or adopt anything: the wheel carries a PEP 440
+# LOCAL version, which PyPI refuses outright, so this workflow cannot become a
+# release by accident.
+on: [push, pull_request]
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: { python-version: '3.12' }
+
+      # Pinned so two builds of one commit are byte-identical. Without it only
+      # the dist-info zip timestamps move — every member's bytes are the same —
+      # but "reproducible" without naming the condition would be false.
+      # The freeze check rebuilds from the commit the receipt names, which a
+      # shallow checkout does not have. Fetched rather than skipped: a freeze
+      # nobody can re-derive is a number in a file.
+      - name: Fetch enough history to re-derive the frozen artifact
+        run: git fetch --no-tags --unshallow || git fetch --no-tags
+
+      - name: Build the candidate artifact and its manifest
+        env:
+          SOURCE_DATE_EPOCH: '1788134400'
+        run: python3 tools/candidate_artifact.py build --out dist/candidate
+
+      - name: The manifest agrees with the artifact and with this commit
+        run: |
+          set -euo pipefail
+          python3 tools/candidate_artifact.py verify \
+            --out dist/candidate --expect-commit "$(git rev-parse HEAD)"
+
+      # Digest checked BEFORE install; the module must come from site-packages
+      # with no checkout reachable and the historical SIGMA_GLYPH override
+      # pointed at a path that cannot exist.
+      - name: Clean isolated install, and the conformance surface on it
+        run: |
+          set -euo pipefail
+          python3 tools/candidate_install_check.py --out dist/candidate \
+            | tee install.log
+          grep -q "CANDIDATE-INSTALL: ALL PASS" install.log
+
+      # The committed receipt froze a digest BEFORE this run existed. Rebuilding
+      # it here is what makes the freeze mean something: without it, CI would
+      # only be checking that a generator agrees with itself.
+      - name: The committed receipt's artifact still re-derives
+        run: |
+          set -euo pipefail
+          python3 tools/candidate_freeze_check.py \
+            --receipt campaigns/phase-4a/candidate-receipt.json | tee freeze.log
+          grep -q "FREEZE-CHECK: the rebuild reproduces" freeze.log
+
+      - name: Every artifact-boundary control fails for its own reason
+        run: |
+          set -euo pipefail
+          python3 tools/candidate_boundary_controls.py --out dist/candidate \
+            | tee controls.log
+          grep -q "CANDIDATE-BOUNDARY-CONTROLS: ALL PASS" controls.log
+
+      # Not published. Retained so the consumer job in the manifesto repository
+      # can be handed the exact bytes this job built.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sigma-glyph-candidate
+          path: dist/candidate/
+          retention-days: 7

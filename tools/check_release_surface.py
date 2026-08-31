@@ -283,6 +283,29 @@ def expected_skips(module, shipped):
 # --------------------------------------------------------------------------
 # The wheel is the provenance root: read it as a zip before running anything.
 # --------------------------------------------------------------------------
+def _version_problems(wheel_name, version):
+    """The wheel's PUBLIC version must be pyproject's.
+
+    A PEP 440 LOCAL segment (`+phase4a.<commit>`) is allowed on top of it, and
+    only there: a candidate build has to be distinguishable from the published
+    release of the same version, and a local segment is the one suffix PyPI
+    refuses to accept, so it cannot become a release by accident. Renumbering
+    the public part still fails, which is what this check was for.
+    """
+    declared = re.search(r'^version\s*=\s*"([^"]+)"',
+                         (ROOT / "pyproject.toml").read_text(), re.M)
+    if not declared:
+        return []
+    public, _, local = version.partition("+")
+    if public != declared.group(1):
+        return [f"{wheel_name}: wheel version {version} has public part "
+                f"{public}, pyproject says {declared.group(1)}"]
+    if local and not re.fullmatch(r"[a-z0-9]+(\.[a-z0-9]+)*", local):
+        return [f"{wheel_name}: local version segment {local!r} is not a "
+                f"PEP 440 local version"]
+    return []
+
+
 def inspect_wheel(wheel):
     problems = []
     if not wheel.is_file():
@@ -305,11 +328,8 @@ def inspect_wheel(wheel):
             problems.append(f"{wheel.name}: does not contain {m}.py — the "
                             f"distribution promises three top-level modules")
 
+    problems += _version_problems(wheel.name, info["version"])
     pyproject = (ROOT / "pyproject.toml").read_text()
-    pv = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
-    if pv and info["version"] != pv.group(1):
-        problems.append(f"{wheel.name}: wheel version {info['version']} != "
-                        f"pyproject version {pv.group(1)}")
     dist = re.search(r'^name\s*=\s*"([^"]+)"', pyproject, re.M)
     if dist and (info["name"] or "").replace("_", "-") != dist.group(1):
         problems.append(f"{wheel.name}: wheel name {info['name']} != pyproject "
