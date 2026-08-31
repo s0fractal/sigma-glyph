@@ -119,7 +119,7 @@ Receipt = { exit, result_hash, atp_spent }
 ```
 
 The released Python surface does not yet make that relation a complete
-stranger-facing workflow:
+checkout-independent consumer workflow:
 
 - `python -m sigma_glyph` runs the module self-test rather than evaluating a
   supplied term;
@@ -405,7 +405,7 @@ ledger should say, in substance:
 | raw JSON/byte frontend | not provided; EXP-002 stopped here |
 | authority or policy acceptance | Warrant/application concern |
 | implementations outside one author/model lineage | none known |
-| independent user reproduction | none until an external receipt is filed |
+| independent user reproduction | **none, and not sought by this ADR.** Listed in NOT CLAIMED, never as a delivery gate, prerequisite or kill condition |
 | peer review of the papers | none |
 
 Mechanically derivable rows are generated from the release and conformance
@@ -414,8 +414,8 @@ must not be inferred from download counts, model reviews or internal CI.
 
 ## 9. A possible pytest adapter — later and thin
 
-A pytest adapter is allowed only after the CLI and stranger walkthrough have
-survived one independent use. It may re-run an already compiled, immutable
+A pytest adapter is considered only if an owned consumer demonstrates need
+during S2 or S3 (§11). It may re-run an already compiled, immutable
 check:
 
 ```python
@@ -453,7 +453,7 @@ This proposal does not include:
 - Book II/III redesign;
 - a claim that stars, downloads or model agreement are external validation.
 
-Book II and Book III remain available, but the first stranger-facing path does
+Book II and Book III remain available, but the first consumer path does
 not require them. Navigation and federation are advanced layers, not entrance
 requirements for Book I evaluation.
 
@@ -474,18 +474,35 @@ requirements for Book I evaluation.
 - make wheel-surface, transcript and negative-control gates mandatory for the
   files they cover.
 
-### S2 — independent use
+### S2 — integrate Warrant and manifesto
 
-- ask for no testimonial and no broad adoption;
-- obtain one independently executed transcript or one independent
-  implementation report;
-- record every sentence the user had to guess;
-- treat each guessed sentence as a surface defect, not user error.
+The two owned consumers, each against the digest-pinned artifact:
 
-### S3 — optional adapter
+- Warrant's `ski@v1` evidence/replay path;
+- the `manifesto` SSD pack, starting by removing the hardcoded `SIGMA_GLYPH`
+  path from `tools/glyphlib.py` (§0.1.1);
+- for each: the glue removed, the three inputs supplied, the full Receipt
+  preserved without boolean collapse, and the negative controls proving the
+  consumer depends on the released boundary rather than on a checkout;
+- record every sentence an integrator had to guess, and treat each as a surface
+  defect rather than integrator error.
 
-Only after S2, decide whether a thin pytest adapter removes real friction. No
-Jupyter, framework integrations or additional plugins are queued by this ADR.
+### S3 — upgrade/drift drill and maintenance observation
+
+- run the seven-mutation breaking-change drill of §A.5 across both consumers;
+- run the upgrade path: it must reproduce the pinned behaviour or fail closed,
+  never silently change a receipt;
+- run the replay/drift split: pinned bytes replay, on-disk difference reports as
+  drift (§0.1.4);
+- observe maintenance cost over the two consumers and report §13.7's balance,
+  including when it is negative.
+
+### Optional adapter
+
+A thin pytest adapter is considered **only if an owned consumer demonstrates
+need** during S2 or S3. It is not scheduled, and nothing in S2 or S3 waits on
+it. No Jupyter, framework integrations or additional plugins are queued by this
+ADR.
 
 ## 12. Acceptance criteria
 
@@ -505,8 +522,9 @@ only when all of the following are true:
    the adopted anchor set it names.
 7. The walkthrough contains no command the released wheel does not provide and
    no output copied from a different run.
-8. The capability ledger says `none known` for independent use until evidence
-   from outside the author/model lineage exists.
+8. Both owned consumers run against the digest-pinned artifact and neither
+   requires a Sigma source checkout, a repository-relative path, a mutable
+   environment variable or a hidden cache (§13.1–13.3).
 9. No anchored byte changes.
 10. The implementation and documentation pass focused adversarial review; green
     local suites alone are not that review.
@@ -533,9 +551,22 @@ measurable inside it, and each is a gate rather than an impression.
 6. **Mutating each of `exit`, `result_hash`, `atp_spent`, blob bytes, artifact
    digest, Book anchor and output schema makes at least one consumer gate fail
    for the named reason.** Seven mutations, seven named failures.
-7. **The shared layer deletes more consumer glue and duplicated semantic code
-   than it adds in packaging and integration machinery.** Counted in lines
-   removed versus lines added, per consumer, and reported even when negative.
+7. **The shared layer removes more from the consumers than it adds — judged
+   semantically, not by line count.** Lines removed versus added is kept as a
+   *descriptive* figure, reported per consumer including when negative, but it
+   is not the gate: a reformat can win it and a test suite can lose it. The gate
+   is five findings, each yes or no:
+   - the named checkout, environment-variable and path adapters are **deleted**
+     (for `manifesto`, the hardcoded `SIGMA_GLYPH` lookup in
+     `tools/glyphlib.py`);
+   - **no duplicated evaluator or serializer** remains in either consumer;
+   - the consumer **no longer makes local semantic decisions on Sigma's
+     behalf** — no re-derived exits, no locally invented equality, no
+     reinterpreted budgets;
+   - every **added packaging, configuration and test responsibility is
+     enumerated**, not summarised;
+   - the balance of those four **may come out negative**, and when it does the
+     surface is frozen rather than argued for.
 
 Both consumers must be inspected live before the integration seam is asserted.
 Nothing in §14's plan may be written from remembered repository structure.
@@ -559,17 +590,20 @@ Route each pressure to its owner:
 - new canonical result or ATP rule -> Book I candidate and governed re-anchor;
 - application ergonomics -> application adapter, without protocol status.
 
-If the hardened S1 vertical produces no independent use, freeze it. Do not add
-ten integrations to compensate for the absence of one user.
+If the hardened S1 vertical cannot carry **both owned consumers** off a
+checkout — or if §13.7's balance comes out negative — freeze it. Do not add
+integrations to compensate: the surface exists to remove duplicated semantics
+from two repositories, and a surface that does not is not improved by a third
+consumer.
 
 ## 15. Falsifiers
 
-- The current Warrant walkthrough already provides the entire stranger journey,
-  and a Sigma CLI would only duplicate it -> reject the CLI and improve the
-  bridge documentation instead.
-- A clean-environment user can already perform the raw Book I evaluation from
-  the wheel without guessing store layout, exit semantics or limits -> the
-  stated interface gap is smaller than claimed.
+- Warrant's existing path already gives both owned consumers everything this
+  surface would, and a Sigma CLI would only duplicate it -> reject the CLI and
+  improve the bridge documentation instead.
+- A clean environment can already perform the raw Book I evaluation from the
+  released artifact without guessing store layout, exit semantics or limits ->
+  the stated interface gap is smaller than claimed.
 - The filesystem CAS adapter cannot remain an implementation detail -> stop and
   file the profile explicitly before shipping it.
 - An external implementer cannot consume the conformance artifact without the
@@ -669,8 +703,27 @@ source commit; Book I anchor and anchor-set digest; suite/schema digests;
 supported platform and toolchain matrix; the exact command and a **closed** test
 inventory. No network access after installation for local replay.
 
-This is where §0's three-way gap closes, or does not: the artifact must name the
-anchor set it implements, and the anchor set must name an artifact.
+**The binding is one-directional, and that is deliberate.** An earlier draft of
+this appendix required that "the artifact names the anchor set, and the anchor
+set names the artifact". The second half is not achievable here: the adopted
+anchor set is anchored bytes, so making it name an artifact means rewriting
+those bytes and re-anchoring under governance — which this ADR explicitly
+excludes. Requiring it would have made the acceptance criterion unsatisfiable
+by anything this ADR authorises.
+
+The achievable boundary:
+
+- the **release manifest names the anchor set** it was built against;
+- the manifest carries the **artifact digest**, the **source commit**, and the
+  **suite/schema digests**;
+- if a verifiable link in the other direction is wanted, a **separate Warrant
+  release record** binds artifact digest to adopted anchor set — a record, not
+  an edit;
+- **the adopted anchor set is not rewritten**, at any point, by anything here.
+
+A reverse binding inside the anchor set itself is a separate future governance
+proposal. It is not an acceptance criterion of this ADR, and §0's gap is closed
+from the artifact side only.
 
 ## A.5 Consumer integration plan
 
