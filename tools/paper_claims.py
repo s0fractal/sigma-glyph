@@ -315,14 +315,15 @@ def audit_engine(audit, tree):
 
     # The implementations, whose line counts are the easiest number in the paper
     # to leave stale and the easiest to check.
-    stated(audit, ENGINE, r"\| `impl/sigma_glyph\.py` \(oracle\) \| (\d+) \|",
-           [("§6.3 impl/sigma_glyph.py lines", tree["oracle_py"], int)])
-    stated(audit, ENGINE, r"\| `impl-rs/src/main\.rs` \| (\d+) \|",
-           [("§6.3 impl-rs/src/main.rs lines", tree["impl_rs"], int)])
-    stated(audit, ENGINE, r"\| `impl-go/main\.go` \(in-tree\) \| (\d+) \|",
-           [("§6.3 impl-go/main.go lines", tree["impl_go"], int)])
-    stated(audit, ENGINE, r"worth a sentence: (\d+) lines, no dependencies",
-           [("§6.3 Rust prose line count", tree["impl_rs"], int)])
+    # §6.3's line counts are NOT checked against the working tree any more.
+    # Doing that is what silently rebased the paper's provenance onto HEAD: the
+    # two counts drifted, and writing HEAD's values into a table headed "measured
+    # at 1c2b6ca" was the edit that kept this script green. Both slices are now
+    # checked against the commit each one names —
+    # `audit_measurement_provenance` for the measured column and
+    # `audit_current_snapshot` for the pinned current column.
+    # The prose sentence states the MEASURED figure, so it is checked against
+    # the measurement commit in `audit_measurement_provenance`, not here.
 
     # The store-monotonicity bridge reports its own totals; §6a and §6.1 quote
     # them, and the two places must agree with each other as well as with it.
@@ -484,15 +485,21 @@ def audit_engine_status(audit, tree):
     """What the engine paper says is in force, against what is in force."""
     live = adopted_facts()
     paper = audit.texts[ENGINE]
+    # Negative predicates ("must not say X") read prose with fenced blocks
+    # removed. A paper that corrects itself has to be able to QUOTE what it used
+    # to say; a checker that cannot tell a quotation from a claim forces the
+    # correction to be silent, which is the failure mode this whole exercise is
+    # about. Positive predicates still read the whole document.
+    prose = re.sub(r"```.*?```", "", paper, flags=re.S)
 
     audit.chk("engine paper: names the adopted release",
               f"**{live['release']}**" in paper or f"`{live['release']}`" in paper,
               True)
     audit.chk("engine paper: no current-tense 'not adopted' about the release",
-              bool(re.search(r"\*\*It is not adopted\*\*", paper)), False)
+              bool(re.search(r"\*\*It is not adopted\*\*", prose)), False)
     audit.chk("engine paper: does not call the adopted release a candidate",
               bool(re.search(r"bundle `?" + re.escape(live["release"] or "")
-                             + r"`? — (?:is )?a candidate", paper)), False)
+                             + r"`? — (?:is )?a candidate", prose)), False)
     audit.chk("engine paper: does not name a superseded release as the most "
               "recent adopted one",
               bool(re.search(r"most recent \*?adopted\*? anchor set is `v0\.6\.7`",
@@ -576,8 +583,114 @@ def audit_measurement_provenance(audit, tree):
                   int(claimed.group(1)), at_commit(commit, relative))
 
 
+DRIFT_RE = re.compile(
+    r"`git diff ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40}) -- ([^`]+)` reports\s+"
+    r"(\d+) files? changed, (\d+) insertions?\(\+\), (\d+) deletions?\(-\)")
+
+IDENTITY_RE = re.compile(
+    r"([0-9a-f]{7,40}) and ([0-9a-f]{7,40}) are byte-identical over ([^.]+)\.")
+
+
+def audit_revision_drift(audit, tree):
+    """Claims ABOUT two revisions, checked against those two revisions.
+
+    Two shapes are decidable and both appear in §10's history. A DRIFT claim
+    states a diffstat; an IDENTITY claim states there is none. The v1 text made
+    the second, for `proofs/ impl/ impl-rs/ impl-go/`, and it had stopped being
+    true — no check existed, because every other predicate here reads one
+    revision at a time.
+    """
+    paper = audit.texts[ENGINE]
+
+    for claim in DRIFT_RE.finditer(paper):
+        old_rev, new_rev, paths, files, plus, minus = claim.groups()
+        stat = _diffstat(old_rev, new_rev, paths.split())
+        if stat is None:
+            audit.chk(f"§10 diffstat {old_rev}..{new_rev}", (files, plus, minus),
+                      f"one of {old_rev}, {new_rev} is not in this checkout")
+            continue
+        audit.chk(f"§10 diffstat {old_rev}..{new_rev} over {paths}",
+                  (int(files), int(plus), int(minus)), stat)
+
+    for claim in IDENTITY_RE.finditer(paper):
+        old_rev, new_rev, paths = claim.groups()
+        listed = re.findall(r"`([^`]+)`", paths)
+        stat = _diffstat(old_rev, new_rev, listed)
+        if stat is None:
+            audit.chk(f"§10 byte identity {old_rev}..{new_rev}", "verifiable",
+                      f"one of {old_rev}, {new_rev} is not in this checkout")
+            continue
+        changed = _changed_paths(old_rev, new_rev, listed)
+        audit.chk(f"§10 byte identity {old_rev}..{new_rev} over "
+                  f"{', '.join(listed)}",
+                  "byte-identical",
+                  "byte-identical" if stat == (0, 0, 0) else
+                  f"drift at {old_rev}..{new_rev}: {', '.join(changed)}")
+
+
+def _diffstat(old_rev, new_rev, paths):
+    finished = subprocess.run(
+        ["git", "-C", str(ROOT), "diff", "--shortstat",
+         f"{old_rev}..{new_rev}", "--", *paths], capture_output=True, text=True)
+    if finished.returncode != 0:
+        return None
+    if not finished.stdout.strip():
+        return (0, 0, 0)
+    numbers = re.findall(r"(\d+) (?:files? changed|insertions?|deletions?)",
+                         finished.stdout)
+    files = int(numbers[0]) if numbers else 0
+    plus = int(re.search(r"(\d+) insertions?", finished.stdout).group(1)) \
+        if "insertion" in finished.stdout else 0
+    minus = int(re.search(r"(\d+) deletions?", finished.stdout).group(1)) \
+        if "deletion" in finished.stdout else 0
+    return (files, plus, minus)
+
+
+def _changed_paths(old_rev, new_rev, paths):
+    finished = subprocess.run(
+        ["git", "-C", str(ROOT), "diff", "--name-only",
+         f"{old_rev}..{new_rev}", "--", *paths], capture_output=True, text=True)
+    return finished.stdout.split() if finished.returncode == 0 else []
+
+
+CURRENT_SNAPSHOT_RE = re.compile(
+    r"\*\*Current status, at `([0-9a-f]{7,40})`\.\*\*")
+
+
+def audit_current_snapshot(audit, tree):
+    """The second slice: same paths, a different NAMED commit.
+
+    Two observations, never one column. Each is checked against the revision the
+    paper attributes it to, so neither can be quietly refreshed to whatever
+    `master` happens to be — which is what produced the defect this pair of
+    tables replaces.
+    """
+    paper = audit.texts[ENGINE]
+    measured = MEASURED_AT_RE.search(paper)
+    snapshot = CURRENT_SNAPSHOT_RE.search(paper)
+    if not (measured and snapshot):
+        audit.note("§6.3 no longer states BOTH a measurement commit and a "
+                   "pinned current snapshot, so its two columns cannot be "
+                   "checked against the revisions they name")
+        return
+    old_rev, new_rev = measured.group(1), snapshot.group(1)
+    for relative in ("impl/sigma_glyph.py", "impl-rs/src/main.rs",
+                     "impl-go/main.go"):
+        row = re.search(r"\| `" + re.escape(relative)
+                        + r"`[^|]*\| (\d+) \| (\d+) \|", paper)
+        if not row:
+            audit.note(f"§6.3 current-status table has no two-column row for "
+                       f"{relative}")
+            continue
+        audit.chk(f"§6.3 {relative} at {old_rev} (current-status table)",
+                  int(row.group(1)), at_commit(old_rev, relative))
+        audit.chk(f"§6.3 {relative} at {new_rev} (current-status table)",
+                  int(row.group(2)), at_commit(new_rev, relative))
+
+
 GATE_ROUNDS_RE = re.compile(
-    r"been through (\w+|\d+) rounds? of the project's three-family blind gate")
+    r"(?:been|went) through \*{0,2}(\w+|\d+)\*{0,2} rounds? of the project's "
+    r"three-family blind gate")
 
 
 def stated_int(text, pattern):
@@ -621,6 +734,8 @@ def run(texts):
     audit_engine(audit, tree)
     audit_engine_status(audit, tree)
     audit_measurement_provenance(audit, tree)
+    audit_current_snapshot(audit, tree)
+    audit_revision_drift(audit, tree)
     audit_guard(audit, tree)
     return audit
 
@@ -641,6 +756,85 @@ def perturb(literal):
     value = word_int(literal)
     other = word_of(value + 1 if value + 1 in WORDS.values() else value - 1)
     return other.capitalize() if literal[0].isupper() else other
+
+
+def provenance_controls(texts):
+    """Four controls on the provenance predicates specifically.
+
+    The generic mutation loop above rewrites a literal and demands its check go
+    red. These four are different in kind: they must show that the checker
+    distinguishes WHICH REVISION a number belongs to, and that failure is
+    reported by name rather than absorbed by a fallback. Each names the
+    revisions and paths involved.
+    """
+    failures = []
+
+    def expect(label, condition, detail=""):
+        print(("  OK    " if condition else "  FAIL  ") + label
+              + (f" — {detail}" if detail and not condition else ""))
+        if not condition:
+            failures.append(label)
+
+    paper = texts[ENGINE]
+    measured = MEASURED_AT_RE.search(paper).group(1)
+    snapshot = CURRENT_SNAPSHOT_RE.search(paper).group(1)
+    head_rs = at_commit("HEAD", "impl-rs/src/main.rs")
+    old_rs = at_commit(measured, "impl-rs/src/main.rs")
+
+    # C1. A number that matches HEAD but not the commit the paper names must
+    #     FAIL. This is the exact defect: 1170 was HEAD's value, written into a
+    #     table headed "measured at 1c2b6ca", where the value was 1112.
+    swapped = dict(texts)
+    swapped[ENGINE] = re.sub(
+        r"(\| `impl-rs/src/main\.rs` \| )" + str(old_rs) + r"( \| from scratch)",
+        r"\g<1>" + str(head_rs) + r"\g<2>", paper)
+    after = run(swapped)
+    named = [label for label, _, _ in after.failed if "as measured at" in label]
+    expect(f"C1. {head_rs} (HEAD's value) in the table headed 'measured at "
+           f"{measured}' FAILS, naming the measurement",
+           bool(named) and old_rs != head_rs, f"failures were {after.failed}")
+
+    # C2. The converse: the value that matches the NAMED commit must pass even
+    #     though HEAD now differs. Otherwise the checker just re-encodes "match
+    #     the tree" under a new name.
+    after = run(texts)
+    expect(f"C2. {old_rs} passes although HEAD is {head_rs}",
+           not [label for label, _, _ in after.failed if "as measured at" in label]
+           and old_rs != head_rs)
+
+    # C3. An unreachable historical commit is a NAMED provenance failure, not a
+    #     fallback to HEAD. A shallow clone must not silently start checking a
+    #     different revision.
+    unreachable = dict(texts)
+    unreachable[ENGINE] = paper.replace(
+        f"measured at commit `{measured}", "measured at commit `" + "0" * 40)
+    after = run(unreachable)
+    provenance_failed = [(label, stated, actual) for label, stated, actual
+                         in after.failed if "as measured at" in label]
+    expect("C3. an unreachable measurement commit fails by name rather than "
+           "falling back to HEAD",
+           bool(provenance_failed)
+           and all(actual is None for _l, _s, actual in provenance_failed),
+           f"got {provenance_failed}")
+
+    # C4. A byte-identity claim that is false must fail, naming both revisions
+    #     and the paths that actually drifted. This is the v1 sentence.
+    identity = dict(texts)
+    identity[ENGINE] = paper + (
+        f"\n\n{measured} and {snapshot} are byte-identical over `proofs/` "
+        f"`impl/` `impl-rs/` `impl-go/`.\n")
+    after = run(identity)
+    identity_failed = [(label, stated, actual) for label, stated, actual
+                       in after.failed if "byte identity" in label]
+    expect("C4. a false byte-identity claim fails, naming both revisions and "
+           "the drifted paths",
+           bool(identity_failed)
+           and all(measured in label and snapshot in label
+                   and "impl-rs/src/main.rs" in str(actual)
+                   for label, _s, actual in identity_failed),
+           f"got {identity_failed}")
+
+    return failures
 
 
 def selftest(texts):
@@ -672,6 +866,9 @@ def selftest(texts):
             # exclusion nobody prints is how a check stops being one.
             print(f"  NOT MUTATED  {label} — derived by counting, not by reading "
                   f"a literal; no span to rewrite")
+    print()
+    print("  -- provenance controls: which REVISION a number belongs to --")
+    broken += provenance_controls(texts)
     for label in broken:
         print(f"  FAIL  changing '{label}' did not fail its check", file=sys.stderr)
     if broken:

@@ -443,29 +443,73 @@ mitigation.
 
 ## 3.9 Where the specification stands
 
-The adopted edition is bundle **v0.6.7**, with Book I at its own version 0.5.2,
-anchor `a98a03bd…`. Book I 0.5.2 prints the two-argument interface. A candidate —
-`proposals/ADR-010`, bundle `v0.7.0` — states the three inputs, the receipt, the
-CAS condition, the monotonicity bound, admission, and one arbitration rule shared
-by all three Books. **It is not adopted**, and this paper does not describe it as
-in force. What this section describes is the machine, which has always had three
-inputs; what the Book prints is a separate fact, and the candidate is the proposal
-to make them agree.
+The adopted edition is bundle **v0.7.0**, with Book I at its own version 0.6.0,
+anchor `e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd`. It
+states the three inputs, the receipt, the CAS condition, the monotonicity bound,
+admission, and one arbitration rule shared by all three Books — the machine's
+interface as this section describes it, now printed by the Book rather than
+proposed to it.
 
-It has been through three rounds of the project's three-family blind gate, and
-the record is worth reading before the text is believed. Round 1: three REJECTs,
-all three families finding that the candidate had added a clause requiring an
-out-of-domain budget to be refused while leaving the neighbouring clause saying it
-may be clamped. Round 2: the repair contradicted itself, and a reviewer produced
-the environment on which two engines citing the same sentence diverge. Both
-defects were introduced by the revision immediately before, both were invisible to
-every test in this repository, and both shipped with a green CI — which is §5's
-thesis arriving in the specification text rather than in the guard. The rounds are
-recorded verbatim, with prompts, model identifiers and timestamps, in
-`gates/v0.7.0-candidate/`, including a NO VERDICT that was a truncated reply and
-an occasion where one family reversed a finding after reading another's argument
+The v1 deposit of this paper said the opposite, and said it correctly at the
+time. Quoted, because a correction that hides what it corrects is not one:
+
+```text
+v1, §3.9: "The adopted edition is bundle v0.6.7, with Book I at its own
+version 0.5.2, anchor a98a03bd…. A candidate — proposals/ADR-010, bundle
+v0.7.0 — states the three inputs, the receipt, the CAS condition, the
+monotonicity bound, admission, and one arbitration rule shared by all three
+Books. **It is not adopted**, and this paper does not describe it as in force."
+```
+
+That was true when it was written and is false now. The adoption is a threshold warrant, not a
+file, so it is citable:
+
+```text
+anchor set  abf10f2a9c932f31e28973c41658ba728501fef438b35b7538e78c21d37adf59
+warrant     0e634c176b002d02d835e5c6436e4b254d065adeab4bc7704585339567ba46e1
+signatures  codex@sigma-glyph, s0fractal@sigma-glyph        (policy: 2-of-3)
+adopted at  3851a59, on master
+```
+
+§7 states why two signatures satisfying a 2-of-3 policy is a satisfied *policy*
+and not independent attestation; that limitation did not go away when the
+threshold was met, and the signers here are one human principal and one model
+actor, not two independent parties.
+
+It went through **six** rounds of the project's three-family blind gate, and the
+record is worth reading before the text is believed. The v1 text counted three,
+because three was the number when it was deposited. All six are recorded
+verbatim, with prompts, model identifiers and timestamps, in
+`gates/v0.7.0-candidate/`:
+
+| Round | Verdicts | What it produced |
+| --- | --- | --- |
+| 1 | REJECT / REJECT / REJECT | all three families found a clause requiring an out-of-domain budget to be refused while the neighbouring clause said it may be clamped |
+| 2 | ADOPT / REJECT / NO VERDICT | the repair contradicted itself; a reviewer produced the environment on which two engines citing the same sentence diverge |
+| 3 | ADOPT / REJECT / NO VERDICT | completed at its third delivery attempt; one family never replied at all |
+| 4 | ADOPT / ADOPT-WITH-AMENDMENTS / ADOPT | no P0 from any family |
+| 5 | REJECT / NO VERDICT / REJECT | one REJECT was a real P0 |
+| 6 | ADOPT / NO VERDICT / REJECT | the REJECT's P0 is recorded `REFUTED_BY_FROZEN_BYTES`; a post-gate amendment covers one narrow P1 |
+
+Both round-1 and round-2 defects were introduced by the revision immediately
+before, both were invisible to every test in this repository, and both shipped
+with a green CI — which is §5's thesis arriving in the specification text rather
+than in the guard. **No round was a clean three-family ADOPT.** Round 4 came
+closest and the bytes moved afterwards; the final round returned one ADOPT, one
+delivery failure and one REJECT whose P0 the frozen bytes refute. The record also
+contains a NO VERDICT that was a truncated reply rather than a judgement, and an
+occasion where one family reversed a finding after reading another's argument
 in the candidate's own ADR — which is a change of mind and not independent
 confirmation, and is counted as such.
+
+**Later, non-normative work that this paper does not describe as in force.**
+`proposals/ADR-011` — equality of admitted canonical data by normal-form address
+— is a **merged, non-normative** proposal as of `0481bd0`. Merging it adopted
+nothing: it changes no anchored byte, adds no kernel equality primitive, and is
+not part of `v0.7.0`. Its reference profile `church@v0` admits Church numerals
+only as literally written, and **cannot settle `PLUS 7 5`** — the very case the
+proposal was written about. Mechanical admission of computed Church-natural
+expressions is pre-registered as `EXP-ADR011-01`, which **has not started**.
 
 ---
 
@@ -612,9 +656,13 @@ they were re-pinned against a guard that had moved twice underneath them (§5.4,
 verified the merged state independently: the eval bridge reports sixteen guarded
 theorems with standard axioms only, and we reproduced both traces above against
 `master`'s unmodified `EvalMachine.lean`. One nuance the project's own governance
-discipline demands: the most recent *adopted* anchor set is `v0.6.7` at
-`16a1355`, and all eight of these theorems merged after it, so they are on the
-branch in force but are not covered by an adoption warrant (§7).
+discipline demands, and it did not change when `v0.7.0` was adopted: **no
+adoption warrant covers these theorems, and none ever has.** An anchor set
+anchors the specification documents and the conformance vectors — `spec/*.md`,
+`spec/schemas/*.json`, `tests/spec_conformance/*.json` — and `proofs/` appears in
+no release section of `spec/ANCHORS.txt`. So the Lean artifact is in the branch
+in force and outside the adoption boundary, at `v0.6.7` and at `v0.7.0` alike
+(§7).
 
 This is the paper's main technical claim, so it is worth being precise about what
 `SizeBound.lean` adds and what it does not. `SizeBound.lean` abstracts the
@@ -900,14 +948,33 @@ reproducible.
 
 ## 6.3 Implementations
 
-| Implementation | Lines | SHA-256 | Book I evaluator |
+Measured at `1c2b6ca`, with the rest of §6. Two of these files have grown since;
+that is a separate table below, not a revised column here.
+
+| Implementation | Lines at `1c2b6ca` | SHA-256 | Book I evaluator |
 |---|---:|---|---|
 | `impl/sigma_glyph.py` (oracle) | 618 | `hashlib` | yes |
-| `impl-rs/src/main.rs` | 1170 | from scratch, zero crate dependencies | yes |
+| `impl-rs/src/main.rs` | 1112 | from scratch, zero crate dependencies | yes |
 | `warrant-go` (external repo, CI-pinned) | — | Go stdlib | yes |
-| `impl-go/main.go` (in-tree) | 2344 | Go stdlib | **no** — Book III / governance only |
+| `impl-go/main.go` (in-tree) | 1948 | Go stdlib | **no** — Book III / governance only |
 
-The Rust implementation is worth a sentence: 1170 lines, no dependencies at all,
+**Current status, at `0481bd0`.** A second slice, pinned to a named commit
+rather than to whatever `master` is when you read this, for the two files that
+changed after the measurement:
+
+| Implementation | Lines at `1c2b6ca` | Lines at `0481bd0` |
+|---|---:|---:|
+| `impl/sigma_glyph.py` (oracle) | 618 | 618 |
+| `impl-rs/src/main.rs` | 1112 | 1170 |
+| `impl-go/main.go` (in-tree) | 1948 | 2344 |
+
+The two columns are two observations, not one number corrected. The v1 text
+carried `1170` and `2344` *inside* the table declared as measured at `1c2b6ca`,
+where they were the values at neither the stated commit nor any stated commit —
+a silent rebase of provenance onto a moving `HEAD`, described in §10.
+
+The Rust implementation is worth a sentence: 1112 lines at the measured commit
+(1170 at `0481bd0`), no dependencies at all,
 its own SHA-256, `overflow-checks = true` in the release profile, and it replays
 the oracle-generated vectors byte-exact. The in-tree Go implementation covers
 Books II–III and governance and contains no Book I evaluator; the third Book I
@@ -996,22 +1063,33 @@ no equivalence proof against a reference specification of the kind HACL*
 provides [@zinzindohoue2017hacl]. Collision resistance is assumed, not proven,
 and the specification says so.
 
-**The reported commit is ahead of the adopted one, twice over.** The proofs and
-implementation this paper describes are on `master`; the specification text of
-§3.9 is on a candidate branch that has passed no gate. The most recent
-governance-adopted anchor set is `v0.6.7` at `16a1355`, and eight of the sixteen
-evaluator theorems of §4.2 and §3.6 merged after it. So they are on the branch
-in force but are not covered by an adoption warrant, and under this project's own
-rules location is a fact about git while adoption is a threshold signature. A
-reader who wants only adopted material should check out the tag and will find
-eight evaluator theorems rather than sixteen, thirty-three guarded theorems
-rather than forty-one, and a Book I that states two arguments to `eval`.
+**The proofs are outside the adoption boundary, and always were.** The v1 text
+said the reported commit was "ahead of the adopted one, twice over": the
+implementation on `master`, and the §3.9 specification text on an ungated
+candidate branch. The second half has been resolved — that text is `v0.7.0` and
+is adopted. The first half has not, and it is not a matter of being ahead: an
+anchor set anchors `spec/*.md`, `spec/schemas/*.json` and
+`tests/spec_conformance/*.json`, and `proofs/` is in no release section of
+`spec/ANCHORS.txt`. The sixteen evaluator theorems of §4.2 and §3.6 are covered
+by no adoption warrant at any release. Under this project's own rules location is
+a fact about git while adoption is a threshold signature, and for the Lean
+artifact there is no signature to cite.
 
-**The threshold was met; independent custody was not.** The v0.6.7 adoption
-warrant carries two valid signatures against a 2-of-3 policy — but the signers
-are the human principal (`s0fractal`) and a *delegated model actor*
-(`claude-fable-5`) operating under that human's authority, not two independent
-parties. The project documents this itself and counts it: of the six times the
+A reader who wants only adopted material should also know that **there is no
+`v0.7.0` tag**: the newest tag in the repository is `v0.6.7`. The adopted bytes
+are identified by the anchor set `abf10f2a…` and its warrant, filed at commit
+`3851a59` — not by a tag, and not by a branch name. Checking out `v0.6.7` still
+yields the earlier state the v1 text described: eight evaluator theorems rather
+than sixteen, thirty-three guarded theorems rather than forty-one, and a Book I
+that states two arguments to `eval`.
+
+**The threshold was met; independent custody was not.** This was written about
+the `v0.6.7` warrant, whose two valid signatures against a 2-of-3 policy were the
+human principal (`s0fractal`) and a *delegated model actor* (`claude-fable-5`)
+operating under that human's authority. The `v0.7.0` warrant
+(`0e634c176b00…`) is signed by `codex@sigma-glyph` and `s0fractal@sigma-glyph` —
+a different pair, and no more independent: one human principal and one model
+actor, not two independent parties. The project documents this itself and counts it: of the six times the
 threshold has been exercised, three pair two keys that sat in one directory on
 one host, which is one custody and not a quorum. The maintainer offered a third
 roster key and the signing actor declined to use it, on the grounds that a
@@ -1175,29 +1253,53 @@ adversarial pass by a reviewer we did not prompt.
 The artifact is the repository:
 
 > **https://github.com/s0fractal/sigma-glyph** [@sigmaglyph2026]
-> branch `spec/book1-v0.7.0-candidate`, figures measured at commit
-> `1c2b6ca42cb95cdc035fc887cd0587a5758862d7`
+> figures measured at commit `1c2b6ca42cb95cdc035fc887cd0587a5758862d7`;
+> adopted state at commit `0481bd0ea2c8b66d26f31edbdb1bcdb4ec1634f4`,
+> anchor-set release `v0.7.0`
 
-Every figure in §6 was measured at that commit. The paper text itself is later on
-the same branch, because a paper cannot state the hash of the commit that carries
-it, and the branch has since gone through three rounds of the specification gate.
+Every figure in §6 was measured at `1c2b6ca`. At the time of the v1 deposit that
+commit sat on the draft branch `spec/book1-v0.7.0-candidate`, and the v1 text
+said so; the bytes it carried have since been adopted and are on `master`, so
+the branch name is no longer the way to find them. The candidate went through
+**six** rounds of the project's three-family blind gate, not the three the v1
+text counted — all six are recorded in `gates/v0.7.0-candidate/`.
 
-What that costs the reproduction is worth stating exactly rather than waving at.
-`proofs/`, `impl/`, `impl-rs/` and `impl-go/` are byte-identical between the
-measured commit and the branch head: `git diff` over those four paths is empty,
-so every proof figure, every guarded-theorem count and every implementation line
-count in §6 stands unchanged. Inside `tests/`, the only change is the
-hand-declared `book1_anchor` pin in `tests/spec_conformance/generate.py` and the
-copy of it in `vectors.json` — no vector, no budget and no expected value moves,
-so no agreement count in §6.1 or §6.2 changes either. `spec/` changed
-substantially, and none of §6 measures it. The gate rounds themselves are in
-`gates/v0.7.0-candidate/`. It is **not** `master` and **not** an adopted release: it
-is the head of the draft pull request carrying the v0.7.0 specification
-candidate, and the Book bytes on it have not passed a gate. What it carries that
-`master` does not is the candidate spec text of §3.9 and the store-monotonicity
-theorems and bridge; the evaluator, the guard and the conformance vectors it runs
-are the ones described throughout. The most recent governance-adopted anchor set
-remains the tag `v0.6.7` at `16a1355`; §7 and §3.9 explain the difference.
+What that costs the reproduction is worth stating exactly rather than waving at,
+and the v1 text got this wrong. It claimed that `proofs/`, `impl/`, `impl-rs/`
+and `impl-go/` were byte-identical between the measured commit and the branch
+head, so that every §6 figure stood unchanged. **That is false at the adopted
+state.** `git diff 1c2b6ca..0481bd0 -- proofs/ impl/ impl-rs/ impl-go/` reports
+6 files changed, 1235 insertions(+), 24 deletions(-):
+
+```text
+impl-go/.gitignore           +2      impl-rs/src/main.rs         +88
+impl-go/identity_test.go   +383      impl/sigma_federation.py    +33
+impl-go/main.go            +398      impl/sigma_wave.py         +355
+```
+
+`proofs/` is not in that list: the Lean sources, the guard scripts and the pin
+registry are in fact unchanged between the two revisions, which is why every §6
+figure except the two implementation line counts survives verbatim.
+
+`tests/` also changed well beyond the single `book1_anchor` pin the v1 text
+admitted to, including a 430-line `tests/wave_identity_selftest.py` that did not
+exist. So three things are true at once and must not be collapsed:
+
+1. **The §6 figures reproduce by checking out `1c2b6ca`.** That is the commit
+   they were measured at, and it is the only revision at which all of them hold
+   together. `proofs/`, the guard scripts, the Lean total and the pin registry
+   are in fact unchanged between `1c2b6ca` and `0481bd0`; the two implementation
+   line counts of §6.3 are not, and §6.3 now carries both slices.
+2. **The current matrix being green is a separate fact.** It says the scripts in
+   the current revision passed in that revision. It is not evidence about
+   numbers measured at an earlier one.
+3. **A green current matrix does not carry the old numbers' provenance onto the
+   present files.** This is precisely how the v1 error was produced: the
+   repository's own claim-audit recounts every number from the working tree, so
+   once those two files grew, writing the new values into the §6 table was the
+   change that made the audit pass — and it silently made the sentence naming
+   the measurement commit false. The audit now checks each figure against the
+   commit the paper names, and separately against a named current snapshot.
 
 MIT for the implementation, CC-BY-4.0 for the specification texts. The v0.6.7
 anchor set was adopted under the project's 2-of-3 threshold policy (adoption
