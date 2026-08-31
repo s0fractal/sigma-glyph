@@ -201,15 +201,43 @@ def settle_eq(profile: EqualityProfile, a, b, budget_a: int, budget_b: int,
     try:
         commitment = profile_commitment(profile)
     except Refused as refusal:
-        return Settlement(REFUSED, profile.profile_id, None,
-                          profile.book_anchor, profile.book_context, None, None,
-                          f"profile: {refusal}", REFUSED, REFUSED)
+        return Settlement(verdict=REFUSED, profile_id=profile.profile_id,
+                          profile_commitment=None,
+                          book_anchor=profile.book_anchor,
+                          book_context=profile.book_context, lhs=None, rhs=None,
+                          detail=f"profile: {refusal}",
+                          lhs_status=REFUSED, rhs_status=REFUSED)
+    # The anchor must be the anchor of the Book this function actually runs.
+    #
+    # Checking only the SHAPE let a valid-but-foreign anchor through: a
+    # one-digit mutation is still 64 hex, so a settlement claiming to be read
+    # against some other Book I proceeded to EQUAL with two receipts, produced
+    # by the local oracle the whole time. The claim and the execution were
+    # unrelated, and nothing said so.
+    #
+    # `settle_eq` has no way to run a Book it is not linked against, so the only
+    # honest options are to refuse or to take an engine bound to the claimed
+    # anchor. This module refuses; injecting such an engine is not in scope here.
+    local = _book_1_anchor()
     if not _valid_anchor(profile.book_anchor):
-        return Settlement(REFUSED, profile.profile_id, commitment,
-                          profile.book_anchor, profile.book_context, None, None,
-                          "profile: book_anchor is not 64 hex characters, so a "
-                          "settlement could not say which Book I bytes it was "
-                          "read against", REFUSED, REFUSED)
+        return Settlement(verdict=REFUSED, profile_id=profile.profile_id,
+                          profile_commitment=commitment,
+                          book_anchor=profile.book_anchor,
+                          book_context=profile.book_context, lhs=None, rhs=None,
+                          detail="profile: book_anchor is not 64 hex "
+                                 "characters, so a settlement could not say "
+                                 "which Book I bytes it was read against",
+                          lhs_status=REFUSED, rhs_status=REFUSED)
+    if profile.book_anchor != local:
+        return Settlement(verdict=REFUSED, profile_id=profile.profile_id,
+                          profile_commitment=commitment,
+                          book_anchor=profile.book_anchor,
+                          book_context=profile.book_context, lhs=None, rhs=None,
+                          detail=f"profile: book_anchor {profile.book_anchor} "
+                                 f"is not the Book I this evaluator executes "
+                                 f"({local}); refusing rather than settling "
+                                 f"under one Book while claiming another",
+                          lhs_status=REFUSED, rhs_status=REFUSED)
 
     sides = (("lhs", a, budget_a), ("rhs", b, budget_b))
 
@@ -243,21 +271,31 @@ def settle_eq(profile: EqualityProfile, a, b, budget_a: int, budget_b: int,
         detail = "; ".join(
             f"{name}: {problem[1]}" if problem else f"{name}: completed"
             for (name, _t, _b), problem in zip(sides, problems))
-        return Settlement(verdict, profile.profile_id, commitment,
-                          profile.book_anchor, profile.book_context,
-                          left, right, detail, kinds[0], kinds[1])
+        return Settlement(verdict=verdict, profile_id=profile.profile_id,
+                          profile_commitment=commitment,
+                          book_anchor=profile.book_anchor,
+                          book_context=profile.book_context,
+                          lhs=left, rhs=right, detail=detail,
+                          lhs_status=kinds[0], rhs_status=kinds[1])
 
     if left.exit != "normal_form" or right.exit != "normal_form":
         unfinished = [name for name, side in (("lhs", left), ("rhs", right))
                       if side.exit != "normal_form"]
-        return Settlement(UNSETTLED, profile.profile_id, commitment,
-                          profile.book_anchor, profile.book_context,
-                          left, right,
-                          f"did not reach a normal form: {', '.join(unfinished)}")
+        return Settlement(
+            verdict=UNSETTLED, profile_id=profile.profile_id,
+            profile_commitment=commitment, book_anchor=profile.book_anchor,
+            book_context=profile.book_context, lhs=left, rhs=right,
+            detail=f"did not reach a normal form: {', '.join(unfinished)}")
 
     verdict = EQUAL if left.result_hash == right.result_hash else UNEQUAL
-    return Settlement(verdict, profile.profile_id, commitment,
-                      profile.book_anchor, profile.book_context, left, right)
+    # Keyword arguments at every construction site. The positional form broke
+    # twice while fields were being added, each time silently shifting a
+    # receipt into a status slot in a MUTATION — the place least likely to be
+    # read as wrong, because a mutation is expected to misbehave.
+    return Settlement(verdict=verdict, profile_id=profile.profile_id,
+                      profile_commitment=commitment,
+                      book_anchor=profile.book_anchor,
+                      book_context=profile.book_context, lhs=left, rhs=right)
 
 
 def _admit(profile: EqualityProfile, term):

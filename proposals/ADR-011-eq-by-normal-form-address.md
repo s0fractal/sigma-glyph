@@ -138,7 +138,8 @@ verdict that one supports.
 ```text
 settle_eq(profile, a, b, budget_a, budget_b, env):
     commitment = profile_commitment(profile)   # BEFORE anything executes
-    require 64-hex book_anchor                 # or refuse; no receipts
+    require book_anchor == anchor of the Book this evaluator runs
+                                               # or refuse; no receipts
 
     admit(a); admit(b)                      # refusal is REFUSED, not a verdict
 
@@ -216,8 +217,10 @@ Reading a tuple by index accepts every superset of the shape asked for. Nodes
 are now required to be tuples of exactly their arity — `var`/`lit` 2,
 `lam`/`lapp`/`app` 3 — with binder names required to be strings, and the whole
 term is validated before admission. Six malformed shapes are controls (16), the
-numerals 0–8 remain admitted (16b), and mutation M9 restores index-only checks
-and requires 16 to go red.
+numerals 0–8 remain admitted (16b), and mutation M9 restores the **whole**
+admission path — a first version patched only the shape helper while the
+well-formedness gate, added by the same fix, still refused, so it demonstrated
+nothing — and requires `admit` itself to accept the malformed term.
 
 **Binder distinctness.** The admission check is syntactic, and `λf.λf.f(f)`
 passed an earlier version of it: both binders were compared by NAME, so the
@@ -288,9 +291,21 @@ asked only that the string was non-empty and copied from the profile — both tr
 of a value no verifier could compare to anything. It is now exactly 64 hex,
 `e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd`, with the
 prose moved to `book_context`. Control 13c recomputes it from
-`spec/book-1-truth.md` by a route that does not call the profile's own function;
-13e flips one hex character, which the shape check cannot see; 13f refuses a
-settlement outright when the anchor is not 64 hex.
+`spec/book-1-truth.md` by a route that does not call the profile's own function.
+
+Shape alone is not enough, and checking only shape let a **valid but foreign**
+anchor through: a one-digit mutation is still 64 hex, so a settlement claiming
+to be read against some other Book I proceeded to `EQUAL` with two receipts —
+produced by the local oracle the whole time. The claim and the execution were
+unrelated and nothing said so. `settle_eq` cannot run a Book it is not linked
+against, so it now requires `profile.book_anchor == _book_1_anchor()` before
+admission and refuses otherwise, naming both anchors. Injecting an engine bound
+to a claimed anchor would be the other honest answer; it is not in scope here.
+
+Control 13e requires the refusal, with **no receipts** and the observer called
+**exactly zero times**; 13f refuses a settlement outright when the anchor is not
+64 hex; mutation M10 weakens the preflight back to a shape check and shows the
+foreign anchor settling EQUAL with two receipts and two observer calls.
 
 Both settlements print the same profile name. So the settlement carries a
 `profile_commitment`: a digest over the prose contract, the markers, the Book I

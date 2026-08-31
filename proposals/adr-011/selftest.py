@@ -237,18 +237,27 @@ def main():
         "0.6.0" in settled_true.book_context
         and settled_true.book_context != settled_true.book_anchor)
 
-    #      One flipped hex character must break it. `_valid_anchor` cannot see
-    #      this — a flipped digit is still 64 hex — so it is 13c specifically
-    #      that has to fail.
+    #      One flipped hex character must break it — and must stop the
+    #      settlement, not merely be visible in it. The shape check cannot see
+    #      a flipped digit, and `settle_eq` always executes the LOCAL Book I
+    #      oracle, so a foreign anchor that proceeded produced two receipts
+    #      under one Book while claiming another.
     flipped = ("f" if settled_true.book_anchor[0] != "f" else "0") \
         + settled_true.book_anchor[1:]
-    wrong_anchor = ep.EqualityProfile(**{**P.__dict__, "book_anchor": flipped})
-    settled_flip = ep.settle_eq(wrong_anchor, ep.church(3), ep.church(3),
+    watched_anchor, anchor_calls = _watched_observer_profile(book_anchor=flipped)
+    settled_flip = ep.settle_eq(watched_anchor, ep.church(3), ep.church(3),
                                 5000, 5000, ep.fresh_env())
-    chk("13e. a single flipped hex character is caught by the independent "
-        "recomputation, not by the shape check",
-        settled_flip.book_anchor != independent_anchor
-        and len(settled_flip.book_anchor) == 64)
+    chk("13e. a valid-but-foreign 64-hex anchor is REFUSED, with no receipts",
+        settled_flip.verdict == ep.REFUSED
+        and settled_flip.lhs is None and settled_flip.rhs is None
+        and len(settled_flip.book_anchor) == 64,
+        f"{settled_flip.verdict}, lhs={settled_flip.lhs is not None}")
+    chk("13e2. and its observer was called EXACTLY 0 times",
+        anchor_calls == [], f"observer ran {len(anchor_calls)} time(s)")
+    chk("13e3. the refusal names both anchors, so the mismatch is readable",
+        flipped in settled_flip.detail
+        and independent_anchor in settled_flip.detail)
+
     #      A malformed anchor is refused outright, before anything runs.
     unshaped = ep.EqualityProfile(**{**P.__dict__,
                                      "book_anchor": "Book I version 0.6.0"})
@@ -344,6 +353,22 @@ def _independent_node_hash_of_literal(preimage: bytes) -> str:
     import hashlib
     atom = hashlib.sha256(preimage).digest()
     return hashlib.sha256(bytes([0x00, 0x01]) + atom).hexdigest()
+
+
+def _watched_observer_profile(**overrides):
+    """A normal profile whose observer records every call.
+
+    Used to assert that a refusal happened BEFORE any observation, rather than
+    only that a refusal happened.
+    """
+    calls = []
+
+    def observe(term, env):
+        calls.append(term)
+        return ep._observe_church(term, env)
+
+    return ep.EqualityProfile(**{**ep.CHURCH_V0.__dict__, "observe": observe,
+                                 **overrides}), calls
 
 
 def _unreadable_observer_profile():
@@ -636,11 +661,12 @@ def mutation_evidence():
             ep.CHURCH_V0.admit(a)
             ep.CHURCH_V0.admit(b)
         except ep.Refused as why:
-            return ep.Settlement(ep.REFUSED, ep.CHURCH_V0.profile_id,
-                                 ep.profile_commitment(ep.CHURCH_V0),
-                                 ep.CHURCH_V0.book_anchor,
-                                 ep.CHURCH_V0.book_context, None, None,
-                                 str(why), ep.REFUSED, ep.REFUSED)
+            return ep.Settlement(
+                verdict=ep.REFUSED, profile_id=ep.CHURCH_V0.profile_id,
+                profile_commitment=ep.profile_commitment(ep.CHURCH_V0),
+                book_anchor=ep.CHURCH_V0.book_anchor,
+                book_context=ep.CHURCH_V0.book_context, lhs=None, rhs=None,
+                detail=str(why), lhs_status=ep.REFUSED, rhs_status=ep.REFUSED)
         return settle(a, b)
 
     shared = shared_admit(ep.church(3), marker_term)
@@ -747,19 +773,65 @@ def mutation_evidence():
                  ep.fresh_env())
     chk("M8b. and with the preflight it runs 0 times", calls2 == [])
 
-    # M9. Restore permissive indexing in the grammar check.
+    # M9. Restore the ADMISSION PATH as it was, and require `P.admit` itself
+    #     to accept the malformed term.
+    #
+    #     The first version of this mutation patched only `_is_node`, which
+    #     made `_is_church_literal` permissive while `_is_well_formed` — added
+    #     in the same fix and NOT mutated — still refused at admission. So the
+    #     mutation showed a permissive helper next to a guard that still held,
+    #     and the claim "control 16 catches it" was never exercised. A mutation
+    #     that leaves any part of the guard standing tests the part it left.
     saved_is_node = ep._is_node
+    saved_well_formed = ep._is_well_formed
     trailing = ("lam", "f", ("lam", "x", ("var", "x")), "EXTRA")
     try:
         ep._is_node = lambda term, head: (isinstance(term, tuple)
                                           and len(term) > 1
                                           and term[0] == head)
-        chk("M9. with index-only checks, a trailing field is read as a "
-            "written-out numeral — control 16 is what catches it",
-            ep._is_church_literal(trailing) is True)
+        ep._is_well_formed = lambda term: True
+        admitted_m9 = True
+        try:
+            ep.CHURCH_V0.admit(trailing)
+        except ep.Refused:
+            admitted_m9 = False
+        chk("M9. with the old admission path, `admit` ACCEPTS a term with a "
+            "trailing field — control 16 is what catches it", admitted_m9)
     finally:
         ep._is_node = saved_is_node
-    chk("M9b. and with exact arity it is not", not ep._is_church_literal(trailing))
+        ep._is_well_formed = saved_well_formed
+    refused_m9 = False
+    try:
+        ep.CHURCH_V0.admit(trailing)
+    except ep.Refused:
+        refused_m9 = True
+    chk("M9b. and with the guard restored `admit` refuses it", refused_m9)
+
+    # M10. Weaken the anchor preflight back to a shape check, and require 13e
+    #      — the control that demands a refusal — to be what goes red.
+    saved_book_anchor_fn = ep._book_1_anchor
+    flipped_local = ("f" if ep.CHURCH_V0.book_anchor[0] != "f" else "0") \
+        + ep.CHURCH_V0.book_anchor[1:]
+    watched_m10, calls_m10 = _watched_observer_profile(book_anchor=flipped_local)
+    try:
+        # Shape-only, as it was: any 64 hex string satisfies the preflight.
+        ep._book_1_anchor = lambda: flipped_local
+        settled_m10 = ep.settle_eq(watched_m10, ep.church(3), ep.church(3),
+                                   5000, 5000, ep.fresh_env())
+        chk("M10. with a shape-only anchor preflight, a foreign anchor settles "
+            "EQUAL with two receipts — control 13e is what catches it",
+            settled_m10.verdict == ep.EQUAL
+            and settled_m10.lhs is not None and settled_m10.rhs is not None
+            and len(calls_m10) == 2,
+            f"{settled_m10.verdict}, observer ran {len(calls_m10)} time(s)")
+    finally:
+        ep._book_1_anchor = saved_book_anchor_fn
+    watched_m10b, calls_m10b = _watched_observer_profile(
+        book_anchor=flipped_local)
+    settled_m10b = ep.settle_eq(watched_m10b, ep.church(3), ep.church(3),
+                                5000, 5000, ep.fresh_env())
+    chk("M10b. and with the binding restored it is refused, observer unrun",
+        settled_m10b.verdict == ep.REFUSED and calls_m10b == [])
 
     chk("M7b. and with the real digest they differ again",
         ep.profile_commitment(ep.EqualityProfile(**{
