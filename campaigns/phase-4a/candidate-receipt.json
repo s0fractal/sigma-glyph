@@ -1,0 +1,38 @@
+{
+  "kind": "sigma-glyph/candidate-receipt@v0",
+  "asserts": "these checks were run against this artifact and passed. The artifact digest below is FROZEN by committing this file: a later rebuild that does not reproduce it has changed something, and that is the point",
+  "artifact_filename": "sigma_glyph-0.6.7+phase4a.5050ab7-py3-none-any.whl",
+  "artifact_sha256": "cfee921858378493e692f052b8fe253e1a85603b3a93d0df1dde1aba7ba70a6a",
+  "source_commit": "5050ab7354224e586456b26fbd0fffe04301b3b2",
+  "software_version": "0.6.7+phase4a.5050ab7",
+  "adopted_bundle": "v0.7.0",
+  "adopted_anchor_set_sha256": "abf10f2a9c932f31e28973c41658ba728501fef438b35b7538e78c21d37adf59",
+  "build_pins": [
+    "build==1.6.0",
+    "setuptools==84.0.0",
+    "wheel==0.48.0"
+  ],
+  "source_date_epoch": "1788134400",
+  "checks_passed": [
+    {
+      "check": "manifest agrees with artifact and checkout",
+      "tool": "candidate_artifact.py",
+      "verdict_line": "CANDIDATE-ARTIFACT: manifest agrees"
+    },
+    {
+      "check": "clean isolated install and conformance",
+      "tool": "candidate_install_check.py",
+      "verdict_line": "CANDIDATE-INSTALL: ALL PASS"
+    },
+    {
+      "check": "artifact-boundary controls",
+      "tool": "candidate_boundary_controls.py",
+      "verdict_line": "CANDIDATE-BOUNDARY-CONTROLS: ALL PASS"
+    }
+  ],
+  "does_not_assert": [
+    "that the roster adopted this artifact",
+    "that it reproduces on another OS, architecture or Python version",
+    "anything about consumers other than the ones that cite it"
+  ]
+}
