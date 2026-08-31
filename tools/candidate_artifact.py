@@ -200,6 +200,20 @@ def build(out_dir):
             "python": platform.python_version(),
             "implementation": platform.python_implementation(),
             "platform": platform.platform(),
+            "source_date_epoch": os.environ.get("SOURCE_DATE_EPOCH"),
+        },
+        "reproducibility": {
+            "measured": ("two clean builds of this commit are byte-identical "
+                         "WHEN SOURCE_DATE_EPOCH is set, and differ when it is "
+                         "not"),
+            "what_differs_without_it": ("only the zip entry timestamps of "
+                                        "dist-info/* — every member's bytes are "
+                                        "identical. Recorded rather than "
+                                        "smoothed over: 'reproducible' without "
+                                        "naming the condition would be false"),
+            "this_manifest_pins": ("one specific artifact, by digest. It does "
+                                   "not claim that rebuilding reproduces it "
+                                   "under an unspecified environment"),
         },
     }
     (out / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n")
@@ -208,6 +222,9 @@ def build(out_dir):
     print(f"  version   {manifest['software_version']}")
     print(f"  commit    {commit}")
     print(f"  bundle    {bundle}  anchor-set {anchor_set[:16]}…")
+    epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    print(f"  epoch     {epoch if epoch else 'UNSET — this build is not '
+                                            'byte-reproducible'}")
     print(f"CANDIDATE-ARTIFACT: built {wheel}")
     return 0
 
