@@ -9,7 +9,7 @@ authors:
   - name: Serhii Glova
     affiliation: independent
     email: sergey.glova@gmail.com
-date: 2026-08-29
+date: 2026-08-31
 keywords:
   - combinatory logic
   - content addressing
@@ -1024,12 +1024,33 @@ specification is settled by code they must read to consult. No external party ha
 implemented Book I. That is the single most valuable missing datum in this
 paper.
 
-> **Both corrections this paper carried as notes are now in its text.** The
-> deposited version at [10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651)
-> gave a wrong reason for the missing independent implementation, and named two
-> arguments where the evaluator takes three. Those were repaired here by
-> rewriting the claims rather than by appending a third note; the deposited PDF
-> is unchanged and remains the historical artifact.
+> **What this version corrects, and how.** The deposited v1 at
+> [10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651) (version
+> label `0.6.7-paper1`, `paper.pdf` md5 `f07e9c3a…`, 20 pages) is unchanged and
+> remains the historical artifact. Nothing was appended to it and nothing in it
+> was rewritten. This version repairs the following, by rewriting the claims
+> rather than by adding notes:
+>
+> 1. it gave a wrong reason for the missing independent implementation, and
+>    named two arguments where the evaluator takes three — the two corrections
+>    v1 already carried as notes;
+> 2. it described `v0.7.0` as an unadopted candidate and `v0.6.7` as the most
+>    recent adopted anchor set (§3.9, §7, §10). `v0.7.0` was adopted after the
+>    deposit;
+> 3. it counted three gate rounds where the record holds six (§3.9);
+> 4. it stated `1170` and `2344` inside a §6.3 table headed *measured at
+>    `1c2b6ca`*, where the values were `1112` and `1948`. Two tables now, each
+>    pinned to the revision it names;
+> 5. it claimed `proofs/ impl/ impl-rs/ impl-go/` were byte-identical between
+>    the measurement commit and the branch head (§10). The diffstat is 6 files,
+>    +1235, −24;
+> 6. it said eight theorems "merged after" the adopted set, implying a later set
+>    would cover them. No anchor set anchors `proofs/` at any release (§7);
+> 7. it advised checking out a tag for adopted material. There is no `v0.7.0`
+>    tag (§7).
+>
+> Items 2–7 were found by predicates added to `tools/paper_claims.py`, which
+> failed on the v1 text before this version was written.
 
 **The model–code gap is empirical and finite.** No theorem relates
 `EvalMachine.lean` to `impl/sigma_glyph.py`. What relates them is 33 evaluation
