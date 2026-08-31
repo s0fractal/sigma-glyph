@@ -175,7 +175,7 @@ def build_receipt():
         "measurement_inputs": inputs,
         "co_released_context": context,
         "book_1_anchor": book_anchor(),
-        "book_1_edition": ep.CHURCH_V0.book_anchor,
+        "book_1_edition": ep.CHURCH_V0.book_context,
         "interpreter": f"{platform.python_implementation()} "
                        f"{platform.python_version()} on {platform.platform()}",
         "budget_each_side": 5_000_000,

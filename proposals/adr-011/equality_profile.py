@@ -56,8 +56,6 @@ EQUAL, UNEQUAL, UNSETTLED, REFUSED, FAULT = (
 # ResourceFault let an out-of-domain budget, a budget above a local `max_atp`
 # and a malformed root escape as bare exceptions, past the REFUSED/FAULT surface
 # this profile documents.
-LOCAL_REFUSALS = (sg.AdmissionRefused, ValueError)
-LOCAL_FAULTS = (sg.ResourceFault,)
 
 
 class Refused(Exception):
@@ -76,7 +74,8 @@ class EqualityProfile:
     marker_definition: dict       # exact bytes and NodeHashes; why they are safe
     budget_policy: str
     environment_policy: str
-    book_anchor: str              # the Book I edition these receipts are read under
+    book_anchor: str              # EXACTLY 64 hex: the Book I anchor itself
+    book_context: str             # prose: which edition, adopted how, by what
     reflection: str               # the claim, domain-qualified, with its argument
     preservation: str
     not_established: tuple = field(default=())
@@ -96,8 +95,17 @@ class SideReceipt:
 class Settlement:
     verdict: str
     profile_id: str            # what the profile CALLS itself — not an identity
-    profile_commitment: str    # what the profile IS; see `profile_commitment()`
-    book_anchor: str           # the Book I edition these receipts are read under
+    profile_commitment: str | None  # what the profile IS; None only when the
+                                    # profile could not be committed to, in
+                                    # which case nothing was executed
+    book_anchor: str           # EXACTLY 64 hex. This field held the prose
+                               # "Book I document version 0.6.0, anchor
+                               # e3e5d008…, adopted …", which is not an anchor
+                               # and cannot be compared to one; the control
+                               # over it only checked the string was non-empty
+                               # and copied from the profile, so it was green
+                               # on a value no verifier could use.
+    book_context: str          # the prose, kept, where prose belongs
     lhs: SideReceipt | None
     rhs: SideReceipt | None
     detail: str = ""
@@ -122,6 +130,28 @@ class Settlement:
 # whichever problem it met first walking lhs then rhs, so (REFUSED, FAULT) and
 # (FAULT, REFUSED) gave different overall kinds for the same pair of facts.
 _SEVERITY = {"ok": 0, REFUSED: 1, FAULT: 2}
+
+
+def _book_1_anchor() -> str:
+    """The Book I anchor, computed from the Book's bytes.
+
+    A LITERAL node over the document: `NodeHash = SHA-256(0x00 0x01 ‖ atom)`
+    where `atom = SHA-256(bytes)`. Written out here rather than imported so the
+    profile does not depend on the benchmark, and recomputed independently again
+    in the selftest so neither route is the other's oracle.
+    """
+    import hashlib
+    book = Path(__file__).resolve().parents[2] / "spec/book-1-truth.md"
+    atom = hashlib.sha256(book.read_bytes()).digest()
+    return hashlib.sha256(bytes([0x00, 0x01]) + atom).hexdigest()
+
+
+_HEX64 = frozenset("0123456789abcdef")
+
+
+def _valid_anchor(value) -> bool:
+    return (isinstance(value, str) and len(value) == 64
+            and set(value) <= _HEX64)
 
 
 def settle_eq(profile: EqualityProfile, a, b, budget_a: int, budget_b: int,
@@ -157,6 +187,30 @@ def settle_eq(profile: EqualityProfile, a, b, budget_a: int, budget_b: int,
     `church(12)` reported UNEQUAL to itself at atp=600, and a verdict that flips
     with argument order at atp=100, 200 and 300.
     """
+    # Phase 0: COMMIT TO THE PROFILE BEFORE EXECUTING IT.
+    #
+    # This ran last, while the Settlement was being built. A profile whose
+    # source became unreadable between import and settlement therefore had its
+    # admission run, both observers run, and the store mutated — and only then
+    # raised, so the system executed a profile and afterwards discovered it
+    # could not say which profile it had executed. Anything the observers wrote
+    # was already there.
+    #
+    # It is computed once, here, and reused; recomputing it after execution
+    # would also let a profile mutated mid-settlement report the wrong one.
+    try:
+        commitment = profile_commitment(profile)
+    except Refused as refusal:
+        return Settlement(REFUSED, profile.profile_id, None,
+                          profile.book_anchor, profile.book_context, None, None,
+                          f"profile: {refusal}", REFUSED, REFUSED)
+    if not _valid_anchor(profile.book_anchor):
+        return Settlement(REFUSED, profile.profile_id, commitment,
+                          profile.book_anchor, profile.book_context, None, None,
+                          "profile: book_anchor is not 64 hex characters, so a "
+                          "settlement could not say which Book I bytes it was "
+                          "read against", REFUSED, REFUSED)
+
     sides = (("lhs", a, budget_a), ("rhs", b, budget_b))
 
     # Phase 1, per side: admission.
@@ -189,22 +243,21 @@ def settle_eq(profile: EqualityProfile, a, b, budget_a: int, budget_b: int,
         detail = "; ".join(
             f"{name}: {problem[1]}" if problem else f"{name}: completed"
             for (name, _t, _b), problem in zip(sides, problems))
-        return Settlement(verdict, profile.profile_id,
-                          profile_commitment(profile), profile.book_anchor,
+        return Settlement(verdict, profile.profile_id, commitment,
+                          profile.book_anchor, profile.book_context,
                           left, right, detail, kinds[0], kinds[1])
 
     if left.exit != "normal_form" or right.exit != "normal_form":
         unfinished = [name for name, side in (("lhs", left), ("rhs", right))
                       if side.exit != "normal_form"]
-        return Settlement(UNSETTLED, profile.profile_id,
-                          profile_commitment(profile), profile.book_anchor,
+        return Settlement(UNSETTLED, profile.profile_id, commitment,
+                          profile.book_anchor, profile.book_context,
                           left, right,
                           f"did not reach a normal form: {', '.join(unfinished)}")
 
     verdict = EQUAL if left.result_hash == right.result_hash else UNEQUAL
-    return Settlement(verdict, profile.profile_id,
-                      profile_commitment(profile), profile.book_anchor,
-                      left, right)
+    return Settlement(verdict, profile.profile_id, commitment,
+                      profile.book_anchor, profile.book_context, left, right)
 
 
 def _admit(profile: EqualityProfile, term):
@@ -347,8 +400,11 @@ def profile_commitment(profile: "EqualityProfile") -> str:
 
     **PORTABLE SETTLEMENT IS BLOCKED, and this function does not unblock it.**
     This digest identifies a profile to *another run of this Python module* —
-    on any CPython version, since it commits to source text rather than
-    bytecode, but still only to Python source. It is not a content-addressed
+    on CPython 3.12 and 3.14, the two versions it is verified
+    on. It commits to source text rather than bytecode, but
+    `inspect.getsource` and `repr` carry no cross-version
+    canonicality contract that this ADR establishes, so the
+    claim is those two versions and no more. It is not a content-addressed
     profile descriptor: a Go or Rust implementation of the same profile
     computes a different commitment, because it commits to this file's bytes. Comparing settlements across
     implementations needs a descriptor that is itself canonical bytes in the
@@ -389,6 +445,51 @@ def _mentions_marker(term) -> bool:
     return False
 
 
+# The grammar this profile reads, as arities. A term is a tuple whose head is
+# one of these and whose length is EXACTLY the arity — no trailing fields.
+_ARITY = {"var": 2, "lit": 2, "lam": 3, "lapp": 3, "app": 3}
+
+
+def _is_node(term, head) -> bool:
+    """`term` is exactly a `head` node: right tag, right length, tuple.
+
+    The checks here indexed the positions they wanted and ignored everything
+    else, so both of these were accepted as written-out numerals and settled
+    EQUAL against `church(0)`:
+
+        ("lam", "f", ("lam", "x", ("var", "x")), "EXTRA")
+        ("lam", "f", ("lam", "x", ("var", "x"), "EXTRA"))
+
+    Neither is a term of the grammar the profile declares it admits. Reading a
+    tuple by index accepts every superset of the shape you asked for.
+    """
+    return (isinstance(term, tuple) and len(term) == _ARITY.get(head, -1)
+            and term[0] == head)
+
+
+def _is_binder_name(name) -> bool:
+    """Binder names are strings. Stated, because `f_name == x_name` compares
+    whatever is in the slot, and an unstated type makes that comparison mean
+    whatever the caller put there."""
+    return isinstance(name, str)
+
+
+def _is_well_formed(term) -> bool:
+    """Closed structural check over the whole term, exact arity everywhere."""
+    if not isinstance(term, tuple) or not term:
+        return False
+    head = term[0]
+    if head not in _ARITY or len(term) != _ARITY[head]:
+        return False
+    if head == "var":
+        return _is_binder_name(term[1])
+    if head == "lit":
+        return isinstance(term[1], bytes) and len(term[1]) == 32
+    if head == "lam":
+        return _is_binder_name(term[1]) and _is_well_formed(term[2])
+    return _is_well_formed(term[1]) and _is_well_formed(term[2])
+
+
 def _is_church_literal(term) -> bool:
     """`λf.λx. f(f(...(x)))` written out. A SYNTACTIC check, deliberately.
 
@@ -400,12 +501,14 @@ def _is_church_literal(term) -> bool:
     corrected for. A caller wanting `7+5` settled must either supply the numeral
     or extend the profile with an admission it can actually justify.
     """
-    if term[0] != "lam":
+    if not _is_node(term, "lam"):
         return False
     f_name, inner = term[1], term[2]
-    if inner[0] != "lam":
+    if not _is_node(inner, "lam"):
         return False
     x_name, body = inner[1], inner[2]
+    if not (_is_binder_name(f_name) and _is_binder_name(x_name)):
+        return False
     if f_name == x_name:
         # `λf.λf.f(f)` walked the spine and matched, because both binders were
         # read by NAME. Under shadowing the inner binder wins, so the term
@@ -417,14 +520,18 @@ def _is_church_literal(term) -> bool:
         # `λx.λx.x`, which is church(0). Refusing an admissible term costs a
         # caller a settlement; admitting an inadmissible one costs the claim.
         return False
-    while body[0] == "lapp":
+    while _is_node(body, "lapp"):
         if body[1] != ("var", f_name):
             return False
         body = body[2]
-    return body == ("var", x_name)
+    return _is_node(body, "var") and body == ("var", x_name)
 
 
 def _admit_church(term):
+    if not _is_well_formed(term):
+        raise Refused("not a term of this profile's grammar: every node must "
+                      "be a tuple of exactly its arity (var/lit 2, "
+                      "lam/lapp/app 3) with a string binder name")
     if _mentions_marker(term):
         raise Refused("the term names a profile marker; observation at that "
                       "point cannot distinguish it from a numeral")
@@ -474,9 +581,9 @@ CHURCH_V0 = EqualityProfile(
         "observation cannot depend on what the first one wrote. A profile whose "
         "observer reads the environment must argue order-independence for "
         "itself; `EqualityProfile.observe: Callable` does not supply it."),
-    book_anchor=("Book I document version 0.6.0, anchor e3e5d008…, adopted "
-                 "as part of anchor-set release v0.7.0 (Receipt with exit; "
-                 "§3.4, §3.6)"),
+    book_anchor=_book_1_anchor(),
+    book_context=("Book I document version 0.6.0, adopted as part of "
+                  "anchor-set release v0.7.0 (Receipt with exit; §3.4, §3.6)"),
     reflection=(
         "On the admitted domain: two written-out numerals whose observations "
         "share an address denote the same natural. Argument: c1 compiles "

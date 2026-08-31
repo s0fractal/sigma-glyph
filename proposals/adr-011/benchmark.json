@@ -3,17 +3,17 @@
   "normative": false,
   "oracle_source_commit": "1c2b6ca42cb95cdc035fc887cd0587a5758862d7",
   "measurement_inputs": {
-    "proposals/adr-011/equality_profile.py": "b20aeffc02aa389c5522b1326f6ec8ede84de70031a86978d89f1b17d759b7db",
-    "proposals/adr-011/benchmark.py": "2e7f6776083982af88d49a201635f203a634aa0ad453623c5cc60f28441bdb5d",
+    "proposals/adr-011/equality_profile.py": "80e1df2bdc428b13e4c5de85e5e8f001c6ebc9bebd7401d3edc67e3c209d6380",
+    "proposals/adr-011/benchmark.py": "1ab5c3e4937cf12f0bb78609aa13219e5688667f3e75acd94540531e0b2e1ec4",
     "impl/sigma_glyph.py": "55072bc02e63987898fd60125e8bb5b14a6233b081ba158e0253755652323825"
   },
   "co_released_context": {
-    "proposals/ADR-011-eq-by-normal-form-address.md": "7bc78d4f086ca4e1a22c2a5b540cd32af865f3b823bae4ac476a04a4a2165ca7",
-    "proposals/adr-011/selftest.py": "e19f25a2eef5c0f1adec3db4ce1cae673e9b10a31f965cae0b142ccfb1725aee",
+    "proposals/ADR-011-eq-by-normal-form-address.md": "b137a92b2f155ad9b6e2db0eee0dc1e4e11f1f95c4a802cadd567083f2db9dd7",
+    "proposals/adr-011/selftest.py": "01915313d4435b2f7f91dae90f7e5cfc64afa6ebc03a22e8ae7dc294efab6e08",
     "proposals/EXP-ADR011-01-church-nat-admission.md": "f93df0595e6bed6e6df63df0f697206f4c25398b6f8f8da90e4b6fd86a21a5c4"
   },
   "book_1_anchor": "e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd",
-  "book_1_edition": "Book I document version 0.6.0, anchor e3e5d008\u2026, adopted as part of anchor-set release v0.7.0 (Receipt with exit; \u00a73.4, \u00a73.6)",
+  "book_1_edition": "Book I document version 0.6.0, adopted as part of anchor-set release v0.7.0 (Receipt with exit; \u00a73.4, \u00a73.6)",
   "interpreter": "CPython 3.14.7 on macOS-26.5.2-arm64-arm-64bit-Mach-O",
   "budget_each_side": 5000000,
   "limits": "impl/sigma_glyph.py DEFAULT limits; no max_atp",
@@ -26,7 +26,7 @@
     "freshness": "domain-separated from the profile id and fixed before any term is submitted; a term naming either is refused"
   },
   "profile_id": "sigma-glyph/adr-011/church@v0",
-  "profile_commitment": "dab50213e5480f80dc2115f05545556e832a750735c6f6df61c32089ff89d4a2",
+  "profile_commitment": "df78746dd09f0aedf18e779db0938b075a0c4b038e2146c72fb44e6239e45530",
   "profile_commitment_is_interpreter_independent": "the receipt is GENERATED on the author's interpreter and VERIFIED in CI on CPython 3.12, so a commitment that depended on the interpreter would fail the build. It did: the first version digested `co_code` and produced 98d3432c\u2026 on 3.14 against f2592195\u2026 on 3.12. It now digests source text, and 3.12 and 3.14 agree on dab50213\u2026",
   "profile_commitment_is_local": "identifies the profile to another run of THIS Python module. Not a content-addressed profile descriptor: another implementation of the same profile computes a different value. Portable settlement is blocked until such a descriptor exists.",
   "measurements": [

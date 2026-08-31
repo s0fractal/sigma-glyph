@@ -216,8 +216,93 @@ def main():
         f"{settled_true.verdict} vs {settled_forged.verdict}")
     chk("13b. and the settlement separates them by profile_commitment",
         settled_forged.profile_commitment != settled_true.profile_commitment)
-    chk("13c. the settlement also carries the Book I edition it was read under",
-        bool(settled_true.book_anchor == P.book_anchor and P.book_anchor))
+    # 13c. The Book anchor must BE the anchor.
+    #      This field held the prose "Book I document version 0.6.0, anchor
+    #      e3e5d008…, adopted …" and the control asked only that it was
+    #      non-empty and copied from the profile. Both were true of a string no
+    #      verifier could compare to anything. It is now 64 hex, recomputed
+    #      here from the Book's own bytes by a route that does not import the
+    #      profile's function.
+    import hashlib as _hl
+    book_bytes = (HERE.parents[1] / "spec/book-1-truth.md").read_bytes()
+    independent_anchor = _hl.sha256(
+        bytes([0x00, 0x01]) + _hl.sha256(book_bytes).digest()).hexdigest()
+    chk("13c. the settlement's book_anchor is 64 hex and equals the anchor "
+        "recomputed independently from spec/book-1-truth.md",
+        len(settled_true.book_anchor) == 64
+        and set(settled_true.book_anchor) <= set("0123456789abcdef")
+        and settled_true.book_anchor == independent_anchor,
+        f"{settled_true.book_anchor!r} vs {independent_anchor}")
+    chk("13d. and the prose moved to book_context, where prose belongs",
+        "0.6.0" in settled_true.book_context
+        and settled_true.book_context != settled_true.book_anchor)
+
+    #      One flipped hex character must break it. `_valid_anchor` cannot see
+    #      this — a flipped digit is still 64 hex — so it is 13c specifically
+    #      that has to fail.
+    flipped = ("f" if settled_true.book_anchor[0] != "f" else "0") \
+        + settled_true.book_anchor[1:]
+    wrong_anchor = ep.EqualityProfile(**{**P.__dict__, "book_anchor": flipped})
+    settled_flip = ep.settle_eq(wrong_anchor, ep.church(3), ep.church(3),
+                                5000, 5000, ep.fresh_env())
+    chk("13e. a single flipped hex character is caught by the independent "
+        "recomputation, not by the shape check",
+        settled_flip.book_anchor != independent_anchor
+        and len(settled_flip.book_anchor) == 64)
+    #      A malformed anchor is refused outright, before anything runs.
+    unshaped = ep.EqualityProfile(**{**P.__dict__,
+                                     "book_anchor": "Book I version 0.6.0"})
+    settled_unshaped = ep.settle_eq(unshaped, ep.church(3), ep.church(3),
+                                    5000, 5000, ep.fresh_env())
+    chk("13f. an anchor that is not 64 hex refuses the settlement outright",
+        settled_unshaped.verdict == ep.REFUSED
+        and settled_unshaped.lhs is None and settled_unshaped.rhs is None)
+
+    # 15. The profile is committed to BEFORE it is executed.
+    #     The commitment was computed while the Settlement was being built, so
+    #     a profile whose source became unreadable between import and
+    #     settlement had its admission run, both observers run and the store
+    #     written, and only then raised. The system executed a profile and
+    #     afterwards discovered it could not say which profile it had executed.
+    watched, calls = _unreadable_observer_profile()
+    settled_uncommitted = ep.settle_eq(watched, ep.church(3), ep.church(5),
+                                       5000, 5000, ep.fresh_env())
+    chk("15. a profile that cannot be committed to is refused",
+        settled_uncommitted.verdict == ep.REFUSED
+        and settled_uncommitted.profile_commitment is None
+        and settled_uncommitted.lhs is None,
+        str(settled_uncommitted.detail))
+    chk("15b. and its observer was called EXACTLY 0 times",
+        calls == [], f"observer ran {len(calls)} time(s) before the refusal")
+
+    # 16. The grammar is closed. Reading a tuple by index accepts every
+    #     superset of the shape asked for, so both of these were admitted as
+    #     written-out numerals and settled EQUAL against church(0).
+    malformed = [
+        ("a trailing field on the outer lam",
+         ("lam", "f", ("lam", "x", ("var", "x")), "EXTRA")),
+        ("a trailing field on the inner lam",
+         ("lam", "f", ("lam", "x", ("var", "x"), "EXTRA"))),
+        ("a trailing field on a lapp",
+         ("lam", "f", ("lam", "x", ("lapp", ("var", "f"), ("var", "x"),
+                                    "EXTRA")))),
+        ("a trailing field on a var",
+         ("lam", "f", ("lam", "x", ("var", "x", "EXTRA")))),
+        ("a non-string binder name",
+         ("lam", 7, ("lam", "x", ("var", "x")))),
+        ("a bare list where a tuple is required",
+         ["lam", "f", ["lam", "x", ["var", "x"]]]),
+    ]
+    for why, term in malformed:
+        refused16 = False
+        try:
+            P.admit(term)
+        except ep.Refused:
+            refused16 = True
+        chk(f"16. malformed term refused: {why}",
+            refused16 and not ep._is_church_literal(term))
+    chk("16b. and every numeral 0..8 written by church() is still admitted",
+        all(P.admit(ep.church(n)) is None for n in range(9)))
 
     # 14. A callable with no readable source cannot be committed to, and the
     #     commitment says so instead of degrading to a weaker digest.
@@ -259,6 +344,36 @@ def _independent_node_hash_of_literal(preimage: bytes) -> str:
     import hashlib
     atom = hashlib.sha256(preimage).digest()
     return hashlib.sha256(bytes([0x00, 0x01]) + atom).hexdigest()
+
+
+def _unreadable_observer_profile():
+    """A profile readable at import whose source is gone by settlement time.
+
+    Codex's reproduction. The observer records each call into a list, so the
+    control can assert it was never reached rather than assert only that a
+    refusal happened.
+    """
+    import importlib.util
+    import linecache
+    import tempfile
+
+    calls = []
+    handle = tempfile.NamedTemporaryFile("w", suffix=".py", delete=False)
+    handle.write("def observe(term, env):\n"
+                 "    RECORD.append(term)\n"
+                 "    return OBSERVE(term, env)\n")
+    handle.close()
+    spec = importlib.util.spec_from_file_location("adr011_vanishing", handle.name)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["adr011_vanishing"] = module
+    spec.loader.exec_module(module)
+    module.RECORD = calls
+    module.OBSERVE = ep._observe_church
+
+    Path(handle.name).unlink()
+    linecache.clearcache()
+    return ep.EqualityProfile(**{**ep.CHURCH_V0.__dict__,
+                                 "observe": module.observe}), calls
 
 
 def receipt_is_fresh():
@@ -523,7 +638,8 @@ def mutation_evidence():
         except ep.Refused as why:
             return ep.Settlement(ep.REFUSED, ep.CHURCH_V0.profile_id,
                                  ep.profile_commitment(ep.CHURCH_V0),
-                                 ep.CHURCH_V0.book_anchor, None, None,
+                                 ep.CHURCH_V0.book_anchor,
+                                 ep.CHURCH_V0.book_context, None, None,
                                  str(why), ep.REFUSED, ep.REFUSED)
         return settle(a, b)
 
@@ -595,6 +711,56 @@ def mutation_evidence():
             "profile share the real one's commitment", collides)
     finally:
         ep._code_digest = saved_code_digest
+    # M8. Move the commitment back to where it was — computed while building
+    #     the Settlement, after admission and both observations. Control 15b is
+    #     what must go red: the refusal still happens, so 15 stays green.
+    watched, calls = _unreadable_observer_profile()
+
+    def late_commitment(profile, a, b, ba, bb, env):
+        """settle_eq as it was: execute first, commit at the end."""
+        sides = (("lhs", a, ba), ("rhs", b, bb))
+        problems = [ep._admit(profile, term) for _n, term, _b in sides]
+        roots = []
+        for index, (_n, term, budget) in enumerate(sides):
+            if problems[index] is not None:
+                roots.append(None)
+                continue
+            root, problem = ep._prepare(profile, term, budget, env)
+            roots.append(root)
+            problems[index] = problem
+        # ...and only here does it ask which profile it just ran.
+        return ep.profile_commitment(profile)
+
+    ran_anyway = False
+    try:
+        late_commitment(watched, ep.church(3), ep.church(5), 5000, 5000,
+                        ep.fresh_env())
+    except ep.Refused:
+        ran_anyway = True
+    chk("M8. with the commitment computed last, the observer runs BEFORE the "
+        "refusal — control 15b is what catches it",
+        ran_anyway and len(calls) == 2,
+        f"refused={ran_anyway}, observer ran {len(calls)} time(s)")
+
+    watched2, calls2 = _unreadable_observer_profile()
+    ep.settle_eq(watched2, ep.church(3), ep.church(5), 5000, 5000,
+                 ep.fresh_env())
+    chk("M8b. and with the preflight it runs 0 times", calls2 == [])
+
+    # M9. Restore permissive indexing in the grammar check.
+    saved_is_node = ep._is_node
+    trailing = ("lam", "f", ("lam", "x", ("var", "x")), "EXTRA")
+    try:
+        ep._is_node = lambda term, head: (isinstance(term, tuple)
+                                          and len(term) > 1
+                                          and term[0] == head)
+        chk("M9. with index-only checks, a trailing field is read as a "
+            "written-out numeral — control 16 is what catches it",
+            ep._is_church_literal(trailing) is True)
+    finally:
+        ep._is_node = saved_is_node
+    chk("M9b. and with exact arity it is not", not ep._is_church_literal(trailing))
+
     chk("M7b. and with the real digest they differ again",
         ep.profile_commitment(ep.EqualityProfile(**{
             **ep.CHURCH_V0.__dict__,

@@ -116,7 +116,8 @@ EqualityProfile = {
     marker_definition,      # exact bytes, NodeHashes, distinctness, freshness
     budget_policy,          # each side's budget, explicitly
     environment_policy,     # which content environment, and whose
-    book_anchor             # the Book I edition these receipts are read under
+    book_anchor,            # EXACTLY 64 hex — the anchor itself, comparable
+    book_context            # the prose: which edition, adopted how
 }
 ```
 
@@ -136,6 +137,9 @@ verdict that one supports.
 
 ```text
 settle_eq(profile, a, b, budget_a, budget_b, env):
+    commitment = profile_commitment(profile)   # BEFORE anything executes
+    require 64-hex book_anchor                 # or refuse; no receipts
+
     admit(a); admit(b)                      # refusal is REFUSED, not a verdict
 
     ra = eval_receipt(observe(profile, a), budget_a, env)
@@ -143,10 +147,11 @@ settle_eq(profile, a, b, budget_a, budget_b, env):
 
     if ra.exit != normal_form or rb.exit != normal_form:
         return UNSETTLED, {profile_id, profile_commitment, book_anchor,
-                           ra, rb, which_side_did_not_finish}
+                           book_context, ra, rb, which_side_did_not_finish}
 
     return {verdict: EQUAL if ra.result_hash == rb.result_hash else UNEQUAL,
-            profile_id, profile_commitment, book_anchor, lhs: ra, rhs: rb}
+            profile_id, profile_commitment, book_anchor, book_context,
+            lhs: ra, rhs: rb}
 ```
 
 Four differences from the candidate's pseudocode, each reproduced as a defect
@@ -197,6 +202,22 @@ X: atom SHA-256("sigma-glyph/adr-011/church@v0/X")
    node e37391c4fac298b26e097562e8411695e989d4dc3a391a28f2ac5287eaa80211
 F ≠ X
 ```
+
+**The grammar is closed, with exact arity.** The check indexed the positions it
+wanted and ignored the rest, so both of these were admitted as written-out
+numerals and settled EQUAL against `church(0)`:
+
+```text
+("lam", "f", ("lam", "x", ("var", "x")), "EXTRA")
+("lam", "f", ("lam", "x", ("var", "x"), "EXTRA"))
+```
+
+Reading a tuple by index accepts every superset of the shape asked for. Nodes
+are now required to be tuples of exactly their arity — `var`/`lit` 2,
+`lam`/`lapp`/`app` 3 — with binder names required to be strings, and the whole
+term is validated before admission. Six malformed shapes are controls (16), the
+numerals 0–8 remain admitted (16b), and mutation M9 restores index-only checks
+and requires 16 to go red.
 
 **Binder distinctness.** The admission check is syntactic, and `λf.λf.f(f)`
 passed an earlier version of it: both binders were compared by NAME, so the
@@ -252,6 +273,25 @@ same profile_id: sigma-glyph/adr-011/church@v0
   forged observer   church(5) vs church(7)  ->  EQUAL
 ```
 
+**The commitment is taken before the profile runs, not while the settlement is
+being written.** It was computed last. A profile whose source became unreadable
+between import and settlement therefore had its admission run, both observers
+run and the store written, and only then raised — the system executed a profile
+and afterwards discovered it could not say which profile it had executed.
+Control 15/15b requires the observer to have been called **exactly zero times**
+before the refusal; mutation M8 moves the commitment back to the end and
+requires 15b, not 15, to go red.
+
+**The Book anchor is the anchor.** This field carried the prose *"Book I
+document version 0.6.0, anchor e3e5d008…, adopted …"*, and the control over it
+asked only that the string was non-empty and copied from the profile — both true
+of a value no verifier could compare to anything. It is now exactly 64 hex,
+`e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd`, with the
+prose moved to `book_context`. Control 13c recomputes it from
+`spec/book-1-truth.md` by a route that does not call the profile's own function;
+13e flips one hex character, which the shape check cannot see; 13f refuses a
+settlement outright when the anchor is not 64 hex.
+
 Both settlements print the same profile name. So the settlement carries a
 `profile_commitment`: a digest over the prose contract, the markers, the Book I
 edition, and code digests of `observe` and `admit` — the fields that change what
@@ -263,12 +303,16 @@ digested `co_code` and CI caught it on the first run: the same profile
 committed to `98d3432c…` on CPython 3.14 and `f2592195…` on 3.12. A digest that
 cannot distinguish "a different profile" from "a different Python" is not a
 commitment. The receipt is generated on the author's interpreter and verified
-in CI on 3.12, so that differential is what holds this property; 3.12 and 3.14
-now agree on `dab50213…`.
+in CI on 3.12, and that differential is the whole of the evidence: the property
+held is agreement between **3.12 and 3.14**, not across CPython in general.
+`inspect.getsource` and `repr` carry no cross-version canonicality contract that
+this ADR establishes.
 
 **Portable settlement is BLOCKED, and the commitment does not unblock it.**
-That digest identifies a profile to another run of the same Python module, on
-any CPython version but still only in Python. It commits to one file's bytes,
+That digest identifies a profile to another run of the same Python module,
+on CPython 3.12 and 3.14 — the two it is verified on, not a general
+cross-version guarantee: `inspect.getsource` and `repr` carry no canonical
+contract this ADR establishes. It commits to one file's bytes,
 so a Go or Rust
 implementation of the same profile computes a different value, and two
 implementations cannot agree that they settled under one profile. Closing this
