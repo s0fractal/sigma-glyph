@@ -30,6 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_NAME = "release-manifest.json"
+FAILED = "CANDIDATE-INSTALL: FAILURES"
 
 # The old escape hatch this phase exists to close. Pointed at a path that cannot
 # exist, so a fallback cannot fire without being noticed.
@@ -86,12 +87,24 @@ def check(out_dir):
         print(f"CANDIDATE-INSTALL: no manifest at {manifest_path}", file=sys.stderr)
         return 1
     manifest = json.loads(manifest_path.read_text())
-    wheel = out / manifest["artifact_filename"]
+
+    # 0. The artifact must be INSIDE the candidate directory. `artifact_filename`
+    #    was used as given, so a manifest naming an absolute path to a wheel
+    #    elsewhere verified and installed cleanly, and "the manifest sits beside
+    #    the artifact" was a habit rather than an invariant.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from candidate_artifact import contained
+    wheel, refusal = contained(out, manifest.get("artifact_filename"),
+                               "artifact_filename")
+    if not chk("the artifact is named as a plain filename inside the candidate "
+               "directory", refusal is None, refusal or ""):
+        print(FAILED)
+        return 1
 
     # 1. Digest before install. The order is the point.
     if not chk("the artifact named by the manifest is present", wheel.is_file(),
                f"{wheel} is missing"):
-        print("CANDIDATE-INSTALL: FAILURES")
+        print(FAILED)
         return 1
     actual = sha256_file(wheel)
     if not chk("its digest matches the manifest BEFORE anything is installed",
@@ -99,21 +112,24 @@ def check(out_dir):
                f"{actual[:16]}… vs {manifest['artifact_sha256'][:16]}…"):
         print("CANDIDATE-INSTALL: refusing to install an artifact whose digest "
               "does not match", file=sys.stderr)
-        print("CANDIDATE-INSTALL: FAILURES")
+        print(FAILED)
         return 1
 
     work = Path(tempfile.mkdtemp(prefix="sigma-install-"))
     try:
         venv = install(wheel, work)
 
+        wanted = sorted({name for surface in manifest["api_surfaces"].values()
+                         for name in surface["names"]})
         probe = ("import json, sigma_glyph as m;"
+                 f"names = {wanted!r};"
                  "print(json.dumps({'file': m.__file__,"
-                 " 'has_eval_receipt': hasattr(m, 'eval_receipt'),"
+                 " 'present': [n for n in names if hasattr(m, n)],"
                  " 'sys_path': __import__('sys').path}))")
         done = run_isolated(venv, work, probe)
         if not chk("the module imports in the clean environment",
                    done.returncode == 0, done.stderr.strip()[:200]):
-            print("CANDIDATE-INSTALL: FAILURES")
+            print(FAILED)
             return 1
         info = json.loads(done.stdout.strip().splitlines()[-1])
         module_file = Path(info["file"]).resolve()
@@ -126,8 +142,12 @@ def check(out_dir):
         chk("no entry of the interpreter's sys.path is inside this checkout",
             not any(str(ROOT.resolve()) in entry for entry in info["sys_path"]),
             str([e for e in info["sys_path"] if str(ROOT.resolve()) in e]))
-        chk(f"the API the manifest names is present ({manifest['api_version']})",
-            info["has_eval_receipt"])
+        # Every member of every surface the manifest declares, one by one.
+        for surface, declared in sorted(manifest["api_surfaces"].items()):
+            missing = [name for name in declared["names"]
+                       if name not in info["present"]]
+            chk(f"every member of {surface} is present in the installed module",
+                not missing, f"missing: {', '.join(missing)}")
 
         # 2. The conformance surface, run against the INSTALLED artifact.
         surface = subprocess.run(
@@ -149,7 +169,7 @@ def check(out_dir):
         print(f"CANDIDATE-INSTALL: ALL PASS ({len(results)}/{len(results)}) — "
               f"one artifact, one clean environment, no checkout reachable")
         return 0
-    print(f"CANDIDATE-INSTALL: FAILURES ({sum(results)}/{len(results)})")
+    print(f"{FAILED} ({sum(results)}/{len(results)})")
     return 1
 
 

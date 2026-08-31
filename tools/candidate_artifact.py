@@ -50,11 +50,64 @@ ROOT = Path(__file__).resolve().parents[1]
 # The shape of the surface a consumer binds to. Not the package version: a
 # consumer cares that `eval_receipt` exists and that a Receipt carries three
 # named fields, not which release it came from.
-API_VERSION = "book1-eval-receipt/1"
-API_SURFACE = ("eval_receipt",)
-RECEIPT_FIELDS = ("exit", "result_hash", "atp_spent")
-
 MANIFEST_NAME = "release-manifest.json"
+RECEIPT_NAME = "candidate-receipt.json"
+
+# The build backend is PINNED. A frozen artifact digest is only meaningful if
+# rebuilding produces it, and an unpinned `setuptools` silently changes wheel
+# metadata between runs — so the digest would drift for reasons that have
+# nothing to do with this repository's bytes.
+BUILD_PINS = ("build==1.6.0", "setuptools==84.0.0", "wheel==0.48.0")
+
+# What a consumer binds to. Two named surfaces, each a CLOSED list, because the
+# producer and the first consumer do not use the same one: the release-surface
+# check exercises `eval_receipt`, and `manifesto` calls `eval_hash` and the
+# store/serializer names around it. A manifest naming only one of them would not
+# describe the API the first consumer actually stands on.
+API_SURFACES = {
+    "book1-eval-receipt/1": {
+        "names": ("eval_receipt",),
+        "receipt_fields": ("exit", "result_hash", "atp_spent"),
+    },
+    "book1-eval-hash/1": {
+        "names": ("eval_hash", "sha", "term_bytes", "term_hash", "Store",
+                  "ResourceFault", "I_BYTES", "K_BYTES", "S_BYTES"),
+        "receipt_fields": (),
+    },
+}
+
+
+def contained(directory, name, what):
+    """`directory/name`, or a refusal. `name` must be a plain filename.
+
+    `artifact_filename` was used as given. A directory holding only a manifest,
+    with `artifact_filename` set to an ABSOLUTE path to a wheel somewhere else,
+    verified and installed clean — so "the manifest sits beside the artifact"
+    was never an invariant, only a habit. The same hole existed on the consumer
+    side for dependency paths.
+
+    Rules, all of them checkable: no separators, no `..`, no absolute path, and
+    the resolved target must still be inside `directory` after symlinks are
+    followed.
+    """
+    if not isinstance(name, str) or not name:
+        return None, f"{what} is not a filename: {name!r}"
+    if os.path.isabs(name) or os.sep in name or (os.altsep and os.altsep in name):
+        return None, (f"{what} must be a plain filename inside the candidate "
+                      f"directory, not a path: {name!r}")
+    if name in (os.curdir, os.pardir) or name.startswith(".."):
+        return None, f"{what} may not be a relative traversal: {name!r}"
+    target = (Path(directory) / name)
+    try:
+        resolved = target.resolve()
+    except OSError as failure:
+        return None, f"{what} cannot be resolved: {failure}"
+    root = Path(directory).resolve()
+    if root != resolved and root not in resolved.parents:
+        return None, (f"{what} resolves outside the candidate directory "
+                      f"({resolved}); a symlink escaping the directory is "
+                      f"refused, not followed")
+    return resolved, None
 
 
 def sha256_file(path):
@@ -166,11 +219,14 @@ def build(out_dir):
         subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True,
                        capture_output=True)
         pip = venv / "bin" / "pip"
-        subprocess.run([str(pip), "install", "--quiet", "build"], check=True,
-                       capture_output=True)
+        subprocess.run([str(pip), "install", "--quiet", *BUILD_PINS],
+                       check=True, capture_output=True)
+        constraints = work / "constraints.txt"
+        constraints.write_text("\n".join(BUILD_PINS) + "\n")
+        environment = dict(os.environ, PIP_CONSTRAINT=str(constraints))
         subprocess.run([str(venv / "bin" / "python"), "-m", "build", "--wheel",
                         "--outdir", str(work / "dist"), str(source)],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, env=environment)
 
         wheels = sorted((work / "dist").glob("*.whl"))
         if len(wheels) != 1:
@@ -183,11 +239,14 @@ def build(out_dir):
     bundle, anchor_set, inputs = adopted_inputs()
     manifest = {
         "kind": "sigma-glyph/candidate-release-manifest@v0",
-        "asserts": ("this artifact was built from this source commit and "
-                    "checked against these adopted specification inputs. It "
-                    "does NOT assert that the artifact was adopted by the "
-                    "roster: adoption is a threshold warrant over anchored "
-                    "bytes, and this is a build"),
+        "asserts": ("this artifact was BUILT from this source commit, and "
+                    "these are the adopted specification inputs present in "
+                    "that commit. Nothing here was CHECKED by the build: "
+                    "`build` runs no conformance. The statement that the "
+                    "artifact passed anything is made by the post-check "
+                    "receipt, which is a different file written by a different "
+                    "command. It does NOT assert adoption by the roster either: "
+                    "adoption is a threshold warrant over anchored bytes"),
         "artifact_filename": wheel.name,
         "artifact_sha256": sha256_file(wheel),
         "source_commit": commit,
@@ -195,7 +254,9 @@ def build(out_dir):
         "software_version_is_unpublishable": (
             "PEP 440 local version. PyPI rejects local versions, so this "
             "artifact cannot be published even by accident"),
-        "api_version": API_VERSION,
+        "api_surfaces": {name: {"names": list(surface["names"]),
+                                "receipt_fields": list(surface["receipt_fields"])}
+                         for name, surface in API_SURFACES.items()},
         "adopted_bundle": bundle,
         "adopted_anchor_set_sha256": anchor_set,
         "conformance_inputs": inputs,
@@ -204,6 +265,7 @@ def build(out_dir):
             "implementation": platform.python_implementation(),
             "platform": platform.platform(),
             "source_date_epoch": os.environ.get("SOURCE_DATE_EPOCH"),
+            "build_pins": list(BUILD_PINS),
         },
         "reproducibility": {
             "measured": ("two clean builds of this commit are byte-identical "
@@ -232,38 +294,32 @@ def build(out_dir):
     return 0
 
 
-def verify(out_dir, expect_commit=None):
-    """Check the manifest against the artifact and against this checkout."""
-    # Absolute: the release-surface check runs from a temp cwd, and a
-    # relative --out resolved against it produced 'no such wheel' for a
-    # wheel that was plainly there.
-    out = Path(out_dir).resolve()
-    manifest_path = out / MANIFEST_NAME
-    if not manifest_path.is_file():
-        print(f"CANDIDATE-ARTIFACT: no manifest at {manifest_path}",
-              file=sys.stderr)
-        return 1
-    manifest = json.loads(manifest_path.read_text())
-    problems = []
-
-    wheel = out / manifest["artifact_filename"]
+def _verify_artifact(out, manifest, problems):
+    """The wheel the manifest names: contained, present, and the right bytes."""
+    wheel, refusal = contained(out, manifest.get("artifact_filename"),
+                               "artifact_filename")
+    if refusal:
+        problems.append(refusal)
+        return
     if not wheel.is_file():
         problems.append(f"missing artifact: the manifest names "
                         f"{manifest['artifact_filename']}, which is not here")
-    else:
-        actual = sha256_file(wheel)
-        if actual != manifest["artifact_sha256"]:
-            problems.append(f"artifact digest mismatch: manifest says "
-                            f"{manifest['artifact_sha256'][:16]}…, the file is "
-                            f"{actual[:16]}…")
-        else:
-            with zipfile.ZipFile(wheel) as archive:
-                names = archive.namelist()
-            for module in ("sigma_glyph.py", "sigma_wave.py",
-                           "sigma_federation.py"):
-                if module not in names:
-                    problems.append(f"the wheel does not ship {module}")
+        return
+    actual = sha256_file(wheel)
+    if actual != manifest["artifact_sha256"]:
+        problems.append(f"artifact digest mismatch: manifest says "
+                        f"{manifest['artifact_sha256'][:16]}…, the file is "
+                        f"{actual[:16]}…")
+        return
+    with zipfile.ZipFile(wheel) as archive:
+        names = archive.namelist()
+    for module in ("sigma_glyph.py", "sigma_wave.py", "sigma_federation.py"):
+        if module not in names:
+            problems.append(f"the wheel does not ship {module}")
 
+
+def _verify_specification(manifest, problems):
+    """The adopted inputs the manifest names, against this checkout."""
     bundle, anchor_set, inputs = adopted_inputs()
     if manifest.get("adopted_anchor_set_sha256") != anchor_set:
         problems.append(
@@ -271,10 +327,11 @@ def verify(out_dir, expect_commit=None):
             f"{str(manifest.get('adopted_anchor_set_sha256'))[:16]}…, this "
             f"checkout's adopted set is {anchor_set[:16]}…")
     if manifest.get("adopted_bundle") != bundle:
-        problems.append(f"bundle mismatch: manifest {manifest.get('adopted_bundle')}, "
-                        f"checkout {bundle}")
+        problems.append(f"bundle mismatch: manifest "
+                        f"{manifest.get('adopted_bundle')}, checkout {bundle}")
 
-    recorded = {entry["path"]: entry for entry in manifest.get("conformance_inputs", [])}
+    recorded = {entry["path"]: entry
+                for entry in manifest.get("conformance_inputs", [])}
     current = {entry["path"]: entry for entry in inputs}
     for path in sorted(set(recorded) | set(current)):
         if path not in recorded:
@@ -284,10 +341,44 @@ def verify(out_dir, expect_commit=None):
                             f"anchor: {path}")
         elif recorded[path]["sha256"] != current[path]["sha256"]:
             problems.append(
-                f"suite/schema drift: {path} was {recorded[path]['sha256'][:16]}…"
-                f" when the manifest was written, is {current[path]['sha256'][:16]}… now")
+                f"suite/schema drift: {path} was "
+                f"{recorded[path]['sha256'][:16]}… when the manifest was "
+                f"written, is {current[path]['sha256'][:16]}… now")
         elif recorded[path]["anchor"] != current[path]["anchor"]:
             problems.append(f"anchor drift for {path}")
+    return len(current)
+
+
+def _verify_api_surfaces(manifest, problems):
+    """The manifest must describe the surfaces consumers actually bind to."""
+    declared = manifest.get("api_surfaces")
+    if not isinstance(declared, dict) or not declared:
+        problems.append("the manifest declares no api_surfaces, so it does not "
+                        "say which API a consumer may bind to")
+        return
+    for name, surface in API_SURFACES.items():
+        if name not in declared:
+            problems.append(f"api surface {name} is missing from the manifest")
+            continue
+        if list(surface["names"]) != list(declared[name].get("names", [])):
+            problems.append(f"api surface {name}: the manifest's member list "
+                            f"differs from the one this builder declares")
+
+
+def verify(out_dir, expect_commit=None):
+    """Check the manifest against the artifact and against this checkout."""
+    out = Path(out_dir).resolve()
+    manifest_path = out / MANIFEST_NAME
+    if not manifest_path.is_file():
+        print(f"CANDIDATE-ARTIFACT: no manifest at {manifest_path}",
+              file=sys.stderr)
+        return 1
+    manifest = json.loads(manifest_path.read_text())
+    problems = []
+
+    _verify_artifact(out, manifest, problems)
+    count = _verify_specification(manifest, problems)
+    _verify_api_surfaces(manifest, problems)
 
     if expect_commit and manifest.get("source_commit") != expect_commit:
         problems.append(f"source commit mismatch: manifest "
@@ -300,7 +391,8 @@ def verify(out_dir, expect_commit=None):
         print(f"CANDIDATE-ARTIFACT: {len(problems)} problem(s)")
         return 1
     print(f"CANDIDATE-ARTIFACT: manifest agrees with the artifact and with "
-          f"this checkout ({len(current)} conformance inputs)")
+          f"this checkout ({count} conformance inputs, "
+          f"{len(API_SURFACES)} api surfaces)")
     return 0
 
 
