@@ -481,10 +481,18 @@ def selftest():
             print(f"    {label}: exit {done.returncode}")
             return done
 
+        # What this control is about is MISPLACED discrimination, not the
+        # health of the inner clone. In CI the outer workspace is itself
+        # shallow, so the inner clone cannot fetch a base ref and reports rows
+        # it genuinely cannot see; asserting a clean baseline there made the
+        # control fail for a reason that has nothing to do with the defect.
+        # Baseline health is therefore reported, not required — and the
+        # discriminating assertions are on MISPLACED.
         clean = check("unmodified map")
         if clean.returncode != 0:
-            failures.append("the unmodified map does not pass in a detached "
-                            f"shallow clone: {clean.stderr.strip()[:200]}")
+            print("    (baseline is not clean in this environment; the "
+                  "assertions below are on MISPLACED, which is the property "
+                  "under test)")
         if "MISPLACED" in clean.stderr:
             failures.append("the unmodified map already reports MISPLACED, so "
                             "the mutation below would prove nothing")
@@ -498,17 +506,21 @@ def selftest():
             failures.append("could not plant a wrong path in the ADR-012 row")
         book.write_text(broken)
         dirty = check("ADR-012 row pointing at a file that is not there")
-        if dirty.returncode == 0:
-            failures.append("a wrong path for the CURRENT branch's document "
-                            "passed in a detached shallow checkout — the exact "
-                            "hole this control exists for")
-        elif "MISPLACED" not in dirty.stderr and "MISPLACED" not in dirty.stdout:
-            failures.append("it failed, but not as MISPLACED: "
-                            f"{dirty.stderr.strip()[:200]}")
+        misplaced = [line for line in dirty.stderr.splitlines()
+                     if "MISPLACED" in line and "ADR-012" in line]
+        if not misplaced:
+            failures.append("a wrong path for the CURRENT branch's document was "
+                            "not reported MISPLACED in a detached shallow "
+                            "checkout — the exact hole this control exists for")
+        elif dirty.returncode == 0:
+            failures.append("it was reported MISPLACED but the gate still "
+                            "exited 0")
+        else:
+            print(f"    -> {misplaced[0][:110]}")
         book.write_text(original)
         restored = check("map restored")
-        if restored.returncode != 0:
-            failures.append("the map does not pass again after restoration")
+        if "MISPLACED" in restored.stderr:
+            failures.append("MISPLACED persists after restoring the map")
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
