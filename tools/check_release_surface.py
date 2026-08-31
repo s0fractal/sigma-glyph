@@ -329,6 +329,7 @@ def inspect_wheel(wheel):
                             f"distribution promises three top-level modules")
 
     problems += _version_problems(wheel.name, info["version"])
+    pyproject = (ROOT / "pyproject.toml").read_text()
     dist = re.search(r'^name\s*=\s*"([^"]+)"', pyproject, re.M)
     if dist and (info["name"] or "").replace("_", "-") != dist.group(1):
         problems.append(f"{wheel.name}: wheel name {info['name']} != pyproject "
