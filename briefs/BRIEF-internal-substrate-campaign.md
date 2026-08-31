@@ -45,7 +45,7 @@ substitute for checking the live repository before acting.
 - Book I anchor:
   `e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd`.
 - Raw SHA-256 of the current `spec/book-1-truth.md`:
-  `f5aadc405c1c7d9f4d2e1f0431c91f40027e6b4037b43c2cbf6b278f4093ac6`.
+  `f5aadc405c1c7d9f4d2e1f0431c91f40027e6b4037b43c2cbf6b278f4093ac6a`.
   This is a raw-file digest, not the Book I Specification Anchor.
 - `manifesto/main`:
   `8d36a9e3c2fb75d0edc7b85b7c13bbb49c0d8e3a`.
@@ -56,9 +56,10 @@ substitute for checking the live repository before acting.
 - The deposited engine-paper record is version DOI
   `10.5281/zenodo.22069651`, concept DOI
   `10.5281/zenodo.22069650`, version label `0.6.7-paper1`.
-- The committed `papers/one-integer-for-work-and-memory/paper.pdf` is the
-  deposited v1 artifact. It is historical evidence and MUST NOT be overwritten
-  by the v2 build.
+- No PDF is tracked under `papers/one-integer-for-work-and-memory/`. The
+  deposited v1 PDF lives on Zenodo. Download it, verify it against the public
+  record, and preserve it as an external historical input; do not infer its
+  bytes from a local file that does not exist.
 - ADR-011 is merged as a non-normative proposal. It is not adopted.
 - `EXP-ADR011-01` is pre-registered and has not started.
 
@@ -175,6 +176,27 @@ decide. At minimum cover:
 - current source/artifact location used by the reproduction instructions;
 - every changed number, SHA, count, or version in the v2 patch.
 
+Every figure must be checked against the revision the paper says produced it,
+not against the current working tree merely because that tree is convenient.
+In particular, a line count or proof inventory labelled as measured at commit
+`1c2b6ca` must be reconstructed from that commit's objects. If v2 also wants to
+show the current inventory, put it in a separate row or section bound to a
+second exact source revision; do not silently replace the historical value with
+the value at `HEAD`.
+
+The audit must fail with a named provenance error when the referenced commit is
+not available. If CI uses a shallow checkout, fetch the required history
+explicitly; do not fall back from an unreachable historical object to `HEAD`.
+Add mutations that make a historical figure agree with the working tree but
+disagree with its named commit, and vice versa, so the two operands cannot be
+collapsed again.
+
+Treat any byte-identity statement in Artifact Availability the same way: name
+both revisions and verify the named paths between exactly those revisions. If
+the paths drifted, print the drift and direct reproduction to the measured
+commit. A green current checkout cannot retroactively make it the source of an
+older measurement.
+
 For every new predicate, add a mutation that changes only its subject and
 requires the audit to fail for that predicate. Do not promote a prose parser
 into a semantic verifier. Its output must print what it decided and identify
@@ -182,8 +204,10 @@ what remains outside its contract.
 
 ### Reproducible v2 package
 
-Build the v2 candidate in a clean checkout at an exact SHA. Do not overwrite
-`paper.pdf`. Produce a separate staging directory containing at least:
+Build the v2 candidate in a clean checkout at an exact SHA. Keep the downloaded
+v1 PDF and the generated v2 PDF under distinct names in a separate staging
+directory; do not add a v2 file under a name that could be mistaken for a
+tracked historical v1 artifact. The staging directory must contain at least:
 
 - the new PDF;
 - the source Markdown and bibliography/assets required to rebuild it;
