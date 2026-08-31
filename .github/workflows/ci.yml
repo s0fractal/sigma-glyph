@@ -62,8 +62,19 @@ jobs:
             | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
           python3 tools/version_check.py | tee /dev/stderr \
             | grep -q "VERSION-CHECK:"
+      # --selftest first, because --check-map alone went GREEN on a MAP row
+      # pointing at a renamed file: the checkout is detached, the row named the
+      # PR's own branch, and "cannot look" was reported as UNCHECKED. The
+      # selftest plants a wrong path for the branch under review in a real
+      # detached shallow clone and requires MISPLACED, so a pass here means the
+      # gate can still fail.
       - name: Reference map (every cited document is located in MAP.md)
-        run: python3 tools/repo_map.py --check-map
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/repo_map.py --selftest | tee /dev/stderr \
+            | grep -q "REPO-MAP-SELFTEST: ALL PASS"
+          python3 tools/repo_map.py --check-map
       # A normative JSON artifact needs a normative shape. The shape is an
       # anchored closed-world schema; the selftest breaks each rule so the
       # validator is known to be able to fail.
