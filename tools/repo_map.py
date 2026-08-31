@@ -36,13 +36,56 @@ USAGE
     python3 tools/repo_map.py --check    # non-zero if any reference resolves nowhere
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SIBLING = ROOT.parent / ("sigma-glyph" if ROOT.name == "warrant" else "warrant")
+
+
+def _main_checkout(root):
+    """The main working tree, even when `root` is a linked worktree.
+
+    `--git-common-dir` points at the ORIGINAL repository's `.git` for every
+    linked worktree, so this is the one directory every worktree of a repo
+    agrees on.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--path-format=absolute",
+         "--git-common-dir"], capture_output=True, text=True)
+    if result.returncode != 0 or not result.stdout.strip():
+        return root
+    common = Path(result.stdout.strip())
+    return common.parent if common.name == ".git" else root
+
+
+def _find_sibling(root):
+    """Locate the paired repository without asking what this directory is called.
+
+    This was `root.parent / ("sigma-glyph" if root.name == "warrant" else
+    "warrant")`, which reads the DIRECTORY NAME. Run from a worktree named
+    `sigma-glyph-surface`, it looked for `warrant` beside the worktree, found
+    nothing, and silently downgraded a resolved MAP row to "resolves nowhere" —
+    a wrong answer rather than an error, in the tool whose whole job is to
+    refuse unresolved citations.
+
+    The repository is identified by its remote instead, and the search starts
+    from the MAIN checkout so linked worktrees behave like it.
+    """
+    remote = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"],
+                            capture_output=True, text=True)
+    this = "warrant" if "/warrant" in remote.stdout else "sigma-glyph"
+    wanted = "sigma-glyph" if this == "warrant" else "warrant"
+    for base in (_main_checkout(root).parent, root.parent):
+        candidate = base / wanted
+        if (candidate / ".git").exists():
+            return candidate
+    return _main_checkout(root).parent / wanted
+
+
+SIBLING = _find_sibling(ROOT)
 
 # Identifiers this project cites as if the reader knows where they live.
 ID_RE = re.compile(r"\b(ADR-\d{3}|WRT-\d{3}|GOV-\d{3}|Book\s+I{1,3})\b")
@@ -138,6 +181,9 @@ def parse_args():
     ap.add_argument("--check-map", action="store_true",
                     help="non-zero if a citation is absent from the committed "
                          "MAP.md; works without the sibling, so CI can run it")
+    ap.add_argument("--selftest", action="store_true",
+                    help="prove --check-map can fail on the branch under "
+                         "review, in a real detached shallow clone")
     return ap.parse_args()
 
 
@@ -203,9 +249,35 @@ def _ref_is_live(ref):
          "origin", ref.split("/", 1)[1]], capture_output=True).returncode == 0
 
 
+def _current_branch_names():
+    """Every name by which THIS checkout is the branch under review.
+
+    A pull-request checkout is detached and has no local branch, so a row naming
+    the PR's own branch was reported UNCHECKED and the gate exited 0. That is
+    how a MAP row pointing at a renamed file passed CI: not by being verified,
+    but by being unverifiable. `GITHUB_HEAD_REF` is the branch name on a
+    pull_request event; `GITHUB_REF_NAME` covers the push event.
+    """
+    names = set()
+    for variable in ("GITHUB_HEAD_REF", "GITHUB_REF_NAME"):
+        value = os.environ.get(variable, "").strip()
+        if value:
+            names.add(value)
+    current = subprocess.run(["git", "-C", str(ROOT), "branch", "--show-current"],
+                             capture_output=True, text=True)
+    if current.returncode == 0 and current.stdout.strip():
+        names.add(current.stdout.strip())
+    return names
+
+
 def _resolvable(ref, path):
     """Which spellings of `ref` this checkout has, and whether any holds `path`."""
     spellings = [ref, f"{REMOTE}{ref}", f"refs/remotes/{REMOTE}{ref}"]
+    # If the row names the branch we are standing on, HEAD *is* that branch —
+    # detached or not. Checking it here is what makes the row under review
+    # verifiable in CI rather than skipped.
+    if ref in _current_branch_names():
+        spellings.insert(0, "HEAD")
     present = [r for r in spellings
                if subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify",
                                   "--quiet", r], capture_output=True).returncode == 0]
@@ -335,8 +407,110 @@ def write_map(origin, head, rows, unresolved):
     return 0
 
 
+def selftest():
+    """A wrong path must fail where CI actually stands: detached and shallow.
+
+    The gate exited 0 on a MAP row pointing at a file that had been renamed,
+    because a pull-request checkout is detached, the row named a branch this
+    checkout had no local ref for, and "cannot look" was reported as UNCHECKED.
+    The wrong row passed BY BEING UNVERIFIABLE.
+
+    So the control reproduces that environment rather than describing it: a real
+    `--depth 1` clone, checked out detached, with `GITHUB_HEAD_REF` set the way
+    the pull_request event sets it.
+    """
+    import shutil
+    import tempfile
+
+    branch = (subprocess.run(["git", "-C", str(ROOT), "branch", "--show-current"],
+                             capture_output=True, text=True).stdout.strip()
+              or os.environ.get("GITHUB_HEAD_REF", ""))
+    if not branch:
+        print("SELFTEST: no current branch to stand in for the PR branch",
+              file=sys.stderr)
+        return 1
+
+    failures = []
+    work = tempfile.mkdtemp(prefix="repo-map-selftest-")
+    try:
+        clone = Path(work) / "checkout"
+        if subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch",
+                           branch, f"file://{ROOT}", str(clone)],
+                          capture_output=True).returncode != 0:
+            print("SELFTEST: could not make a shallow clone", file=sys.stderr)
+            return 1
+        # Give the clone the base ref too. actions/checkout leaves origin refs
+        # present; without this the clone fails for reasons that have nothing to
+        # do with the control, and a control that cannot pass on a healthy tree
+        # proves nothing when it fails on a broken one.
+        subprocess.run(["git", "-C", str(clone), "fetch", "--quiet", "--depth", "1",
+                        "origin", "master:refs/remotes/origin/master"],
+                       capture_output=True)
+        # Detach, exactly as actions/checkout leaves a pull_request checkout.
+        subprocess.run(["git", "-C", str(clone), "checkout", "--quiet", "--detach"],
+                       capture_output=True)
+        detached = subprocess.run(["git", "-C", str(clone), "branch",
+                                   "--show-current"], capture_output=True,
+                                  text=True).stdout.strip()
+        if detached:
+            failures.append("the clone is not detached, so the control would "
+                            "not reproduce CI")
+
+        environment = dict(os.environ, GITHUB_HEAD_REF=branch)
+
+        def check(label):
+            done = subprocess.run([sys.executable, "tools/repo_map.py",
+                                   "--check-map"], cwd=clone, env=environment,
+                                  capture_output=True, text=True)
+            print(f"    {label}: exit {done.returncode}")
+            return done
+
+        clean = check("unmodified map")
+        if clean.returncode != 0:
+            failures.append("the unmodified map does not pass in a detached "
+                            f"shallow clone: {clean.stderr.strip()[:200]}")
+        if "MISPLACED" in clean.stderr:
+            failures.append("the unmodified map already reports MISPLACED, so "
+                            "the mutation below would prove nothing")
+
+        book = clone / "MAP.md"
+        original = book.read_text()
+        broken = re.sub(r"(\| `ADR-012` \|[^|]*\| )`[^`]+`",
+                        r"\1`proposals/ADR-012-does-not-exist.md`", original,
+                        count=1)
+        if broken == original:
+            failures.append("could not plant a wrong path in the ADR-012 row")
+        book.write_text(broken)
+        dirty = check("ADR-012 row pointing at a file that is not there")
+        if dirty.returncode == 0:
+            failures.append("a wrong path for the CURRENT branch's document "
+                            "passed in a detached shallow checkout — the exact "
+                            "hole this control exists for")
+        elif "MISPLACED" not in dirty.stderr and "MISPLACED" not in dirty.stdout:
+            failures.append("it failed, but not as MISPLACED: "
+                            f"{dirty.stderr.strip()[:200]}")
+        book.write_text(original)
+        restored = check("map restored")
+        if restored.returncode != 0:
+            failures.append("the map does not pass again after restoration")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    print()
+    for problem in failures:
+        print(f"  FAIL  {problem}", file=sys.stderr)
+    if failures:
+        print(f"REPO-MAP-SELFTEST: FAILURES ({len(failures)})")
+        return 1
+    print("REPO-MAP-SELFTEST: ALL PASS — a wrong current-branch path fails "
+          "even detached and shallow")
+    return 0
+
+
 def main():
     args = parse_args()
+    if getattr(args, "selftest", False):
+        return selftest()
     ids = cited(ROOT)
     rows, unresolved = citation_rows(ids)
     if args.check_map:
