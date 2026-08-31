@@ -419,24 +419,21 @@ def write_map(origin, head, rows, unresolved):
     return 0
 
 
-def _row_naming(text, branch):
-    """`(identifier, path)` of a citation row whose ref IS `branch`, or None.
+def _first_citation_row(text):
+    """`(identifier, ref_cell, path_cell)` of the first citation row.
 
-    The control needs a row for a document that lives on the branch under
-    review; which identifier that is depends on where it runs, so it is read
-    from the map instead of assumed.
+    Any row will do: the control rewrites its ref and path, so what the row
+    originally said is irrelevant. Taking one from the map rather than
+    inventing a line keeps the surrounding table shape exactly as the parser
+    expects it.
     """
     for line in text.split("## Refs that exist", 1)[0].splitlines():
         cells = [cell.strip() for cell in line.split("|")]
-        row = _row_ref_and_path(cells)
-        if row is None:
+        if _row_ref_and_path(cells) is None:
             continue
-        ref, path = row
-        if ref == "sibling":
+        if "this repo" not in cells[2]:
             continue
-        bare = ref[len(REMOTE):] if ref.startswith(REMOTE) else ref
-        if bare == branch and path:
-            return cells[1].strip("`"), path
+        return cells[1].strip("`"), cells[2], cells[3]
     return None
 
 
@@ -539,34 +536,65 @@ def selftest():
         # branch merged, the row named `master`, the control's target was no
         # longer "the branch under review", and the selftest failed on master
         # for a reason that had nothing to do with the property it guards.
-        # Strongest case: a row naming the branch under review. That is the
-        # exact hole this control exists for. Not every branch owns a cited
-        # document, so fall back to any row the clone can resolve — still a
-        # real MISPLACED test in a detached shallow checkout — and say which
-        # case ran, because a control that quietly weakens itself is the thing
-        # this whole file is about.
-        target = _row_naming(original, branch)
-        if target is None:
-            target = _row_naming(original, "master")
-            if target is not None:
-                print(f"    (no MAP row names {branch}; falling back to a "
-                      f"master-owned row — the detached/shallow property is "
-                      f"still tested, the branch-under-review one is not)")
-        if target is None:
-            failures.append(
-                f"no MAP row names {branch} or master, so this control has "
-                f"nothing to plant a wrong path in")
-            broken = original
+        # The control builds the row it tests, instead of hoping the map
+        # contains a suitable one.
+        #
+        # Two earlier versions depended on the environment: one hardcoded the
+        # ADR-012 row, which stopped naming the branch under review the moment
+        # that branch merged; the next fell back to a master-owned row, which
+        # CI cannot resolve at all, because a pull_request checkout has no
+        # master ref. Both times the control could not test its property and
+        # said so as a failure — better than passing, but still not a test.
+        #
+        # A row naming the branch under review resolves through HEAD, and HEAD
+        # is the one ref every checkout has. So: point some citation row at
+        # this branch and at a file that IS at HEAD, then at one that is not.
+        book = clone / "MAP.md"
+        original = book.read_text()
+
+        anchor = _first_citation_row(original)
+        if anchor is None:
+            failures.append("MAP.md has no citation row to rewrite")
+            broken = present = original
+            target = None
         else:
-            identifier, path = target
-            print(f"    target row: {identifier} -> {path}")
-            broken = original.replace(f"`{path}`", "`proposals/NOT-THERE.md`", 1)
-            if broken == original:
-                failures.append(f"could not plant a wrong path in the "
-                                f"{identifier} row")
+            identifier, ref_cell, path_cell = anchor
+            here = subprocess.run(["git", "-C", str(clone), "ls-tree", "-r",
+                                   "--name-only", "HEAD", "proposals/"],
+                                  capture_output=True, text=True).stdout.split()
+            real = here[0] if here else None
+            if real is None:
+                failures.append("HEAD carries no proposals/ document to point a "
+                                "row at")
+                broken = present = original
+                target = None
+            else:
+                target = (identifier, real)
+                print(f"    row rewritten to name {branch} -> {real}")
+
+                def row(path):
+                    return original.replace(
+                        f"| `{identifier}` | {ref_cell} | {path_cell} |",
+                        f"| `{identifier}` | this repo, `{REMOTE}{branch}` | "
+                        f"`{path}` |", 1)
+
+                present = row(real)
+                broken = row("proposals/NOT-THERE.md")
+                if present == original or broken == original:
+                    failures.append("could not rewrite the anchor row")
+
+        # A row naming this branch and a file that IS here must not be MISPLACED.
+        book.write_text(present)
+        good = check(f"{target[0] if target else 'a'} row naming {branch}, "
+                     f"pointing at a file that is here")
+        if "MISPLACED" in good.stderr:
+            failures.append("a row naming the branch under review and a file "
+                            "that IS at HEAD was reported MISPLACED")
+
+        # The same row pointing at a file that is not here must be.
         book.write_text(broken)
-        dirty = check(f"{target[0] if target else 'a'} row pointing at a file "
-                      f"that is not there")
+        dirty = check(f"{target[0] if target else 'a'} row naming {branch}, "
+                      f"pointing at a file that is not")
         wanted = target[0] if target else ""
         misplaced = [line for line in dirty.stderr.splitlines()
                      if "MISPLACED" in line and wanted and wanted in line]
@@ -579,6 +607,7 @@ def selftest():
                             "exited 0")
         else:
             print(f"    -> {misplaced[0][:110]}")
+
         book.write_text(original)
         restored = check("map restored")
         if "MISPLACED" in restored.stderr:
