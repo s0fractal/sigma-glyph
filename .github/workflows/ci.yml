@@ -95,6 +95,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The audit now checks figures against the COMMIT THE PAPER NAMES, not
+          # against the working tree, and it refuses rather than falling back
+          # when that commit is unreachable. actions/checkout is shallow, so
+          # `1c2b6ca` and `0481bd0` are absent and every provenance predicate
+          # correctly reports a named failure. That refusal is the feature; the
+          # history is what was missing.
+          git fetch --no-tags --unshallow || git fetch --no-tags
           python3 tools/paper_claims.py --selftest | tee /dev/stderr \
             | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
           python3 tools/paper_claims.py | tee /dev/stderr \
