@@ -3,13 +3,13 @@
   "normative": false,
   "oracle_source_commit": "1c2b6ca42cb95cdc035fc887cd0587a5758862d7",
   "measurement_inputs": {
-    "proposals/adr-011/equality_profile.py": "df20497780f394e125aefd2599a95658687b94d99940d804bd117346eba39489",
-    "proposals/adr-011/benchmark.py": "45f430bf7aa405317f2321ee434a85b00df832ba816c08db1b449d948d0cf604",
+    "proposals/adr-011/equality_profile.py": "be264861c5d4a039c5b46a72d6feba83553345852b71cb74d79191fe20dfa710",
+    "proposals/adr-011/benchmark.py": "875be27ec4d9641cffcd56e5f71678ab46bcf6035736b60f6717f25cefe4ec59",
     "impl/sigma_glyph.py": "55072bc02e63987898fd60125e8bb5b14a6233b081ba158e0253755652323825"
   },
   "co_released_context": {
-    "proposals/ADR-011-eq-by-normal-form-address.md": "8a679eb5033c0658b9b2fe8418272299376a6f5cb4163481fda8085bb32e3d42",
-    "proposals/adr-011/selftest.py": "5bd2cd4eec0559b98145c2a8906ceaa4d24dc3a624615e7512373f157a3be89f",
+    "proposals/ADR-011-eq-by-normal-form-address.md": "a848f1ec891e907d3e14c27fd7c69c39e8e4477e5393f026429cdc4a0c141c46",
+    "proposals/adr-011/selftest.py": "61518fa8c15cd37af130b6887e8b3db0de88461002f9a91c5f9d8f71927d84e0",
     "proposals/EXP-ADR011-01-church-nat-admission.md": "f93df0595e6bed6e6df63df0f697206f4c25398b6f8f8da90e4b6fd86a21a5c4"
   },
   "book_1_anchor": "e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd",
@@ -25,6 +25,9 @@
     "distinct": true,
     "freshness": "domain-separated from the profile id and fixed before any term is submitted; a term naming either is refused"
   },
+  "profile_id": "sigma-glyph/adr-011/church@v0",
+  "profile_commitment": "98d3432c8a01c98ba639941f69a7b66477049363db70758fa8c8ccc2b4d40e25",
+  "profile_commitment_is_local": "identifies the profile to another run of THIS Python module. Not a content-addressed profile descriptor: another implementation of the same profile computes a different value. Portable settlement is blocked until such a descriptor exists.",
   "measurements": [
     {
       "case": "church(0) vs church(0)",

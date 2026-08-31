@@ -166,6 +166,13 @@ def build_receipt():
         "budget_each_side": 5_000_000,
         "limits": "impl/sigma_glyph.py DEFAULT limits; no max_atp",
         "markers": ep.CHURCH_V0.marker_definition,
+        "profile_id": ep.CHURCH_V0.profile_id,
+        "profile_commitment": ep.profile_commitment(ep.CHURCH_V0),
+        "profile_commitment_is_local": (
+            "identifies the profile to another run of THIS Python module. Not "
+            "a content-addressed profile descriptor: another implementation of "
+            "the same profile computes a different value. Portable settlement "
+            "is blocked until such a descriptor exists."),
         "measurements": measure(_pairs()),
         "profile_cannot_settle": (
             "the case that motivated ADR-011. church@v0 refuses computed "

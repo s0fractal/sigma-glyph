@@ -33,6 +33,8 @@ evaluator:
 
 ```text
 a = λf.λx.x                 b = λf.λx.X          (X is the profile's own marker)
+Y = the literal sha("sigma-glyph/adr-011/church@v0/Y-probe"), a second
+    observation point that is NOT a marker of this profile
 
 observation at (F, X), the profile's markers:
   a → e37391c4fac298b2…  exit normal_form  spent 12
@@ -103,7 +105,11 @@ results, not about two inputs.
 
 ```text
 EqualityProfile = {
-    profile_id,             # settlements name it; two profiles are two claims
+    profile_id,             # what the profile CALLS itself. A string it picks.
+                            # NOT an identity: see profile_commitment below.
+    profile_commitment,     # a digest over every field that changes what a
+                            # settlement MEANS, including `observe` and `admit`
+                            # themselves
     admitted_domain,        # what may be submitted, and by what check
     equivalence_relation,   # which `~` is being claimed
     observe,                # term -> observation term
@@ -136,10 +142,11 @@ settle_eq(profile, a, b, budget_a, budget_b, env):
     rb = eval_receipt(observe(profile, b), budget_b, env)
 
     if ra.exit != normal_form or rb.exit != normal_form:
-        return UNSETTLED, {profile_id, ra, rb, which_side_did_not_finish}
+        return UNSETTLED, {profile_id, profile_commitment, book_anchor,
+                           ra, rb, which_side_did_not_finish}
 
     return {verdict: EQUAL if ra.result_hash == rb.result_hash else UNEQUAL,
-            profile_id, lhs: ra, rhs: rb}
+            profile_id, profile_commitment, book_anchor, lhs: ra, rhs: rb}
 ```
 
 Four differences from the candidate's pseudocode, each reproduced as a defect
@@ -191,6 +198,18 @@ X: atom SHA-256("sigma-glyph/adr-011/church@v0/X")
 F ≠ X
 ```
 
+**Binder distinctness.** The admission check is syntactic, and `λf.λf.f(f)`
+passed an earlier version of it: both binders were compared by NAME, so the
+spine walked and the body matched. Under shadowing the inner binder wins, and
+the term denotes `λa.λb.b(b)`, whose observation agrees with no numeral. That
+is over-acceptance *outside* the domain reflection and preservation rest on —
+the one direction this profile must not fail in — and it is now refused, with
+control 12 and mutation M4 in the selftest.
+
+The same requirement refuses terms that shadow and still denote a numeral, e.g.
+`λx.λx.x`, which is `church(0)`. Refusing an admissible term costs a caller a
+settlement; admitting an inadmissible one costs the claim.
+
 **Freshness** means: the markers are fixed by the profile id **before any term
 is submitted**, and a submitted term naming either is refused at admission. The
 counterexample above is exactly a term that names a marker. A profile deriving
@@ -220,6 +239,36 @@ lands, this ADR proposes a profile that is correct and insufficient.
 
 Nothing here applies to higher-order terms. η and extensionality are not
 decided by this observation, and no claim is made that they are.
+
+## `profile_id` names a profile; it does not identify one
+
+A settlement that carried only `profile_id` was under an unknown profile. Build
+a second profile with the **same id** and an observer returning the marker `X`
+for every term, and:
+
+```text
+same profile_id: sigma-glyph/adr-011/church@v0
+  real profile      church(5) vs church(7)  ->  UNEQUAL
+  forged observer   church(5) vs church(7)  ->  EQUAL
+```
+
+Both settlements print the same profile name. So the settlement carries a
+`profile_commitment`: a digest over the prose contract, the markers, the Book I
+edition, and code digests of `observe` and `admit` — the fields that change what
+a verdict means. Control 13/13b holds the pair apart; mutation M7 makes the
+commitment blind to `observe` and requires 13b, specifically, to go red.
+
+**Portable settlement is BLOCKED, and the commitment does not unblock it.**
+That digest identifies a profile to another run of the same Python module. It
+commits to CPython code objects and to one file's bytes, so a Go or Rust
+implementation of the same profile computes a different value, and two
+implementations cannot agree that they settled under one profile. Closing this
+needs a profile descriptor that is itself canonical bytes in the store, with
+admission and observation expressed in something both implementations execute.
+**No such descriptor exists in Book I today and this ADR does not propose one.**
+Until it does, a settlement is portable evidence only alongside the module that
+produced it. A profile whose `observe` has no readable source is refused a
+commitment outright rather than given a partial one (control 14).
 
 ## Executable reference and controls
 

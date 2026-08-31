@@ -24,8 +24,17 @@ directions are separate properties and neither is unconditional:
 Why the distinction is not pedantry, on this evaluator, today:
 
     a = λf.λx.x        b = λf.λx.X          (X is the profile's own marker)
-    observe at (F, X): both -> 8785b7dd…  spends 12 and 15
-    observe at (F, Y): a -> 8ee7e3ec…, b -> 8785b7dd…
+    Y = the literal sha("sigma-glyph/adr-011/church@v0/Y-probe"), a second
+        observation point that is NOT a marker of this profile
+
+    observe at (F, X): both -> e37391c4…   spends 12 and 15
+    observe at (F, Y): a -> 2b0e3697…, b -> e37391c4…
+
+(These are this profile's domain-separated markers. An earlier draft of this
+docstring printed 8785b7dd…/8ee7e3ec…, which are genuine digests of the ad-hoc
+`sha("F")/sha("X")` markers used by the CANDIDATE ADR — real numbers from the
+wrong marker set, which is the exact defect MANIFESTO-CORRECTIONS.md raises as
+C5 against AIE-0.1. Checked by `digest_problems()` in the selftest.)
 
 One observation point cannot separate them. Reflection is a property of a
 domain and a marker discipline, not of addressing.
@@ -86,7 +95,9 @@ class SideReceipt:
 @dataclass(frozen=True)
 class Settlement:
     verdict: str
-    profile_id: str
+    profile_id: str            # what the profile CALLS itself — not an identity
+    profile_commitment: str    # what the profile IS; see `profile_commitment()`
+    book_anchor: str           # the Book I edition these receipts are read under
     lhs: SideReceipt | None
     rhs: SideReceipt | None
     detail: str = ""
@@ -178,17 +189,22 @@ def settle_eq(profile: EqualityProfile, a, b, budget_a: int, budget_b: int,
         detail = "; ".join(
             f"{name}: {problem[1]}" if problem else f"{name}: completed"
             for (name, _t, _b), problem in zip(sides, problems))
-        return Settlement(verdict, profile.profile_id, left, right, detail,
-                          kinds[0], kinds[1])
+        return Settlement(verdict, profile.profile_id,
+                          profile_commitment(profile), profile.book_anchor,
+                          left, right, detail, kinds[0], kinds[1])
 
     if left.exit != "normal_form" or right.exit != "normal_form":
         unfinished = [name for name, side in (("lhs", left), ("rhs", right))
                       if side.exit != "normal_form"]
-        return Settlement(UNSETTLED, profile.profile_id, left, right,
+        return Settlement(UNSETTLED, profile.profile_id,
+                          profile_commitment(profile), profile.book_anchor,
+                          left, right,
                           f"did not reach a normal form: {', '.join(unfinished)}")
 
     verdict = EQUAL if left.result_hash == right.result_hash else UNEQUAL
-    return Settlement(verdict, profile.profile_id, left, right)
+    return Settlement(verdict, profile.profile_id,
+                      profile_commitment(profile), profile.book_anchor,
+                      left, right)
 
 
 def _admit(profile: EqualityProfile, term):
@@ -275,6 +291,82 @@ def _materialize(env, term):
     raise Refused(f"not a materializable term: {term!r}")
 
 
+def _code_digest(fn) -> str:
+    """A digest of the callable itself, not of the name it was given.
+
+    `co_code` and the constants distinguish two different lambdas defined in
+    one file; the module source digest below distinguishes two files and
+    catches edits to the helpers a callable delegates to, which `co_code`
+    cannot see.
+    """
+    import hashlib
+    code = getattr(fn, "__code__", None)
+    if code is None:
+        raise Refused(f"cannot commit to {fn!r}: no code object")
+    parts = [
+        repr(code.co_argcount), repr(code.co_varnames), repr(code.co_names),
+        repr(tuple(repr(c) for c in code.co_consts)),
+    ]
+    digest = hashlib.sha256(code.co_code)
+    for part in parts:
+        digest.update(b"\x00" + part.encode())
+    module_file = getattr(sys.modules.get(getattr(fn, "__module__", None)),
+                          "__file__", None)
+    try:
+        source = Path(module_file).read_bytes() if module_file else None
+    except OSError:
+        source = None
+    if source is None:
+        # Fail closed. Degrading to a co_code-only digest would still return a
+        # hex string, and every caller would keep treating it as a commitment
+        # while it had stopped covering the helpers the callable delegates to.
+        # A callable defined at a REPL cannot be committed to; say so.
+        raise Refused(
+            f"cannot commit to {getattr(fn, '__qualname__', fn)!r}: its "
+            f"defining module has no readable source, so a commitment could "
+            f"not cover the helpers it calls")
+    digest.update(b"\x00" + hashlib.sha256(source).digest())
+    return digest.hexdigest()
+
+
+def profile_commitment(profile: "EqualityProfile") -> str:
+    """What the settlement is actually under — beyond the chosen `profile_id`.
+
+    `profile_id` is a string the profile picks for itself. Two profiles can
+    carry the same one and behave differently: an observer that returns the
+    marker `X` for every term makes `church(5)` and `church(7)` settle EQUAL,
+    and the settlement still says `sigma-glyph/adr-011/church@v0`. A receipt
+    that names a profile without identifying it is a receipt under an unknown
+    profile.
+
+    So the commitment covers every field that changes what a settlement means:
+    the prose contract, the markers, the Book I edition, and digests of `observe`
+    and `admit` themselves.
+
+    **PORTABLE SETTLEMENT IS BLOCKED, and this function does not unblock it.**
+    This digest identifies a profile to *another run of this Python module*. It
+    is not a content-addressed profile descriptor: a Go or Rust implementation
+    of the same profile computes a different commitment, because it commits to
+    CPython code objects and to this file's bytes. Comparing settlements across
+    implementations needs a descriptor that is itself canonical bytes in the
+    store, with the admission and observation expressed in something both
+    implementations execute. No such descriptor exists in Book I today and this
+    ADR does not propose one. Until it does, a settlement is portable evidence
+    only alongside the module that produced it.
+    """
+    import hashlib
+    digest = hashlib.sha256(b"sigma-glyph/adr-011/profile-commitment@v0")
+    for name in ("profile_id", "admitted_domain", "equivalence_relation",
+                 "budget_policy", "environment_policy", "book_anchor",
+                 "reflection", "preservation"):
+        digest.update(b"\x00" + repr(getattr(profile, name)).encode())
+    digest.update(b"\x00" + repr(sorted(profile.marker_definition.items())).encode())
+    digest.update(b"\x00" + repr(profile.not_established).encode())
+    for fn in (profile.observe, profile.admit):
+        digest.update(b"\x00" + bytes.fromhex(_code_digest(fn)))
+    return digest.hexdigest()
+
+
 def _mentions_marker(term) -> bool:
     """Does this term contain either marker?
 
@@ -311,6 +403,17 @@ def _is_church_literal(term) -> bool:
     if inner[0] != "lam":
         return False
     x_name, body = inner[1], inner[2]
+    if f_name == x_name:
+        # `λf.λf.f(f)` walked the spine and matched, because both binders were
+        # read by NAME. Under shadowing the inner binder wins, so the term
+        # denotes `λa.λb.b(b)` — its observation agrees with no numeral. That is
+        # over-acceptance OUTSIDE the domain reflection and preservation rest
+        # on, which is the one direction this profile must not fail in.
+        #
+        # This also refuses terms that shadow and still denote a numeral, e.g.
+        # `λx.λx.x`, which is church(0). Refusing an admissible term costs a
+        # caller a settlement; admitting an inadmissible one costs the claim.
+        return False
     while body[0] == "lapp":
         if body[1] != ("var", f_name):
             return False
@@ -338,8 +441,12 @@ CHURCH_V0 = EqualityProfile(
     profile_id="sigma-glyph/adr-011/church@v0",
     admitted_domain=(
         "Church numerals WRITTEN OUT as λf.λx.fⁿ(x), checked syntactically, "
-        "containing neither marker. Computed expressions are NOT admitted: no "
-        "mechanical admission of 'Church-natural computations' exists here."),
+        "with DISTINCT binders and containing neither marker. Computed "
+        "expressions are NOT admitted: no mechanical admission of "
+        "'Church-natural computations' exists here. The binder-distinctness "
+        "requirement also refuses some terms that do denote numerals, such as "
+        "λx.λx.x = church(0); refusing an admissible term costs a caller a "
+        "settlement, admitting an inadmissible one costs the claim."),
     equivalence_relation="equality of the natural number a numeral denotes",
     observe=_observe_church,
     admit=_admit_church,

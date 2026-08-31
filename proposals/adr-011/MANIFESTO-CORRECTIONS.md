@@ -158,6 +158,26 @@ neither is it dormant.
 **Change:** note that F3 has not been tested, and that the ratio is a
 harness-relative measurement.
 
+## C11 — §5.4's cross-agent dedup needs portable settlement, which is blocked
+
+> **Warrant:** дедуплікація обґрунтувань за адресою закриття — два агенти, що
+> дійшли до однієї NF, довели одне й те саме, і це видно без читання доказів.
+
+Two agents agreeing on an address have settled the same thing only if they
+settled under the same profile — and naming a profile is not identifying one.
+A profile carrying the id `sigma-glyph/adr-011/church@v0` with an observer that
+returns the marker for every term settles `church(5)` EQUAL to `church(7)`, and
+its settlement prints that same id.
+
+ADR-011 answers this with a `profile_commitment`, which is enough *within one
+Python module* and explicitly not enough across implementations: it commits to
+CPython code objects and one file's bytes. Cross-agent dedup is precisely the
+cross-implementation case, so it needs a content-addressed profile descriptor
+that does not exist in Book I today and that ADR-011 does not propose.
+
+**Change:** mark §5.4 as depending on portable settlement, and name the missing
+descriptor as its blocker rather than presenting the dedup as available.
+
 ---
 
 ## Not corrections

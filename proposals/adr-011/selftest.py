@@ -168,6 +168,72 @@ def main():
         and both.rhs is not None and single is not None,
         "a single re-execution against a fixed address carries no second side")
 
+    # 12. Binder shadowing is over-acceptance, and it is refused.
+    #    `λf.λf.f(f)` walked the numeral spine and matched, because both
+    #    binders were compared BY NAME. Under shadowing the inner binder wins,
+    #    so the term denotes `λa.λb.b(b)`, whose observation agrees with no
+    #    numeral. Admitting it would put a term outside the domain that
+    #    reflection and preservation rest on.
+    shadowed = ("lam", "f", ("lam", "f", ("lapp", ("var", "f"), ("var", "f"))))
+    refused12 = False
+    try:
+        P.admit(shadowed)
+    except ep.Refused:
+        refused12 = True
+    chk("12. a shadowed binder `λf.λf.f(f)` is refused at admission",
+        refused12, "admitted a term whose binders shadow")
+
+    #    ...and it really is not a numeral: its observation matches none.
+    env12 = ep.fresh_env()
+    shadow_obs = sg.eval_receipt(
+        ep._observe_church(shadowed, env12), 5000, env12)
+    numeral_addresses = set()
+    for n in (0, 1, 2, 3):
+        env_n = ep.fresh_env()
+        numeral_addresses.add(sg.eval_receipt(
+            ep._observe_church(ep.church(n), env_n), 5000, env_n
+        ).result_hash.hex())
+    chk("12b. and its observation is not the observation of any small numeral",
+        shadow_obs.exit == "normal_form"
+        and shadow_obs.result_hash.hex() not in numeral_addresses,
+        f"{shadow_obs.exit} {shadow_obs.result_hash.hex()[:16]}")
+
+    # 13. `profile_id` is a name the profile picks; it is not an identity.
+    #     A profile carrying the SAME id with an observer that returns the
+    #     marker for every term settles church(5) EQUAL to church(7). The
+    #     settlement must distinguish them, and `profile_id` cannot.
+    forged = ep.EqualityProfile(**{
+        **P.__dict__,
+        "observe": lambda term, env: ep._materialize(
+            env, ("lit", ep.MARKER_X_ATOM))})
+    settled_true = settle(ep.church(5), ep.church(7))
+    settled_forged = ep.settle_eq(forged, ep.church(5), ep.church(7),
+                                  5000, 5000, ep.fresh_env())
+    chk("13. two profiles with the SAME profile_id can disagree on a verdict",
+        settled_forged.profile_id == settled_true.profile_id
+        and settled_forged.verdict == ep.EQUAL
+        and settled_true.verdict == ep.UNEQUAL,
+        f"{settled_true.verdict} vs {settled_forged.verdict}")
+    chk("13b. and the settlement separates them by profile_commitment",
+        settled_forged.profile_commitment != settled_true.profile_commitment)
+    chk("13c. the settlement also carries the Book I edition it was read under",
+        bool(settled_true.book_anchor == P.book_anchor and P.book_anchor))
+
+    # 14. A callable with no readable source cannot be committed to, and the
+    #     commitment says so instead of degrading to a weaker digest.
+    import types
+    orphan = types.FunctionType(
+        (lambda term, env: None).__code__, {"__name__": "nowhere"})
+    orphan.__module__ = "a-module-that-is-not-imported"
+    homeless = ep.EqualityProfile(**{**P.__dict__, "observe": orphan})
+    failed_closed = False
+    try:
+        ep.profile_commitment(homeless)
+    except ep.Refused:
+        failed_closed = True
+    chk("14. a profile whose observer has no readable source is refused a "
+        "commitment, not given a partial one", failed_closed)
+
     adr_prints_real_values()
     receipt_is_fresh()
     mutation_evidence()
@@ -386,8 +452,8 @@ def mutation_evidence():
     editing the module, so the evidence is reproducible without a patched tree.
     """
     print()
-    print("  -- mutations (M1-M5) restore a defect and must be caught; M6 is a")
-    print("     positive refusal check, not a mutation --")
+    print("  -- mutations M1-M5 and M7 restore a defect and must be caught;")
+    print("     M6 is a positive refusal check, not a mutation --")
 
     def address_only(a, b, atp):
         """No exit check: compare result hashes, as the candidate did."""
@@ -440,7 +506,9 @@ def mutation_evidence():
             ep.CHURCH_V0.admit(a)
             ep.CHURCH_V0.admit(b)
         except ep.Refused as why:
-            return ep.Settlement(ep.REFUSED, ep.CHURCH_V0.profile_id, None, None,
+            return ep.Settlement(ep.REFUSED, ep.CHURCH_V0.profile_id,
+                                 ep.profile_commitment(ep.CHURCH_V0),
+                                 ep.CHURCH_V0.book_anchor, None, None,
                                  str(why), ep.REFUSED, ep.REFUSED)
         return settle(a, b)
 
@@ -459,6 +527,65 @@ def mutation_evidence():
                      ("lapp", ("lapp", ep.church(2), ep.church(3)), ep.church(1)),
                      ep.church(6), 50_000, 50_000,
                      ep.fresh_env()).verdict == ep.REFUSED)
+
+    # M4. Remove the binder-distinctness guard and require control 12 to be the
+    #     control that goes red. Restores the over-acceptance Codex found.
+    saved_is_church = ep._is_church_literal
+
+    def name_blind(term) -> bool:
+        """The guard as it was: binders compared by name, shadowing invisible."""
+        if term[0] != "lam":
+            return False
+        f_name, inner = term[1], term[2]
+        if inner[0] != "lam":
+            return False
+        x_name, body = inner[1], inner[2]
+        while body[0] == "lapp":
+            if body[1] != ("var", f_name):
+                return False
+            body = body[2]
+        return body == ("var", x_name)
+
+    shadowed = ("lam", "f", ("lam", "f", ("lapp", ("var", "f"), ("var", "f"))))
+    try:
+        ep._is_church_literal = name_blind
+        admitted = True
+        try:
+            ep.CHURCH_V0.admit(shadowed)
+        except ep.Refused:
+            admitted = False
+        chk("M4. without the binder-distinctness guard, `λf.λf.f(f)` is "
+            "ADMITTED — control 12 is what catches it", admitted)
+    finally:
+        ep._is_church_literal = saved_is_church
+    still_refused = False
+    try:
+        ep.CHURCH_V0.admit(shadowed)
+    except ep.Refused:
+        still_refused = True
+    chk("M4b. and with the guard restored it is refused again", still_refused)
+
+    # M7. Make the commitment blind to the observer and require control 13b —
+    #     not 13 — to be the one that fails.
+    saved_code_digest = ep._code_digest
+    try:
+        ep._code_digest = lambda fn: "0" * 64
+        forged = ep.EqualityProfile(**{
+            **ep.CHURCH_V0.__dict__,
+            "observe": lambda term, env: ep._materialize(
+                env, ("lit", ep.MARKER_X_ATOM))})
+        collides = (ep.profile_commitment(forged)
+                    == ep.profile_commitment(ep.CHURCH_V0))
+        chk("M7. a commitment that does not cover `observe` lets a forged "
+            "profile share the real one's commitment", collides)
+    finally:
+        ep._code_digest = saved_code_digest
+    chk("M7b. and with the real digest they differ again",
+        ep.profile_commitment(ep.EqualityProfile(**{
+            **ep.CHURCH_V0.__dict__,
+            "observe": lambda term, env: ep._materialize(
+                env, ("lit", ep.MARKER_X_ATOM))}))
+        != ep.profile_commitment(ep.CHURCH_V0))
 
 
 if __name__ == "__main__":

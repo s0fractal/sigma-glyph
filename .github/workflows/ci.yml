@@ -260,3 +260,15 @@ jobs:
         run: |
           set -euo pipefail
           python3 examples/two-jurisdictions/demo.py | tee /dev/stderr | grep -q "DEMO: ALL ASSERTIONS HELD"
+      # NON-NORMATIVE draft (ADR-011, PR #36). Deliberately NOT in
+      # tools/test-all.sh: a stale draft receipt must not be able to block the
+      # normative matrix. But it must not be unwatched either — without a step
+      # here, a later commit could break admission or leave the receipt stale
+      # and the board would stay green. So it runs as its own step, and its
+      # failure is a failure of this draft, not of the anchored bytes.
+      - name: "ADR-011 (non-normative draft): profile controls and receipt freshness"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 proposals/adr-011/selftest.py | tee /dev/stderr | grep -q "ADR-011-SELFTEST: ALL PASS"
+          python3 proposals/adr-011/benchmark.py --check
