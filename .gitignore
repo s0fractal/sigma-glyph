@@ -25,3 +25,4 @@ papers/*/paper.pdf
 # Downloaded historical deposits, verified against the Zenodo record.
 # External inputs, not repository artifacts; see the deposit manifest.
 papers/*/v1-deposited/
+papers/*/v2-staging/
