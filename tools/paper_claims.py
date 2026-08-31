@@ -400,6 +400,194 @@ def audit_guard(audit, tree):
               len(set(re.findall(r"\*\*(V\d+) —", audit.texts[GUARD]))), 21)
 
 
+
+# --------------------------------------------------------------------------
+# STATUS claims: what the paper says is IN FORCE.
+#
+# The audit above recounts numbers, and every number was correct. What went
+# stale was the tense. The paper described v0.7.0 as an unadopted candidate and
+# v0.6.7 as the most recent adopted anchor set — true when written, false since
+# the roster filed warrant 0e634c17… — and no check here could see it, because
+# a status is not a count. `PAPER-CLAIMS: ALL PASS` therefore remained true
+# while the paper's central orientation was wrong.
+#
+# These predicates are exact and decidable from the tree: a digest is present or
+# absent, a directory has a countable number of round-N children, a phrase is
+# present or absent. Nothing here decides whether a sentence is WELL ARGUED.
+# --------------------------------------------------------------------------
+
+def adopted_facts():
+    """The adoption state, read from the tree rather than remembered."""
+    anchors = (ROOT / "spec/ANCHORS.txt").read_text()
+    releases = re.findall(r"^== (\S+?) ==\s*$", anchors, re.M)
+    latest = releases[0] if releases else None
+    candidates = re.findall(r"^== (\S+?) \(CANDIDATE", anchors, re.M)
+
+    book1 = re.search(r"^([0-9a-f]{64})\s+spec/book-1-truth\.md\s*$",
+                      anchors.split("== ")[1], re.M)
+    version = re.search(r"^\*\*Version:\*\*\s*(\S+)",
+                        (ROOT / "spec/book-1-truth.md").read_text(), re.M)
+
+    warrant_id = anchor_set = None
+    signatures = []
+    for record in sorted((ROOT / ".warrants/records").glob("*.json")):
+        body = json.loads(record.read_text())
+        subject = body.get("body", {}).get("subject", {})
+        if isinstance(subject, dict) and subject.get("hash"):
+            if _is_adoption_of(body, latest):
+                warrant_id = record.stem
+                anchor_set = subject["hash"]
+                signatures = [sig.get("actor") for sig in body.get("sigs", [])]
+    rounds = sorted((ROOT / "gates/v0.7.0-candidate").glob("round-*"))
+    return {
+        "release": latest,
+        "release_is_candidate": latest in candidates,
+        "book1_anchor": book1.group(1) if book1 else None,
+        "book1_version": version.group(1) if version else None,
+        "warrant_id": warrant_id,
+        "anchor_set": anchor_set,
+        "signatures": signatures,
+        "gate_rounds": len(rounds),
+    }
+
+
+def _is_adoption_of(record, release):
+    """The record whose subject IS the anchor-set of `release`.
+
+    Matched by content, not by name. The subject hash names a blob in
+    `.warrants/blobs/`; that blob is the anchor-set document, and it counts as
+    this release's adoption only if the set of (path, anchor) pairs it carries
+    is exactly the set `spec/ANCHORS.txt` lists under `== release ==`. A warrant
+    that merely MENTIONS "0.7.0" in prose is not the warrant that adopted it,
+    and a warrant whose blob is missing is not evidence of anything.
+    """
+    subject = record.get("body", {}).get("subject", {}).get("hash")
+    if not subject:
+        return False
+    blob = ROOT / ".warrants/blobs" / subject
+    if not blob.is_file():
+        return False
+    try:
+        document = json.loads(blob.read_text())
+    except (ValueError, OSError):
+        return False
+    carried = {(entry.get("path"), entry.get("anchor"))
+               for entry in document.get("anchors", [])}
+    anchors = (ROOT / "spec/ANCHORS.txt").read_text()
+    section = anchors.split(f"== {release} ==")[1].split("\n== ")[0]
+    listed = {(path, digest) for digest, path
+              in re.findall(r"^([0-9a-f]{64})\s+(\S+)\s*$", section, re.M)}
+    return bool(listed) and carried == listed
+
+
+def audit_engine_status(audit, tree):
+    """What the engine paper says is in force, against what is in force."""
+    live = adopted_facts()
+    paper = audit.texts[ENGINE]
+
+    audit.chk("engine paper: names the adopted release",
+              f"**{live['release']}**" in paper or f"`{live['release']}`" in paper,
+              True)
+    audit.chk("engine paper: no current-tense 'not adopted' about the release",
+              bool(re.search(r"\*\*It is not adopted\*\*", paper)), False)
+    audit.chk("engine paper: does not call the adopted release a candidate",
+              bool(re.search(r"bundle `?" + re.escape(live["release"] or "")
+                             + r"`? — (?:is )?a candidate", paper)), False)
+    audit.chk("engine paper: does not name a superseded release as the most "
+              "recent adopted one",
+              bool(re.search(r"most recent \*?adopted\*? anchor set is `v0\.6\.7`",
+                             paper)), False)
+    audit.chk("engine paper: prints the full anchor-set digest",
+              (live["anchor_set"] or "?") in paper, True)
+    audit.chk("engine paper: prints the full adoption-warrant id",
+              (live["warrant_id"] or "?") in paper, True)
+    audit.chk("engine paper: prints the Book I anchor in force",
+              (live["book1_anchor"] or "?") in paper, True)
+    audit.chk("engine paper: states the Book I document version in force",
+              f"Book I at its own version {live['book1_version']}" in paper
+              or f"Book I {live['book1_version']}" in paper, True)
+    audit.chk("engine paper: gate rounds", stated_int(paper, GATE_ROUNDS_RE),
+              live["gate_rounds"])
+    audit.chk("engine paper: names every adoption signer",
+              all(actor in paper for actor in live["signatures"]), True)
+    audit.chk("engine paper: ADR-011 named as merged and non-normative",
+              bool(re.search(r"ADR-011[^.]*?merged[^.]*?non-normative", paper,
+                             re.S | re.I)), True)
+    audit.chk("engine paper: EXP-ADR011-01 named as not started",
+              bool(re.search(r"EXP-ADR011-01[^.]*?(?:not started|has not "
+                             r"started)", paper, re.S | re.I)), True)
+    audit.chk("engine paper: says church@v0 cannot settle PLUS 7 5",
+              bool(re.search(r"church@v0[^.]*?(?:cannot|does not) [^.]*?"
+                             r"(?:settle|admit)[^.]*?PLUS 7 5", paper, re.S)),
+              True)
+
+
+def at_commit(commit, relative):
+    """`wc -l` of a path AS IT WAS at `commit`."""
+    finished = subprocess.run(["git", "-C", str(ROOT), "show",
+                               f"{commit}:{relative}"],
+                              capture_output=True)
+    if finished.returncode != 0:
+        return None
+    data = finished.stdout
+    return data.count(b"\n") + (0 if data.endswith(b"\n") or not data else 1)
+
+
+MEASURED_AT_RE = re.compile(
+    r"figures? (?:below )?(?:were|was) measured at commit `([0-9a-f]{7,40})`")
+
+
+def audit_measurement_provenance(audit, tree):
+    """A number said to be measured at commit X must be X's number.
+
+    This is the check whose absence let the audit above falsify a sentence it
+    was not looking at. Every count here is recounted from the WORKING TREE, so
+    when `impl-rs/src/main.rs` and `impl-go/main.go` grew after the measurement
+    commit, the honest way to make `paper_claims.py` green again was to write
+    the NEW numbers into a section that says, three lines earlier, that all its
+    figures were measured at `1c2b6ca`. The audit enforced agreement with HEAD
+    and thereby drove the paper away from its own stated provenance, silently,
+    while printing ALL PASS.
+
+        impl-rs/src/main.rs   paper 1170   at 1c2b6ca 1112   at HEAD 1170
+        impl-go/main.go       paper 2344   at 1c2b6ca 1948   at HEAD 2344
+
+    So the predicate is not "the paper's number matches the tree" but "the
+    paper's number matches the commit the paper names".
+    """
+    paper = audit.texts[ENGINE]
+    found = MEASURED_AT_RE.search(paper)
+    if not found:
+        audit.note("§6 no longer names a measurement commit in the form this "
+                   "checker reads, so no figure could be tied to one")
+        return
+    commit = found.group(1)
+    for relative, pattern in (
+            ("impl/sigma_glyph.py",
+             r"\| `impl/sigma_glyph\.py` \(oracle\) \| (\d+) \|"),
+            ("impl-rs/src/main.rs", r"\| `impl-rs/src/main\.rs` \| (\d+) \|"),
+            ("impl-go/main.go",
+             r"\| `impl-go/main\.go` \(in-tree\) \| (\d+) \|")):
+        claimed = re.search(pattern, paper)
+        if not claimed:
+            audit.note(f"§6.3 no longer states a line count for {relative}")
+            continue
+        audit.chk(f"§6.3 {relative} as measured at {commit}",
+                  int(claimed.group(1)), at_commit(commit, relative))
+
+
+GATE_ROUNDS_RE = re.compile(
+    r"been through (\w+|\d+) rounds? of the project's three-family blind gate")
+
+
+def stated_int(text, pattern):
+    found = pattern.search(text)
+    if not found:
+        return None
+    literal = found.group(1)
+    return int(literal) if literal.isdigit() else word_int(literal)
+
+
 UNCHECKED = [
     "The §6.1 wall-clock column. Timings are host-, load- and toolchain-"
     "dependent; reproduce with `python3 proofs/<name>_bridge_check.py` timed "
@@ -431,6 +619,8 @@ def run(texts):
     tree = facts()
     audit = Audit(texts=texts)
     audit_engine(audit, tree)
+    audit_engine_status(audit, tree)
+    audit_measurement_provenance(audit, tree)
     audit_guard(audit, tree)
     return audit
 
