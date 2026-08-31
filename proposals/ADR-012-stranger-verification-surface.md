@@ -10,7 +10,10 @@ re-run someone else's bounded check. Today the shortest installed-package path
 mostly runs the repository's own self-tests. A 2026-08-31 ecosystem analysis by
 Kimi correctly identified the entry barrier, then proposed broad Python,
 Jupyter, ML and DeFi surfaces that the machine does not provide. This ADR keeps
-the diagnosis and rejects the scope expansion.
+the diagnosis and rejects the scope expansion. The source is
+`manifesto/quotes/Kimi/s0fractal_analysis.md` at manifesto commit
+`f6d1c22ee50d`, file SHA-256
+`1ba5b647d06290419f61ebb72cb3954140403dc2ba96707d08da6fafdb27742c`.
 
 **Working thesis:**
 
@@ -125,6 +128,9 @@ sigma-glyph eval \
   --atp <uint32> \
   --blob-dir <directory> \
   --max-atp <local admission ceiling> \
+  --max-node-depth <local ceiling> \
+  --max-materialized-nodes <local ceiling> \
+  --max-store-fetches <local ceiling> \
   --json
 ```
 
@@ -199,6 +205,21 @@ verify(term_hash, atp).ok
 It omits the content environment, collapses the Receipt, and leaves `ok`
 undefined.
 
+### 5.5 What re-execution still trusts
+
+This surface moves trust; it does not abolish it. The operator still trusts the
+installed wheel or binary, its language/runtime and host, SHA-256, the local
+resource fences, and the claim that the supplied term is the check they meant
+to run. The conformance bundle gives executable evidence about named behavior;
+it does not prove that the installed implementation refines the Lean model or
+that the check asks the right semantic question.
+
+The walkthrough therefore pins and verifies the distribution artifact before
+installation, prints the implementation and supported Book anchor, and keeps
+the executable Receipt separate from authority and semantic acceptance. A green
+re-execution establishes bounded artifact behavior under named inputs, not the
+truth of an external claim.
+
 ## 6. The conformance bundle
 
 The installed wheel and the normative conformance artifact solve different
@@ -244,7 +265,8 @@ existing Warrant evidence pack.
 The page and its generated transcript must show:
 
 1. create a fresh virtual environment;
-2. install one pinned `sigma-glyph` distribution and print what was installed;
+2. download one pinned `sigma-glyph` wheel, verify its published SHA-256,
+   install that local artifact and print what was installed;
 3. download one evidence pack with a published SHA-256;
 4. identify the Warrant `ski@v1` term, budget and blob directory without
    rewriting them into a Sigma-specific envelope;
