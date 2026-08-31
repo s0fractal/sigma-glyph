@@ -38,6 +38,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_NAME = "release-manifest.json"
 
+
+def under_repo(path, what):
+    """A path argument, resolved and required to be inside this repository.
+
+    Every subprocess below runs a script of this repository over a directory the
+    caller names. Validating the directory here means the argument cannot point
+    the tooling at something outside the tree it is describing, and it turns a
+    confusing failure deep inside a build into one refusal with a reason.
+    """
+    resolved = Path(path).resolve()
+    root = ROOT.resolve()
+    if root != resolved and root not in resolved.parents:
+        raise SystemExit(f"{what} must be inside {root}, got {resolved}")
+    return resolved
+
 CHECKS = (
     ("manifest agrees with artifact and checkout", "candidate_artifact.py",
      ("verify",), "CANDIDATE-ARTIFACT: manifest agrees"),
@@ -54,12 +69,12 @@ def main():
     ap.add_argument("--receipt", required=True)
     args = ap.parse_args()
 
-    out = Path(args.out).resolve()
+    out = under_repo(args.out, "--out")
     manifest = json.loads((out / MANIFEST_NAME).read_text())
 
     passed = []
     for label, tool, extra, tag in CHECKS:
-        done = subprocess.run(  # noqa: S603 - fixed interpreter, fixed scripts
+        done = subprocess.run(
             [sys.executable, str(ROOT / "tools" / tool), *extra,
              "--out", str(out)], capture_output=True, text=True)
         output = done.stdout + done.stderr
@@ -93,7 +108,7 @@ def main():
             "anything about consumers other than the ones that cite it",
         ],
     }
-    receipt_path = Path(args.receipt)
+    receipt_path = Path(under_repo(args.receipt, "--receipt"))
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
     print(f"  artifact  {receipt['artifact_sha256']}")

@@ -32,8 +32,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def under_repo(path, what):
+    """A path argument, resolved and required to be inside this repository.
+
+    Every subprocess below runs a script of this repository over a directory the
+    caller names. Validating the directory here means the argument cannot point
+    the tooling at something outside the tree it is describing, and it turns a
+    confusing failure deep inside a build into one refusal with a reason.
+    """
+    resolved = Path(path).resolve()
+    root = ROOT.resolve()
+    if root != resolved and root not in resolved.parents:
+        raise SystemExit(f"{what} must be inside {root}, got {resolved}")
+    return resolved
+
+
 def git(*args, cwd=ROOT, check=True):
-    return subprocess.run(  # noqa: S603 - fixed argv
+    return subprocess.run(
         ["git", "-C", str(cwd), *args], capture_output=True, text=True,
         check=check)
 
@@ -43,7 +58,7 @@ def main():
     ap.add_argument("--receipt", required=True)
     args = ap.parse_args()
 
-    receipt = json.loads(Path(args.receipt).read_text())
+    receipt = json.loads(under_repo(args.receipt, "--receipt").read_text())
     commit = receipt["source_commit"]
     frozen = receipt["artifact_sha256"]
     print(f"  receipt froze {frozen}")
@@ -61,7 +76,7 @@ def main():
     try:
         git("worktree", "add", "--detach", "--quiet", str(tree), commit)
         environment = {"SOURCE_DATE_EPOCH": str(receipt["source_date_epoch"])}
-        done = subprocess.run(  # noqa: S603 - fixed interpreter, fixed script
+        done = subprocess.run(
             [sys.executable, str(tree / "tools/candidate_artifact.py"), "build",
              "--out", str(work / "out")],
             capture_output=True, text=True, cwd=str(tree),
