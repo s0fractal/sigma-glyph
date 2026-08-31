@@ -3,12 +3,12 @@
   "normative": false,
   "oracle_source_commit": "1c2b6ca42cb95cdc035fc887cd0587a5758862d7",
   "measurement_inputs": {
-    "proposals/adr-011/equality_profile.py": "be264861c5d4a039c5b46a72d6feba83553345852b71cb74d79191fe20dfa710",
-    "proposals/adr-011/benchmark.py": "105145fc84afa0bcb0da19317b345569b3e0035940c1fc4ea8707ff370b86c2b",
+    "proposals/adr-011/equality_profile.py": "b20aeffc02aa389c5522b1326f6ec8ede84de70031a86978d89f1b17d759b7db",
+    "proposals/adr-011/benchmark.py": "2e7f6776083982af88d49a201635f203a634aa0ad453623c5cc60f28441bdb5d",
     "impl/sigma_glyph.py": "55072bc02e63987898fd60125e8bb5b14a6233b081ba158e0253755652323825"
   },
   "co_released_context": {
-    "proposals/ADR-011-eq-by-normal-form-address.md": "a848f1ec891e907d3e14c27fd7c69c39e8e4477e5393f026429cdc4a0c141c46",
+    "proposals/ADR-011-eq-by-normal-form-address.md": "7bc78d4f086ca4e1a22c2a5b540cd32af865f3b823bae4ac476a04a4a2165ca7",
     "proposals/adr-011/selftest.py": "e19f25a2eef5c0f1adec3db4ce1cae673e9b10a31f965cae0b142ccfb1725aee",
     "proposals/EXP-ADR011-01-church-nat-admission.md": "f93df0595e6bed6e6df63df0f697206f4c25398b6f8f8da90e4b6fd86a21a5c4"
   },
@@ -26,7 +26,8 @@
     "freshness": "domain-separated from the profile id and fixed before any term is submitted; a term naming either is refused"
   },
   "profile_id": "sigma-glyph/adr-011/church@v0",
-  "profile_commitment": "98d3432c8a01c98ba639941f69a7b66477049363db70758fa8c8ccc2b4d40e25",
+  "profile_commitment": "dab50213e5480f80dc2115f05545556e832a750735c6f6df61c32089ff89d4a2",
+  "profile_commitment_is_interpreter_independent": "the receipt is GENERATED on the author's interpreter and VERIFIED in CI on CPython 3.12, so a commitment that depended on the interpreter would fail the build. It did: the first version digested `co_code` and produced 98d3432c\u2026 on 3.14 against f2592195\u2026 on 3.12. It now digests source text, and 3.12 and 3.14 agree on dab50213\u2026",
   "profile_commitment_is_local": "identifies the profile to another run of THIS Python module. Not a content-addressed profile descriptor: another implementation of the same profile computes a different value. Portable settlement is blocked until such a descriptor exists.",
   "measurements": [
     {

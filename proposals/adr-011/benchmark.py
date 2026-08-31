@@ -183,6 +183,13 @@ def build_receipt():
         "markers": ep.CHURCH_V0.marker_definition,
         "profile_id": ep.CHURCH_V0.profile_id,
         "profile_commitment": ep.profile_commitment(ep.CHURCH_V0),
+        "profile_commitment_is_interpreter_independent": (
+            "the receipt is GENERATED on the author's interpreter and VERIFIED "
+            "in CI on CPython 3.12, so a commitment that depended on the "
+            "interpreter would fail the build. It did: the first version "
+            "digested `co_code` and produced 98d3432c… on 3.14 against "
+            "f2592195… on 3.12. It now digests source text, and 3.12 and 3.14 "
+            "agree on dab50213…"),
         "profile_commitment_is_local": (
             "identifies the profile to another run of THIS Python module. Not "
             "a content-addressed profile descriptor: another implementation of "

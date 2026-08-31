@@ -294,38 +294,40 @@ def _materialize(env, term):
 def _code_digest(fn) -> str:
     """A digest of the callable itself, not of the name it was given.
 
-    `co_code` and the constants distinguish two different lambdas defined in
-    one file; the module source digest below distinguishes two files and
-    catches edits to the helpers a callable delegates to, which `co_code`
-    cannot see.
+    SOURCE TEXT, not bytecode. The first version digested `co_code`, and CI
+    caught it immediately: the same profile committed to
+    98d3432c… on CPython 3.14 and f2592195… on 3.12, because bytecode is not
+    stable across interpreter versions. A commitment that changes when nothing
+    about the profile changed is not a commitment — it cannot tell "a different
+    profile" from "a different Python".
+
+    Two components, and both are needed. The callable's own source separates
+    two different lambdas defined in one file; the module's source separates
+    two files AND catches edits to the helpers a callable delegates to, which
+    its own source text does not show.
     """
     import hashlib
-    code = getattr(fn, "__code__", None)
-    if code is None:
-        raise Refused(f"cannot commit to {fn!r}: no code object")
-    parts = [
-        repr(code.co_argcount), repr(code.co_varnames), repr(code.co_names),
-        repr(tuple(repr(c) for c in code.co_consts)),
-    ]
-    digest = hashlib.sha256(code.co_code)
-    for part in parts:
-        digest.update(b"\x00" + part.encode())
+    import inspect
     module_file = getattr(sys.modules.get(getattr(fn, "__module__", None)),
                           "__file__", None)
     try:
-        source = Path(module_file).read_bytes() if module_file else None
-    except OSError:
-        source = None
-    if source is None:
-        # Fail closed. Degrading to a co_code-only digest would still return a
-        # hex string, and every caller would keep treating it as a commitment
-        # while it had stopped covering the helpers the callable delegates to.
-        # A callable defined at a REPL cannot be committed to; say so.
+        module_source = Path(module_file).read_bytes() if module_file else None
+        own_source = inspect.getsource(fn).encode()
+    except (OSError, TypeError):
+        module_source = own_source = None
+    if module_source is None or own_source is None:
+        # Fail closed. Degrading to a partial digest would still return a hex
+        # string, and every caller would keep treating it as a commitment while
+        # it had stopped covering what it claims to cover. A callable defined at
+        # a REPL cannot be committed to; say so.
         raise Refused(
-            f"cannot commit to {getattr(fn, '__qualname__', fn)!r}: its "
-            f"defining module has no readable source, so a commitment could "
-            f"not cover the helpers it calls")
-    digest.update(b"\x00" + hashlib.sha256(source).digest())
+            f"cannot commit to {getattr(fn, '__qualname__', fn)!r}: its source "
+            f"is not readable, so a commitment could not cover either the "
+            f"callable or the helpers it calls")
+    digest = hashlib.sha256(b"sigma-glyph/adr-011/code-digest@v0")
+    for part in (getattr(fn, "__qualname__", "").encode(), own_source,
+                 module_source):
+        digest.update(b"\x00" + hashlib.sha256(part).digest())
     return digest.hexdigest()
 
 
@@ -344,10 +346,11 @@ def profile_commitment(profile: "EqualityProfile") -> str:
     and `admit` themselves.
 
     **PORTABLE SETTLEMENT IS BLOCKED, and this function does not unblock it.**
-    This digest identifies a profile to *another run of this Python module*. It
-    is not a content-addressed profile descriptor: a Go or Rust implementation
-    of the same profile computes a different commitment, because it commits to
-    CPython code objects and to this file's bytes. Comparing settlements across
+    This digest identifies a profile to *another run of this Python module* —
+    on any CPython version, since it commits to source text rather than
+    bytecode, but still only to Python source. It is not a content-addressed
+    profile descriptor: a Go or Rust implementation of the same profile
+    computes a different commitment, because it commits to this file's bytes. Comparing settlements across
     implementations needs a descriptor that is itself canonical bytes in the
     store, with the admission and observation expressed in something both
     implementations execute. No such descriptor exists in Book I today and this

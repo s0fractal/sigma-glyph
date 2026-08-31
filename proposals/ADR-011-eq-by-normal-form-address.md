@@ -258,9 +258,18 @@ edition, and code digests of `observe` and `admit` — the fields that change wh
 a verdict means. Control 13/13b holds the pair apart; mutation M7 makes the
 commitment blind to `observe` and requires 13b, specifically, to go red.
 
+The commitment digests **source text, not bytecode**. The first version
+digested `co_code` and CI caught it on the first run: the same profile
+committed to `98d3432c…` on CPython 3.14 and `f2592195…` on 3.12. A digest that
+cannot distinguish "a different profile" from "a different Python" is not a
+commitment. The receipt is generated on the author's interpreter and verified
+in CI on 3.12, so that differential is what holds this property; 3.12 and 3.14
+now agree on `dab50213…`.
+
 **Portable settlement is BLOCKED, and the commitment does not unblock it.**
-That digest identifies a profile to another run of the same Python module. It
-commits to CPython code objects and to one file's bytes, so a Go or Rust
+That digest identifies a profile to another run of the same Python module, on
+any CPython version but still only in Python. It commits to one file's bytes,
+so a Go or Rust
 implementation of the same profile computes a different value, and two
 implementations cannot agree that they settled under one profile. Closing this
 needs a profile descriptor that is itself canonical bytes in the store, with
