@@ -139,7 +139,10 @@ def candidate_version(commit):
 def build(out_dir):
     commit = source_commit()
     version = candidate_version(commit)
-    out = Path(out_dir)
+    # Absolute: the release-surface check runs from a temp cwd, and a
+    # relative --out resolved against it produced 'no such wheel' for a
+    # wheel that was plainly there.
+    out = Path(out_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
 
     work = Path(tempfile.mkdtemp(prefix="sigma-candidate-"))
@@ -231,7 +234,10 @@ def build(out_dir):
 
 def verify(out_dir, expect_commit=None):
     """Check the manifest against the artifact and against this checkout."""
-    out = Path(out_dir)
+    # Absolute: the release-surface check runs from a temp cwd, and a
+    # relative --out resolved against it produced 'no such wheel' for a
+    # wheel that was plainly there.
+    out = Path(out_dir).resolve()
     manifest_path = out / MANIFEST_NAME
     if not manifest_path.is_file():
         print(f"CANDIDATE-ARTIFACT: no manifest at {manifest_path}",

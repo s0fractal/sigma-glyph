@@ -77,7 +77,10 @@ def run_isolated(venv, work, code):
 
 
 def check(out_dir):
-    out = Path(out_dir)
+    # Absolute: the release-surface check runs from a temp cwd, and a
+    # relative --out resolved against it produced 'no such wheel' for a
+    # wheel that was plainly there.
+    out = Path(out_dir).resolve()
     manifest_path = out / MANIFEST_NAME
     if not manifest_path.is_file():
         print(f"CANDIDATE-INSTALL: no manifest at {manifest_path}", file=sys.stderr)
