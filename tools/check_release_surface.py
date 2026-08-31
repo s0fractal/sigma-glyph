@@ -305,11 +305,23 @@ def inspect_wheel(wheel):
             problems.append(f"{wheel.name}: does not contain {m}.py — the "
                             f"distribution promises three top-level modules")
 
+    # The wheel's PUBLIC version must be pyproject's. A PEP 440 LOCAL segment
+    # (`+phase4a.<commit>`) is allowed on top of it, and only there: a candidate
+    # build has to be distinguishable from the published release of the same
+    # version, and a local segment is the one suffix PyPI refuses to accept, so
+    # it cannot become a release by accident. Renumbering the public part still
+    # fails here, which is what this check was for.
     pyproject = (ROOT / "pyproject.toml").read_text()
     pv = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
-    if pv and info["version"] != pv.group(1):
-        problems.append(f"{wheel.name}: wheel version {info['version']} != "
-                        f"pyproject version {pv.group(1)}")
+    if pv:
+        public = info["version"].split("+", 1)[0]
+        local = info["version"][len(public) + 1:] if "+" in info["version"] else ""
+        if public != pv.group(1):
+            problems.append(f"{wheel.name}: wheel version {info['version']} has "
+                            f"public part {public}, pyproject says {pv.group(1)}")
+        elif local and not re.fullmatch(r"[a-z0-9]+(\.[a-z0-9]+)*", local):
+            problems.append(f"{wheel.name}: local version segment {local!r} is "
+                            f"not a PEP 440 local version")
     dist = re.search(r'^name\s*=\s*"([^"]+)"', pyproject, re.M)
     if dist and (info["name"] or "").replace("_", "-") != dist.group(1):
         problems.append(f"{wheel.name}: wheel name {info['name']} != pyproject "

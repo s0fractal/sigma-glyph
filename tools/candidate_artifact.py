@@ -300,16 +300,13 @@ def verify(out_dir, expect_commit=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=("build", "verify", "selftest"))
+    ap.add_argument("command", choices=("build", "verify"))
     ap.add_argument("--out", default="dist/candidate")
     ap.add_argument("--expect-commit")
     args = ap.parse_args()
     if args.command == "build":
         return build(args.out)
-    if args.command == "verify":
-        return verify(args.out, args.expect_commit)
-    from candidate_artifact_selftest import selftest
-    return selftest(args.out)
+    return verify(args.out, args.expect_commit)
 
 
 if __name__ == "__main__":
