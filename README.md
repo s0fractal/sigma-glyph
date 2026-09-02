@@ -25,6 +25,12 @@ the canonical result. The current API does not return the exit kind separately,
 so a result hash alone cannot distinguish a normal form equal to the
 ATP-exhausted term from an actual exhausted exit.
 
+> **Resolved in v0.7.0 (adopted 2026-08-30 by warrant `0e634c17…`).** Book I 0.6.0 §3.4 now
+> states `eval(term_hash, atp: uint32, env) → Receipt` in normative, anchored bytes, and the
+> Receipt carries the exit. The paragraphs below are kept as the record of the defect as it
+> stood on 2026-08-27; the sentence in them about the two-argument form being still anchored
+> was true then and is superseded by the section "Current: v0.7.0" further down.
+>
 > **Correction (2026-08-27).** This line used to read `eval(term_hash, atp)`, and
 > the paragraph under it promised that the budget and the term hash were enough.
 > They are not: the evaluator has a third input. A node that holds the referenced
@@ -42,9 +48,9 @@ ATP-exhausted term from an actual exhausted exit.
 >
 > Found by an external review of the deposited paper
 > ([`reviews/2026-08-codex-store-parameter.md`](reviews/2026-08-codex-store-parameter.md)),
-> registered without disposition. **Book I §3.4 still prints the two-argument
-> form in normative, anchored bytes**; changing that is a specification edit with
-> its own candidate and gate, and it is not this correction. The resulting
+> registered without disposition. **Book I §3.4 at that date still printed the two-argument
+> form in normative, anchored bytes**; changing it was a specification edit with
+> its own candidate and gate (ADR-010, `gates/v0.7.0-candidate/`), which has since happened. The resulting
 > `evalHash_mono` / `evalHash_stable` theorems are now guarded on
 > `master`: under a valid store extension, only an `Unresolved` outcome may
 > change; a normal form or exhaustion is stable. Their live-oracle bridge grows
