@@ -108,7 +108,7 @@ def git(repo, *args, ok_fail=False):
 
 
 def refs_of(repo):
-    """Local branches plus everything on origin, newest-looking first."""
+    """Local branches, origin branches and preserved archive tags."""
     out = []
     # Filter on the FULL refname: the short form of refs/remotes/origin/HEAD is
     # bare "origin", which does not end in "/HEAD" and so slipped through as a
@@ -116,7 +116,8 @@ def refs_of(repo):
     # no" -- a ref that does not exist, in the generated file a reviewer reads to
     # find out which refs do.
     for line in git(repo, "for-each-ref", "--format=%(refname)\t%(refname:short)",
-                    "refs/heads", "refs/remotes/origin").splitlines():
+                    "refs/heads", "refs/remotes/origin",
+                    "refs/tags/archive").splitlines():
         full, _, short = line.partition("\t")
         if short and not full.endswith("/HEAD"):
             out.append(short)
@@ -242,6 +243,10 @@ def _row_ref_and_path(cells):
 
 def _ref_is_live(ref):
     """A remote-tracking ref the remote no longer has resolves only here."""
+    if ref.startswith("archive/"):
+        return subprocess.run(
+            ["git", "-C", str(ROOT), "ls-remote", "--exit-code", "--tags",
+             "origin", f"refs/tags/{ref}"], capture_output=True).returncode == 0
     if not ref.startswith(REMOTE):
         return True
     # The branch under review is live by definition — we are standing on it.
@@ -279,7 +284,8 @@ def _current_branch_names():
 
 def _resolvable(ref, path):
     """Which spellings of `ref` this checkout has, and whether any holds `path`."""
-    spellings = [ref, f"{REMOTE}{ref}", f"refs/remotes/{REMOTE}{ref}"]
+    spellings = [ref, f"{REMOTE}{ref}", f"refs/remotes/{REMOTE}{ref}",
+                 f"refs/tags/{ref}"]
     # If the row names the branch we are standing on, HEAD *is* that branch —
     # detached or not. Checking it here is what makes the row under review
     # verifiable in CI rather than skipped.
@@ -381,8 +387,8 @@ def append_refs(output):
         "",
         "## Refs that exist",
         "",
-        "A branch is not the trunk. Anything below that is not `master` is a",
-        "candidate: readable, citable, and **not in force**.",
+        "A branch is not the trunk, and an `archive/…` tag is preserved history.",
+        "Both are readable and citable; neither is thereby **in force**.",
         "",
         "| Ref | Head | On origin |",
         "|---|---|---|",
@@ -396,7 +402,11 @@ def append_refs(output):
     remote = {r.split("/", 1)[1] for r in refs_of(ROOT) if r.startswith("origin/")}
     for ref in local:
         sha = git(ROOT, "rev-parse", "--short", ref).strip()
-        output.append(f"| `{ref}` | `{sha}` | {'yes' if ref in remote else '**no**'} |")
+        if ref.startswith("archive/"):
+            on_origin = "yes (tag)" if _ref_is_live(ref) else "**no**"
+        else:
+            on_origin = "yes" if ref in remote else "**no**"
+        output.append(f"| `{ref}` | `{sha}` | {on_origin} |")
     for ref in sorted(remote - set(local)):
         sha = git(ROOT, "rev-parse", "--short", f"origin/{ref}").strip()
         output.append(f"| `{ref}` | `{sha}` | origin only (fetch it) |")
