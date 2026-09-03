@@ -72,6 +72,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Retired proposal branches are preserved as public archive tags.
+          # Fetch that namespace so the map verifies their bytes rather than
+          # silently treating a preserved historical address as unavailable.
+          git fetch --force origin 'refs/tags/archive/*:refs/tags/archive/*'
           python3 tools/repo_map.py --selftest | tee /dev/stderr \
             | grep -q "REPO-MAP-SELFTEST: ALL PASS"
           python3 tools/repo_map.py --check-map
