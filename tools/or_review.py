@@ -64,7 +64,7 @@ GATES = [
     ["python3", "tests/governance_differential.py"],
     ["python3", "tools/verify_anchors.py"],
     ["python3", "tools/check_lazy_edges.py"],
-    ["python3", "tools/warrant_verify.py"],
+    ["python3", "tools/warrant_gate.py", ".warrants"],
     ["python3", ANCHOR_GOVERNANCE, "selftest"],
     ["python3", ANCHOR_GOVERNANCE, "replay"],
     ["python3", "examples/two-jurisdictions/demo.py"],

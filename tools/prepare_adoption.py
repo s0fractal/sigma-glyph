@@ -156,7 +156,7 @@ def main():
     print(f"and {minimum - 1} further roster actor(s) run the last line with their "
           f"own id and key.\nThen, to check that it settles rather than merely "
           f"exists:\n")
-    print("    python3 tools/warrant_verify.py")
+    print("    python3 tools/warrant_gate.py .warrants")
     print("    python3 tools/anchor_governance.py status "
           "--trust-config <out-of-band config> --enforce\n")
     print("The trust config MUST come from outside this tree (GOV-anchors §2). "

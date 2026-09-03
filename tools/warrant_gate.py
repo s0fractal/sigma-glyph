@@ -3,9 +3,8 @@
 Warrant's ``verify --store-mode --json`` (warrant.verify-report@v0).
 
 Dogfood, not a re-implementation. sigma-glyph does NOT re-derive Warrant
-verification here (that would be a divergent third verifier — see the separate,
-deliberately independent offline auditor tool ``warrant_verify.py``). This tool
-INVOKES the real verifier and consumes ONLY the documented normative fields of the
+verification here: Warrant owns those semantics. This tool INVOKES the real
+verifier and consumes ONLY the documented normative fields of the
 report — ``report, grade, ok, records, errors, warnings`` and each finding's
 ``level``/``subject``. It never branches on a finding's ``message`` (documented as
 non-portable human prose).
@@ -33,7 +32,7 @@ verifier: settlement without a trust config, or a trust config without settlemen
 
 Usage:
     warrant_gate.py [store] [--settlement --trust-config FILE]
-Exit 0 iff verified. The verifier command is taken from $WARRANT (e.g.
+Exit 0 iff verified. The verifier command is required in $WARRANT (e.g.
 ``python3 /tmp/warrant.py`` or ``/path/to/warrant-go``); the store-argument style
 is auto-detected (Go takes a positional store, Python a global --store) and can be
 forced with $WARRANT_POSITIONAL=1/0.
@@ -43,7 +42,6 @@ import os
 import shlex
 import subprocess
 import sys
-from pathlib import Path
 
 REPORT_TAG = "warrant.verify-report@v0"
 TOP_KEYS = {"report", "grade", "ok", "records", "errors", "warnings", "findings"}
@@ -51,15 +49,16 @@ FINDING_KEYS = {"level", "subject", "message"}
 
 
 def default_warrant_cmd():
-    """Resolve the verifier command: $WARRANT, else a local warrant checkout
-    (prefer the Go binary, else the Python CLI)."""
+    """Resolve the explicitly selected verifier command.
+
+    A guessed checkout path is not provenance. Callers must name the exact
+    implementation they intend to trust through $WARRANT (or pass ``cmd`` to
+    ``verify`` in-process).
+    """
     env = os.environ.get("WARRANT")
-    if env:
-        return shlex.split(env)
-    go = Path.home() / "Projects/warrant/impl-go/warrant-go"
-    if go.exists():
-        return [str(go)]
-    return [sys.executable, str(Path.home() / "Projects/warrant/impl/warrant.py")]
+    if not env:
+        raise ValueError("WARRANT is required; refusing to guess a verifier path")
+    return shlex.split(env)
 
 
 def _positional_store(cmd):

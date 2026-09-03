@@ -72,17 +72,15 @@ differential can exercise a `Prop`-valued definition, which is exactly where eac
 theorem's hypotheses live. Definition drift is caught by pins, not by
 differentials.
 
-### SA-3. The pinned auditor disagrees with the live CLI on signature severity
+### SA-3. Warrant verification is an external machine boundary
 
-`tools/warrant_verify.py` is pinned to a governed Warrant v0.1/v0.2 snapshot in
-which any bad signature is fatal; SPEC v0.3 §6(3) makes it a warning and excludes
-the signature. Demonstrated: one store, one forged co-signature — this tool says
-`errors=1`, the live CLI says `0 errors, 56 warnings`. The tool prints the
-divergence on the line where it fires.
-
-A re-pin belongs to a §7 gate, so the divergence is a stated assumption rather
-than a bug: a reader of this repository's own `.warrants/` audit is reading the
-older, stricter rule, deliberately.
+Sigma-Glyph deliberately does not ship an independent partial Warrant verifier.
+`tools/warrant_gate.py` consumes the real Warrant CLI's closed machine report and
+fails closed when that verifier is absent, malformed, contaminated, or reports a
+failure. A source-only Sigma-Glyph checkout therefore cannot audit `.warrants/`
+without explicitly naming a pinned Warrant checkout or binary in `$WARRANT`.
+This is a dependency boundary, not an alternate local interpretation of Warrant
+semantics.
 
 ### SA-4. Book III admits a JCS-equivalent but non-canonical assertion blob
 

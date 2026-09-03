@@ -197,9 +197,6 @@ python3 tools/verify_anchors.py            | tee /dev/stderr | grep -q "anchors 
 python3 tools/anchor_governance.py selftest | tee /dev/stderr | grep -q "ANCHOR-GOVERNANCE: ALL PASS"
 python3 tools/anchor_governance.py replay  | tee /dev/stderr | grep -q "GOVERNANCE-REPLAY: ALL PASS"
 
-say "Adjudication warrants"
-python3 tools/warrant_verify.py            | tee /dev/stderr | grep -q "errors 0"
-
 say "Guard regression: WARRANT_PIN extraction fails hard on duplicate/malformed pins"
 python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUARD: ALL PASS"
 

@@ -14,7 +14,8 @@ Two layers:
     counts/findings mismatch, an exit code disagreeing with ok, and finding-schema
     violations. Every one must be rejected; a valid ok:true report must pass.
 
-Set $WARRANT to the verifier command (default: a local warrant checkout). The
+Set $WARRANT to the verifier command and $WARRANT_PY to the Python module used
+to build integration fixtures. The
 real-integration layer skips (not fails) if no verifier with --store-mode/--json
 is reachable, so the hostile-contract layer always runs.
 """
@@ -43,8 +44,10 @@ def load_warrant():
     """Load the warrant library to BUILD fixtures (not to verify — verification
     goes through the CLI boundary under test)."""
     env = os.environ.get("WARRANT_PY")
-    cand = Path(env) if env else Path.home() / "Projects/warrant/impl/warrant.py"
-    if not cand.exists():
+    if not env:
+        return None
+    cand = Path(env)
+    if not cand.is_file():
         return None
     spec = importlib.util.spec_from_file_location("warrant_lib", cand)
     W = importlib.util.module_from_spec(spec)
@@ -172,11 +175,20 @@ def hostile_contract():
 
 def option_and_process():
     """verify()-level boundary: invalid option combinations rejected before running,
-    and non-UTF-8 verifier output is a bounded rejection, not a traceback."""
+    an unspecified verifier is refused, and non-UTF-8 verifier output is a
+    bounded rejection rather than a traceback."""
     ok, r = G.verify("/tmp/whatever", settlement=True, trust_config=None)
     check("[combo] settlement without trust config -> REJECTED", not ok, r)
     ok, r = G.verify("/tmp/whatever", settlement=False, trust_config="/tmp/t.json")
     check("[combo] trust config without --settlement -> REJECTED", not ok, r)
+    selected = os.environ.pop("WARRANT", None)
+    try:
+        ok, r = G.verify("/tmp/whatever")
+    finally:
+        if selected is not None:
+            os.environ["WARRANT"] = selected
+    check("[selection] missing WARRANT -> REJECTED without path guessing",
+          not ok and "required" in r, r)
     # a fake verifier that emits invalid UTF-8 on stdout
     fake = [sys.executable, "-c",
             "import sys; sys.stdout.buffer.write(b'\\xff\\xfe not-utf8'); sys.exit(0)"]

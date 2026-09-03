@@ -13,8 +13,9 @@ Flow (the "hermes proposes, the check decides, the key binds" pattern):
      Ed25519 key. decision = accept iff the gate passed.
 
 The model's opinion is never trusted on its own — the warrant's weight is the
-pinned pass/fail transcript that its opinion provoked. Verify offline with
-tools/warrant_verify.py; ratify (human co-sign) with tools/cosign.py.
+pinned pass/fail transcript that its opinion provoked. Verify through the real
+Warrant machine boundary with tools/warrant_gate.py; ratify (human co-sign) with
+tools/cosign.py.
 
 Env: HERMES_MODEL (default qwen3-coder:30b), HERMES_OLLAMA (default
 http://localhost:11434), HERMES_CHECK (default the run_reference.py gate),
@@ -154,7 +155,7 @@ def main():
     print(f"\n--- hermes review ---\n{review}\n")
     print(f"gate verdict: {verdict.upper()}  ->  decision: {body['decision']}")
     print(f"warrant {wid[:12]}… written to .warrants/records/{wid}.json")
-    print("verify: python3 tools/warrant_verify.py")
+    print("verify: python3 tools/warrant_gate.py .warrants")
     print(f"ratify: python3 tools/cosign.py {wid} you@host <yourkey>")
     # The warrant is written either way — a `reject` warrant is a successful
     # minting of an honest rejection, and it stays on disk. But this printed

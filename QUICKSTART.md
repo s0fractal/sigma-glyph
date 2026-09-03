@@ -90,7 +90,7 @@ Governed anchor adoptions and the adjudication records stored here are signed,
 re-runnable records; ordinary commits and reviews are not thereby adopted:
 
 ```bash
-python3 tools/warrant_verify.py     # every record id, signature, blob, link
+python3 tools/warrant_gate.py .warrants  # consume the real Warrant verifier's machine report
 ```
 
 Deeper: `spec/book-1-truth.md` is ~200 lines and self-contained.
