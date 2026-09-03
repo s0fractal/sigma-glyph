@@ -6,6 +6,17 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# The live Book III specimen crosses the repository boundary through the real
+# Warrant CLI.  That dependency is an explicit operand, never a path guessed
+# from the checkout layout.  Refuse before the expensive matrix rather than
+# running most of the suite and failing at the live demo near the end.
+if [[ -z "${WARRANT:-}" ]]; then
+  printf '%s\n' \
+    'TEST-ALL: REFUSED — WARRANT must name the exact Warrant verifier command.' \
+    'Example: export WARRANT="python3 /absolute/path/to/warrant/impl/warrant.py"' >&2
+  exit 2
+fi
+
 say() {
   local heading="$1"
   printf '\n=== %s ===\n' "$heading"

@@ -55,8 +55,13 @@ python3 impl/sigma_glyph.py                     # Book I
 python3 tests/spec_conformance/run_reference.py # 49/49 vectors
 python3 impl/sigma_wave.py                      # Book II
 python3 impl/sigma_federation.py                # Book III
+export WARRANT="python3 /absolute/path/to/warrant/impl/warrant.py"
 tools/test-all.sh                               # full repository suite
 ```
+
+The full suite includes a live Book III specimen that invokes the real Warrant
+verifier. `WARRANT` is an explicit cross-repository operand; the suite refuses
+to guess it from the checkout layout and fails before running if it is absent.
 
 From PyPI, where `0.6.7` is the current distribution release:
 

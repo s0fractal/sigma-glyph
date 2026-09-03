@@ -6,11 +6,14 @@ records between them over the dumbest possible transport (copying files), and
 derives each jurisdiction's sovereign view with the reference oracle.
 
 ```sh
+export WARRANT="python3 /absolute/path/to/warrant/impl/warrant.py"
 python3 examples/two-jurisdictions/demo.py            # temp dirs, self-cleaning
 python3 examples/two-jurisdictions/demo.py --keep out # inspect the stores after
 ```
 
-Requires the `cryptography` package (records are actually Ed25519-signed).
+Requires the `cryptography` package (records are actually Ed25519-signed) and
+an explicit `WARRANT` command for the verifier. The demo does not infer a
+sibling checkout or silently substitute another verifier.
 
 ## What it demonstrates
 
