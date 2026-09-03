@@ -25,8 +25,8 @@ WHAT THIS IS NOT
 ----------------
 Not a Warrant implementation. It builds the signed message and wraps
 sign/verify; it says nothing about canonicalization, WarrantIDs, thresholds,
-key state or settlement, all of which live in the Warrant CLI and in
-`tools/warrant_verify.py`'s pinned subset. It deliberately does NOT accept the
+key state or settlement, all of which live in the Warrant CLI. It deliberately
+does NOT accept the
 pre-v0.4 bare-WarrantID message under any flag: a verifier that accepts both
 constructions has no domain separation, and an option to re-enable the old one
 is the same defect with a switch on it.
@@ -92,8 +92,9 @@ def verify(public_key, sig, warrant_id):
     `public_key` may be raw bytes, hex, or an Ed25519PublicKey. `sig` may be hex
     or bytes. Raises rather than returning False: every call site here already
     sits inside a try/except that decides the severity, and the severities are
-    NOT the same (warrant_verify.py treats a bad signature as fatal, governance
-    counting merely does not count it), so this must not decide for them.
+    NOT the same (the Warrant verifier reports validity, while governance
+    counting decides whether a valid signature counts), so this must not decide
+    for them.
     """
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
     if isinstance(public_key, str):

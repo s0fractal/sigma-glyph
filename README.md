@@ -82,9 +82,8 @@ determinism, totality and semantic-size bound are machine-checked theorems in Le
 three against each other on every push, and `tools/x1_cross_repo.sh` runs this
 repo against warrant's HEAD rather than a pinned snapshot.
 
-How this repo relates to its siblings — which links are CI-gated contracts and
-which are only proposals — is indexed in the
-[ecosystem relationship map](https://github.com/s0fractal/protocol-ecosystem).
+The active ownership boundary is direct: Sigma-Glyph owns deterministic
+evaluation and content addressing; Warrant owns records, provenance and replay.
 
 **Paper:** *One Integer for Work and Memory* — Zenodo DOI
 [10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651), archived with a snapshot of this
@@ -230,6 +229,3 @@ Every published spec version is a citizen of its own system:
 ## License
 
 MIT for the implementation; CC-BY-4.0 for the specification texts.
-
----
-*Part of the s0fractal mycelium federation (trinity / myc.md / OMEGA / liquid).*

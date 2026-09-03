@@ -102,10 +102,8 @@ defect — have been submitted here by three separate reviewers.
 
 ## Optional
 
-- [tools/warrant_verify.py](tools/warrant_verify.py): read-only auditor for this
-  repository's own `.warrants/`. It is pinned to a governed Warrant v0.1/v0.2
-  snapshot and its signature severity **differs** from live SPEC v0.3; it prints
-  that on the line where it matters.
+- [tools/warrant_gate.py](tools/warrant_gate.py): fail-closed consumer of the
+  real Warrant verifier's machine report for this repository's `.warrants/`.
 - [ROADMAP.md](ROADMAP.md), [archive/](archive/): prior eras kept verbatim. Old
   hashes stay valid artefacts of their era; dirty history is provenance.
 
@@ -137,9 +135,8 @@ thing it summarises:
 - **SA-1** — `native_decide` is in the trusted base for part of the Lean chain,
   so those theorems trust the **compiler** as well as the kernel. Nothing
   discharges that, and nothing can. `C1Compiler.lean` does not use it.
-- **SA-3** — the pinned auditor and the live CLI disagree on signature severity.
-  One store, one forged co-signature: `tools/warrant_verify.py` says `errors=1`,
-  the live CLI says `0 errors, 56 warnings`.
+- **SA-3** — Warrant verification is an external machine boundary. A pinned
+  Warrant checkout or binary is required; Sigma-Glyph does not re-derive it.
 - **SA-4** — Book III still admits a JCS-equivalent but non-canonical assertion
   blob. The v0.6.6 fix narrowed this to the **governance** verifier only;
   `sigma_federation.py` still does not compare raw bytes against `canon(parsed)`.

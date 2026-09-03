@@ -64,17 +64,17 @@ prose).
 
 **Usage:**
 ```bash
-export WARRANT="python3 /path/to/warrant/impl/warrant.py"   # or a warrant-go binary
+export WARRANT="python3 /path/to/warrant/impl/warrant.py"   # required; or a warrant-go binary
 python3 tools/warrant_gate.py .warrants                       # exit 0 iff verified
 python3 tools/warrant_gate.py .warrants --settlement --trust-config trust-config.json
 ```
 
-**Not a re-implementation.** This is the opposite of `warrant_verify.py`:
-`warrant_verify.py` is a *deliberately independent* zero-dependency re-derivation
-of Warrant verification for offline auditors (no warrant checkout needed);
-`warrant_gate.py` *consumes the real verifier's output* to prove the published
-machine contract is sufficient for an external consumer. Countervectors (real +
-hostile) live in `tests/warrant_gate_test.py`.
+**Not a re-implementation.** Sigma-Glyph no longer ships a second, partial
+Warrant verifier. `warrant_gate.py` consumes the real verifier's output and
+proves that the published machine contract is sufficient for an external
+consumer. `$WARRANT` must name the selected pinned checkout/binary; the tool
+does not guess a filesystem path. Countervectors (real + hostile) live in
+`tests/warrant_gate_test.py`.
 
 ---
 

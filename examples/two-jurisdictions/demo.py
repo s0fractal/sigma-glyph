@@ -2,8 +2,8 @@
 """Two sovereign jurisdictions, one node — Book III live, end to end.
 
 Everything the Books promise on paper, exercised with real artifacts:
-actual Warrant-format records (signed, content-addressed, verifiable by
-tools/warrant_verify.py), a file-copy transport between two stores, and
+actual Warrant-format records (signed, content-addressed, verifiable through
+tools/warrant_gate.py), a file-copy transport between two stores, and
 every view derived by the reference oracle impl/sigma_federation.py.
 
     python3 examples/two-jurisdictions/demo.py [--keep DIR]
@@ -295,7 +295,7 @@ def main():
     print(f"  permanent and by design; kyiv still sees wave {kv['wave']}.")
 
     print("\n== 7. These are real warrant stores ==")
-    verifier = os.path.join(REPO, "tools", "warrant_verify.py")
+    verifier = os.path.join(REPO, "tools", "warrant_gate.py")
     ok = True
     for j in (kyiv, lviv):
         r = subprocess.run([sys.executable, verifier, j.dir],

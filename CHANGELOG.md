@@ -2,8 +2,15 @@
 
 ## Unreleased
 
-No changes after the adopted `v0.7.0` bundle. The distribution on PyPI remains
-`0.6.7` until a separate publishing action.
+No normative bundle changes after adopted `v0.7.0`; PyPI remains `0.6.7` until a
+separate publishing action.
+
+- Retired Sigma-Glyph's partial local reimplementation of Warrant verification.
+  All active callers now consume the real Warrant machine boundary through
+  `tools/warrant_gate.py`; `$WARRANT` is explicit and missing configuration
+  fails closed instead of guessing a checkout path.
+- Removed stale ecosystem/federation framing from the active README. Historical
+  references remain in dated artifacts.
 
 ## v0.7.0 — Three inputs, a receipt, one arbiter (2026-08-30)
 
