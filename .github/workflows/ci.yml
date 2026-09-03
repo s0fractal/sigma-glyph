@@ -277,7 +277,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 examples/two-jurisdictions/demo.py | tee /dev/stderr | grep -q "DEMO: ALL ASSERTIONS HELD"
+          WARRANT="python3 /tmp/warrant.py" \
+            python3 examples/two-jurisdictions/demo.py \
+            | tee /dev/stderr | grep -q "DEMO: ALL ASSERTIONS HELD"
       # NON-NORMATIVE draft (ADR-011, PR #36). Deliberately NOT in
       # tools/test-all.sh: a stale draft receipt must not be able to block the
       # normative matrix. But it must not be unwatched either — without a step
