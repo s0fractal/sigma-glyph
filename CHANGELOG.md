@@ -17,7 +17,9 @@ separate publishing action.
   PyPI distribution, the two Book I evaluator byte sets, and Warrant's pinned
   `ski@v1` versus the reserved, unadmitted `ski@v2`. `tools/version_check.py`
   holds README's bundle heading to ANCHORS and its distribution heading to
-  `pyproject.toml`. No version, tag, release or protocol text changed.
+  `pyproject.toml`, and fails closed when either heading is missing, appears
+  more than once, or sits outside the `## Status by surface` section, instead
+  of taking the first match. No version, tag, release or protocol text changed.
 
 ## v0.7.0 — Three inputs, a receipt, one arbiter (2026-08-30)
 
