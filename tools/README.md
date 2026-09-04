@@ -111,7 +111,9 @@ serialized.)
 thing: a repeated JSON member, a repeated `13.1.` heading, table or tag row, an
 unreadable row of the selected runtime table, or a governance status line
 printed twice or not at all yields no status at all — never the last of the
-conflicting readings.
+conflicting readings. The runtime table is selected by the header it declares
+and every one of its rows must then read, so a table cannot be picked out by
+the very rows that parse while the ones that do not go unnoticed.
 
 **It projects the frozen receipt; it does not validate it.** The relation names
 the fields it reads out of `candidate-receipt.json` and checks those for

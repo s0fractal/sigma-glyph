@@ -64,10 +64,13 @@ about a document once serialized.
 AMBIGUOUS INPUT IS NOT AN ANSWER
 --------------------------------
 Each record this view reads has to say ONE thing before any status comes out of
-it. A JSON member repeated, a `13.1.` heading or a runtime table repeated, a tag
-row repeated, a row of the selected table this parser cannot read, or a status
-line the deciding tool printed twice or not at all: none of those is projected,
-because the reading would otherwise depend on which one happened to be last.
+it. A JSON member repeated, a `13.1.` heading or a runtime table repeated, a
+runtime-looking table that declares no header, a tag row repeated, a row of the
+selected table this parser cannot read, or a status line the deciding tool
+printed twice or not at all: none of those is projected, because the reading
+would otherwise depend on which one happened to be last -- or on which rows
+happened to parse, which is how a table gets selected by the very rows that
+hide the ones it cannot read.
 
 EXIT STATUS
     0  the view was printed and every relation that could be checked holds
@@ -123,9 +126,16 @@ TAG_STATUSES = frozenset({
     "admitted_module_MISSING", "admitted_UNBOUND", "record_spec_DISAGREE",
     "record_only_UNREGISTERED"})
 NO_BADGE_KEYS = ("ok", "verdict", "all_pass", "status", "passed", "green")
-# One tag row of the Warrant SPEC section 13.1 runtime table.
-TAG_ROW = re.compile(r"^\|\s*`([a-z0-9-]+@v\d+)`\s*\|\s*(.*?)\s*\|\s*(.*?)"
-                     r"\s*\|\s*(.*?)\s*\|\s*$")
+# The Warrant SPEC section 13.1 runtime table, in the plain pipe-table format
+# that section actually uses. It is recognised by the header it DECLARES, never
+# by a data row that happens to parse, so a row this parser cannot read is a
+# refusal rather than a line it silently walks past.
+RUNTIME_HEADER = ("Tag", "Body versions", "Status", "Defined in")
+SEPARATOR_CELL = re.compile(r"^:?-{3,}:?$")
+TAG_CELL = re.compile(r"^`([a-z0-9-]+@v\d+)`$")
+# A cell naming a runtime tag with or without the backticks the format asks
+# for: enough to notice a runtime-looking table that declares no header.
+TAG_LIKE = re.compile(r"^`?[a-z0-9-]+@v\d+`?$")
 IDENTITY_NA = {"status": "not_applicable",
                "reason": "identity is stated only for an admitted tag whose "
                          "one bound module hashes to its pin"}
@@ -286,19 +296,23 @@ def adoption_verdict(stdout: str, top: str):
     """`(exact status token, status lines)` that tools/anchor_governance.py
     printed for the bundle `top`.
 
-    The token is one of ADOPTION_TOKENS or None: `startswith("AUTHORIZED")`
-    used to accept any longer word beginning that way, so a hypothetical
-    `AUTHORIZED_BUT_REVOKED` read as an adoption. The caller also needs to see
-    how MANY lines spoke about `top`, because a producer that printed two of
-    them did not give one answer.
+    The token is one of ADOPTION_TOKENS or None. The producer writes the bundle,
+    the token and then a delimiter, all whitespace-separated, so the words after
+    the bundle are compared to the token's words. Matching a prefix instead --
+    `startswith`, then a `(?![\\w-])` boundary -- accepted any foreign token that
+    merely began that way, since `/` and `.` are neither a word character nor a
+    hyphen: `AUTHORIZED_BUT_REVOKED` was refused but `AUTHORIZED/REVOKED` and
+    `AUTHORIZED.v2` both read as an adoption. The caller also needs to see how
+    MANY lines spoke about `top`, because a producer that printed two of them
+    did not give one answer.
     """
     lines = [l.strip() for l in stdout.splitlines()
              if l.split()[:1] == [top]]
     if len(lines) != 1:
         return None, lines
-    rest = lines[0][len(top):].strip()
-    token = next((t for t in ADOPTION_TOKENS
-                  if re.match(re.escape(t) + r"(?![\w-])", rest)), None)
+    words = lines[0].split()[1:]
+    token = next((t for t in ADOPTION_TOKENS if words[:len(t.split())]
+                  == t.split()), None)
     return token, lines
 
 
@@ -492,6 +506,17 @@ def inside(directory: Path, relative) -> Path | None:
     return target if directory.resolve() in target.parents else None
 
 
+def row_cells(line: str):
+    """Cells of one `| a | b |` row, or None if the line is not one.
+
+    Every `|` is a boundary, so a row with more or fewer cells than the header
+    declares is unreadable instead of being absorbed by a lazy regex group.
+    """
+    if not (line.startswith("|") and line.endswith("|") and len(line) > 1):
+        return None
+    return tuple(cell.strip() for cell in line[1:-1].split("|"))
+
+
 def spec_runtime_rows(spec_text: str):
     """`(rows by tag, ambiguities)` for the `### 13.1.` runtime-tag table of
     Warrant's SPEC.md.
@@ -499,13 +524,16 @@ def spec_runtime_rows(spec_text: str):
     `rows` is None with NO ambiguities when this operand simply has no such
     table -- an older revision, honestly unavailable. It is None WITH
     ambiguities when the section exists but does not say one thing: two
-    `13.1.` headings, two tag tables, one tag listed twice, or a row of the
-    selected table this parser cannot read.
+    `13.1.` headings, no or several tables declaring the runtime header, a
+    runtime-looking table that declares none, a header without its separator
+    row, one tag listed twice, or a row this parser cannot read.
 
-    Neither case is projected. A last-writer-wins dict used to collapse the
-    duplicates, so one SPEC saying both `current` and `reserved` for a tag read
-    as `admitted_pinned` or as `record_spec_DISAGREE` purely by the order of
-    its rows, and an unreadable row vanished into a smaller closed set.
+    Neither case is projected. Selecting the table by a row that MATCHED used
+    to hide exactly the rows that did not: a malformed row above the first
+    match was consumed by a `first <= 2` header heuristic, and a whole second
+    table of unreadable rows was discarded before it could be noticed. So the
+    table is chosen by its declared header and then every one of its data rows
+    must read.
     """
     headings = list(re.finditer(r"^### 13\.1\..*$", spec_text, re.M))
     if not headings:
@@ -527,31 +555,49 @@ def spec_runtime_rows(spec_text: str):
             block = []
     if block:
         blocks.append(block)
-    tables = [b for b in blocks if any(TAG_ROW.match(l) for l in b)]
-    if not tables:
+    tables = [[row_cells(line) for line in block] for block in blocks]
+    headed = [t for t in tables if t[0] == RUNTIME_HEADER]
+    tag_listing = [t for t in tables
+                   if any(cells and TAG_LIKE.match(cells[0]) for cells in t)]
+    if not headed and not tag_listing:
         return None, []
-    if len(tables) > 1:
-        return None, [f"section 13.1 carries {len(tables)} tables that list "
-                      "runtime tags; the runtime table must be unique"]
+    if len(headed) != 1 or any(t is not headed[0] for t in tag_listing):
+        return None, [
+            f"section 13.1 carries {len(headed)} table(s) declaring the runtime "
+            f"header | {' | '.join(RUNTIME_HEADER)} | and {len(tag_listing)} "
+            "table(s) listing runtime tags; the runtime table must be unique "
+            "and must be the one that declares the header"]
 
-    table = tables[0]
-    first = next(i for i, line in enumerate(table) if TAG_ROW.match(line))
+    table = headed[0]
+    separator = table[1] if len(table) > 1 else None
+    if not (separator and len(separator) == len(RUNTIME_HEADER)
+            and all(SEPARATOR_CELL.match(cell) for cell in separator)):
+        return None, ["the runtime table's header is not followed by a "
+                      f"{len(RUNTIME_HEADER)}-cell separator row"]
+
     problems, rows = [], {}
-    if first > 2:
-        problems.append(f"{first} unreadable line(s) above the first tag row "
-                        "of the runtime table")
-    for line in table[first:]:
-        found = TAG_ROW.match(line)
-        if found is None:
-            problems.append(f"unreadable row in the runtime table: {line[:80]}")
+    for cells in table[2:]:
+        if cells is None or len(cells) != len(RUNTIME_HEADER):
+            problems.append(
+                "unreadable row in the runtime table: "
+                f"{len(RUNTIME_HEADER)} cells declared, "
+                f"{0 if cells is None else len(cells)} found")
             continue
-        tag, bodies, status, defined = found.groups()
+        found = TAG_CELL.match(cells[0])
+        if found is None:
+            problems.append("unreadable row in the runtime table: its first "
+                            f"cell does not name a tag: {cells[0][:60]}")
+            continue
+        tag = found.group(1)
         if tag in rows:
             problems.append(f"{tag} is listed more than once in the runtime "
                             "table")
             continue
-        rows[tag] = {"body_versions_cell": bodies, "status_cell": status,
-                     "defined_in_cell": defined}
+        rows[tag] = {"body_versions_cell": cells[1], "status_cell": cells[2],
+                     "defined_in_cell": cells[3]}
+    if not rows and not problems:
+        problems.append("the runtime table declares the runtime header and "
+                        "then lists no tag at all")
     return (None, problems) if problems else (rows, [])
 
 

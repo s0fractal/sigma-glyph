@@ -477,18 +477,25 @@ def ambiguous_runtime_table(temp: Path):
           json.dumps(answers)[:200])
 
     # A row of the SELECTED table that this parser cannot read must not vanish
-    # into a smaller closed set of tags that then all look well-formed.
-    malformed = make_operand(temp / "malformed-row",
-                             rows=(ROW_V1, "| `ski@v3` | two cells only |\n",
-                                   ROW_V2))
-    status, view, err = view_of(malformed)
-    tags = view["warrant"]["tags"] if view else {}
-    check("MALFORMED row: an unreadable row in the runtime table is named, and "
-          "no tag status is projected, exit 1",
-          status == 1 and tags.get("status") == "unavailable"
-          and "unreadable row" in tags.get("reason", "")
-          and tag_of(view, "ski@v1") == {} and tag_of(view, "ski@v3") == {},
-          f"exit {status}, tags {json.dumps(tags)[:160]}")
+    # into a smaller closed set of tags that then all look well-formed. Too few
+    # cells, and -- found by review of aef98ec -- too many, which the lazy
+    # regex groups of the old row pattern happily swallowed.
+    for name, row in {
+        "two cells where four are declared":
+            "| `ski@v3` | two cells only |\n",
+        "extra pipes past the four declared cells":
+            "| `ski@v3` | `0.2` | current | §3.1 | and | more |\n",
+    }.items():
+        malformed = make_operand(temp / f"malformed-row-{len(row)}",
+                                 rows=(ROW_V1, row, ROW_V2))
+        status, view, err = view_of(malformed)
+        tags = view["warrant"]["tags"] if view else {}
+        check(f"MALFORMED row, {name}: the unreadable row is named and no tag "
+              "status is projected, exit 1",
+              status == 1 and tags.get("status") == "unavailable"
+              and "unreadable row" in tags.get("reason", "")
+              and tag_of(view, "ski@v1") == {} and tag_of(view, "ski@v3") == {},
+              f"exit {status}, tags {json.dumps(tags)[:160]}")
 
     second_table = ("\n| Tag | Body versions | Status | Defined in |\n"
                     "| --- | --- | --- | --- |\n")
@@ -509,6 +516,34 @@ def ambiguous_runtime_table(temp: Path):
               and "must be unique" in tags.get("reason", "")
               and relation(view, unique).get("status") == ev.FAILS,
               f"exit {status}, tags {json.dumps(tags)[:160]}")
+
+    # Found by review of aef98ec: membership of the runtime table was decided
+    # by a row that MATCHED, which hid precisely the rows that did not. Both of
+    # these read as a clean `ski@v1 admitted_pinned`, exit 0. The table is now
+    # recognised by the header it declares.
+    unheaded_row = "| ski@v1 | — | reserved | §3.1 |\n"
+    for name, spec, needle in (
+        ("a runtime-looking table that declares no header",
+         "# Synthetic Warrant SPEC\n\n### 13.1. SKI runtime evaluators\n\n"
+         + unheaded_row + ROW_V1 + ROW_V2 + SPEC_FOOTER, "must be unique"),
+        ("a SECOND headed table whose only row is unreadable",
+         SPEC_HEADER + ROW_V1 + ROW_V2 + second_table + unheaded_row
+         + SPEC_FOOTER, "must be unique"),
+        ("a runtime header with no separator row beneath it",
+         "# Synthetic Warrant SPEC\n\n### 13.1. SKI runtime evaluators\n\n"
+         "| Tag | Body versions | Status | Defined in |\n" + ROW_V1 + ROW_V2
+         + SPEC_FOOTER, "separator row"),
+    ):
+        operand = make_operand(temp / f"unselected-{len(spec)}")
+        write(operand / "SPEC.md", spec)
+        status, view, err = view_of(operand)
+        tags = view["warrant"]["tags"] if view else {}
+        check(f"TABLE SELECTION: {name} projects no tag status, exit 1",
+              status == 1 and tags.get("status") == "unavailable"
+              and needle in tags.get("reason", "")
+              and relation(view, unique).get("status") == ev.FAILS
+              and tag_of(view, "ski@v1") == {},
+              f"exit {status}, tags {json.dumps(tags)[:200]}")
 
     # The honest unavailable path for an older operand is NOT this failure.
     notable = make_operand(temp / "no-table-relation")
@@ -578,6 +613,21 @@ def adoption_boundary(temp: Path):
           and rel.get("status") == ev.UNCHECKED
           and "unrecognised token" in adoption.get("reason", ""),
           f"{json.dumps(adoption)[:220]}")
+
+    # Found by review of aef98ec: the old `(?![\w-])` boundary let through any
+    # foreign token whose extra character was neither a word character nor a
+    # hyphen. The producer emits a whitespace-separated token, so these are two
+    # different words, not adoptions.
+    for label, token in (("slashed", "AUTHORIZED/REVOKED"),
+                         ("dotted", "AUTHORIZED.v2")):
+        status, view, adoption, rel = outcome(
+            label, f"{top} {token} — quorum reached\n", 0)
+        check(f"ADOPTION: {token} is a foreign token, not the exact token "
+              "AUTHORIZED",
+              adoption.get("status") == "unavailable"
+              and rel.get("status") == ev.UNCHECKED
+              and "unrecognised token" in adoption.get("reason", ""),
+              f"{json.dumps(adoption)[:220]}")
 
     status, view, adoption, rel = outcome(
         "not-authorized", f"{top} NOT AUTHORIZED — no anchor-set blob in store\n", 1)
