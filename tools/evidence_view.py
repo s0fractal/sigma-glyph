@@ -311,8 +311,20 @@ def adoption_verdict(stdout: str, top: str):
     if len(lines) != 1:
         return None, lines
     words = lines[0].split()[1:]
-    token = next((t for t in ADOPTION_TOKENS if words[:len(t.split())]
-                  == t.split()), None)
+    # Match the producer's whole verdict field, including its delimiter.  A
+    # whitespace split alone would still accept `AUTHORIZED REVOKED` because
+    # its first word is the known token.  AUTHORIZED / NOT AUTHORIZED are
+    # followed by the producer's em dash; UNGOVERNED carries its parenthesised
+    # explanation directly.
+    token = None
+    for candidate in ADOPTION_TOKENS:
+        width = len(candidate.split())
+        delimiter = words[width] if len(words) > width else None
+        expected = "(" if candidate == "UNGOVERNED" else "—"
+        if (words[:width] == candidate.split() and delimiter
+                and delimiter.startswith(expected)):
+            token = candidate
+            break
     return token, lines
 
 

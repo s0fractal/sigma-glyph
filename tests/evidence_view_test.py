@@ -619,7 +619,8 @@ def adoption_boundary(temp: Path):
     # hyphen. The producer emits a whitespace-separated token, so these are two
     # different words, not adoptions.
     for label, token in (("slashed", "AUTHORIZED/REVOKED"),
-                         ("dotted", "AUTHORIZED.v2")):
+                         ("dotted", "AUTHORIZED.v2"),
+                         ("extra-word", "AUTHORIZED REVOKED")):
         status, view, adoption, rel = outcome(
             label, f"{top} {token} — quorum reached\n", 0)
         check(f"ADOPTION: {token} is a foreign token, not the exact token "
@@ -628,6 +629,13 @@ def adoption_boundary(temp: Path):
               and rel.get("status") == ev.UNCHECKED
               and "unrecognised token" in adoption.get("reason", ""),
               f"{json.dumps(adoption)[:220]}")
+
+    status, view, adoption, rel = outcome(
+        "missing-delimiter", f"{top} AUTHORIZED\n", 0)
+    check("ADOPTION: AUTHORIZED without the producer's delimiter is incomplete",
+          adoption.get("status") == "unavailable"
+          and rel.get("status") == ev.UNCHECKED,
+          f"{json.dumps(adoption)[:220]}")
 
     status, view, adoption, rel = outcome(
         "not-authorized", f"{top} NOT AUTHORIZED — no anchor-set blob in store\n", 1)
