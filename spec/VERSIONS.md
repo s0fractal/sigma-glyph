@@ -6,7 +6,7 @@ not checkable.*
 
 This repository carries six version numbers in three schemes. Nothing said how
 they relate, which is why nothing could be wrong about them — and two of them
-are.
+were.
 
 | Number | Where | What it governs | What moves it |
 | --- | --- | --- | --- |
@@ -15,13 +15,18 @@ are.
 | **`spec_version`** | each conformance suite | *the version of the Book the suite conforms to* | the Book moving, and the suite being regenerated against it |
 | **`suite_version`** | `tests/spec_conformance/vectors.json` | the conformance-suite package, as released | adding or changing vectors, independently of the Book |
 | **bundle `vX.Y.Z`** | section headings in `spec/ANCHORS.txt` | which exact bytes of every anchored file constitute a release | a governed adoption, per GOV-anchors §3 |
-| **PyPI version** | `warrant-verify` releases | the published verifier | its own release cadence |
+| **PyPI version** | `version` in `pyproject.toml`, the `sigma-glyph` distribution | the published Python modules | a distribution release per `PUBLISHING.md`; it may sit one bundle behind the adopted one |
+
+The `vX.Y.Z` git tags and GitHub releases follow the PyPI version, not the
+bundle: cutting a release creates a tag, and adopting a bundle in `ANCHORS.txt`
+creates nothing in git. README's "Status by surface" names both, and
+`version_check.py` holds its two headings to `ANCHORS.txt` and `pyproject.toml`.
 
 ## What independence means here
 
 A Book untouched by a release keeps its bytes, its `**Version:**` header **and**
 its anchor from the last release that changed it. That is the bundle convention,
-and it is why Book I sits at `0.5.2` inside a `v0.6.x` bundle without anything
+and it is why Book I sat at `0.5.2` inside the `v0.6.x` bundles without anything
 being wrong. `ANCHORS.txt` states the convention with an example, and the example
 is a claim about this tree: `version_check.py` verifies it, because it went stale
 once already and nothing noticed.

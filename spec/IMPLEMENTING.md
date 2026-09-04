@@ -115,10 +115,12 @@ keywords in the same order, and the same code blocks once translated words are
 set aside. If they ever drift, CI fails. That is weaker than an anchor and much
 stronger than a promise.
 
-**§7 says the oracle wins.** In a discrepancy between the prose and
-`tests/spec_conformance/vectors.json`, the Book designates `impl/sigma_glyph.py`
-as the arbiter. A precedence rule is only ever exercised when a discrepancy
-exists, and `spec_audit.py` checks whether one does: every hash the §7 prose
+**§7 no longer lets the oracle win.** Through Book I 0.5.2 the Book designated
+`impl/sigma_glyph.py` as the arbiter of a discrepancy between the prose and
+`tests/spec_conformance/vectors.json`; Book I 0.6.0 (the adopted v0.7.0 bundle)
+removes that precedence, so a discrepancy is a defect in the Book or the suite,
+not a question the oracle settles. Either way a discrepancy has to exist to
+matter, and `spec_audit.py` checks whether one does: every hash the §7 prose
 claims must appear in the vector suite, and the suite must be pinned to the exact
 bytes of the Book that ships. At the anchored revision, and within the claims the audit decides, no
 contradiction was found — and it reports the four it does not decide rather than

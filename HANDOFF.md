@@ -1,5 +1,10 @@
 # HANDOFF
 
+> Dated record, 2026-07-08: the hand-off note for the Rust Book I crate as it
+> landed, describing the v0.5 evaluator of that time. The adopted bundle, git
+> tags, PyPI release and Warrant runtime tags are in README under "Status by
+> surface".
+
 ## Scope
 
 - Added the independent Rust 2021 crate in `impl-rs/`.

@@ -96,19 +96,24 @@ Until then, a Book III consumer must not infer byte-canonicality from acceptance
 Governance is 2-of-3 (`spec/GOV-anchors.md` §5). Counted rather than
 characterised:
 
-- The threshold has been exercised **five times** — the v0.6.2 – v0.6.6
-  anchor-set adoptions — and nothing else among the store's 50 records carries a
-  second signature.
+- Counted 2026-07-28, at 50 records: the threshold had been exercised **five
+  times** — the v0.6.2 – v0.6.6 anchor-set adoptions — and nothing else in the
+  store carried a second signature.
 - **Three of the five** pair `claude-fable-5` with `codex`. Those two keys sat in
   one directory on one host as of 2026-07-28 (warrant's
   `policies/gate-settlement.json`, `custody`), so any process there could sign as
   both. **Two signatures from one host are one custody**, and a report calling
   them a 2-of-3 quorum makes a false claim.
 - The other two pair `claude-fable-5` with the founder key `s0fractal@sigma-glyph`.
+- Since that count, two more adoptions carry two signatures: v0.6.7
+  (2026-07-31, `s0fractal` + `claude-fable-5`) and v0.7.0 (2026-08-30, `codex`
+  + `s0fractal`). Seven in 53 records as of 2026-09-04; recount from
+  `.warrants/records/` rather than from this paragraph. SA-5b below says where
+  the `codex` and `s0fractal` keys sit.
 
 So where a document describes "2-of-3 governance", the correct reading is: a
-2-of-3 policy, satisfied five times, twice by two distinct parties and three
-times by one. The machinery is correct as specified; what it has actually
+2-of-3 policy, satisfied seven times as of 2026-09-04, and in at least three of
+them by one custody. The machinery is correct as specified; what it has actually
 witnessed is smaller than the specification suggests.
 
 ### SA-5b. The founder's signature is now delegated authorization, not independent review
