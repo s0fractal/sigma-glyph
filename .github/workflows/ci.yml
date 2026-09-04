@@ -239,6 +239,30 @@ jobs:
             python3 tests/book1_fuzz.py --terms 200 --seed "$s" \
               | tee /dev/stderr | grep -q "BOOK1-FUZZ: ALL AGREE"
           done
+      # The derived version/evidence view. The synthetic controls (refusal,
+      # hostile ambient state, drift, missing, extra, widening) need nothing
+      # external; the real-checkout control needs a Warrant tree, so this step
+      # runs AFTER the clone above and reuses /tmp/warrant at $WARRANT_PIN
+      # rather than cloning a second time. The operand is passed explicitly on
+      # the command line — the view refuses to discover one, and the ambient
+      # control would go red if it ever started.
+      #
+      # WHAT THIS PIN EXERCISES TODAY: 0d147aa1 predates warrant's
+      # trust/ski-runtime-evaluators.json, so the real-checkout half of this
+      # step covers the MISSING-INPUT path — tags typed `unavailable`, the
+      # three tag relations `unchecked`, no credit — and not the admitted-tag
+      # path. That is the correct behaviour at this pin, not a gap to paper
+      # over: the admitted/reserved/mismatched statuses are covered by the
+      # synthetic operands, whose contents are ours to fix. When the pin next
+      # refreshes past the commit that adds that record, this step starts
+      # covering the admitted path too, with no edit here.
+      - name: The derived version/evidence view refuses, and can go red
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/evidence_view_test.py --warrant /tmp/warrant \
+            | tee /dev/stderr | grep -q "EVIDENCE-VIEW-CONTROLS: ALL PASS"
+          python3 tools/evidence_view.py --warrant /tmp/warrant > /dev/null
       - name: Conformance vectors are fresh (regenerate == no diff)
         run: |
           python3 tests/spec_conformance/generate.py

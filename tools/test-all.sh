@@ -64,6 +64,17 @@ python3 tests/wave_identity_selftest.py | tee /dev/stderr | grep -q "WAVE-IDENTI
 say "Version-state guard: candidates are not adopted releases"
 python3 tests/version_check_selftest.py | tee /dev/stderr | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
 
+say "Derived version/evidence view: refuses, and can go red"
+# The view projects the owners above into one document, so its only real risk is
+# a wrong answer that reads like a right one: an operand discovered from ambient
+# state, or a reserved/missing/mismatched tag widened into credit. The controls
+# are synthetic Warrant checkouts in a temp dir -- no network, no sibling, and
+# nothing written to a real Warrant tree -- so they run everywhere this matrix
+# does. CI additionally runs the real-checkout control at $WARRANT_PIN.
+python3 tests/evidence_view_test.py | tee /dev/stderr | grep -q "EVIDENCE-VIEW-CONTROLS: ALL PASS"
+# And the document itself must build on THIS tree, not just on the fixtures.
+python3 tools/evidence_view.py > /dev/null
+
 say "Guard regression: the three self-tests put their verdict in the EXIT STATUS"
 # impl/sigma_glyph.py called run_tests() and discarded the boolean, so it printed
 # FAILURES PRESENT and exited 0 — every gate above catches that only by grepping
