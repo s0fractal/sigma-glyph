@@ -78,6 +78,47 @@ does not guess a filesystem path. Countervectors (real + hostile) live in
 
 ---
 
+## `evidence_view.py` — one derived version/evidence view
+
+**Purpose:** print, as one deterministic JSON document, which bytes carry which
+version label and what stands behind each — for a cold reader who should not
+have to assemble it from five files by hand.
+
+**Usage:**
+```bash
+python3 tools/evidence_view.py                                      # Sigma half only
+python3 tools/evidence_view.py --warrant /absolute/path/to/warrant  # both halves
+```
+
+**It owns nothing.** Every value is read from the file that owns it
+(`spec/ANCHORS.txt`, `pyproject.toml`, `campaigns/phase-4a/candidate-receipt.json`,
+the operand's `trust/ski-runtime-evaluators.json` and `SPEC.md` §13.1) or
+recomputed from bytes on the run that prints it, and each verifier's result is
+reused under that verifier's name (`verify_anchors.py`, `version_check.py`,
+`anchor_governance.py status`). There is no committed artifact to go stale and
+no second truth table to drift.
+
+**What a digest proves:** identity, and nothing else. Adoption is a threshold
+warrant, conformance is a verifier run, and a runtime tag is a Warrant
+registration; where the view could not run the tool that decides one of those,
+the status is `unavailable` or the relation is `unchecked` — never `holds`.
+There is no top-level pass/fail badge: the summary counts relations.
+
+**The Warrant operand is explicit.** Cross-repository data is read only from the
+directory named by `--warrant`. With no operand the Warrant-owned half is typed
+`unavailable`; the view never discovers a sibling checkout, never reads
+`$WARRANT`/`$SIGMA_GLYPH`/`$SIBLING`, and passes none of them to the tools it
+runs. A non-Warrant operand is refused (exit 2), not degraded. `ski@v2` stays
+`reserved_no_evaluator`, and bytes bound under a reserved tag are reported as a
+disagreement, never as an admission.
+
+**Exit:** `0` printed and every checkable relation holds; `1` printed with at
+least one FAILING relation (reasons on stderr); `2` refused before printing.
+Controls — refusal, hostile ambient state, drift, missing, extra, and widening
+— live in `tests/evidence_view_test.py`.
+
+---
+
 ## Adding New Tools
 
 When adding new tools:

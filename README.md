@@ -129,6 +129,19 @@ Two Book I Python modules exist, and they are not interchangeable:
   Admitting it is a future Warrant registration act, not something this
   repository can do by editing or releasing.
 
+The five surfaces above are also readable as one machine-readable document,
+recomputed from bytes on the run that prints it:
+
+```bash
+python3 tools/evidence_view.py --warrant /absolute/path/to/warrant
+```
+
+That view is a projection of the sources named in this section, not a second
+truth table: it adopts, releases, registers and admits nothing, and without the
+explicit Warrant operand its Warrant-owned half is typed `unavailable` rather
+than guessed. [`tools/README.md`](tools/README.md) describes what it does and
+does not assert.
+
 ## The Three Books
 
 | Document | Status | Owns |
