@@ -101,8 +101,24 @@ no second truth table to drift.
 **What a digest proves:** identity, and nothing else. Adoption is a threshold
 warrant, conformance is a verifier run, and a runtime tag is a Warrant
 registration; where the view could not run the tool that decides one of those,
-the status is `unavailable` or the relation is `unchecked` — never `holds`.
-There is no top-level pass/fail badge: the summary counts relations.
+or could not read one answer out of it, the status is `unavailable` or the
+relation is `unchecked` — never `holds`. There is no top-level pass/fail badge:
+the summary counts relations. (`credit_problems` is an internal self-check that
+stops such a view being printed; it is not a certificate for one already
+serialized.)
+
+**Ambiguous input is not an answer.** Every record it reads has to say one
+thing: a repeated JSON member, a repeated `13.1.` heading, table or tag row, an
+unreadable row of the selected runtime table, or a governance status line
+printed twice or not at all yields no status at all — never the last of the
+conflicting readings.
+
+**It projects the frozen receipt; it does not validate it.** The relation names
+the fields it reads out of `candidate-receipt.json` and checks those for
+presence and type. Members it does not read are neither projected nor rejected,
+so this is not closed-schema validation; `candidate_freeze_check.py` owns the
+receipt and rebuilds what it froze, and the receipt's `checks_passed` tools are
+listed as a historical reference, not as fresh conformance credit.
 
 **The Warrant operand is explicit.** Cross-repository data is read only from the
 directory named by `--warrant`. With no operand the Warrant-owned half is typed
@@ -114,8 +130,9 @@ disagreement, never as an admission.
 
 **Exit:** `0` printed and every checkable relation holds; `1` printed with at
 least one FAILING relation (reasons on stderr); `2` refused before printing.
-Controls — refusal, hostile ambient state, drift, missing, extra, and widening
-— live in `tests/evidence_view_test.py`.
+Controls — refusal, hostile ambient state, drift, missing, extra, widening,
+ambiguity, the adoption consumer boundary and the receipt projection — live in
+`tests/evidence_view_test.py`.
 
 ---
 

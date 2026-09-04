@@ -12,6 +12,15 @@ none of them is visible in a green run:
   * it degrades a bad operand or an unreadable tree into a partial document
     instead of refusing.
 
+Review of f3b7099 added two more, and the controls for them say so where they
+sit:
+
+  * it reads AMBIGUOUS input as an answer -- a record, table or producer that
+    says two things collapses into whichever the parser saw last, so the same
+    conflicting bytes mean different things depending on their order;
+  * it CLAIMS MORE than it checks -- a relation whose sentence is wider than
+    the predicate behind it is a false statement even when it holds.
+
 So the controls below are mostly negative. Each names the exact status or
 refusal it demands; "the tool exited non-zero" is never enough, because a
 syntax error satisfies that too.
@@ -101,11 +110,44 @@ def make_operand(directory: Path, *, rows=(ROW_V1, ROW_V2), record=None,
     return directory
 
 
-def run_view(*args, env_extra=None):
+def stand_in_tree(directory: Path, *, receipt=None, tools=None) -> Path:
+    """A stand-in Sigma tree, so a control can vary one INPUT FILE of this
+    repository and still exercise the real CLI, its real file reads and the
+    real subprocesses it starts -- rather than calling a helper with a
+    hand-built object and catching whatever it raises.
+
+    Every entry is a symlink to this checkout's, so nothing is copied and
+    nothing can drift, with three exceptions: `tools/evidence_view.py` is a
+    copy (the CLI derives its own root from its resolved path, and a symlink
+    would resolve back here); the frozen receipt is written from `receipt` when
+    one is given; and each `tools/<name>` in `tools` is written from its text
+    instead of linked, which is how a control injects a producer fault.
+    `.git` is left out, so the tree is not a checkout and reports no revision.
+    """
+    tools = dict(tools or {})
+    (directory / "tools").mkdir(parents=True)
+    for entry in ROOT.iterdir():
+        if entry.name not in (".git", "tools", "campaigns"):
+            (directory / entry.name).symlink_to(entry)
+    for entry in (ROOT / "tools").iterdir():
+        if entry.name not in {"evidence_view.py", *tools}:
+            (directory / "tools" / entry.name).symlink_to(entry)
+    shutil.copy2(VIEW, directory / "tools" / "evidence_view.py")
+    for name, text in tools.items():
+        write(directory / "tools" / name, text)
+    if receipt is None:
+        (directory / "campaigns").symlink_to(ROOT / "campaigns")
+    else:
+        write(directory / ev.RECEIPT, receipt)
+    return directory
+
+
+def run_view(*args, tree: Path = ROOT, env_extra=None):
     env = {k: v for k, v in os.environ.items() if k not in ev.AMBIENT}
     env.update(env_extra or {})
-    return subprocess.run([sys.executable, str(VIEW), *args], cwd=str(ROOT),
-                          capture_output=True, text=True, env=env, check=False)
+    return subprocess.run(
+        [sys.executable, str(tree / "tools" / "evidence_view.py"), *args],
+        cwd=str(tree), capture_output=True, text=True, env=env, check=False)
 
 
 def view_of(operand: Path, **kwargs):
@@ -402,6 +444,259 @@ def warrant_half(temp: Path):
     return good
 
 
+# ------------------------------ the runtime table has to say exactly ONE thing
+
+def ambiguous_runtime_table(temp: Path):
+    """A SPEC section 13.1 that says two things must project no tag status.
+
+    Found by review of f3b7099: the parser kept a dict by tag, so a table
+    carrying both `ski@v1 current` and `ski@v1 reserved` meant `admitted_pinned`
+    or `record_spec_DISAGREE` purely by which row came last. Both orders are
+    controlled below, through the CLI, and their answers must agree.
+    """
+    unique = "says one thing"
+    reserved_v1 = "| `ski@v1` | — | reserved | §3.1 |\n"
+    answers = {}
+    for name, rows in {
+        "the current row last": (reserved_v1, ROW_V1, ROW_V2),
+        "the reserved row last": (ROW_V1, reserved_v1, ROW_V2),
+    }.items():
+        operand = make_operand(temp / f"duplicate-{len(answers)}", rows=rows)
+        status, view, err = view_of(operand)
+        tags = view["warrant"]["tags"] if view else {}
+        check(f"DUPLICATE tag row, {name}: no tag status is projected, exit 1",
+              status == 1 and tags.get("status") == "unavailable"
+              and "listed more than once" in tags.get("reason", "")
+              and relation(view, unique).get("status") == ev.FAILS
+              and tag_of(view, "ski@v1") == {},
+              f"exit {status}, tags {json.dumps(tags)[:160]}")
+        answers[name] = (status, tags, relation(view, unique).get("status"))
+    check("DUPLICATE tag rows: the same conflicting SPEC gets the same answer "
+          "in either row order",
+          len(set(map(json.dumps, answers.values()))) == 1,
+          json.dumps(answers)[:200])
+
+    # A row of the SELECTED table that this parser cannot read must not vanish
+    # into a smaller closed set of tags that then all look well-formed.
+    malformed = make_operand(temp / "malformed-row",
+                             rows=(ROW_V1, "| `ski@v3` | two cells only |\n",
+                                   ROW_V2))
+    status, view, err = view_of(malformed)
+    tags = view["warrant"]["tags"] if view else {}
+    check("MALFORMED row: an unreadable row in the runtime table is named, and "
+          "no tag status is projected, exit 1",
+          status == 1 and tags.get("status") == "unavailable"
+          and "unreadable row" in tags.get("reason", "")
+          and tag_of(view, "ski@v1") == {} and tag_of(view, "ski@v3") == {},
+          f"exit {status}, tags {json.dumps(tags)[:160]}")
+
+    second_table = ("\n| Tag | Body versions | Status | Defined in |\n"
+                    "| --- | --- | --- | --- |\n")
+    for name, spec in {
+        "two `### 13.1.` headings": (
+            SPEC_HEADER + ROW_V1 + "\n### 13.1. A second runtime section\n"
+            + second_table + ROW_V2 + SPEC_FOOTER),
+        "two tag tables in one section": (
+            SPEC_HEADER + ROW_V1 + "\nintervening prose\n" + second_table
+            + ROW_V2 + SPEC_FOOTER),
+    }.items():
+        operand = make_operand(temp / f"ambiguous-{len(name)}")
+        write(operand / "SPEC.md", spec)
+        status, view, err = view_of(operand)
+        tags = view["warrant"]["tags"] if view else {}
+        check(f"AMBIGUOUS: {name} projects no tag status, exit 1",
+              status == 1 and tags.get("status") == "unavailable"
+              and "must be unique" in tags.get("reason", "")
+              and relation(view, unique).get("status") == ev.FAILS,
+              f"exit {status}, tags {json.dumps(tags)[:160]}")
+
+    # The honest unavailable path for an older operand is NOT this failure.
+    notable = make_operand(temp / "no-table-relation")
+    write(notable / "SPEC.md", "# Synthetic Warrant SPEC\n\n### 13.2. Other\n")
+    status, view, err = view_of(notable)
+    check("an operand with no section 13.1 at all leaves the uniqueness "
+          "relation unchecked, not failing, exit 0",
+          status == 0 and relation(view, unique).get("status") == ev.UNCHECKED,
+          f"exit {status}, {json.dumps(relation(view, unique))[:160]}")
+
+
+# --------------------------- the adoption verdict comes from a completed run
+
+FAKE_GOVERNANCE = """import sys
+sys.stdout.write({stdout!r})
+raise SystemExit({exit!r})
+"""
+
+
+def adoption_boundary(temp: Path):
+    """What the view accepts as "this bundle is adopted", at the consumer edge.
+
+    Found by review of f3b7099: it took any line beginning with the bundle name
+    and called it authorized when the rest merely STARTED WITH `AUTHORIZED`,
+    ignoring the producer's exit status. A run killed mid-output, and a token
+    that only begins that way, both earned adoption credit. The producer here is
+    replaced by a stub so the boundary can be driven directly; none of this is a
+    claim that tools/anchor_governance.py ever prints these.
+    """
+    top = ev.vc.top_bundle()
+    name = "is AUTHORIZED under the out-of-band trust anchor"
+    operand = make_operand(temp / "adoption-operand")
+    write(operand / ev.TRUST_ANCHOR, "{}")
+
+    def outcome(label, stdout, exit_status):
+        tree = stand_in_tree(temp / f"adoption-{label}", tools={
+            "anchor_governance.py": FAKE_GOVERNANCE.format(stdout=stdout,
+                                                           exit=exit_status)})
+        done = run_view("--warrant", str(operand), tree=tree)
+        view = json.loads(done.stdout) if done.stdout.strip() else {}
+        return (done.returncode, view,
+                view.get("sigma", {}).get("protocol", {}).get("adoption", {}),
+                relation(view, name))
+
+    status, view, adoption, rel = outcome(
+        "authorized", f"{top}   AUTHORIZED — quorum reached\n", 0)
+    check("ADOPTION: a completed run whose one status line is the exact token "
+          "AUTHORIZED holds",
+          status == 0 and adoption.get("status") == "authorized"
+          and rel.get("status") == ev.HOLDS and adoption.get("exit") == 0,
+          f"exit {status}, {json.dumps(adoption)[:200]}")
+
+    status, view, adoption, rel = outcome(
+        "died", f"{top} AUTHORIZED partial output before failure\n", 1)
+    check("ADOPTION: a producer that printed AUTHORIZED and then FAILED earns "
+          "no credit; the relation is unchecked and the exit is recorded",
+          adoption.get("status") == "unavailable"
+          and rel.get("status") == ev.UNCHECKED
+          and adoption.get("exit") == 1 and "exited 1" in adoption.get("reason", ""),
+          f"{json.dumps(adoption)[:220]}")
+
+    status, view, adoption, rel = outcome(
+        "foreign-token", f"{top} AUTHORIZED_BUT_REVOKED\n", 0)
+    check("ADOPTION: a status token that merely BEGINS with AUTHORIZED is "
+          "unrecognised, not an adoption",
+          adoption.get("status") == "unavailable"
+          and rel.get("status") == ev.UNCHECKED
+          and "unrecognised token" in adoption.get("reason", ""),
+          f"{json.dumps(adoption)[:220]}")
+
+    status, view, adoption, rel = outcome(
+        "not-authorized", f"{top} NOT AUTHORIZED — no anchor-set blob in store\n", 1)
+    check("ADOPTION: a definite negative verdict FAILS the relation, exit 1",
+          status == 1 and adoption.get("status") == "not_authorized"
+          and rel.get("status") == ev.FAILS,
+          f"exit {status}, {json.dumps(adoption)[:200]}")
+
+    status, view, adoption, rel = outcome(
+        "two-lines", f"{top} AUTHORIZED — one\n{top} NOT AUTHORIZED — two\n", 0)
+    check("ADOPTION: two status lines for the same bundle are not one answer",
+          adoption.get("status") == "unavailable"
+          and rel.get("status") == ev.UNCHECKED
+          and "2 status line(s)" in adoption.get("reason", "")
+          and adoption.get("verdict_line") is None,
+          f"{json.dumps(adoption)[:220]}")
+
+    status, view, adoption, rel = outcome(
+        "no-line", "ERR: trust config invalid (want sigma-glyph.anchor-trust@v1)\n", 1)
+    check("ADOPTION: a run that said nothing about this bundle is unchecked, "
+          "with the producer's own words kept",
+          adoption.get("status") == "unavailable"
+          and rel.get("status") == ev.UNCHECKED
+          and "0 status line(s)" in adoption.get("reason", "")
+          and "trust config invalid" in adoption.get("reason", ""),
+          f"{json.dumps(adoption)[:220]}")
+
+
+# ------------------------------- the receipt projection matches its predicate
+
+def candidate_receipt(temp: Path):
+    """The receipt claim must not exceed what the view actually checks.
+
+    Found by review of f3b7099: the relation said the receipt "carries its
+    closed fields" while an invented member or `artifact_sha256: null` still
+    held, and a JSON list at the root raised AttributeError instead of a typed
+    refusal. The claim is now the projection -- presence and type of the fields
+    read -- so these controls pin BOTH halves: what is rejected, and what is
+    deliberately ignored and therefore must not be claimed.
+    """
+    name = "the frozen candidate receipt is one unambiguous JSON object"
+    real = json.loads((ROOT / ev.RECEIPT).read_text())
+
+    def outcome(label, payload):
+        tree = stand_in_tree(temp / f"receipt-{label}", receipt=payload)
+        done = run_view(tree=tree)
+        view = json.loads(done.stdout) if done.stdout.strip() else {}
+        return (done.returncode, view,
+                view.get("sigma", {}).get("candidate", {}),
+                relation(view, name))
+
+    status, view, candidate, rel = outcome("untouched", json.dumps(real))
+    check("RECEIPT: the stand-in tree with the real receipt still holds "
+          "(the fixture is faithful)",
+          status == 0 and rel.get("status") == ev.HOLDS
+          and candidate.get("status") == "frozen_receipt_referenced",
+          f"exit {status}, {rel}")
+
+    status, view, candidate, rel = outcome("list-root", "[]")
+    check("RECEIPT: a JSON list at the root is a typed MALFORMED, not a "
+          "traceback: one document is still printed, exit 1",
+          status == 1 and view.get("kind") == ev.KIND
+          and candidate.get("status") == "MALFORMED"
+          and "not an object" in candidate.get("reason", "")
+          and rel.get("status") == ev.FAILS,
+          f"exit {status}, {json.dumps(candidate)[:200]}")
+
+    status, view, candidate, rel = outcome("not-json", "{ this is not json")
+    check("RECEIPT: bytes that are not JSON are MALFORMED, exit 1",
+          status == 1 and candidate.get("status") == "MALFORMED"
+          and rel.get("status") == ev.FAILS,
+          f"exit {status}, {json.dumps(candidate)[:200]}")
+
+    status, view, candidate, rel = outcome(
+        "not-utf8", b'{"kind": "\xff\xfe not utf-8"}')
+    check("RECEIPT: bytes that are not UTF-8 are MALFORMED, not a traceback",
+          status == 1 and candidate.get("status") == "MALFORMED"
+          and rel.get("status") == ev.FAILS,
+          f"exit {status}, {json.dumps(candidate)[:200]}")
+
+    status, view, candidate, rel = outcome(
+        "duplicate-member",
+        '{"kind": "%s", "kind": "other", "source_commit": "x"}' % ev.RECEIPT_KIND)
+    check("RECEIPT: a duplicate JSON member is rejected here too, not only in "
+          "the runtime record",
+          status == 1 and candidate.get("status") == "MALFORMED"
+          and "duplicate JSON member" in candidate.get("reason", "")
+          and rel.get("status") == ev.FAILS,
+          f"exit {status}, {json.dumps(candidate)[:200]}")
+
+    status, view, candidate, rel = outcome(
+        "null-digest", json.dumps({**real, "artifact_sha256": None}))
+    check("RECEIPT: a projected field present but not a string FAILS and names "
+          "the field and the type found",
+          status == 1 and rel.get("status") == ev.FAILS
+          and "artifact_sha256: a NoneType, not a string" in rel.get("detail", ""),
+          f"exit {status}, {json.dumps(rel)[:200]}")
+
+    status, view, candidate, rel = outcome(
+        "checks-not-objects", json.dumps({**real, "checks_passed": ["a tool"]}))
+    check("RECEIPT: checks_passed that is not a list of objects FAILS instead "
+          "of being read as one",
+          status == 1 and rel.get("status") == ev.FAILS
+          and "checks_passed" in rel.get("detail", "")
+          and candidate.get("checks_passed_tools") == [],
+          f"exit {status}, {json.dumps(rel)[:200]}")
+
+    status, view, candidate, rel = outcome(
+        "unknown-member", json.dumps({**real, "invented_field": True}))
+    check("RECEIPT: an unknown member is IGNORED, and the claim says so rather "
+          "than calling the receipt closed",
+          status == 0 and rel.get("status") == ev.HOLDS
+          and "closed" not in rel.get("relation", "")
+          and "not closed-schema validation" in candidate.get("projection_only", "")
+          and candidate.get("projected_fields") == list(ev.RECEIPT_STRINGS)
+          + ["checks_passed"],
+          f"exit {status}, {json.dumps(candidate)[:200]}")
+
+
 # -------------------------------------- the widening guard can itself go red
 
 def guard_controls(good: Path):
@@ -531,6 +826,9 @@ def main() -> int:
         refusals(temp)
         ambient(temp)
         good = warrant_half(temp)
+        ambiguous_runtime_table(temp)
+        adoption_boundary(temp)
+        candidate_receipt(temp)
         guard_controls(good)
         if operand:
             real_operand(operand)

@@ -20,7 +20,9 @@ FOUR SURFACES THAT MOVE SEPARATELY
                        implies, and the evaluator bytes at that tag
   sigma.evaluators     the Book I module on this tree and the one at the
                        distribution tag, each by digest
-  sigma.candidate      the frozen phase-4a receipt, referenced, not re-run
+  sigma.candidate      the frozen phase-4a receipt, referenced, not re-run and
+                       not schema-validated: only the fields this view projects
+                       out of it are checked, for presence and type
   warrant              Warrant-OWNED runtime selection: which `ski@vN` tag is
                        admitted, which is reserved, and which evaluator bytes
                        each admitted tag pins -- read from the operand's
@@ -55,7 +57,17 @@ binds one module, and that module's bytes hash to the pin. Every other case has
 its own name (reserved_no_evaluator, admitted_pin_MISMATCH, admitted_module_
 MISSING, admitted_UNBOUND, record_spec_DISAGREE, record_only_UNREGISTERED) and
 carries no identity credit. There is no top-level ok/verdict field: the summary
-counts relations, and `credit_problems` refuses a view that widens any of this.
+counts relations, and `credit_problems` is an INTERNAL self-consistency check --
+it refuses to print a view that widens any of this, and it certifies nothing
+about a document once serialized.
+
+AMBIGUOUS INPUT IS NOT AN ANSWER
+--------------------------------
+Each record this view reads has to say ONE thing before any status comes out of
+it. A JSON member repeated, a `13.1.` heading or a runtime table repeated, a tag
+row repeated, a row of the selected table this parser cannot read, or a status
+line the deciding tool printed twice or not at all: none of those is projected,
+because the reading would otherwise depend on which one happened to be last.
 
 EXIT STATUS
     0  the view was printed and every relation that could be checked holds
@@ -85,12 +97,17 @@ LIVE_EVALUATOR = "impl/sigma_glyph.py"
 BOOK_I = "spec/book-1-truth.md"
 RECEIPT = "campaigns/phase-4a/candidate-receipt.json"
 RECEIPT_KIND = "sigma-glyph/candidate-receipt@v0"
-RECEIPT_FIELDS = ("artifact_filename", "artifact_sha256", "source_commit",
-                  "software_version", "adopted_bundle",
-                  "adopted_anchor_set_sha256", "checks_passed")
+# The receipt members this view projects, and reads as strings. NOT a schema:
+# the receipt carries more than this, and candidate_freeze_check.py owns it.
+RECEIPT_STRINGS = ("artifact_filename", "artifact_sha256", "source_commit",
+                   "software_version", "adopted_bundle",
+                   "adopted_anchor_set_sha256")
 RUNTIME_RECORD = "trust/ski-runtime-evaluators.json"
 RUNTIME_RECORD_KIND = "warrant/ski-runtime-evaluators@v0"
 TRUST_ANCHOR = "trust/sigma-glyph-anchor-trust.json"
+# Every verdict tools/anchor_governance.py status prints per release section.
+# Matched as one exact token, never as a prefix.
+ADOPTION_TOKENS = ("AUTHORIZED", "NOT AUTHORIZED", "UNGOVERNED")
 WARRANT_MARKERS = ("SPEC.md", "impl/warrant.py")
 
 # Development and cross-repository overrides that other tools read. None is an
@@ -106,6 +123,9 @@ TAG_STATUSES = frozenset({
     "admitted_module_MISSING", "admitted_UNBOUND", "record_spec_DISAGREE",
     "record_only_UNREGISTERED"})
 NO_BADGE_KEYS = ("ok", "verdict", "all_pass", "status", "passed", "green")
+# One tag row of the Warrant SPEC section 13.1 runtime table.
+TAG_ROW = re.compile(r"^\|\s*`([a-z0-9-]+@v\d+)`\s*\|\s*(.*?)\s*\|\s*(.*?)"
+                     r"\s*\|\s*(.*?)\s*\|\s*$")
 IDENTITY_NA = {"status": "not_applicable",
                "reason": "identity is stated only for an admitted tag whose "
                          "one bound module hashes to its pin"}
@@ -164,6 +184,17 @@ def observed_revision(repo: Path) -> dict:
     return {"status": "observed", "commit": head.decode().strip(),
             "tracked_tree": "dirty" if dirty.strip() else "clean",
             "note": "a local observation of this checkout, not a pinned artifact"}
+
+
+def reject_duplicates(pairs):
+    """json.load hook for both records this view reads. A repeated member is a
+    document that says two things; last-writer-wins would pick one silently."""
+    out = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"duplicate JSON member {key!r}")
+        out[key] = value
+    return out
 
 
 def version_header(text: str) -> str:
@@ -251,6 +282,26 @@ def protocol_section(root: Path, warrant: Path | None, rel: Relations):
     }, top, anchor_set
 
 
+def adoption_verdict(stdout: str, top: str):
+    """`(exact status token, status lines)` that tools/anchor_governance.py
+    printed for the bundle `top`.
+
+    The token is one of ADOPTION_TOKENS or None: `startswith("AUTHORIZED")`
+    used to accept any longer word beginning that way, so a hypothetical
+    `AUTHORIZED_BUT_REVOKED` read as an adoption. The caller also needs to see
+    how MANY lines spoke about `top`, because a producer that printed two of
+    them did not give one answer.
+    """
+    lines = [l.strip() for l in stdout.splitlines()
+             if l.split()[:1] == [top]]
+    if len(lines) != 1:
+        return None, lines
+    rest = lines[0][len(top):].strip()
+    token = next((t for t in ADOPTION_TOKENS
+                  if re.match(re.escape(t) + r"(?![\w-])", rest)), None)
+    return token, lines
+
+
 def adoption_section(root: Path, warrant: Path | None, top: str, rel: Relations):
     name = ("the adopted bundle is AUTHORIZED under the out-of-band trust "
             "anchor (tools/anchor_governance.py status --trust-config)")
@@ -266,19 +317,31 @@ def adoption_section(root: Path, warrant: Path | None, top: str, rel: Relations)
                 "reason": f"the operand revision carries no {TRUST_ANCHOR}"}
     done = run([sys.executable, "tools/anchor_governance.py", "status",
                 "--trust-config", str(trust)], cwd=root)
-    line = next((l.strip() for l in done.stdout.splitlines()
-                 if l.split() and l.split()[0] == top), "")
-    rest = line[len(top):].strip() if line else ""
-    authorized = rest.startswith("AUTHORIZED")
-    rel.add(name, HOLDS if authorized else FAILS,
-            line or f"no status line for {top}: {done.stdout.strip()[-200:]}")
-    return {"status": "authorized" if authorized else "not_authorized",
-            "tool": "tools/anchor_governance.py status --trust-config",
-            "trust_anchor": {"path": TRUST_ANCHOR, "sha256": sha256_file(trust),
-                             "read_from": "warrant operand"},
-            "verdict_line": line,
-            "note": ("a threshold warrant over anchored bytes, replayed under the "
-                     "operand's trust anchor; adoption is not a release")}
+    token, lines = adoption_verdict(done.stdout, top)
+    section = {"tool": "tools/anchor_governance.py status --trust-config",
+               "exit": done.returncode,
+               "trust_anchor": {"path": TRUST_ANCHOR, "sha256": sha256_file(trust),
+                                "read_from": "warrant operand"},
+               "verdict_line": lines[0] if len(lines) == 1 else None,
+               "note": ("a threshold warrant over anchored bytes, replayed under the "
+                        "operand's trust anchor; adoption is not a release")}
+    if done.returncode == 0 and token == "AUTHORIZED":
+        rel.add(name, HOLDS, lines[0])
+        return {**section, "status": "authorized"}
+    if token in ("NOT AUTHORIZED", "UNGOVERNED"):
+        rel.add(name, FAILS, lines[0])
+        return {**section, "status": "not_authorized"}
+    # Anything else is a run this view cannot read a verdict out of: a producer
+    # that died mid-output, a status token it does not know, or none/several
+    # lines for the bundle it asked about. None of those earns adoption credit,
+    # and none of them is a finding about the bundle either.
+    reason = (f"tools/anchor_governance.py status exited {done.returncode} and "
+              f"printed {len(lines)} status line(s) for {top!r}"
+              + (f" carrying the unrecognised token {lines[0][len(top):].strip()[:40]!r}"
+                 if len(lines) == 1 and token is None else "")
+              + f"; stdout tail {done.stdout.strip()[-160:]!r}")
+    rel.add(name, UNCHECKED, reason)
+    return {**section, "status": "unavailable", "reason": reason}
 
 
 def distribution_section(root: Path):
@@ -325,21 +388,47 @@ def version_check_section(root: Path, rel: Relations):
 
 
 def candidate_section(root: Path, top: str, anchor_set, rel: Relations):
-    name = "the frozen candidate receipt is present and carries its closed fields"
+    # DELIBERATELY SMALLER THAN A SCHEMA. This says the fields listed below are
+    # present and of the type it reads them as -- not that the receipt is
+    # closed. Unknown members are projected by nobody here and rejected by
+    # nobody here; tools/candidate_freeze_check.py owns the receipt and rebuilds
+    # what it froze. Claiming "carries its closed fields" was false: a receipt
+    # with an invented member, or with `artifact_sha256: null`, still held.
+    name = ("the frozen candidate receipt is one unambiguous JSON object of "
+            f"kind {RECEIPT_KIND} and the fields this view projects out of it "
+            "are present strings")
     path = root / RECEIPT
     if not path.is_file():
         rel.add(name, FAILS, f"{RECEIPT} is missing")
         return {"status": "MISSING", "receipt": RECEIPT}
     try:
-        receipt = json.loads(path.read_text())
-    except ValueError as failure:
-        rel.add(name, FAILS, f"{RECEIPT} is not JSON: {failure}")
-        return {"status": "MALFORMED", "receipt": RECEIPT}
-    missing = [f for f in RECEIPT_FIELDS if f not in receipt]
-    ok = receipt.get("kind") == RECEIPT_KIND and not missing
-    rel.add(name, HOLDS if ok else FAILS,
-            "" if ok else f"kind {receipt.get('kind')!r}, missing {missing}")
-    checks = receipt.get("checks_passed") or []
+        receipt = json.loads(path.read_text(encoding="utf-8"),
+                             object_pairs_hook=reject_duplicates)
+    except (UnicodeDecodeError, ValueError) as failure:
+        rel.add(name, FAILS, f"{RECEIPT} is not one unambiguous JSON "
+                             f"document: {failure}")
+        return {"status": "MALFORMED", "receipt": RECEIPT,
+                "receipt_sha256": sha256_file(path),
+                "reason": str(failure)[:200]}
+    if not isinstance(receipt, dict):
+        rel.add(name, FAILS, f"{RECEIPT} is a JSON "
+                             f"{type(receipt).__name__}, not an object")
+        return {"status": "MALFORMED", "receipt": RECEIPT,
+                "receipt_sha256": sha256_file(path),
+                "reason": f"the root is a JSON {type(receipt).__name__}, "
+                          "not an object"}
+    problems = ([] if receipt.get("kind") == RECEIPT_KIND
+                else [f"kind {receipt.get('kind')!r}"])
+    problems += [f"{field}: " + ("missing" if field not in receipt
+                                 else f"a {type(receipt[field]).__name__}, "
+                                      "not a string")
+                 for field in RECEIPT_STRINGS
+                 if not isinstance(receipt.get(field), str)]
+    checks = receipt.get("checks_passed")
+    if not isinstance(checks, list) or not all(isinstance(c, dict) for c in checks):
+        problems.append("checks_passed: not a list of objects")
+        checks = []
+    rel.add(name, HOLDS if not problems else FAILS, "; ".join(problems))
     return {
         "status": "frozen_receipt_referenced",
         "receipt": RECEIPT,
@@ -351,8 +440,8 @@ def candidate_section(root: Path, top: str, anchor_set, rel: Relations):
         "software_version": receipt.get("software_version"),
         "adopted_bundle": receipt.get("adopted_bundle"),
         "adopted_anchor_set_sha256": receipt.get("adopted_anchor_set_sha256"),
-        "checks_passed_tools": [c.get("tool") for c in checks
-                                if isinstance(c, dict)],
+        "checks_passed_tools": [c.get("tool") for c in checks],
+        "projected_fields": list(RECEIPT_STRINGS) + ["checks_passed"],
         "names_this_trees_adopted_bundle": (
             receipt.get("adopted_bundle") == top
             and receipt.get("adopted_anchor_set_sha256") == anchor_set),
@@ -360,7 +449,14 @@ def candidate_section(root: Path, top: str, anchor_set, rel: Relations):
                  "and its artifact is not rebuilt here "
                  "(tools/candidate_freeze_check.py does that). The artifact is "
                  "unpublishable by construction, not adopted, and reached by no "
-                 "Warrant runtime tag"),
+                 "Warrant runtime tag. `checks_passed_tools` names the tools a "
+                 "past campaign ran; listing them here is a reference, not "
+                 "fresh conformance credit"),
+        "projection_only": ("only `projected_fields` above are checked, and "
+                            "only for presence and type. Members this view does "
+                            "not read are neither projected nor rejected, so "
+                            "this is not closed-schema validation of the "
+                            "receipt"),
     }
 
 
@@ -397,31 +493,66 @@ def inside(directory: Path, relative) -> Path | None:
 
 
 def spec_runtime_rows(spec_text: str):
-    """The `### 13.1.` runtime-tag table of Warrant's SPEC.md, by tag."""
-    start = re.search(r"^### 13\.1\..*$", spec_text, re.M)
-    if not start:
-        return None
-    body = spec_text[start.end():]
+    """`(rows by tag, ambiguities)` for the `### 13.1.` runtime-tag table of
+    Warrant's SPEC.md.
+
+    `rows` is None with NO ambiguities when this operand simply has no such
+    table -- an older revision, honestly unavailable. It is None WITH
+    ambiguities when the section exists but does not say one thing: two
+    `13.1.` headings, two tag tables, one tag listed twice, or a row of the
+    selected table this parser cannot read.
+
+    Neither case is projected. A last-writer-wins dict used to collapse the
+    duplicates, so one SPEC saying both `current` and `reserved` for a tag read
+    as `admitted_pinned` or as `record_spec_DISAGREE` purely by the order of
+    its rows, and an unreadable row vanished into a smaller closed set.
+    """
+    headings = list(re.finditer(r"^### 13\.1\..*$", spec_text, re.M))
+    if not headings:
+        return None, []
+    if len(headings) > 1:
+        return None, [f"SPEC.md carries {len(headings)} '### 13.1.' headings; "
+                      "the runtime table must be unique"]
+    body = spec_text[headings[0].end():]
     nxt = re.search(r"^### ", body, re.M)
     body = body[:nxt.start()] if nxt else body
-    rows = {}
+
+    blocks, block = [], []
     for line in body.splitlines():
-        found = re.match(r"^\|\s*`([a-z0-9-]+@v\d+)`\s*\|\s*(.*?)\s*\|\s*(.*?)"
-                         r"\s*\|\s*(.*?)\s*\|\s*$", line)
-        if found:
-            tag, bodies, status, defined = found.groups()
-            rows[tag] = {"body_versions_cell": bodies, "status_cell": status,
-                         "defined_in_cell": defined}
-    return rows
+        line = line.strip()
+        if line.startswith("|"):
+            block.append(line)
+        elif block:
+            blocks.append(block)
+            block = []
+    if block:
+        blocks.append(block)
+    tables = [b for b in blocks if any(TAG_ROW.match(l) for l in b)]
+    if not tables:
+        return None, []
+    if len(tables) > 1:
+        return None, [f"section 13.1 carries {len(tables)} tables that list "
+                      "runtime tags; the runtime table must be unique"]
 
-
-def reject_duplicates(pairs):
-    out = {}
-    for key, value in pairs:
-        if key in out:
-            raise ValueError(f"duplicate JSON member {key!r}")
-        out[key] = value
-    return out
+    table = tables[0]
+    first = next(i for i, line in enumerate(table) if TAG_ROW.match(line))
+    problems, rows = [], {}
+    if first > 2:
+        problems.append(f"{first} unreadable line(s) above the first tag row "
+                        "of the runtime table")
+    for line in table[first:]:
+        found = TAG_ROW.match(line)
+        if found is None:
+            problems.append(f"unreadable row in the runtime table: {line[:80]}")
+            continue
+        tag, bodies, status, defined = found.groups()
+        if tag in rows:
+            problems.append(f"{tag} is listed more than once in the runtime "
+                            "table")
+            continue
+        rows[tag] = {"body_versions_cell": bodies, "status_cell": status,
+                     "defined_in_cell": defined}
+    return (None, problems) if problems else (rows, [])
 
 
 def ci_pin_section(root: Path, operand_commit, rel: Relations):
@@ -591,13 +722,28 @@ def warrant_section(root: Path, warrant: Path | None, tagged: dict,
         "enforced_by": ("Warrant's own tests/ski_runtime_evaluators.py holds this "
                         "record to impl/warrant.py SKI_EVALUATORS; that test is "
                         "referenced, not run here")}
-    rows = spec_runtime_rows((warrant / "SPEC.md").read_text(errors="replace"))
+    unambiguous = ("Warrant SPEC section 13.1 says one thing: one section, one "
+                   "runtime table, each tag listed once, every row readable")
+    rows, ambiguities = spec_runtime_rows(
+        (warrant / "SPEC.md").read_text(errors="replace"))
+    if ambiguities:
+        detail = "; ".join(ambiguities)[:300]
+        rel.add(unambiguous, FAILS, detail)
+        for name in unchecked:
+            rel.add(name, UNCHECKED, "the runtime table does not say one thing")
+        section["tags"] = {"status": "unavailable",
+                           "reason": "SPEC.md section 13.1 is ambiguous, so no "
+                                     f"tag status is derived from it: {detail}"}
+        return section
     if rows is None:
+        rel.add(unambiguous, UNCHECKED,
+                "SPEC.md carries no section 13.1 runtime table")
         for name in unchecked:
             rel.add(name, UNCHECKED, "SPEC.md carries no section 13.1 runtime table")
         section["tags"] = {"status": "unavailable",
                            "reason": "SPEC.md section 13.1 runtime table not found"}
         return section
+    rel.add(unambiguous, HOLDS)
     section["tags"] = tags_section(root, warrant, record, rows, tagged, rel)
     section["tags_note"] = ("ski@* tags only; a tag is a Warrant name for one "
                             "evaluator digest and one Book I edition, not a Sigma "
