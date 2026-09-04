@@ -122,31 +122,70 @@ def check_bundle_example(problems: list[str]) -> int:
     return 1
 
 
-def check_readme_bundle(problems: list[str]) -> int:
-    """README names the adopted bundle. ANCHORS is where it is adopted."""
-    text = (ROOT / "README.md").read_text()
-    found = re.search(r'### Current: (v\d+(?:\.\d+)*)', text)
-    if not found:
-        problems.append("README no longer names a current bundle in the form this "
-                        "check reads")
-        return 0
-    top = top_bundle()
-    if found.group(1) != top:
-        problems.append(f"README calls {found.group(1)} current and the top ANCHORS "
-                        f"section is {top}")
-    return 1
+def readme_status_claims(text: str) -> tuple[str, str]:
+    """The two version headings README's "Status by surface" section states.
+
+    Returns (adopted bundle, distribution); either is "" when README does not
+    carry that heading in the exact form.  The form is deliberately strict — a
+    heading has to be the bare label and the bare number — so a qualifier
+    cannot be smuggled into it, and so the retired "### Current: vX" heading,
+    which called an adopted-but-unreleased bundle current, does not match.
+    """
+    bundle = re.search(r'^### Adopted bundle: (v\d+(?:\.\d+)*)\s*$', text, re.M)
+    dist = re.search(r'^### Distribution: (\d+(?:\.\d+)*(?:\.post\d+)?)\s*$',
+                     text, re.M)
+    return (bundle.group(1) if bundle else "", dist.group(1) if dist else "")
+
+
+def pyproject_version() -> str:
+    text = (ROOT / "pyproject.toml").read_text()
+    found = re.search(r'^version = "([^"]+)"', text, re.M)
+    return found.group(1) if found else ""
+
+
+def check_readme_status(problems: list[str]) -> int:
+    """README names the adopted bundle and the distribution, under two headings.
+
+    ANCHORS is where a bundle is adopted; pyproject.toml is what a distribution
+    is built from.  The two numbers differ whenever a bundle is adopted before
+    anything is released, which is the normal case here — and a README that
+    names only one of them, or names them under one label, is how "adopted"
+    gets read as "released".
+    """
+    bundle, dist = readme_status_claims((ROOT / "README.md").read_text())
+    checked = 0
+    if not bundle:
+        problems.append("README no longer names the adopted bundle under "
+                        "'### Adopted bundle: vX.Y.Z'")
+    else:
+        top = top_bundle()
+        if bundle != top:
+            problems.append(f"README calls {bundle} the adopted bundle and the top "
+                            f"ANCHORS section is {top}")
+        checked += 1
+    if not dist:
+        problems.append("README no longer names the distribution under "
+                        "'### Distribution: X.Y.Z'")
+    else:
+        declared = pyproject_version()
+        if dist != declared:
+            problems.append(f"README calls {dist} the distribution and "
+                            f"pyproject.toml says {declared}")
+        checked += 1
+    return checked
 
 
 def main() -> int:
     problems: list[str] = []
     checked = (check_suite_versions(problems) + check_bundle_example(problems)
-               + check_readme_bundle(problems))
+               + check_readme_status(problems))
 
     print("versions on this tree")
     for name, path in BOOKS.items():
         print(f"  {name:9} {book_version(path)}")
     print(f"  GOV       {book_version('spec/GOV-anchors.md')}")
     print(f"  bundle    {top_bundle()}")
+    print(f"  pyproject {pyproject_version()}")
     suite = json.loads((ROOT / 'tests/spec_conformance/vectors.json').read_text())
     print(f"  suite     spec_version {suite['spec_version']}, "
           f"package {suite['suite_version']}")

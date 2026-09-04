@@ -2,8 +2,9 @@
 
 > A portable check engine: send a computation by hash, get the same answer on any
 > machine, with work and memory bounded up front.
-> `result_hash = eval(term_hash, atp)` — deterministic, integer-only, total. No
-> float, no clock, no network. If the budget runs out, that outcome is
+> `Receipt = eval(term_hash, atp: uint32, content_environment)` — deterministic,
+> integer-only, total over its canonical exits. No float, no clock, no network.
+> If the budget runs out, or demanded content is missing, that outcome is
 > deterministic too.
 
 Why anyone needs that: it lets you re-run a **stranger's** reason. A
@@ -47,8 +48,9 @@ python3 tools/repo_map.py --check-map           # every cited document is locate
 
 When a document and a command disagree, the command is right.
 
-From an **installed** copy (`pip install sigma-glyph` — 0.6.7 is on PyPI; see
-[PUBLISHING.md](PUBLISHING.md)) the same three self-tests run as
+From an **installed** copy (`pip install sigma-glyph`; README's "Status by
+surface" and [PUBLISHING.md](PUBLISHING.md) say which bundle the PyPI release
+packages, and that it can lag the adopted one) the same three self-tests run as
 `python -m sigma_glyph` / `sigma_wave` / `sigma_federation`, and they report one
 thing differently, on purpose: the recorded-vector replays and Book III's
 Book-I-unreachable fixture read `tests/spec_conformance/*.json`, which the wheel
@@ -83,8 +85,8 @@ the wheel's own file list rather than hard-coding them.
 - [spec/LORE.md](spec/LORE.md) — non-normative. Aesthetic disagreement with it is
   welcome and is not a spec defect.
 
-Three independent implementations agree on all 49 vectors (Python, Rust, and
-warrant-go), and the evaluator's determinism, totality and memory bound are
+Three implementations from one author/model lineage agree on all 49 vectors
+(Python, Rust, and warrant-go), and the evaluator's determinism, totality and memory bound are
 machine-checked in Lean 4 (`proofs/`). Bounded by SA-1: part of that chain rests
 transitively on `native_decide`, which puts the compiler in the trusted base as
 well as the kernel.
@@ -140,8 +142,9 @@ thing it summarises:
 - **SA-4** — Book III still admits a JCS-equivalent but non-canonical assertion
   blob. The v0.6.6 fix narrowed this to the **governance** verifier only;
   `sigma_federation.py` still does not compare raw bytes against `canon(parsed)`.
-- **SA-5** — the 2-of-3 threshold has been exercised **five times**, and three of
-  those five were signed from one host, which is one custody, not a quorum.
+- **SA-5** — every exercise of the 2-of-3 threshold is counted there, with its
+  date, and several of them were signed from one host, which is one custody,
+  not a quorum.
 - **SA-8/SA-9** — the OIDC publish path has now run twice (0.6.6.post1 and
   0.6.7 are on PyPI), on one hosted runner, with the TestPyPI dry run still
   never performed and only the maintainer having installed the result; and no

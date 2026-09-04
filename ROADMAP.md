@@ -8,6 +8,10 @@ This document consolidates all planned breaking changes, milestones, and major o
 
 How an ADR moves from PROPOSED to adopted (and how disputes end):
 
+> Written in 2026-07 for the interim single-maintainer period and kept as
+> history. Since the v0.6.2 bundle, adoption is a 2-of-3 threshold warrant under
+> `spec/GOV-anchors.md`; the maintainer step below no longer decides alone.
+
 1. **Multi-model adversarial review.** An ADR needs reviews from at least 3 independent models. Every P0/P1 finding must be closed (spec text fixed, or finding rebutted in writing) before adoption; an ADR with an open P1 stays PROPOSED. Silence is not consent.
 2. **Reference implementation gate.** The candidate rule is implemented and `ALL PASS` on the updated vectors is a **precondition** for adoption, not a follow-up task.
 3. **Maintainer decision.** An interim AI maintainer designated by the project founder (currently Claude) accepts or rejects, with written rationale filed in `reviews/`. Rejections are as binding as acceptances and equally documented.
@@ -17,9 +21,11 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 
 ## Milestone: v0.5.0 (Breaking release, shipped 2026-07-05)
 
-> Current repo bundle is **v0.6.7** (see README and `spec/ANCHORS.txt`); the
-> v0.5.0 entry below is retained as milestone history. Its "Known limitations"
-> were closed by the v0.6 Federation + Governance releases (see below).
+> The adopted bundle is the top section of `spec/ANCHORS.txt`; README's
+> "Status by surface" says how it relates to the git tags and the PyPI release.
+> The v0.5.0 entry below is retained as milestone history. Its "Known
+> limitations" were closed by the v0.6 Federation + Governance releases (see
+> below).
 
 **Status:** DRAFT STANDARD (superseded by the v0.6.x line).
 
@@ -138,7 +144,7 @@ key-state via the warrant CLI).
 
 **Motivation:** LORE mentions "Pantheon" (cultural fork). If sigma-glyph governance moves on-chain or multi-sig, the spec itself could become a governed artifact. Concretely: the anchor trail and the warrant trail run parallel and unlinked; the interim maintainer is one actor with one key; the maintainer is a model, and models retire on a schedule.
 
-**Status: SHIPPED — `spec/GOV-anchors.md` is STANDARD (v1.0.0), the project's first.** ADR-007 adopted (gate 3/3 blind: GPT-5, Gemini, DeepSeek + Kimi verification), governed since v0.6.2 (roster 2-of-3 {s0fractal, claude-fable-5, codex}), promoted DRAFT→STANDARD at v0.6.4 through a *second* 3-family gate on the promotion itself (unanimous PROMOTE-WITH-AMENDMENTS). That gate earned its keep: Gemini alone found a P0 liveness self-destruct (the scoped key-state refusal deadlocks the append-only chain on its first roster rotation) — fixed with `resolved_key_state` acknowledgment + a transition vector, in both implementations. STANDARD now means a defined bar (§0: frozen schemas/mechanism, pinned dependencies, SemVer). The interim single-maintainer trust point is retiring on schedule: releases need 2-of-3 warrant signatures, no single key — including the maintainer's — can bless one. On-chain/DAO (G2) rejected — Book I owns the only consensus this system has.
+**Status: SHIPPED — `spec/GOV-anchors.md` is STANDARD (promoted at document version 1.0.0; its own header carries the version now in force), the project's first.** ADR-007 adopted (gate 3/3 blind: GPT-5, Gemini, DeepSeek + Kimi verification), governed since v0.6.2 (roster 2-of-3 {s0fractal, claude-fable-5, codex}), promoted DRAFT→STANDARD at v0.6.4 through a *second* 3-family gate on the promotion itself (unanimous PROMOTE-WITH-AMENDMENTS). That gate earned its keep: Gemini alone found a P0 liveness self-destruct (the scoped key-state refusal deadlocks the append-only chain on its first roster rotation) — fixed with `resolved_key_state` acknowledgment + a transition vector, in both implementations. STANDARD now means a defined bar (§0: frozen schemas/mechanism, pinned dependencies, SemVer). The interim single-maintainer trust point is retiring on schedule: releases need 2-of-3 warrant signatures, no single key — including the maintainer's — can bless one. On-chain/DAO (G2) rejected — Book I owns the only consensus this system has.
 
 ---
 
@@ -176,8 +182,11 @@ key-state via the warrant CLI).
 - File reviews in `reviews/YYYY-MM-model.md`
 
 **For users:**
-- v0.4.x is stable for early experiments
-- v0.5 will be breaking — plan migration window
+- The adopted bundle and the PyPI release are named, and kept apart, in README
+  under "Status by surface"; an installed copy can be one bundle behind the
+  adopted specification
+- `v0.x` is a draft standard: breaking changes remain possible, with the notice
+  described under Release Discipline
 - Subscribe to repo releases for announcements
 
 ---

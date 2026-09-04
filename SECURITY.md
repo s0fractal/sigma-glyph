@@ -35,7 +35,8 @@ through GitHub's advisory flow, which this repository supports.
 
 The things this project asks you to trust:
 
-- **Two nodes disagreeing on a result hash.** `eval(term_hash, atp)` is the whole
+- **Two nodes disagreeing on a result hash.** `eval(term_hash, atp,
+  content_environment)` is the whole
   promise; any input on which two conforming implementations differ is the
   highest-severity finding here.
 - **Non-determinism, non-totality, or an escaped budget.** An input that hangs,

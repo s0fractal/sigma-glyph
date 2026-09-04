@@ -11,6 +11,13 @@ separate publishing action.
   fails closed instead of guessing a checkout path.
 - Removed stale ecosystem/federation framing from the active README. Historical
   references remain in dated artifacts.
+- Public status surfaces (README, ROADMAP, QUICKSTART, PUBLISHING, `llms.txt`,
+  `spec/VERSIONS.md`, `spec/IMPLEMENTING.md`, SA-5) now keep five things apart:
+  the adopted bundle in `spec/ANCHORS.txt`, git tags and GitHub releases, the
+  PyPI distribution, the two Book I evaluator byte sets, and Warrant's pinned
+  `ski@v1` versus the reserved, unadmitted `ski@v2`. `tools/version_check.py`
+  holds README's bundle heading to ANCHORS and its distribution heading to
+  `pyproject.toml`. No version, tag, release or protocol text changed.
 
 ## v0.7.0 — Three inputs, a receipt, one arbiter (2026-08-30)
 

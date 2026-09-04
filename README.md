@@ -63,7 +63,8 @@ The full suite includes a live Book III specimen that invokes the real Warrant
 verifier. `WARRANT` is an explicit cross-repository operand; the suite refuses
 to guess it from the checkout layout and fails before running if it is absent.
 
-From PyPI, where `0.6.7` is the current distribution release:
+From PyPI, whose latest release is the distribution named under
+"Status by surface" below:
 
 ```bash
 pip install sigma-glyph
@@ -77,25 +78,56 @@ Book II/III self-tests therefore report recorded-vector replay as `SKIP` while
 still running their property checks. Full re-derivation needs a checkout. The
 artifact boundary and release procedure are in [`PUBLISHING.md`](PUBLISHING.md).
 
-### Current: v0.7.0
+## Status by surface
 
-**v0.7.0** (2026-08-30) is the adopted repository bundle. PyPI remains at
-**0.6.7** until a separate distribution release. Its governed anchor set is
-`abf10f2a…adf59`, authorised by threshold warrant `0e634c17…46e1` with two
-distinct roster signatures. Book I is 0.6.0; Books II and III are 0.7.0.
+Five things move separately here, and their labels are not interchangeable.
+Each paragraph names its authoritative source; when this section and that
+source disagree, the source is right. `tools/version_check.py` checks the two
+version headings below against `spec/ANCHORS.txt` and `pyproject.toml`.
 
-The bundle makes the content environment and receipt explicit, removes
-reference-oracle precedence, anchors all three suite schemas and admits at most
-one Pin per NodeHash in the annotation profile. Adoption records this project's
-own governance act; it does not claim outside review, custody or use.
+### Adopted bundle: v0.7.0
 
-### Previous: v0.6.7
+**v0.7.0** (2026-08-30) is the newest adopted anchor set in
+[`spec/ANCHORS.txt`](spec/ANCHORS.txt): Book I 0.6.0, Books II and III 0.7.0,
+GOV-anchors 1.0.2. It was adopted by threshold warrant `0e634c17…46e1` (2-of-3,
+two distinct roster keys) over anchor set `abf10f2a…adf59`, recorded in
+`.warrants/`. The bundle makes the content environment and receipt explicit,
+removes reference-oracle precedence, anchors all three suite schemas and admits
+at most one Pin per NodeHash in the annotation profile. Adoption records this
+project's own governance act; it does not claim outside review, custody or use.
+`SECURITY-ASSUMPTIONS.md` SA-5 records what custody each threshold act has
+actually had.
 
-**v0.6.7** (2026-07-31) is both the previous adopted bundle and the current PyPI
-release. Release history and exact changed anchors belong to
-[`CHANGELOG.md`](CHANGELOG.md), [`spec/ANCHORS.txt`](spec/ANCHORS.txt) and
-[`spec/VERSIONS.md`](spec/VERSIONS.md). `SECURITY-ASSUMPTIONS.md` records the
-single-host custody limits of earlier threshold acts.
+A bundle heading is a governance label, not a git tag and not a release. As of
+2026-09-04 there is no `v0.7.0` git tag, GitHub release or PyPI upload; the
+newest release tag is `v0.6.7`. Release history and exact changed anchors
+belong to [`CHANGELOG.md`](CHANGELOG.md), `spec/ANCHORS.txt` and
+[`spec/VERSIONS.md`](spec/VERSIONS.md).
+
+### Distribution: 0.6.7
+
+`sigma-glyph` **0.6.7** (2026-07-31) is the latest PyPI release, built from git
+tag `v0.6.7`, and `pyproject.toml` still carries that version. It packages the
+v0.6.7 bundle (Book I 0.5.2, Books II and III 0.6.1), which is the previous
+adopted bundle: an installed copy is one bundle behind the adopted
+specification until a separate distribution release.
+[`PUBLISHING.md`](PUBLISHING.md) owns the release procedure.
+
+### Evaluator bytes and Warrant runtime tags
+
+Two Book I Python modules exist, and they are not interchangeable:
+
+- `git show v0.6.7:impl/sigma_glyph.py`, byte-identical to the module inside
+  PyPI 0.6.7 (SHA-256 `80299d68…7bab5`), implements Book I v0.5. Warrant pins
+  exactly these bytes as its `ski@v1` evaluator and checks the digest before
+  import, so `ski@v1` does not move when this repository does.
+- `impl/sigma_glyph.py` on `master` implements Book I 0.6.0, the v0.7.0
+  bundle. No Warrant runtime tag reaches it. `ski@v2` is reserved for Book I
+  0.6.0 in Warrant's `SPEC.md` §3.2 but registered and admitted in no body
+  version; body version `0.3` is reserved and unspecified; Warrant ships no
+  `ski@v2` evaluator, and a conforming verifier rejects `ski@v2` today.
+  Admitting it is a future Warrant registration act, not something this
+  repository can do by editing or releasing.
 
 ## The Three Books
 

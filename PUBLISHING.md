@@ -13,9 +13,12 @@ then every release publishes itself.
 - **What ships:** those three modules. Not the spec, not `tests/`, not the Rust
   or Go implementations, not the proofs.
 - **Released so far:** **0.6.6.post1** (2026-07-30, packaging only) and
-  **0.6.7** (2026-07-31, the current release). Both went out through the
+  **0.6.7** (2026-07-31, the latest release). Both went out through the
   workflow below; no release has ever been uploaded by hand. `master` carries
-  release tags from `v0.5.0` through `v0.6.7`.
+  release tags from `v0.5.0` through `v0.6.7`. A bundle adopted in
+  `spec/ANCHORS.txt` creates no tag and no release: `v0.7.0` is adopted and, as
+  of 2026-09-04, has neither. README's "Status by surface" keeps the adopted
+  bundle and the distribution apart.
 - **What has been checked about the published artifact:** the maintainer
   installed 0.6.7 from PyPI into a clean venv and ran the three self-tests to
   `ALL PASS`. Nobody else is known to have installed it, and that is the whole

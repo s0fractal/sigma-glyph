@@ -9,8 +9,10 @@ python3 impl/sigma_wave.py          # Book II (wave views)     -> WAVE: ALL PASS
 python3 impl/sigma_federation.py    # Book III (federation)    -> FEDERATION: ALL PASS
 ```
 
-`pip install sigma-glyph` (0.6.7 on PyPI) gets the same three modules as
-`python -m sigma_glyph` / `sigma_wave` / `sigma_federation`. **Clone anyway if
+`pip install sigma-glyph` gets the same three modules as
+`python -m sigma_glyph` / `sigma_wave` / `sigma_federation`. README's "Status by
+surface" says which bundle the PyPI release packages and why it can be one
+bundle behind the adopted specification. **Clone anyway if
 you want the sentence below to be true:** the wheel does not ship
 `tests/spec_conformance/`, so an installed copy runs its property checks in full
 and announces the recorded-vector replays as an explicit `SKIP`. Re-deriving
@@ -21,8 +23,11 @@ every vector is the checkout's job.
 You ran the reference implementations and their local suites. That covers the
 predicates those suites name, not every sentence in the Books. In particular,
 `tools/spec_audit.py` lists unresolved predicates and clauses outside its reach.
-The adopted Book currently says the Python oracle wins a prose/vector conflict;
-PR #24 records why that is a specification defect and proposes removing it.
+Since Book I 0.6.0 (the adopted v0.7.0 bundle) no implementation, the reference
+one included, takes precedence over the normative text and the anchored suite;
+a prose/vector disagreement is a defect to file, not a call the oracle makes.
+Through v0.6.7 the Book said the opposite, and PR #24 records why that was a
+specification defect.
 
 ## Compute one thing
 
@@ -64,7 +69,10 @@ PY
 
 Two strangers running this with the same demanded store content get
 byte-identical terms and spend. A result hash alone does not identify which exit
-occurred; that receipt gap is part of the next Book I candidate.
+occurred; `eval_receipt(term, atp, store)` returns the exit explicitly (Book I
+0.6.0 §3.4), and `eval_hash` above is the result-and-spend convenience that the
+PyPI 0.6.7 module also has. The snippet is kept to that shared surface so the
+release gate can run it both ways.
 
 ## The three layers in one paragraph each
 
