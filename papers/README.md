@@ -5,13 +5,16 @@ working directory outside version control.
 
 | | words | subject |
 |---|---|---|
-| [`one-integer-for-work-and-memory/`](one-integer-for-work-and-memory/) | 9 346 | the engine: a content-addressed combinator machine with a single mechanized bound over work *and* memory, and what it took to make the proof artifacts trustworthy |
+| [`one-integer-for-work-and-memory/`](one-integer-for-work-and-memory/) | 12 634 | the engine: a content-addressed combinator machine over term, budget and content environment, with a single mechanized bound over semantic work *and* materialization, and what it took to make the proof artifacts trustworthy |
 | [`twenty-one-ways-past-a-proof-guard/`](twenty-one-ways-past-a-proof-guard/) | 8 100 | twenty-one ways the CI apparatus around the theorem prover was bypassed while CI stayed green |
 
 The engine paper is **deposited**, not published in the sense that matters for
-review: Zenodo DOI [`10.5281/zenodo.22069651`](https://doi.org/10.5281/zenodo.22069651),
-archived at commit [`7ecba6a`](https://github.com/s0fractal/sigma-glyph/tree/7ecba6ab283c89111a76a3a1edeba57339b4443c)
-together with a snapshot of the repository. A DOI buys a permanent address and a
+review: concept DOI [`10.5281/zenodo.22069650`](https://doi.org/10.5281/zenodo.22069650),
+whose current version is v2, [`10.5281/zenodo.22646920`](https://doi.org/10.5281/zenodo.22646920)
+(2026-09-07, archived at commit [`47cf57d`](https://github.com/s0fractal/sigma-glyph/tree/47cf57dd6ec2f671d5aaf521094420f97cf566d6)
+with a snapshot of the repository); v1 is
+[`10.5281/zenodo.22069651`](https://doi.org/10.5281/zenodo.22069651)
+(2026-08-23, commit `7ecba6a`). A DOI buys a permanent address and a
 frozen artifact; it buys no venue, no peer review and no endorsement, and nothing
 here should be cited as though it did. The guard paper has neither.
 

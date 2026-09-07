@@ -1,8 +1,26 @@
-# Engine paper v2 — deposit candidate manifest
+# Engine paper v2 — deposit manifest
 
-**NOT PUBLISHED.** Nothing here has been uploaded, no Zenodo version has been
-created, and no DOI has been reserved. This manifest exists so that the deposit
-can be rebuilt and checked by someone who was not present when it was made.
+**PUBLISHED 2026-09-07** as version DOI
+[10.5281/zenodo.22646920](https://doi.org/10.5281/zenodo.22646920) (record
+22646920) under concept DOI
+[10.5281/zenodo.22069650](https://doi.org/10.5281/zenodo.22069650), version
+label `0.7.0-paper2`, licence CC BY 4.0, publication type preprint. The concept
+DOI now resolves to this version. The files table below is the one the deposit
+was checked against; the verification in *After publication* was run against
+the public record on the day of publication and every digest matched.
+
+| | published |
+| --- | --- |
+| `paper.pdf` | md5 `483b83a52fc8cf89e4cbcab127f41726`, 197645 bytes |
+| `sigma-glyph-47cf57d.zip` | md5 `ba1b850d7864222e567631f6d255bea9`, 4526116 bytes |
+| related identifiers | isSupplementTo `github.com/s0fractal/sigma-glyph`; isIdenticalTo `…/tree/47cf57dd…`; isNewVersionOf `10.5281/zenodo.22069651` |
+| record metadata date | 2026-09-07 (the paper's own title-page date is 2026-08-31, the epoch it was built at) |
+
+Everything below this line is the candidate manifest as it stood before upload,
+kept verbatim except for the two status lines it named as pending. It was
+written so the deposit could be rebuilt and checked by someone who was not
+present when it was made; that is now also the recipe for checking the
+published bytes.
 
 ## Source
 
@@ -79,10 +97,10 @@ record's own metadata before use:
 
 | | v1 | v2 candidate |
 | --- | --- | --- |
-| version DOI | `10.5281/zenodo.22069651` | — not created — |
+| version DOI | `10.5281/zenodo.22069651` | `10.5281/zenodo.22646920` |
 | concept DOI | `10.5281/zenodo.22069650` | `10.5281/zenodo.22069650` |
-| version label | `0.6.7-paper1` | `0.7.0-paper2` *(proposed)* |
-| published | 2026-08-23 | — |
+| version label | `0.6.7-paper1` | `0.7.0-paper2` |
+| published | 2026-08-23 | 2026-09-07 |
 | `paper.pdf` md5 | `f07e9c3a6301cf2be34771746d7e5c63` | `483b83a52fc8cf89e4cbcab127f41726` |
 | `paper.pdf` sha256 | `dae8a53ad769ba9c843c3b316494e061fa8286f85bd0af3f65057ab702f519c6` | `8970a3af97c5e497361a80560e8804c386ec52eb18cf687b22e3a8905ccf9565` |
 | `paper.pdf` bytes | 168286 | 197645 |
@@ -96,11 +114,11 @@ since it exists only at the DOI.
 
 ## Verification after publication
 
-Once a version is created and files are uploaded — a separate, owner-authorised
-action that has not happened:
+Run against record `22646920` on 2026-09-07 (owner-authorised upload; both
+SHA-256 values matched the Files table):
 
 ```sh
-curl -s https://zenodo.org/api/records/<new-id> -o rec.json
+curl -s https://zenodo.org/api/records/22646920 -o rec.json
 python3 - <<'PY'
 import json, hashlib, urllib.request
 rec = json.load(open("rec.json"))

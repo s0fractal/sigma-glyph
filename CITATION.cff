@@ -17,13 +17,21 @@ identifiers:
     value: "10.5281/zenodo.22069650"
     description: "Concept DOI — always resolves to the latest deposited version"
   - type: doi
+    value: "10.5281/zenodo.22646920"
+    description: >-
+      Version DOI for the paper \"One Integer for Semantic Work and
+      Materialization\" (v2) as deposited 2026-09-07, archived at commit 47cf57d
+  - type: url
+    value: "https://github.com/s0fractal/sigma-glyph/tree/47cf57dd6ec2f671d5aaf521094420f97cf566d6"
+    description: "The exact tree the v2 deposit archives"
+  - type: doi
     value: "10.5281/zenodo.22069651"
     description: >-
       Version DOI for the paper \"One Integer for Work and Memory\" as deposited
       2026-08-23, archived at commit 7ecba6a
   - type: url
     value: "https://github.com/s0fractal/sigma-glyph/tree/7ecba6ab283c89111a76a3a1edeba57339b4443c"
-    description: "The exact tree the deposit archives"
+    description: "The exact tree the v1 deposit archives"
 type: software
 license: MIT
 repository-code: "https://github.com/s0fractal/sigma-glyph"
