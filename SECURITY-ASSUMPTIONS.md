@@ -18,8 +18,8 @@ caught at it four times: this file covers the residuals those two files used to
 list, plus the repository-level statement of the proof-chain assumptions. It is
 **not** a claim that every limit of Σ-GLYPH is enumerated here. `proofs/README.md`
 remains the source of truth for per-front proof detail and is deliberately not
-copied; the Books state limits inline where they are normative; `reviews/` holds
-findings never promoted to either. A limit stated somewhere else and absent here
+copied; the Books state limits inline where they are normative; `reviews/` and the
+retirement ledgers in `history/` hold findings never promoted to either. A limit stated somewhere else and absent here
 is a defect in this file.
 
 Read it the way a standards reader reads a security-considerations section. Every

@@ -1,5 +1,9 @@
 # v0.7.0 candidate — final report
 
+> Written before adoption; kept as the record of that moment. The candidate was
+> adopted on 2026-08-30 (threshold warrant `0e634c17…46e1`) — see `README.md`
+> in this directory. The status line below is historical.
+
 Written at `461fe7b6ffcf3f9235d546fac6642601b66f1c24`, branch
 `spec/book1-v0.7.0-candidate`, draft PR #35, title
 "CANDIDATE v0.7.0 — three inputs, a receipt, one arbiter (NOT ADOPTED)".

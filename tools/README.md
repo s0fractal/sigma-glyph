@@ -138,6 +138,36 @@ ambiguity, the adoption consumer boundary and the receipt projection — live in
 
 ---
 
+## `retirement_check.py` — controlled-forgetting records
+
+**Purpose:** read the `RetirementRecord`s in `history/retirement-records/` as
+data and refuse when an operand is not what a record says: each retired
+subject's digest is recomputed from the object git holds at the before
+revision; the subject must be absent from the recorded apply tree and from the
+working tree; the apply commit must be the direct child of the before revision
+with the recorded tree; `loss` must be non-empty for every mode; pinned
+replacement operands must not have drifted; and no tracked file outside the
+tombstone class (`history/`, `.warrants/`, `CHANGELOG.md`) may cite a retired
+path as current. The record set must equal a closed manifest inside the
+checker, so a record cannot be deleted into a pass. Each lineage also has a pinned
+subject inventory (path, digest, mode); deleting a single subject cannot hide
+its resurrection. The lexical scan checks full paths and paths relative to the
+referring file; it is not a general Markdown or URL parser.
+
+```bash
+python3 tools/retirement_check.py               # validate + replay every record
+python3 tools/retirement_check.py --surface ID  # one record's live-surface postcondition
+python3 tools/retirement_check.py --selftest    # burn each refusal with a mutation
+```
+
+**What it does not assert:** that retiring was wise, that a replacement is
+semantically equivalent, or anything repository-wide — `VALID` is per record.
+Profile `sigma-glyph.retirement-record@v0.1` is the in-repo `APPLIED` slice of
+Manifesto's `CONTROLLED-FORGETTING-0.1` form, applied locally; Manifesto's
+checker is not the consumer of these records. Editing this file changes the
+digest the records pin as their postcondition entrypoint, so every record must
+be re-pinned in the same commit — the friction is the point.
+
 ## Adding New Tools
 
 When adding new tools:

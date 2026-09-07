@@ -64,6 +64,14 @@ python3 tests/wave_identity_selftest.py | tee /dev/stderr | grep -q "WAVE-IDENTI
 say "Version-state guard: candidates are not adopted releases"
 python3 tests/version_check_selftest.py | tee /dev/stderr | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
 
+# Controlled forgetting: what left the default tree is a record read as data.
+# Subjects are re-digested from the before revision, checked absent from the
+# apply tree and the working tree, loss must be non-empty, and no tracked file
+# outside the tombstone class may cite a retired path. Selftest first.
+say "Retired subjects stay retired, and their records bind"
+python3 tools/retirement_check.py --selftest | tee /dev/stderr | grep -q "RETIREMENT-CHECK-SELFTEST: ALL PASS"
+python3 tools/retirement_check.py            | tee /dev/stderr | grep -q "RETIREMENT-RECORDS: ALL PASS"
+
 say "Derived version/evidence view: refuses, and can go red"
 # The view projects the owners above into one document, so its only real risk is
 # a wrong answer that reads like a right one: an operand discovered from ambient
