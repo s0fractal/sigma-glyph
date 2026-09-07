@@ -252,7 +252,8 @@ does not rewrite this one.
 ## Applied transition
 
 - before revision: `281a12517d188e20878ab064e8deca78aaf55cb0`
-- apply commit: recorded in `history/retirement-records/*.json` (`applied`)
+- apply commit: `d7975ef8fa6f7a363c7bf066d264b97a8403146f`
+- apply tree: `056dbec5209789aa63adb882d7c16fb90a8c2b46`
 - authority: repository owner instruction in the working session of
   2026-09-07, with Codex concurring as co-developer on scope and modes; the
   record addresses the act, it does not prove it was within anyone's power

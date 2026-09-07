@@ -1,0 +1,101 @@
+{
+  "profile": "sigma-glyph.retirement-record@v0.1",
+  "id": "archive-eras",
+  "status": "APPLIED",
+  "subject_scope": "in-repo",
+  "before_revision": "281a12517d188e20878ab064e8deca78aaf55cb0",
+  "subjects": [
+    {
+      "path": "archive/era-1/README.md",
+      "sha256": "168244557ac9d90e0ebc3f3b78dcd48cc9a7ff08e5f5c86740071a155c80b56c",
+      "mode": "ARCHIVED",
+      "reason": "index of the Era-1 documents; its forge method and Era-1 hashes are carried by spec/LORE.md"
+    },
+    {
+      "path": "archive/era-1/v1.4-genesis-complete.md",
+      "sha256": "1de4da719d2a9df14cab383e79c4494050d4ee31fac92dbba03bf3e08ffa8f88",
+      "mode": "SUPERSEDED",
+      "reason": "Era-1 0.2.12 body; the wave-in-hash model it specifies was replaced by Wave ∉ hash in v0.3.0"
+    },
+    {
+      "path": "archive/era-1/v1.9.1-enlightened-extension.md",
+      "sha256": "2f894c8be6adfa82aadc1eb7387411a16bcdda7f77620b659d3acc128ba81a34",
+      "mode": "SUPERSEDED",
+      "reason": "Era-1 0.2.12 extension; superseded by the Two Books and LORE"
+    },
+    {
+      "path": "archive/v0.3.0-two-books.md",
+      "sha256": "5d4f64330f5a8ee2666b411a4f875b0fe459b6ede10ba9b147eab461a5261480",
+      "mode": "SUPERSEDED",
+      "reason": "first Two Books RFC; its normative role is held by the anchored Books in spec/"
+    },
+    {
+      "path": "archive/v0.3.1-two-books.md",
+      "sha256": "24eb3b8fff4ac9d209ba570ce6d75c51737641cf19a1727c0c01f21b6c9f4849",
+      "mode": "SUPERSEDED",
+      "reason": "sealed-contour Two Books RFC; its normative role is held by the anchored Books in spec/"
+    }
+  ],
+  "replacement": {
+    "relation": "replaced-by",
+    "operands": [
+      {
+        "path": "spec/ANCHORS.txt",
+        "sha256": "6415c455444a50876ef75f54c185f1c8f052278a9057814a792bea784b32163c"
+      },
+      {
+        "path": "spec/LORE.md",
+        "sha256": "07ddd994c397ee253065cf62636f51a99ba638afa18344da43afbf842f1fe4ec"
+      }
+    ]
+  },
+  "loss": [
+    "the v0.3.0 Appendix A migration table (Era-1 to 0.3.0 hashes), which exists only in the retired document",
+    "the Era-1 test vectors TV-N1..N6 and their 2026 re-verification note",
+    "the Ukrainian prose of the first Two Books RFC, which spec/LORE.md summarizes but does not reproduce",
+    "reading superseded MUST clauses side by side with the current ones without git"
+  ],
+  "preservation": {
+    "policy": "git-history-best-effort, plus the Zenodo deposit snapshot 7ecba6a (10.5281/zenodo.22069651), which contains every subject of this act; this record promises neither permanent storage nor that a shallow clone can resolve the before revision",
+    "locator": "git show 281a12517d188e20878ab064e8deca78aaf55cb0:<historical-path>, carried with the HISTORICAL Σ-GLYPH ARTIFACT envelope in history/RETIREMENT-2026-09-SURFACE.md"
+  },
+  "admission": {
+    "default": "EXCLUDED",
+    "historical_review": "ALLOWED_WITH_STATUS",
+    "normative_use": "FORBIDDEN_WITHOUT_READOPTION"
+  },
+  "authority": {
+    "owner": "s0fractal (repository owner)",
+    "act": "repository owner instruction in the working session of 2026-09-07, with Codex concurring as co-developer on scope and modes, recorded in history/RETIREMENT-2026-09-SURFACE.md under 'Applied transition'; this is the address of the act, not a proof that it was within anyone's power"
+  },
+  "applied": {
+    "apply_commit": "d7975ef8fa6f7a363c7bf066d264b97a8403146f",
+    "apply_tree": "056dbec5209789aa63adb882d7c16fb90a8c2b46",
+    "receipt": "the child commit of d7975ef carrying this record, tools/retirement_check.py and its CI step; the record addresses the completed parent transition rather than containing its own commit identity"
+  },
+  "postconditions": [
+    {
+      "runner": "python3",
+      "entrypoint": {
+        "path": "tools/retirement_check.py",
+        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+      },
+      "args": [
+        "--surface",
+        "archive-eras"
+      ],
+      "falsifier": "a retired subject back in the tree, or a tracked file outside the tombstone class citing one as current, while this record still reads VALID"
+    },
+    {
+      "runner": "python3",
+      "entrypoint": {
+        "path": "tools/retirement_check.py",
+        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+      },
+      "args": [
+        "--selftest"
+      ],
+      "falsifier": "the checker passing with its resurrection, zombie-reference, empty-loss or red-postcondition control removed"
+    }
+  ]
+}

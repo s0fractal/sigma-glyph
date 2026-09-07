@@ -1,0 +1,78 @@
+{
+  "profile": "sigma-glyph.retirement-record@v0.1",
+  "id": "work-orders-2026-07",
+  "status": "APPLIED",
+  "subject_scope": "in-repo",
+  "before_revision": "281a12517d188e20878ab064e8deca78aaf55cb0",
+  "subjects": [
+    {
+      "path": "HANDOFF.md",
+      "sha256": "d692ba9a77d264ad0e74113606336f1f45b7dc63157c93ecdaa43badc646eb97",
+      "mode": "ARCHIVED",
+      "reason": "dated 2026-07-08 hand-off for the Rust crate; the acceptance it records is re-run by CI on every push"
+    },
+    {
+      "path": "briefs/BRIEF-book1-rust.md",
+      "sha256": "ce5220de1a31edd45efb05d24cf41f090f88a0699d438e2e713306ef730a0932",
+      "mode": "ARCHIVED",
+      "reason": "completed work order for impl-rs/; the deliverable is in the tree and gated by CI"
+    },
+    {
+      "path": "briefs/BRIEF-governance-go.md",
+      "sha256": "bcf23f9510958a3632d5c28ee55bc76293a8ce9c701b21957e951c3c9bd646fd",
+      "mode": "ARCHIVED",
+      "reason": "completed work order for the Go gov-replay verifier; the deliverable is in the tree and gated by CI"
+    }
+  ],
+  "replacement": {
+    "relation": "none",
+    "operands": []
+  },
+  "loss": [
+    "the exact task framing each second implementer was given, including what it was and was not allowed to read; the Warrant records 631ad4a3 and 835114b7 still describe the zero-relay cycle",
+    "the 2026-07-08 acceptance transcript (49/49) as text rather than as a live CI step"
+  ],
+  "preservation": {
+    "policy": "git-history-best-effort, plus the Zenodo deposit snapshot 7ecba6a (10.5281/zenodo.22069651), which contains every subject of this act; this record promises neither permanent storage nor that a shallow clone can resolve the before revision",
+    "locator": "git show 281a12517d188e20878ab064e8deca78aaf55cb0:<historical-path>, carried with the HISTORICAL Σ-GLYPH ARTIFACT envelope in history/RETIREMENT-2026-09-SURFACE.md"
+  },
+  "admission": {
+    "default": "EXCLUDED",
+    "historical_review": "ALLOWED_WITH_STATUS",
+    "normative_use": "FORBIDDEN_WITHOUT_READOPTION"
+  },
+  "authority": {
+    "owner": "s0fractal (repository owner)",
+    "act": "repository owner instruction in the working session of 2026-09-07, with Codex concurring as co-developer on scope and modes, recorded in history/RETIREMENT-2026-09-SURFACE.md under 'Applied transition'; this is the address of the act, not a proof that it was within anyone's power"
+  },
+  "applied": {
+    "apply_commit": "d7975ef8fa6f7a363c7bf066d264b97a8403146f",
+    "apply_tree": "056dbec5209789aa63adb882d7c16fb90a8c2b46",
+    "receipt": "the child commit of d7975ef carrying this record, tools/retirement_check.py and its CI step; the record addresses the completed parent transition rather than containing its own commit identity"
+  },
+  "postconditions": [
+    {
+      "runner": "python3",
+      "entrypoint": {
+        "path": "tools/retirement_check.py",
+        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+      },
+      "args": [
+        "--surface",
+        "work-orders-2026-07"
+      ],
+      "falsifier": "a retired subject back in the tree, or a tracked file outside the tombstone class citing one as current, while this record still reads VALID"
+    },
+    {
+      "runner": "python3",
+      "entrypoint": {
+        "path": "tools/retirement_check.py",
+        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+      },
+      "args": [
+        "--selftest"
+      ],
+      "falsifier": "the checker passing with its resurrection, zombie-reference, empty-loss or red-postcondition control removed"
+    }
+  ]
+}

@@ -1,0 +1,666 @@
+{
+  "profile": "sigma-glyph.retirement-record@v0.1",
+  "id": "review-corpus-2026-07",
+  "status": "APPLIED",
+  "subject_scope": "in-repo",
+  "before_revision": "281a12517d188e20878ab064e8deca78aaf55cb0",
+  "subjects": [
+    {
+      "path": "reviews/2026-07-antigravity-cross-family-audit-response.md",
+      "sha256": "e62efe4091e30fbd493065738e1ad1f7afdcd3863a38c47cff6cf11ad1e9d29a",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-antigravity-cross-family-audit.md",
+      "sha256": "0c8783ccb4ae465c7df6bdc9594957901584f1350181150bd6db6f7eff452c95",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-antigravity-deep-review-response.md",
+      "sha256": "1a0254cb189159de7edbbf02e5b56f803397fe00586969455b62e118a7cf1862",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-antigravity-deep-review.md",
+      "sha256": "96121246c057970c0c6f328d66e8a52bb12f075e29f6438a45dbd24d4e078b66",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-claude-sonnet-response.md",
+      "sha256": "4244f70a842189f6c2e173e4adf6fbb93e61f5558a16d6cfb5cbecc74f4e0a4e",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-claude-sonnet.md",
+      "sha256": "e9cc2c7c03b0291ae768a28a3a2a8146aec6f5befdacc0c21864dde4e69990b9",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-claude-v0.5-lazy-edges-response.md",
+      "sha256": "443e1ec2f56bcc0b9d959a57c081d162a752f39a0fbe69f7dad1fc5b27d7ad3b",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-claude-v0.5-lazy-edges.md",
+      "sha256": "d8878b838fa72f5dd6aaeec285c9e177d5d47c62ffd0fa1fe1ebb34f89e5f961",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-claude.md",
+      "sha256": "e872ea50d4e632cdf1b0ea5b6f0d63ae031f9e77761f7d4758bd6ddae784d435",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-adr006-gate-response.md",
+      "sha256": "c7ff97e8f7a9ea8a2c508d827ae3df4321bb4af8c35518c073c5cee4c786cea9",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-adr006-gate.md",
+      "sha256": "cb63feae3fb39361e78cfb4308fb13cad90a22bbd0249ff3913732be760757b7",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-adr45-gate-response.md",
+      "sha256": "2916da995c2845acffa3d197a2222e982f9690b4ccd00c87fe4ea781a247d747",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-adr45-gate.md",
+      "sha256": "c1447a2b5a64fd3aa465f9b61ec562131c61bb0f86f887fc87abf125c6791891",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-book3-gate-response.md",
+      "sha256": "7ff7cd84da2edbf771dc0b66e3b166449a2aa636ef47c4c2887e24d3681c1cf0",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-book3-gate.md",
+      "sha256": "7d13ecfec3bcfb5024a5800ed1da913b02bd5cf0ebb852f8dccb1543015a553d",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-cross-repo-runtime.md",
+      "sha256": "fe6960c02dae8d29e09ab4c003543f342a50c2ef6acb53bc9b3f5e666ace6ece",
+      "mode": "ARCHIVED",
+      "reason": "transcription reconstructed from fix commits, never the reviewer's text; its two P1 fixes are in the tree"
+    },
+    {
+      "path": "reviews/2026-07-codex-governance-hardening-response.md",
+      "sha256": "7acb103ee3f9e116751ed7f66362e8f8b58d8d39406b75d579e2e72f5d2ff383",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.4.4-followup-response.md",
+      "sha256": "731c26a38ffe1c544e09e922009ac585524c718c3a2f836cd7c00e68b5bd565e",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.4.4-followup.md",
+      "sha256": "4b56bfa90702190f3b862ea8dffff011bb9359bfd6d5f5482892911bb36fa92e",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.5-adr-gate-response.md",
+      "sha256": "fea1d69234c390865186fdda5c419e258ff1ebb6bbb1b972e18ae5f755ee35ce",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.5-adr-gate.md",
+      "sha256": "b453cbdbbf0e7df72b5d7a191d2dbe03d12d34076cfe02ddfe1ac98e1a50758f",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.5.0-audit-response.md",
+      "sha256": "cd538824b53c8fc1707e1f8ac0a66ad8ad93ca7bf5a1a02df3bbb3a25cd396ef",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.5.0-audit.md",
+      "sha256": "441311ececc3bd1f6bbf35a02f3d33c8dfa952d65432336b3790d6f1b18f749d",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.6.0-pedantic-audit-response.md",
+      "sha256": "3346f0dae3b5ce1149b85d1a3b6df9655f6712ddf26d13785844d2065bdf7094",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.6.0-pedantic-audit.md",
+      "sha256": "57d4ad30a7f5b903eb34244d6160f662abb1a56b283423058f3adafcc4424ab4",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.6.4-hardening-audit-response.md",
+      "sha256": "1cf7cb4563a198ff02fe04912f0ebd8ac8a081774c7654a5e8357858b31c19cf",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-v0.6.4-hardening-audit.md",
+      "sha256": "0d67c082bd8e67b7a7b75797a43117a5dc19fffdf30b268bdb797c5c98f0fb4c",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex-warrant-verify-gate-regate.md",
+      "sha256": "9bb4f7bc25e8dca7d0c38ab161eb590f7c45de0a309154b6fd9f443f024275d6",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-codex-warrant-verify-gate.md",
+      "sha256": "99a6691f528df49f07db4db848893cbc80d3daa4fd10503506b6c42fab4b0e47",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-codex.md",
+      "sha256": "ede80415def6ed221d2eb7424ba2112971f36d5f59ef99def60dc434ad9c3a45",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr-gate-response.md",
+      "sha256": "9fcee135d8fba1d8ada281c96387f18fcb208a8cabf69c6cf4307f1079bcc0b8",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr-gate.md",
+      "sha256": "b20c194430e87e0b610142ac8b41f5ec22a80eb1b69a6b2dd61748ef98571643",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr007-gate-response.md",
+      "sha256": "7bf0fc4c1e841d284a87a08fcf7508d3aab0376cb00c01e0134e6adf0ec52239",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr007-gate.md",
+      "sha256": "f0519809f17bc559223fc7801aff02bc8656d49c8c2429c036e3ad9a2b6d02aa",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr007-gate.md.pass1",
+      "sha256": "0baabcab04170432418248c65e39186786e9b09f4146c163d1d276d294314afe",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr45-gate-response.md",
+      "sha256": "cd70c42388c2a1210d285e76576398bd0c49f3cb6c900f368ba7295f16b00290",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr45-gate.md",
+      "sha256": "d80d1405fe276e56039dddc7a08997743c7970c9ed2f7d0bc9e3ebc94287d4cd",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-adr45-gate.md.pass1",
+      "sha256": "7c6f15b643c78ce90679162afdaecfd060d81955eb5afb99ce4113b392e8ac89",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-gov-standard-response.md",
+      "sha256": "101f6e13f9bd464da6eee205adffbb1b434dcaa7123ec5520a899692f90ee8b9",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-gov-standard.md",
+      "sha256": "a2435b2fad0d16eb5dfc9d704b956525b60b1e56f3981923055a1677f5c0e321",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-deepseek-gov-standard.md.pass1",
+      "sha256": "2d39767d613d8a88f8a9e373158c36336f361adeb72b936216e9dc7a10bce9a2",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-deepseek.md",
+      "sha256": "e363bbc3518168565eef4f93b38bae96f29a56648494be7b4c529cec7d6b6bc4",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-deepseekv32-guard-response.md",
+      "sha256": "e695df4dc276d4ac6fd983feb0e272f7692a38e111e82dcb683794bd3d35809e",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-deepseekv32-guard.md",
+      "sha256": "0bd25279312f0bc9f2a02aa985cbbc20b660869ab6dd7b102a16d6e1fc2b20da",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-fable5-v0.6.6.md",
+      "sha256": "0cdea380e2627c1d70647ff313eff711393185fb25678a9beb37dfaf966abcf5",
+      "mode": "ARCHIVED",
+      "reason": "self-conducted maintainer review of v0.6.6; its fixes landed in v0.6.6/v0.6.7"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr-gate-response.md",
+      "sha256": "ce8fccc1283ac67763008999d16c79fc9f90a80c7e4f16392e0f286061303702",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr-gate.md",
+      "sha256": "a2678272700cd06a8ca8213a738684463f7f66e55e507df2cba3d5d32058f6b3",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr006-gate-response.md",
+      "sha256": "97c02b4f3c1ca29a3b2626db298c30b86153ee210af6bee99622b793c2498819",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr006-gate.md",
+      "sha256": "25097a259390768a01beb3b00f0326b273ef2b1bd46a4d91eaa61b63558011f4",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr007-gate-response.md",
+      "sha256": "36c95ba96ab16e9cc56690a12bab46efc872e2f7b6f12f130dbad4f111411b7d",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr007-gate.md",
+      "sha256": "fe889fd829598573225487f4020fe4f9635bb66a94136f119ff7862b6688abba",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr007-gate.md.pass1",
+      "sha256": "46db72f46503229f7a63bb347bd62b8df96f395631035b2adbd6a8476b2cbeb8",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr45-gate-response.md",
+      "sha256": "86b49bd96bd194b098194560eb61a34117be0bbdb5aa44b8b5be3f1e71fa71ce",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini-adr45-gate.md",
+      "sha256": "7b824fa2e3cab677867b1f6ec13b8b4a94aa4873c98da2d08ac241a5f4ac4d58",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gemini-book3-verify-response.md",
+      "sha256": "089b37ee5d30e918d43f280dd4f13bae358e5a1a7ae802fa04f723aa68e1d513",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini-book3-verify.md",
+      "sha256": "4b5acd597c79fa56128d8567f9ba756f2ae2a37e35abaa6bb3d4b8055037fbb3",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gemini-gov-standard-response.md",
+      "sha256": "fd4e920492d9764c175c888f17eb9e348582e18186f6ff995524bb4e758c7de2",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini-gov-standard.md",
+      "sha256": "f3f357041b68135f4ca4a8e03b123848f7f46bbdfd2e32ecc451d6be643ae280",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gemini-gov-standard.md.pass1",
+      "sha256": "642c1f6f4e7203ed4aaf6ea5fc674c0f506e73105e6403498c4a873859220d9d",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-gemini31flashlite-ed25519-response.md",
+      "sha256": "f7f246ce9399514c905979cd84cc3f3e05f765147464de6ac49e81633fe28276",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini31flashlite-ed25519.md",
+      "sha256": "0e7b88ec7f996f15c665344761556ec53df2aaaca334e2fd6ab45eab5487972d",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gemini31pro-agy-audit-response.md",
+      "sha256": "a92ffffd3ed755ae6337c56a1933602fd2275f330831840e8b0a2c6d5932310b",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gemini31pro-agy-audit.md",
+      "sha256": "09fad7f2e4c1cef645084d4d4ca6ad3c51302d5ba4d95564bde52718e57874a5",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-glm47-ed25519-response.md",
+      "sha256": "0ad3a733ed4288ff1a836839a7da281a33405e387ec623796b4673c845c0073b",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-glm47-ed25519.md",
+      "sha256": "4cefcf4270a270249564e479b8561dc0b66b7c9de0d6159638f4de187a993daa",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-glm47-guard-coverage-response.md",
+      "sha256": "893d62a9892d5a52c306093ed0b546e66d2b096e56cadbc50ac2c27a9e2085a4",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-glm47-guard-coverage.md",
+      "sha256": "8bdf0b00892875b523af202ab5d9e6f7d621329e7e2da1aef61d26f6b29a94f2",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gpt5-adr007-gate-response.md",
+      "sha256": "0817bd936a532ebc0359ed1d353523c467af7324221bba1dc16122957a67db1e",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gpt5-adr007-gate.md",
+      "sha256": "223a8b023e4d4c47bfe740f3361b9dcaa3b81308457816ef1b1a02fcb792845d",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gpt5-adr007-gate.md.pass1",
+      "sha256": "8b55dae731aa72c38fe174d96f49148288250dcb27a3b4a3950c36ddf952a875",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-gpt5-gov-standard-response.md",
+      "sha256": "7e9935cb6d232e5372eecb6b590137734bbb872b97d4dd65e2d13701a6343836",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gpt5-gov-standard.md",
+      "sha256": "304712386a95eedb78e9ba7fa8895cbe5798978da8df3d548d153ffe36e4112e",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-gpt5-gov-standard.md.pass1",
+      "sha256": "30d360139f0ef485d133ed240c0edcdbc6c0a2dc4301afdf429c291821263696",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-gptoss120b-agy-audit-response.md",
+      "sha256": "303ec48308e85a6e124dae5a6666f4cf29f0520a600660eed641935e11758fcd",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-gptoss120b-agy-audit.md",
+      "sha256": "ced2a29e67118406a65a441f7fa5d825aad62c9674d0eaf6b6115b44569e676d",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-kimi-adr006-gate-response.md",
+      "sha256": "f703ab1a564e385b72d42be4227b79a53f363ec2958dbe21ef42dd4cad515e2d",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-kimi-adr006-gate.md",
+      "sha256": "f21b1df804735e0a94773a09d5cfdada33e5c65f60ce963be84064b156e7c31b",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-kimi-adr006-gate.md.pass1",
+      "sha256": "bb39c01608b0a4d9aadfafffa010dfe0dc75ad5ce1946bd15a61f23693524b59",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-kimi-adr007-verify-response.md",
+      "sha256": "5b1b5e53eeaa1ce095bf8929d015afef6774c0439bd0f64c7e5266a2196446e0",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-kimi-adr007-verify.md",
+      "sha256": "d34eb5132eb1d67ec561b446550a4e7e170b47485d4964ce77d40ec833058d4a",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-kimi-adr007-verify.md.pass1",
+      "sha256": "29b4098b8884d65f8a388de1982c084a7e99ec6a500206b0dbe0b4cd60efc2ca",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-kimi-full-audit-response.md",
+      "sha256": "4be710f4b6c9e267386b33f94e6a78dc8aa03778cea26e540c49d9aad52624ea",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-kimi-full-audit.md",
+      "sha256": "2b224caf15920f0e38ad82c218d2b21e155d47553c4d98aa7176fe2bfb0b241a",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.5.0-audit-response.md",
+      "sha256": "ae82735272259cb62788f915f0ec33b13c2751bb8d9ba9b29aab793022df9bde",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.5.0-audit.md",
+      "sha256": "41d1b5637ad99482599445bf6884b41dfdf7cf94cc2490b86b361c355d4e1903",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.5.0-audit.md.pass1",
+      "sha256": "422e5090f1bfc333cfbb4106c2fb83e5a999993adb450895bab2fdd0841b8cb6",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.6.4-formal-focused-response.md",
+      "sha256": "6a6e653b4ef4d22ba5eafeccbd0d900379409b99dfcfc9b6df10c058234aa780",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.6.4-formal-focused.md",
+      "sha256": "6a68c49499f2d93d5b0f595d7cd4b962af9761ec905bbe5ffa31ee284d245dd3",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.6.4-holistic-response.md",
+      "sha256": "099f865a3fe833b58ff9885d4b4c8f3e7079b08b170b8262f6d9ae78385cdd62",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.6.4-holistic.md",
+      "sha256": "9d9dbcd4fa8d2256125533d0896130193b6c58b73cac6c1223c754f07ec02a09",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-kimi-v0.6.4-holistic.md.pass1",
+      "sha256": "a4bf4e4d40e3610f2c9d7d88a82b9c8ffdc1909b4b67988c7a78faf6966e4273",
+      "mode": "ARCHIVED",
+      "reason": "blind first pass of a two-pass review; the delivered second pass is retired in the same act"
+    },
+    {
+      "path": "reviews/2026-07-kimi.md",
+      "sha256": "850e42ebfcc393ef59c2db2ea12e6aedbfb4a40660414b4ece76594784d4fc74",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-opus48-v0.5.1-response.md",
+      "sha256": "62f5adddfd6fe645fdc5b7ba4995e3cc796fc42bd386eab9f58373ee171a829a",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-opus48-v0.5.1-review.md",
+      "sha256": "9c42f48545f8056580980b6311c9b319b67681e827487c3d33c408f2b40f65fe",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-qwen-web-holistic-response.md",
+      "sha256": "250ed256a028f660b91aa7dd26fec2687ccff56bf219b70f5a8b088a43ede77a",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    },
+    {
+      "path": "reviews/2026-07-qwen-web-holistic.md",
+      "sha256": "d368b67192bb49196bed1d28256cc7086e22cd9f7c0c4d4d01b0302c30a63428",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-qwen.md",
+      "sha256": "c3978653405abd3799eb239c0b0f8adc289d87cfc51bf0e8e506dd02e39ee656",
+      "mode": "ARCHIVED",
+      "reason": "review of a pre-v0.7.0 bundle; dispositioned in its paired -response and the .warrants adjudication chain"
+    },
+    {
+      "path": "reviews/2026-07-v0.6.6-independent-gate.md",
+      "sha256": "3ed7384c8409e6b4321c4769e41a15f3875d170cffefc519f09a3b4a9ddb0f52",
+      "mode": "ARCHIVED",
+      "reason": "gate record for the v0.6.6 / GOV 1.0.2 patch, superseded by the v0.7.0 adoption in gates/"
+    },
+    {
+      "path": "reviews/2026-07-web-sonnet-reverification-response.md",
+      "sha256": "65c5eb5b85e1015d05fa181e7a0b5b53edaf55d0af55ba5e051e570d48cefe15",
+      "mode": "ARCHIVED",
+      "reason": "maintainer disposition of a pre-v0.7.0 review; every accepted finding landed and the adjudication is a .warrants record"
+    }
+  ],
+  "replacement": {
+    "relation": "extracted-from",
+    "operands": [
+      {
+        "path": "reviews/README.md",
+        "sha256": "a9ba007b228e32c7a6da0a313ee9d89e76a3987910ebeef7157c1964e8efa910"
+      },
+      {
+        "path": "history/RETIREMENT-2026-09-SURFACE.md",
+        "sha256": "2a439260e4fd907fc1f429c4e909d3c82ea729d077453d302f3b22737c7864d0"
+      }
+    ]
+  },
+  "loss": [
+    "the full text of every finding, refutation and reproduction command; the ledger index keeps outcomes, not arguments",
+    "the reviewer-by-reviewer reasoning behind each settled point",
+    "the blind-pass (.pass1) provenance of the two-pass reviews, readable without git",
+    "the July 2026 critiques as a browsable directory on the public site; docs/index.html now points at the ledger",
+    "experiments/exp-001/probe.py measuring the same reviews/ corpus at HEAD; reproduce it at the before revision"
+  ],
+  "preservation": {
+    "policy": "git-history-best-effort, plus the Zenodo deposit snapshot 7ecba6a (10.5281/zenodo.22069651), which contains every subject of this act; this record promises neither permanent storage nor that a shallow clone can resolve the before revision",
+    "locator": "git show 281a12517d188e20878ab064e8deca78aaf55cb0:<historical-path>, carried with the HISTORICAL Σ-GLYPH ARTIFACT envelope in history/RETIREMENT-2026-09-SURFACE.md"
+  },
+  "admission": {
+    "default": "EXCLUDED",
+    "historical_review": "ALLOWED_WITH_STATUS",
+    "normative_use": "FORBIDDEN_WITHOUT_READOPTION"
+  },
+  "authority": {
+    "owner": "s0fractal (repository owner)",
+    "act": "repository owner instruction in the working session of 2026-09-07, with Codex concurring as co-developer on scope and modes, recorded in history/RETIREMENT-2026-09-SURFACE.md under 'Applied transition'; this is the address of the act, not a proof that it was within anyone's power"
+  },
+  "applied": {
+    "apply_commit": "d7975ef8fa6f7a363c7bf066d264b97a8403146f",
+    "apply_tree": "056dbec5209789aa63adb882d7c16fb90a8c2b46",
+    "receipt": "the child commit of d7975ef carrying this record, tools/retirement_check.py and its CI step; the record addresses the completed parent transition rather than containing its own commit identity"
+  },
+  "postconditions": [
+    {
+      "runner": "python3",
+      "entrypoint": {
+        "path": "tools/retirement_check.py",
+        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+      },
+      "args": [
+        "--surface",
+        "review-corpus-2026-07"
+      ],
+      "falsifier": "a retired subject back in the tree, or a tracked file outside the tombstone class citing one as current, while this record still reads VALID"
+    },
+    {
+      "runner": "python3",
+      "entrypoint": {
+        "path": "tools/retirement_check.py",
+        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+      },
+      "args": [
+        "--selftest"
+      ],
+      "falsifier": "the checker passing with its resurrection, zombie-reference, empty-loss or red-postcondition control removed"
+    }
+  ]
+}

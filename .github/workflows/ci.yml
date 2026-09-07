@@ -121,6 +121,22 @@ jobs:
             | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
           python3 tools/paper_claims.py | tee /dev/stderr \
             | grep -q "PAPER-CLAIMS: ALL PASS"
+      # What left the default tree, and why, is a record read as data rather
+      # than prose about one: each retired subject's digest is recomputed from
+      # the object git holds at the before revision, its absence from the apply
+      # tree and the working tree is checked, loss must be non-empty, and no
+      # tracked file outside the tombstone class may cite a retired path as
+      # current. The selftest burns every refusal with a mutation first, and
+      # the manifest is closed, so deleting a record is a failure, not a pass.
+      - name: Retired subjects stay retired, and their records bind (controlled forgetting)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --unshallow || git fetch --no-tags
+          python3 tools/retirement_check.py --selftest | tee /dev/stderr \
+            | grep -q "RETIREMENT-CHECK-SELFTEST: ALL PASS"
+          python3 tools/retirement_check.py | tee /dev/stderr \
+            | grep -q "RETIREMENT-RECORDS: ALL PASS"
       # Can Book I be implemented from Book I? The audit re-derives every
       # constant the Book prints from the Book alone, in both languages, checks
       # the prose against the normative vector suite, and requires the English
