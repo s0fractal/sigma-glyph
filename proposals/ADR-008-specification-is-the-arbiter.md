@@ -1,6 +1,24 @@
 # ADR-008: two sentences that send an implementer to our code
 
-**Status:** PROPOSED — not adopted, not anchored. A normative edit to Book I
+**Status: CLOSED — SUPERSEDED by ADR-010, 2026-09-07.** Both edits this ADR
+proposes are in Book I 0.6.0, the adopted v0.7.0 bundle (threshold warrant
+`0e634c17…46e1`, 2026-08-30): §7 no longer appoints `impl/sigma_glyph.py` as
+the arbiter of a discrepancy, and §5.1 no longer sends the reader to it. ADR-010
+addresses those concerns inside one coherent change rather than as this PATCH.
+Its phrase "carried forward here" explicitly refers to ADR-009 (#24), not to
+this document. The candidate anchor computed here was never adopted and is not
+the current anchor. What survives as live surface is the
+audit contract: `tools/spec_audit.py`, in CI, deciding the five predicates
+described below, documented for implementers in `spec/IMPLEMENTING.md`. The one
+question this ADR left undecided, whether the English rendering becomes
+normative, was closed separately: that candidate is archived as
+`archive/2026-09-03/book1-en-normative`, not adopted. Closing this document
+adopts nothing and moves no byte; it records where its proposal landed. The
+number `ADR-008` is also borne by the archived Resonant Precedent candidate
+(`archive/2026-09-03/adr-008-rev15-candidate`); ADR-010 names that collision.
+Closed by Claude Fable 5.1 at the owner's decision of 2026-09-07.
+
+**Status (historical, 2026-08-24):** PROPOSED — not adopted, not anchored. A normative edit to Book I
 requires a governed re-anchor (GOV-anchors §3) and the multi-family gate this
 project uses for Book text. This ADR does the work and stops before the gate.
 **Origin:** the accompanying paper names "an implementation of Book I by someone
