@@ -20,9 +20,9 @@ A retired review is historical evidence, not current precedent.
 
 | File | Status | What is still owed |
 | --- | --- | --- |
-| [`2026-08-codex-store-parameter.md`](2026-08-codex-store-parameter.md) | registered 2026-08-27, **no `-response.md`** | its headline finding (the evaluator's implicit store input) was resolved in v0.7.0 through ADR-010, as README states; the disposition that says so per finding has not been written |
-| [`2026-08-qwen-paper-critique.md`](2026-08-qwen-paper-critique.md) | registered 2026-08-27, **not dispositioned** | an essayistic critique of the deposited paper; its factual claims have not been checked against the tree; relevant to the v2 deposit |
-| [`2026-08-full-system-audit.md`](2026-08-full-system-audit.md) | findings filed 2026-08-29, independently reproduced | its release order: steps 1–5 are done through the v0.7.0 adoption; the paper recount, PDF and v2 deposit (6–7) are not |
+| [`2026-08-codex-store-parameter.md`](2026-08-codex-store-parameter.md) | dispositioned 2026-09-07 — [`-response.md`](2026-08-codex-store-parameter-response.md) | headline blocker reproduced and resolved by ADR-010 / paper v2; still open: V22 external control and the guard paper revision (§6–§7) |
+| [`2026-08-qwen-paper-critique.md`](2026-08-qwen-paper-critique.md) | dispositioned 2026-09-07 — [`-response.md`](2026-08-qwen-paper-critique-response.md) | factual claims checked (one count wrong, one bridge claim inaccurate); three points taken into paper v2; the rest by-design or out of scope |
+| [`2026-08-full-system-audit.md`](2026-08-full-system-audit.md) | findings filed 2026-08-29, independently reproduced | its release order is complete: steps 1–5 through the v0.7.0 adoption, 6–7 through the paper v2 deposit ([10.5281/zenodo.22646920](https://doi.org/10.5281/zenodo.22646920), 2026-09-07); what remains of it is the guard paper |
 
 Residual findings carried out of the retired July reviews — the Lean runner
 profile, multi-scope anchor governance, Book III settlement-level end-to-end —

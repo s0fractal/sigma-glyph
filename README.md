@@ -184,9 +184,12 @@ are baseline evidence, not an independent gate or governance adoption.
 
 ## Published evidence
 
-- *One Integer for Work and Memory* —
-  [Zenodo 10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651),
-  deposited with repository snapshot `7ecba6a`; deposited, not peer reviewed.
+- *One Integer for Semantic Work and Materialization* —
+  [Zenodo 10.5281/zenodo.22646920](https://doi.org/10.5281/zenodo.22646920)
+  (v2, 2026-09-07, repository snapshot `47cf57d`; concept DOI
+  [10.5281/zenodo.22069650](https://doi.org/10.5281/zenodo.22069650)); v1 is
+  [10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651) (snapshot
+  `7ecba6a`). Deposited, not peer reviewed.
 - *Does One Integer Still Price Work and Memory in Parallel?* —
   [Zenodo 10.5281/zenodo.22073568](https://doi.org/10.5281/zenodo.22073568), a
   preregistered experiment: the aggregate bound survived the measured parallel
