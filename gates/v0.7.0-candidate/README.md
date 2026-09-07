@@ -1,5 +1,11 @@
 # The v0.7.0 candidate, and what has been done to it
 
+**Status: CLOSED — adopted.** The candidate's bytes were adopted on 2026-08-30
+by threshold warrant `0e634c17…46e1` (2-of-3) over anchor set `abf10f2a…adf59`,
+recorded in `.warrants/`; README's "Status by surface" is the authority. This
+directory is the frozen evidence of that adoption. `REPORT.md` was written
+before the adoption and its status line describes that moment, not this one.
+
 Each round is self-contained: the bytes it froze, the anchor set built from them,
 the exact prompt every reviewer saw, and each reviewer's raw response with its
 model id, prompt digest and timestamps. Nothing in a round directory is edited

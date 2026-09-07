@@ -46,14 +46,10 @@ PRIMARY_SOURCES = [
     "spec/GOV-anchors.md",
     ANCHOR_GOVERNANCE,
 ]
-PRIOR_REVIEWS_GLOB = ["reviews/2026-07-gpt5-adr007-gate.md",
-                      "reviews/2026-07-gpt5-adr007-gate-response.md",
-                      "reviews/2026-07-gemini-adr007-gate.md",
-                      "reviews/2026-07-gemini-adr007-gate-response.md",
-                      "reviews/2026-07-deepseek-adr007-gate.md",
-                      "reviews/2026-07-deepseek-adr007-gate-response.md",
-                      "reviews/2026-07-codex-v0.6.0-pedantic-audit.md",
-                      "reviews/2026-07-codex-v0.6.0-pedantic-audit-response.md"]
+# Pass 2 sees the LIVE inbox, not a hard-coded list: the July 2026 corpus this
+# list used to name was retired on 2026-09-07 (history/RETIREMENT-2026-09-SURFACE.md).
+PRIOR_REVIEWS_GLOB = sorted(str(p.relative_to(ROOT)) for p in (ROOT / "reviews").glob("*.md")
+                            if p.name != "README.md")
 GATES = [
     ["python3", "impl/sigma_glyph.py"],
     ["python3", "impl/sigma_wave.py"],

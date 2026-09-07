@@ -136,7 +136,8 @@ if [[ -d ".github/workflows" ]]; then
 fi
 
 # Archive (optional - can be large)
-# Uncomment if you want to include archived versions
+# archive/ was retired on 2026-09-07 (history/RETIREMENT-2026-09-SURFACE.md);
+# the block below is kept only as the shape of an optional section.
 # if [ -d "archive" ]; then
 #     echo "---" >> "$OUTPUT"
 #     echo "" >> "$OUTPUT"

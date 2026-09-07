@@ -52,7 +52,7 @@ How an ADR moves from PROPOSED to adopted (and how disputes end):
 
 ## Shipped: v0.5.0 gate history (2026-07-05)
 
-Reviews 3/3 (Codex, Gemini, DeepSeek) confirmed: Hash-Leaf Size Model as the ADR-001×003 composition (option-2 broken by the `(S K K) T` attack; option-3 proof audited), Genesis Intrinsic Rule, ADR-002 with the §5.1 supersession. Implementation gate passed same day: hash-thunk oracle, 46 Book I vectors + 9 wave vectors, property suite with the memory bound. Full trail: `reviews/2026-07-*-adr-gate*.md` + `.warrants/`.
+Reviews 3/3 (Codex, Gemini, DeepSeek) confirmed: Hash-Leaf Size Model as the ADR-001×003 composition (option-2 broken by the `(S K K) T` attack; option-3 proof audited), Genesis Intrinsic Rule, ADR-002 with the §5.1 supersession. Implementation gate passed same day: hash-thunk oracle, 46 Book I vectors + 9 wave vectors, property suite with the memory bound. Full trail: `.warrants/`, and the retired v0.5 ADR-gate reviews indexed in `history/RETIREMENT-2026-09-SURFACE.md`.
 
 ### ADR-001: Size-Priced ATP
 

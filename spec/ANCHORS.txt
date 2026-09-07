@@ -159,7 +159,7 @@ fcac54034aaecefcddd2cb2859ff3dc162e7f5ed467ab1b92594552c4c32d40d  spec/book-1-tr
 7d96151872cf258223f452b77c5c0a584e06d05f0c9b27982cad9c345416b836  spec/book-2-navigation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md
 
-== v0.4.2 (ancestors; anchored retroactively 2026-07-05 — the release shipped without an anchor refresh, see reviews/2026-07-claude-sonnet-response.md) ==
+== v0.4.2 (ancestors; anchored retroactively 2026-07-05 — the release shipped without an anchor refresh, see the retired `claude-sonnet` response indexed in history/RETIREMENT-2026-09-SURFACE.md) ==
 1fdf707d6a8915d8a30234188164712141c51724cd08a65dd0deb52b529972ec  spec/book-1-truth.md
 7d96151872cf258223f452b77c5c0a584e06d05f0c9b27982cad9c345416b836  spec/book-2-navigation.md
 9bd7977cf7b922a9a3beda60c308d77f6ad6853fa4439e5b03394fa2e79231b9  spec/LORE.md

@@ -106,8 +106,10 @@ defect — have been submitted here by three separate reviewers.
 
 - [tools/warrant_gate.py](tools/warrant_gate.py): fail-closed consumer of the
   real Warrant verifier's machine report for this repository's `.warrants/`.
-- [ROADMAP.md](ROADMAP.md), [archive/](archive/): prior eras kept verbatim. Old
-  hashes stay valid artefacts of their era; dirty history is provenance.
+- [ROADMAP.md](ROADMAP.md), [history/](history/): prior eras and retired
+  documents are in git history with a ledger saying what left, why and how to
+  retrieve it with status. Old hashes stay valid artefacts of their era; dirty
+  history is provenance, but it is not the default surface.
 
 ## Reporting a defect
 

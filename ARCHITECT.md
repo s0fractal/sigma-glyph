@@ -87,14 +87,16 @@ elegance, new features, marketing, or spec prose without a vector behind it.
   caught an A-2/A-3 ordering bug in the first draft of the model — differential
   bridges earn their keep even for proofs.
 - **2026-07-17 — external audit round (Gemini 3.1 Pro via `agy`).** Cross-repo
-  audit (see `reviews/2026-07-gemini31pro-agy-audit{,-response}.md`). Sigma-side:
+  audit (review retired 2026-09; index and retrieval in
+  `history/RETIREMENT-2026-09-SURFACE.md`). Sigma-side:
   the two Ed25519 tools got 2 non-canonical torsion encodings added as
   defense-in-depth, and `book1_fuzz` now emits genuine `2^32-1` budgets to all
   three Book I engines (previously capped at `EVAL_CAP`, blinding it to the
   integer boundary). Most fixes landed on the warrant side. Refuted findings
   (ATP `force` wrap, scalar-record crash) verified false empirically.
 - **2026-07-17 (Fable 5, architect):** roadmap opened. The warrant-side
-  hardening this cycle (a differential fuzzer, `reviews/2026-07-fable5-v0.6.6.md`
+  hardening this cycle (a differential fuzzer, the retired self-review
+  `fable5-v0.6.6` in `history/RETIREMENT-2026-09-SURFACE.md`,
   fixes: warrant-go R-S uint32 overflow, small-order Ed25519 rejection,
   verifier trailing-content/panic/crash bugs) tightened the shared Book I +
   Ed25519 surface.

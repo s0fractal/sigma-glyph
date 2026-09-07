@@ -192,7 +192,10 @@ are baseline evidence, not an independent gate or governance adoption.
   preregistered experiment: the aggregate bound survived the measured parallel
   reducer while per-redex refusal did not. See [`experiments/exp-004/`](experiments/exp-004/).
 
-`archive/` preserves prior eras and their historical hashes. Current provenance
-does not erase superseded semantics; current admission does not reactivate them.
+Prior eras and their historical hashes are preserved in git history and in the
+deposited snapshot, not in the default tree: `history/` holds the retirement
+ledgers that say what left the surface, why, what was lost and how to retrieve
+it with status. Current provenance does not erase superseded semantics; current
+admission does not reactivate them.
 
 MIT for implementations; CC BY 4.0 for specification texts.
