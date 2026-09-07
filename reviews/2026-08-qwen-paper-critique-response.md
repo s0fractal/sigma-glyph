@@ -9,20 +9,27 @@ checked against the tree, and because three of its points changed the v2 text.
 
 ## Factual claims, checked
 
-- **"`native_decide` … is a gap."** Partly accurate as a description, wrong as a
-  count. `native_decide` is used, and the paper says so: ten of the 41 guarded
-  theorems are permitted it, which puts the Lean compiler in their trusted base
-  (paper v2 §1 item 4, §4.4); the sixteen evaluator theorems, including the
-  bound, have axiom cone `{propext, Classical.choice, Quot.sound}` and do not
-  use it. The review presents the gap as unstated; v1 already stated it per
-  theorem and v2 keeps that table.
+- **"The paper says `native_decide` is limited to 10 theorems, but does not
+  detail how the verified-compilation gap is closed."** Both halves accurate.
+  Ten of the 41 guarded theorems are permitted `native_decide` (paper v2 §1
+  item 4, §4.4), and the paper closes no compilation gap: it states one (§7,
+  "no verified refinement, no extraction"). The review's reading of the count
+  and of the disclosure is correct; its concern is accepted below as critique 1.
+  *An earlier draft of this disposition wrongly attributed a counting error to
+  the reviewer; Codex's review of PR #54 caught it.*
 - **"Bridges check compiled Lean against the Python oracle *and production
-  binaries (Rust, Go)*."** Inaccurate. Every `proofs/*_bridge_check.py`
-  compares the executed Lean model with `impl/sigma_glyph.py` only. Rust and
-  `warrant-go` are compared with the oracle on the conformance vectors (paper
-  §6.2), not through the bridges. The review's own conclusion — a proof about
-  Lean source is not a proof about compiled code — stands and is stated in the
-  paper (§7: "no verified refinement, no extraction").
+  binaries (Rust, Go)*."** Inaccurate on the binaries, and the paper's own
+  account of the bridges is narrower than "compiled Lean" too. Per paper v2 §1:
+  three bridges execute the compiled Lean model against `impl/sigma_glyph.py`
+  (evaluation, bytes, wave); three check a weaker correspondence without
+  executing Lean on the corpus — `bridge_check.py` drives the oracle against the
+  step premise the proof consumes, `c1_bridge_check.py` compares the oracle's C1
+  with a Python *transcription* of the Lean compiler model, and
+  `store_mono_bridge_check.py` perturbs the oracle's store against the
+  monotonicity bound. Rust and `warrant-go` enter none of them; they are compared
+  with the oracle on the conformance vectors (§6.2). The review's conclusion — a
+  proof about Lean source is not a proof about compiled code — stands, and the
+  three weaker bridges are exactly where it bites hardest.
 - **Version label `0.6.7-paper1`.** Correct.
 
 ## Critiques
@@ -76,6 +83,6 @@ most valuable missing datum. Peer review: not submitted anywhere.
 ## Net effect on v2
 
 Three changes trace to this review: the "one lineage" wording, the explicit
-scope statement in the title and abstract, and keeping the `native_decide`
-per-theorem account rather than summarising it. Everything else is recorded as
+scope statement in the title and abstract, and the §1 sentence that separates
+the three executed-Lean bridges from the three weaker checks. Everything else is recorded as
 by-design or out of scope, which is a disposition, not a dismissal.

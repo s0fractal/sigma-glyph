@@ -21,7 +21,7 @@ A retired review is historical evidence, not current precedent.
 | File | Status | What is still owed |
 | --- | --- | --- |
 | [`2026-08-codex-store-parameter.md`](2026-08-codex-store-parameter.md) | dispositioned 2026-09-07 — [`-response.md`](2026-08-codex-store-parameter-response.md) | headline blocker reproduced and resolved by ADR-010 / paper v2; still open: V22 external control and the guard paper revision (§6–§7) |
-| [`2026-08-qwen-paper-critique.md`](2026-08-qwen-paper-critique.md) | dispositioned 2026-09-07 — [`-response.md`](2026-08-qwen-paper-critique-response.md) | factual claims checked (one count wrong, one bridge claim inaccurate); three points taken into paper v2; the rest by-design or out of scope |
+| [`2026-08-qwen-paper-critique.md`](2026-08-qwen-paper-critique.md) | dispositioned 2026-09-07 — [`-response.md`](2026-08-qwen-paper-critique-response.md) | factual claims checked (`native_decide` count and disclosure correct; bridge claim inaccurate on Rust/Go and on which bridges execute Lean); three points taken into paper v2; the rest by-design or out of scope |
 | [`2026-08-full-system-audit.md`](2026-08-full-system-audit.md) | findings filed 2026-08-29, independently reproduced | its release order is complete: steps 1–5 through the v0.7.0 adoption, 6–7 through the paper v2 deposit ([10.5281/zenodo.22646920](https://doi.org/10.5281/zenodo.22646920), 2026-09-07); what remains of it is the guard paper |
 
 Residual findings carried out of the retired July reviews — the Lean runner
