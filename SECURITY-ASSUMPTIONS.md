@@ -185,13 +185,21 @@ it is a liveness fault a policy can be *designed against* rather than merely
 survive, which is why §4 requires successions staged before planned retirements
 and `N − M ≥ 1`.
 
-### SA-7. ADR-008 is on a branch, and its gate rounds came from one family
+### SA-7. The Resonant Precedent ADR-008 is archived, and its gate rounds came from one family
 
-ADR-008 is **not on `master`** and not in `spec/ANCHORS.txt`. It lives on
-`adr-008-rev15-candidate`, is cited from `warrant`, and all fifteen of its gate
-rounds came from one reviewer family. Present is not adopted (`MAP.md` says which
-ref holds what); and depth from a single family is measured in this project to
-find that family's blind spots slowly, if at all.
+The ADR-008 that `warrant` cites (Resonant Precedent, rev 15) was never on
+`master` or in `spec/ANCHORS.txt`; on 2026-09-03 its branch was archived as the
+tag `archive/2026-09-03/adr-008-rev15-candidate` ("historical candidate and
+review lineage; not adopted or active"), and its Warrant-side companions WRT-001
+and WRT-002 were closed as deferred on 2026-09-07. The `ADR-008` on `master` is
+a different document under a reused number
+(`proposals/ADR-008-specification-is-the-arbiter.md`, closed as superseded by
+ADR-010, which names the collision). The assumption that stays: all fifteen of
+the archived ADR's gate rounds came from one reviewer family, and depth from a
+single family is measured in this project to find that family's blind spots
+slowly, if at all — WRT-002's first three-family gate reproduced nine defects
+that six single-family rounds had passed. Present is not adopted (`MAP.md` says
+which ref holds what).
 
 ### SA-8. The publish path has now run, twice, for two releases on one runner
 

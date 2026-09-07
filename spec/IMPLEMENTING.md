@@ -157,10 +157,10 @@ half, `eval(H(I), n) = ⟨I⟩` at 0 ATP, is recorded by `EV-GENESIS-BARE`, whos
 does not name TV-12. The audit carries that as a named exception which fails the
 run if it ever stops reproducing, so the exception cannot outlive the defect.
 
-§7 remains a sentence telling an implementer their disagreement with the
-specification is settled by code they cannot see, and changing it — like filing
-that vector — is an edit to anchored bytes. See
-[`proposals/ADR-008-specification-is-the-arbiter.md`](../proposals/ADR-008-specification-is-the-arbiter.md).
+That sentence of §7 was changed in Book I 0.6.0 through ADR-010, which carried
+the narrower proposal that first argued it,
+[`proposals/ADR-008-specification-is-the-arbiter.md`](../proposals/ADR-008-specification-is-the-arbiter.md),
+now closed as superseded. Filing that vector remains an edit to anchored bytes.
 
 **Three implementations already agree, and that is weaker evidence than it
 looks.** The Python oracle, `warrant-go` and the Rust implementation were written
