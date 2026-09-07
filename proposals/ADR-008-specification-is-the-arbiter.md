@@ -4,9 +4,10 @@
 proposes are in Book I 0.6.0, the adopted v0.7.0 bundle (threshold warrant
 `0e634c17…46e1`, 2026-08-30): §7 no longer appoints `impl/sigma_glyph.py` as
 the arbiter of a discrepancy, and §5.1 no longer sends the reader to it. ADR-010
-carried them inside one coherent change rather than as this PATCH, and says so
-("carried forward here"); the anchor this file computed belongs to a tree that
-no longer exists and was never adopted. What survives as live surface is the
+addresses those concerns inside one coherent change rather than as this PATCH.
+Its phrase "carried forward here" explicitly refers to ADR-009 (#24), not to
+this document. The candidate anchor computed here was never adopted and is not
+the current anchor. What survives as live surface is the
 audit contract: `tools/spec_audit.py`, in CI, deciding the five predicates
 described below, documented for implementers in `spec/IMPLEMENTING.md`. The one
 question this ADR left undecided, whether the English rendering becomes
