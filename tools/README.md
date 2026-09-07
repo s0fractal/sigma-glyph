@@ -149,7 +149,10 @@ with the recorded tree; `loss` must be non-empty for every mode; pinned
 replacement operands must not have drifted; and no tracked file outside the
 tombstone class (`history/`, `.warrants/`, `CHANGELOG.md`) may cite a retired
 path as current. The record set must equal a closed manifest inside the
-checker, so a record cannot be deleted into a pass.
+checker, so a record cannot be deleted into a pass. Each lineage also has a pinned
+subject inventory (path, digest, mode); deleting a single subject cannot hide
+its resurrection. The lexical scan checks full paths and paths relative to the
+referring file; it is not a general Markdown or URL parser.
 
 ```bash
 python3 tools/retirement_check.py               # validate + replay every record

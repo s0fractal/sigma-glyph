@@ -6,8 +6,8 @@ machine-readable records are `history/retirement-records/*.json`, checked in
 CI by `tools/retirement_check.py`.
 
 This changes **admission**, not truth. Nothing below was refuted, and nothing
-below was erased: every byte is in git history and in the Zenodo deposit
-snapshot `7ecba6a` ([10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651)).
+below was erased: every exact subject blob is in the before revision; 106 of 107 also match
+the deposit source snapshot `7ecba6a` ([10.5281/zenodo.22069651](https://doi.org/10.5281/zenodo.22069651)).
 
 Exact before revision: `281a12517d188e20878ab064e8deca78aaf55cb0`. The apply
 commit and tree are in *Applied transition* at the end.
@@ -32,9 +32,9 @@ The repository's adopted bundle is v0.7.0 (2026-08-30). Three things in the
 default tree were competing with it for attention:
 
 - **`reviews/` — 99 files, ~14 000 lines**, all from July 2026, all about
-  v0.3.0–v0.6.6. Every finding in them was dispositioned in its paired
-  `-response.md` and adjudicated in `.warrants/`; every settled point was
-  extracted to `reviews/README.md`. Ten `.pass1` files were blind first passes
+  v0.3.0–v0.6.6. The corpus includes paired dispositions and review adjudications in
+  `.warrants/`, but not every finding has a warrant or is closed; residuals
+  are carried forward below. Settled points remain in `reviews/README.md`. Ten `.pass1` files were blind first passes
   of two-pass reviews — two versions of one document with different findings,
   which is the exact ambiguity §0 of the protocol names. A reader or model
   opening `reviews/` met a hundred historical documents before the three live
@@ -67,8 +67,10 @@ do not treat as current precedent without an explicit re-adoption act
 ```
 
 Git availability is best-effort. The Zenodo snapshot `7ecba6a` (2026-08-23,
-deposited under DOI 10.5281/zenodo.22069651) contains all 107 subjects and is
-the preservation path that does not depend on this repository's remote.
+deposited under DOI 10.5281/zenodo.22069651) contains all 107 paths, but only 106 exact subject blobs match the before
+revision: its `HANDOFF.md` is an earlier version. Retrieve the exact retired
+HANDOFF from the before revision. This source-snapshot comparison does not
+verify a downloaded public deposit or promise independent durable storage.
 
 ---
 
@@ -259,3 +261,14 @@ does not rewrite this one.
   record addresses the act, it does not prove it was within anyone's power
 - changed scope: the 107 subjects, this ledger, the reference transitions
   above; the receipt commit adds the records, the checker and its CI step
+
+## Codex pre-merge correction
+
+At PR head `28460e1`, removing one subject from a record and restoring its file
+passed all checks. The checker now independently pins each lineage's complete
+(path, digest, mode) inventory. Relative citations from the referring directory
+are also scanned: the original full-path-only scan missed them. This remains
+a lexical scan of tracked UTF-8 files, not a general Markdown/URL parser.
+The checker and all three entrypoint pins were updated together.
+Preservation was checked against source revision `7ecba6a`: HANDOFF differs,
+so the earlier blanket claim of a byte-exact 107-subject fallback was narrowed.

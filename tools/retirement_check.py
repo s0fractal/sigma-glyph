@@ -28,6 +28,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -46,6 +47,11 @@ EXPECTED = {
     "archive-eras": "VALID",
     "work-orders-2026-07": "VALID",
 }
+
+# Independent subject inventory: omission, reassignment or mode drift requires
+# an explicit checker change, not just an edited receipt. Not a trust anchor
+# against an author who also edits this checker.
+SUBJECT_INVENTORIES = {'archive-eras': 'ec0712c07e009a8d56f455810532d2542e4901df94a1f5bfb225d22abea93fd0', 'review-corpus-2026-07': '0aeb488de2f3e2f41115c8f78f1f969f6a97e0ad147c85b2faf669211fa5568c', 'work-orders-2026-07': 'bc1bbe5cc55426797c719c2058f6335d32ee7956c40e887ba637c809c10b4326'}
 
 # Tombstone and immutable-history class, excluded from the zombie scan: the
 # ledger and records name retired paths on purpose; `.warrants/` is a signed,
@@ -189,6 +195,22 @@ def check_subjects(record, revision: str, apply_tree: str) -> list:
     return [s["path"] for s in subjects]
 
 
+def check_subject_inventory(record) -> None:
+    rid = record.get("id")
+    if rid not in SUBJECT_INVENTORIES:
+        raise Refusal(f"RECORD_NOT_IN_MANIFEST:{rid}")
+    subjects = record.get("subjects")
+    if not isinstance(subjects, list) or not subjects:
+        raise Refusal("SUBJECTS_EMPTY")
+    if any(not isinstance(s, dict) or any(not isinstance(s.get(k), str)
+           for k in ("path", "sha256", "mode")) for s in subjects):
+        raise Refusal("SUBJECT_FIELDS_NOT_CLOSED")
+    inventory = sorted((s["path"], s["sha256"], s["mode"]) for s in subjects)
+    digest = hashlib.sha256(json.dumps(inventory, separators=(",", ":")).encode()).hexdigest()
+    if digest != SUBJECT_INVENTORIES[rid]:
+        raise Refusal(f"SUBJECT_INVENTORY_MISMATCH:{rid}")
+
+
 def postcondition_argv(post) -> list:
     """argv is CONSTRUCTED here, never taken from the record: a record that
     supplied its own argv could pin an entrypoint and pass it as an inert
@@ -283,6 +305,7 @@ def validate(record) -> dict:
         # An applied retirement whose only evidence is prose is the failure
         # this discipline exists to stop being.
         raise Refusal("APPLIED_WITHOUT_POSTCONDITION")
+    check_subject_inventory(record)
     argvs = [postcondition_argv(post) for post in posts]
     return {"id": rid, "subjects": paths, "relation": relation, "argvs": argvs}
 
@@ -327,13 +350,13 @@ def surface_scan(retired: list, tracked: list, present) -> int:
     tracked file outside the tombstone class cites a retired path as if it
     were current. `tracked` and `present` are injected so the selftest can
     exercise both refusals without touching the repository."""
-    needles = [(rel, rel.encode()) for rel in retired]
     for rel in retired:
         if present(rel):
             raise Refusal(f"RETIRED_SUBJECT_STILL_PRESENT:{rel}")
     for file_rel, data in tracked:
-        for rel, needle in needles:
-            if needle in data:
+        for rel in retired:
+            relative = posixpath.relpath(rel, posixpath.dirname(file_rel) or ".")
+            if rel.encode() in data or relative.encode() in data:
                 raise Refusal(f"ZOMBIE_REFERENCE:{file_rel}:{rel}")
     return len(retired)
 
@@ -348,6 +371,7 @@ def surface(rid: str) -> int:
     subjects = record.get("subjects") if isinstance(record, dict) else None
     if not isinstance(subjects, list) or not subjects:
         raise Refusal("SUBJECTS_EMPTY")
+    check_subject_inventory(record)
     retired = [s.get("path") for s in subjects]
     if any(not isinstance(rel, str) or not rel for rel in retired):
         raise Refusal("SUBJECT_FIELDS_NOT_CLOSED")
@@ -453,6 +477,11 @@ def selftest() -> int:
             return
         raise AssertionError(f"{name}: mutation survived")
 
+    refuses("subject-omission", good, lambda r: r["subjects"].pop(0),
+            "SUBJECT_INVENTORY_MISMATCH")
+    refuses("subject-mode-relabel", good,
+            lambda r: r["subjects"][0].__setitem__("mode", "REFUTED"),
+            "SUBJECT_INVENTORY_MISMATCH")
     refuses("empty-loss", good, lambda r: r.__setitem__("loss", []), "LOSS_EMPTY")
     refuses("loss-of-blanks", good, lambda r: r.__setitem__("loss", ["  "]), "LOSS_EMPTY")
     refuses("subject-digest-drift", good,
@@ -569,6 +598,15 @@ def selftest() -> int:
         raise AssertionError("surface-zombie-reference: mutation survived")
     assert surface_scan(retired, [("docs/x.md", b"unrelated")], lambda rel: False) == 2
     controls.append("surface-clean-passes")
+    for file_rel, content in [("gone/index.md", b"[current](one.md)"),
+                              ("docs/index.md", b"[current](../gone/one.md)")]:
+        try:
+            surface_scan(retired, [(file_rel, content)], lambda rel: False)
+        except Refusal as exc:
+            assert "ZOMBIE_REFERENCE" in str(exc), exc
+            controls.append("surface-relative-zombie:" + file_rel)
+        else:
+            raise AssertionError("relative zombie survived")
     # ...and the real tree, through the real ls-files, must be clean now.
     for rid, record in records.items():
         surface_scan([s["path"] for s in record["subjects"]], tracked_files(),

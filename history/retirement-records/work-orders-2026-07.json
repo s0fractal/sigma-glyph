@@ -33,8 +33,8 @@
     "the 2026-07-08 acceptance transcript (49/49) as text rather than as a live CI step"
   ],
   "preservation": {
-    "policy": "git-history-best-effort, plus the Zenodo deposit snapshot 7ecba6a (10.5281/zenodo.22069651), which contains every subject of this act; this record promises neither permanent storage nor that a shallow clone can resolve the before revision",
-    "locator": "git show 281a12517d188e20878ab064e8deca78aaf55cb0:<historical-path>, carried with the HISTORICAL Σ-GLYPH ARTIFACT envelope in history/RETIREMENT-2026-09-SURFACE.md"
+    "policy": "git-history-best-effort, plus the Zenodo deposit snapshot 7ecba6a (10.5281/zenodo.22069651), which contains all subject paths but only 106 of the 107 exact subject blobs (HANDOFF differs; its exact bytes require before_revision); this record promises neither permanent storage nor that a shallow clone can resolve the before revision",
+    "locator": "git show 281a12517d188e20878ab064e8deca78aaf55cb0:<historical-path>, carried with the HISTORICAL \u03a3-GLYPH ARTIFACT envelope in history/RETIREMENT-2026-09-SURFACE.md"
   },
   "admission": {
     "default": "EXCLUDED",
@@ -55,7 +55,7 @@
       "runner": "python3",
       "entrypoint": {
         "path": "tools/retirement_check.py",
-        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+        "sha256": "58a5b02397087fbeba76d810daf4709c60968ba31c0a577ec005cf4f557239e8"
       },
       "args": [
         "--surface",
@@ -67,7 +67,7 @@
       "runner": "python3",
       "entrypoint": {
         "path": "tools/retirement_check.py",
-        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+        "sha256": "58a5b02397087fbeba76d810daf4709c60968ba31c0a577ec005cf4f557239e8"
       },
       "args": [
         "--selftest"

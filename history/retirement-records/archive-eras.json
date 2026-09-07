@@ -15,7 +15,7 @@
       "path": "archive/era-1/v1.4-genesis-complete.md",
       "sha256": "1de4da719d2a9df14cab383e79c4494050d4ee31fac92dbba03bf3e08ffa8f88",
       "mode": "SUPERSEDED",
-      "reason": "Era-1 0.2.12 body; the wave-in-hash model it specifies was replaced by Wave ∉ hash in v0.3.0"
+      "reason": "Era-1 0.2.12 body; the wave-in-hash model it specifies was replaced by Wave \u2209 hash in v0.3.0"
     },
     {
       "path": "archive/era-1/v1.9.1-enlightened-extension.md",
@@ -56,8 +56,8 @@
     "reading superseded MUST clauses side by side with the current ones without git"
   ],
   "preservation": {
-    "policy": "git-history-best-effort, plus the Zenodo deposit snapshot 7ecba6a (10.5281/zenodo.22069651), which contains every subject of this act; this record promises neither permanent storage nor that a shallow clone can resolve the before revision",
-    "locator": "git show 281a12517d188e20878ab064e8deca78aaf55cb0:<historical-path>, carried with the HISTORICAL Σ-GLYPH ARTIFACT envelope in history/RETIREMENT-2026-09-SURFACE.md"
+    "policy": "git-history-best-effort, plus the Zenodo deposit snapshot 7ecba6a (10.5281/zenodo.22069651), which contains all subject paths but only 106 of the 107 exact subject blobs (HANDOFF differs; its exact bytes require before_revision); this record promises neither permanent storage nor that a shallow clone can resolve the before revision",
+    "locator": "git show 281a12517d188e20878ab064e8deca78aaf55cb0:<historical-path>, carried with the HISTORICAL \u03a3-GLYPH ARTIFACT envelope in history/RETIREMENT-2026-09-SURFACE.md"
   },
   "admission": {
     "default": "EXCLUDED",
@@ -78,7 +78,7 @@
       "runner": "python3",
       "entrypoint": {
         "path": "tools/retirement_check.py",
-        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+        "sha256": "58a5b02397087fbeba76d810daf4709c60968ba31c0a577ec005cf4f557239e8"
       },
       "args": [
         "--surface",
@@ -90,7 +90,7 @@
       "runner": "python3",
       "entrypoint": {
         "path": "tools/retirement_check.py",
-        "sha256": "295093bcb8acffad366168c0e1063abf7a18075145565059b13a4a115d019cd8"
+        "sha256": "58a5b02397087fbeba76d810daf4709c60968ba31c0a577ec005cf4f557239e8"
       },
       "args": [
         "--selftest"
