@@ -42,6 +42,12 @@ python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
 python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
 python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION: ALL PASS"
 
+# Book III selection is a derivation over a SET: the input order of candidates
+# must not decide the outcome, in Python and (when a toolchain is present) in
+# Go. The control proves it can fail: two order-dependent stand-ins are caught.
+say "Book III selection: candidate order does not decide (permutation control)"
+python3 tests/federation_order_control.py | tee /dev/stderr | grep -q "FEDERATION-ORDER-CONTROL: ALL PASS"
+
 # A specification that calls a JSON file normative has to say what shape that
 # file has. The shape is an anchored schema, closed-world, and the selftest
 # breaks each rule to prove the validator can fail.

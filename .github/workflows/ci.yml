@@ -207,6 +207,10 @@ jobs:
             | tee /dev/stderr | grep -q "FEDERATION-GO: ALL PASS"
           python3 tests/federation_differential.py \
             | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
+          # Candidate order must not decide selection, in both implementations;
+          # the tag names what ran, so "python only" cannot pass this grep.
+          python3 tests/federation_order_control.py \
+            | tee /dev/stderr | grep -q "FEDERATION-ORDER-CONTROL: ALL PASS (.*; python, go)"
       - name: Governance second implementation (Go) + differential
         shell: bash
         run: |

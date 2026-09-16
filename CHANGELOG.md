@@ -5,6 +5,15 @@
 No normative bundle changes after adopted `v0.7.0`; PyPI remains `0.6.7` until a
 separate publishing action.
 
+- `tests/federation_order_control.py`: Book III `select` is replayed under every
+  permutation of its candidates (all pinned `select` vectors plus adversarial
+  cases: duplicate WarrantID, three-way tie, quota groups, mixed live/dead), in
+  Python and in Go, and the result must not change. No dependence was found;
+  this is the control that keeps it so, and it proves it can fail — two
+  order-dependent stand-ins (first live candidate; tie resolved by input order)
+  are caught. Wired into `tools/test-all.sh` and the CI federation step; the
+  tag names which implementations ran. Not a normative change: the anchored
+  vector suite is untouched.
 - Retired Sigma-Glyph's partial local reimplementation of Warrant verification.
   All active callers now consume the real Warrant machine boundary through
   `tools/warrant_gate.py`; `$WARRANT` is explicit and missing configuration
