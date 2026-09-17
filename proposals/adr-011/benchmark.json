@@ -1,11 +1,11 @@
 {
   "artifact": "sigma-glyph/adr-011/church@v0 benchmark receipt",
   "normative": false,
-  "oracle_source_commit": "1c2b6ca42cb95cdc035fc887cd0587a5758862d7",
+  "oracle_source_commit": "39620773b19b55d68a3d140a09b7633527c15542",
   "measurement_inputs": {
     "proposals/adr-011/equality_profile.py": "97ec13cb2f6e57d73a7729dcf77995cc3e4f39ba44dc6cf3b618ddc6bddbc81b",
     "proposals/adr-011/benchmark.py": "1ab5c3e4937cf12f0bb78609aa13219e5688667f3e75acd94540531e0b2e1ec4",
-    "impl/sigma_glyph.py": "55072bc02e63987898fd60125e8bb5b14a6233b081ba158e0253755652323825"
+    "impl/sigma_glyph.py": "f4d9990d40f07c8cfd3aa10512c2195a0a04e8dc78bc955c0f53dfe737d3feb4"
   },
   "co_released_context": {
     "proposals/ADR-011-eq-by-normal-form-address.md": "ccb40b04f9246bda94bbdb2fd9645454cc4a59a0789778a34a87780dde28275f",
@@ -14,7 +14,7 @@
   },
   "book_1_anchor": "e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd",
   "book_1_edition": "Book I document version 0.6.0, adopted as part of anchor-set release v0.7.0 (Receipt with exit; \u00a73.4, \u00a73.6)",
-  "interpreter": "CPython 3.14.7 on macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "interpreter": "CPython 3.14.7 on macOS-27.0-arm64-arm-64bit-Mach-O",
   "budget_each_side": 5000000,
   "limits": "impl/sigma_glyph.py DEFAULT limits; no max_atp",
   "markers": {

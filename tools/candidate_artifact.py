@@ -23,15 +23,17 @@ is a threshold warrant over anchored bytes; a build is a build.
 THE VERSION IS DELIBERATELY UNPUBLISHABLE
 -----------------------------------------
 `spec/VERSIONS.md` says the bundle number names an adopted set of bytes and is
-not the software's version — so a wheel is not renumbered to `0.7.0` because the
-adopted bundle is `v0.7.0`. Nor is it built as a bare `0.6.7`, which is a
-published release: a second artifact carrying a published version with different
-bytes is the confusion this whole phase exists to remove.
+not the software's version — so a candidate wheel is not renumbered because a
+bundle was adopted. Nor is it built as the bare pyproject version, which is (or
+will be) a published release: a second artifact carrying a published version
+with different bytes is the confusion this whole phase exists to remove.
 
-So the candidate carries a PEP 440 LOCAL VERSION — `0.6.7+phase4a.<commit>`.
-PyPI rejects local versions outright, which makes the artifact structurally
-unpublishable rather than merely unauthorised. `pyproject.toml` in the checkout
-is never edited; the version is applied to a build copy.
+So the candidate carries a PEP 440 LOCAL VERSION — `<pyproject>+phase4a.<commit>`
+(`0.6.7+phase4a.5050ab7` for the frozen phase-4a receipt). PyPI rejects local
+versions outright, which makes the artifact structurally unpublishable rather
+than merely unauthorised. `pyproject.toml` in the checkout is never edited by
+this tool; the version is applied to a build copy. Moving the distribution
+version itself is a release change under `PUBLISHING.md`, not this tool's job.
 """
 import argparse
 import hashlib
@@ -201,8 +203,8 @@ def build(out_dir):
     work = Path(tempfile.mkdtemp(prefix="sigma-candidate-"))
     try:
         # Build from a COPY of the tracked tree, with the version rewritten
-        # there. The checkout's own pyproject keeps saying 0.6.7, so the
-        # repository never disagrees with what is published.
+        # there. The checkout's own pyproject keeps its public version, so a
+        # candidate build never rewrites the repository's release number.
         tracked = git("ls-files", "-z").split("\0")
         source = work / "src"
         for name in filter(None, tracked):

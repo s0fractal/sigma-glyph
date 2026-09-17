@@ -1,4 +1,4 @@
-"""Sigma-GLYPH Book III reference implementation (federation; current release bundle v0.6.1).
+"""Sigma-GLYPH Book III reference implementation (federation; Book III 0.7.0, adopted bundle v0.7.0).
 
 Pure functions only: assertion/policy validation, selection derivation,
 effective-wave computation, AnnotationViewID and assertion_set_root. No

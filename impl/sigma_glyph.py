@@ -1,14 +1,19 @@
-"""Sigma-GLYPH Book I reference implementation (oracle semantics v0.5.x, current release bundle v0.6.1), Book I.
+"""Sigma-GLYPH Book I reference implementation (Book I 0.6.0, adopted bundle v0.7.0).
 
 Scope: SigmaNodeV2 canonical serialization/deserialization, validation,
 SHA-256 NodeHash, CAS object store, genesis I/K/S (intrinsic), and the
-v0.5 HASH-THUNK evaluator: lazy left-spine resolution (ADR-003) with
+HASH-THUNK evaluator: lazy left-spine resolution (ADR-003) with
 size-priced ATP under the hash-leaf size model (ADR-001 composition).
 Every materialization is a priced step; unresolved hashes count as
 size 1; genesis axioms are recognized by hash without any store.
-Serialization and NodeHashes are UNCHANGED from v0.4.x — only
-evaluation semantics and ATP accounting changed (see CHANGELOG v0.5.0
-migration guide). Waves live in impl/sigma_wave.py (Book II).
+
+Book I 0.6.0 states evaluation over three inputs, (term_hash, uint32 atp,
+content environment), and returns a Receipt {exit, result_hash, atp_spent}:
+`eval_receipt`. `eval_hash` is the two-value compatibility profile.
+Admission (`AdmissionRefused`) and resource limits (`ResourceFault`) are
+local and non-canonical. This module does not arbitrate the edition: the
+Book and its anchored suite do. Serialization and NodeHashes are unchanged
+from v0.4.x. Waves live in impl/sigma_wave.py (Book II).
 """
 import hashlib
 import sys
