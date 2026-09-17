@@ -5,6 +5,32 @@
 No normative bundle changes after adopted `v0.7.0`; PyPI remains `0.6.7` until a
 separate publishing action.
 
+### Distribution 0.7.0 (release candidate, not published)
+
+`pyproject.toml` moves from `0.6.7` to `0.7.0` so the distribution packages the
+adopted v0.7.0 bundle (Book I 0.6.0, Books II and III 0.7.0) instead of the
+bundle before it. This is a packaging change only: no anchored byte, Book,
+conformance vector or canonical result changes, and no resume or continuation
+surface is added. Warrant's `ski@v1` pins the `v0.6.7` module bytes by digest
+and is unaffected; `ski@v2` stays reserved and unadmitted.
+
+What a user of the PyPI 0.6.7 module gains by upgrading is what v0.7.0 adopted:
+
+- `eval_receipt(term_hash, atp, env)` returns a `Receipt` with `exit`
+  (`normal_form` / `atp_exhausted` / `unresolved_reference`), `result_hash` and
+  `atp_spent`; `eval_hash` remains as the two-value compatibility profile.
+- Admission (`AdmissionRefused`) and resource limits (`ResourceFault`) are
+  local, non-canonical refusals, not canonical outcomes.
+- Books II and III 0.7.0: no reference-oracle precedence; at most one Pin per
+  NodeHash in the annotation profile.
+
+Module docstrings in `impl/sigma_glyph.py`, `impl/sigma_wave.py` and
+`impl/sigma_federation.py` named "current release bundle v0.6.1" and, for
+Book I, "v0.5" semantics; they now name the edition each module implements.
+That changes the module bytes (not their behaviour), so
+`proposals/adr-011/benchmark.json` is regenerated for its recorded source
+digest and commit; its measurements do not change.
+
 - `tests/federation_order_control.py`: Book III `select` is replayed under every
   permutation of its candidates (all pinned `select` vectors plus adversarial
   cases: duplicate WarrantID, three-way tie, quota groups, mixed live/dead), in

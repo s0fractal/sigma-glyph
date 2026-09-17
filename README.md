@@ -99,19 +99,22 @@ project's own governance act; it does not claim outside review, custody or use.
 actually had.
 
 A bundle heading is a governance label, not a git tag and not a release. As of
-2026-09-04 there is no `v0.7.0` git tag, GitHub release or PyPI upload; the
+2026-09-17 there is no `v0.7.0` git tag, GitHub release or PyPI upload; the
 newest release tag is `v0.6.7`. Release history and exact changed anchors
 belong to [`CHANGELOG.md`](CHANGELOG.md), `spec/ANCHORS.txt` and
 [`spec/VERSIONS.md`](spec/VERSIONS.md).
 
-### Distribution: 0.6.7
+### Distribution: 0.7.0
 
-`sigma-glyph` **0.6.7** (2026-07-31) is the latest PyPI release, built from git
-tag `v0.6.7`, and `pyproject.toml` still carries that version. It packages the
-v0.6.7 bundle (Book I 0.5.2, Books II and III 0.6.1), which is the previous
-adopted bundle: an installed copy is one bundle behind the adopted
-specification until a separate distribution release.
-[`PUBLISHING.md`](PUBLISHING.md) owns the release procedure.
+`pyproject.toml` carries **0.7.0**, a release **candidate** that packages the
+adopted v0.7.0 bundle (Book I 0.6.0, Books II and III 0.7.0). It is not
+published: there is no `v0.7.0` tag or GitHub release, and nothing has been
+uploaded to PyPI under that number. Until the release workflow publishes it,
+the latest PyPI release is `sigma-glyph` **0.6.7** (2026-07-31), built from git
+tag `v0.6.7`, which packages the previous bundle (Book I 0.5.2, Books II and
+III 0.6.1) — so an installed copy from PyPI is still one bundle behind.
+[`PUBLISHING.md`](PUBLISHING.md) owns the release procedure; if it and PyPI
+disagree, PyPI is right.
 
 ### Evaluator bytes and Warrant runtime tags
 
