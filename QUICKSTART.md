@@ -71,8 +71,8 @@ Two strangers running this with the same demanded store content get
 byte-identical terms and spend. A result hash alone does not identify which exit
 occurred; `eval_receipt(term, atp, store)` returns the exit explicitly (Book I
 0.6.0 §3.4), and `eval_hash` above is the result-and-spend convenience that the
-PyPI 0.6.7 module also has. The snippet is kept to that shared surface so the
-release gate can run it both ways.
+earlier PyPI 0.6.7 module also has. The snippet is kept to that shared surface
+so the release gate can run it both ways.
 
 ## The three layers in one paragraph each
 
