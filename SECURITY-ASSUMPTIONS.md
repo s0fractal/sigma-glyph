@@ -201,34 +201,45 @@ slowly, if at all — WRT-002's first three-family gate reproduced nine defects
 that six single-family rounds had passed. Present is not adopted (`MAP.md` says
 which ref holds what).
 
-### SA-8. The publish path has now run, twice, for two releases on one runner
+### SA-8. The publish path has now run three times, for three releases on one runner
 
 This item used to say that nothing had ever been published and that the first
 release would also be the first test of the OIDC path. That stopped being true
 on 2026-07-30, and an assumption that overstates a limitation misleads exactly
 as much as one that understates it — so it is rewritten rather than deleted.
 
-`.github/workflows/publish.yml` has executed end to end **twice**: `sigma-glyph`
-**0.6.6.post1** (2026-07-30) and **0.6.7** (2026-07-31) are on PyPI, uploaded
-through Trusted Publishing with no stored token. The token exchange, the `pypi`
-environment gate, and PyPI's acceptance of this repository's workflow identity
-are no longer unexercised — they worked, for those two tags, on GitHub's hosted
-runner, with the action SHAs pinned in that file.
+`.github/workflows/publish.yml` has executed end to end **three times**:
+`sigma-glyph` **0.6.6.post1** (2026-07-30), **0.6.7** (2026-07-31) and **0.7.0**
+(2026-09-17) are on PyPI, uploaded through Trusted Publishing with no stored
+token. The token exchange, the `pypi` environment gate, and PyPI's acceptance of
+this repository's workflow identity are no longer unexercised — they worked, for
+those three tags, on GitHub's hosted runner, with the action SHAs pinned in that
+file.
+
+For 0.7.0 the artifact was also read back: the digests PyPI serves are the
+digests the release run built (wheel `c9ee4768…6276a`, sdist `5ad36077…bcf8`),
+and the installed modules are byte-identical to `impl/` at tag `v0.7.0`. That
+closes the gap between "the workflow said success" and "this is what it
+uploaded" for this release only, and it was done by the party that cut the
+release.
 
 What that does **not** establish, which is the part still worth reading as an
 assumption:
 
-- **Two runs are not a track record.** Nothing has exercised the path after a
+- **Three runs are not a track record.** Nothing has exercised the path after a
   rotated publisher, a renamed workflow, a changed environment name, or from a
   runner other than the hosted one. A Trusted Publishing configuration that
   quietly stops matching fails at upload — after the gate has already passed.
 - **The TestPyPI dry run has still never been performed.** `PUBLISHING.md`
-  describes it and the `testpypi` job has never run; both real publishes went
-  straight to PyPI.
-- **Only the maintainer has installed the result.** `pip install sigma-glyph`
-  into a clean venv, followed by the three self-tests, was done by the
-  maintainer on one host. No one else is known to have installed it, and no
-  second party has reproduced the upload.
+  describes it and the `testpypi` job has never run; all three real publishes
+  went straight to PyPI.
+- **Only this project has installed the result.** `pip install sigma-glyph`
+  into a clean venv, followed by the three self-tests and — for 0.7.0 — the
+  anchored suites replayed from outside any checkout, was done on one host by
+  the party that cut the release. No outside party is known to have installed
+  any version, and none has reproduced the upload. A reviewer verified 0.7.0's
+  candidate artifacts before the release; nobody but this project has read back
+  what PyPI now serves.
 - **A green publish is not a gate.** `tools/check_release_surface.py` measures
   the artifact against this repository's own documentation and says nothing
   about whether either is correct. SA-9 is unaffected.

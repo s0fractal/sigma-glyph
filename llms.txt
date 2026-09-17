@@ -147,9 +147,10 @@ thing it summarises:
 - **SA-5** — every exercise of the 2-of-3 threshold is counted there, with its
   date, and several of them were signed from one host, which is one custody,
   not a quorum.
-- **SA-8/SA-9** — the OIDC publish path has now run twice (0.6.6.post1 and
-  0.6.7 are on PyPI), on one hosted runner, with the TestPyPI dry run still
-  never performed and only the maintainer having installed the result; and no
+- **SA-8/SA-9** — the OIDC publish path has now run three times (0.6.6.post1,
+  0.6.7 and 0.7.0 are on PyPI), on one hosted runner, with the TestPyPI dry run
+  still never performed and nobody outside this project having installed the
+  result; and no
   independent gate is currently affordable, so work lands under a recorded
   attestation rather than a passed gate.
 

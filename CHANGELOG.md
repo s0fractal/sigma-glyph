@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-No normative bundle changes after adopted `v0.7.0`; PyPI remains `0.6.7` until a
-separate publishing action.
+No normative bundle changes after adopted `v0.7.0`.
 
-### Distribution 0.7.0 (release candidate, not published)
+## Distribution 0.7.0 — the package catches up with the bundle (2026-09-17)
+
+Released from tag `v0.7.0` (commit `9d10bbc`) through the OIDC publish workflow;
+PyPI wheel `c9ee4768…6276a`, sdist `5ad36077…bcf8`. Reviewed by Codex at
+`2adaabb` (PR #57) before merge.
 
 `pyproject.toml` moves from `0.6.7` to `0.7.0` so the distribution packages the
 adopted v0.7.0 bundle (Book I 0.6.0, Books II and III 0.7.0) instead of the

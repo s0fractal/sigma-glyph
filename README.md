@@ -98,21 +98,23 @@ project's own governance act; it does not claim outside review, custody or use.
 `SECURITY-ASSUMPTIONS.md` SA-5 records what custody each threshold act has
 actually had.
 
-A bundle heading is a governance label, not a git tag and not a release. As of
-2026-09-17 there is no `v0.7.0` git tag, GitHub release or PyPI upload; the
-newest release tag is `v0.6.7`. Release history and exact changed anchors
+A bundle heading is a governance label, not a git tag and not a release. They
+coincide here only because the 0.7.0 distribution was cut from this bundle: the
+`v0.7.0` tag, GitHub release and PyPI upload are release acts of 2026-09-17,
+not the adoption of 2026-08-30. Release history and exact changed anchors
 belong to [`CHANGELOG.md`](CHANGELOG.md), `spec/ANCHORS.txt` and
 [`spec/VERSIONS.md`](spec/VERSIONS.md).
 
 ### Distribution: 0.7.0
 
-`pyproject.toml` carries **0.7.0**, a release **candidate** that packages the
-adopted v0.7.0 bundle (Book I 0.6.0, Books II and III 0.7.0). It is not
-published: there is no `v0.7.0` tag or GitHub release, and nothing has been
-uploaded to PyPI under that number. Until the release workflow publishes it,
-the latest PyPI release is `sigma-glyph` **0.6.7** (2026-07-31), built from git
-tag `v0.6.7`, which packages the previous bundle (Book I 0.5.2, Books II and
-III 0.6.1) — so an installed copy from PyPI is still one bundle behind.
+`sigma-glyph` **0.7.0** (2026-09-17) is the latest PyPI release, built from git
+tag `v0.7.0` (commit `9d10bbc…`) by `.github/workflows/publish.yml`, and
+`pyproject.toml` carries that version. It packages the adopted v0.7.0 bundle
+(Book I 0.6.0, Books II and III 0.7.0), so an installed copy is no longer one
+bundle behind — the first release for which that is true since the bundle was
+adopted. The published wheel is `c9ee4768…6276a` and the sdist `5ad36077…bcf8`;
+both are byte-identical to the artifacts the release run built, and the three
+installed modules are byte-identical to `impl/` at the tag.
 [`PUBLISHING.md`](PUBLISHING.md) owns the release procedure; if it and PyPI
 disagree, PyPI is right.
 
@@ -123,9 +125,12 @@ Two Book I Python modules exist, and they are not interchangeable:
 - `git show v0.6.7:impl/sigma_glyph.py`, byte-identical to the module inside
   PyPI 0.6.7 (SHA-256 `80299d68…7bab5`), implements Book I v0.5. Warrant pins
   exactly these bytes as its `ski@v1` evaluator and checks the digest before
-  import, so `ski@v1` does not move when this repository does.
+  import, so `ski@v1` does not move when this repository does — and it does not
+  follow this distribution either: `pip install sigma-glyph` now gets 0.7.0,
+  which is **not** the `ski@v1` module.
 - `impl/sigma_glyph.py` on `master` implements Book I 0.6.0, the v0.7.0
-  bundle. No Warrant runtime tag reaches it. `ski@v2` is reserved for Book I
+  bundle, and is the module inside PyPI 0.7.0 (SHA-256 `f4d9990d…3feb4`). No
+  Warrant runtime tag reaches it. `ski@v2` is reserved for Book I
   0.6.0 in Warrant's `SPEC.md` §3.2 but registered and admitted in no body
   version; body version `0.3` is reserved and unspecified; Warrant ships no
   `ski@v2` evaluator, and a conforming verifier rejects `ski@v2` today.

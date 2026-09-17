@@ -12,21 +12,25 @@ then every release publishes itself.
   `python -m`.
 - **What ships:** those three modules. Not the spec, not `tests/`, not the Rust
   or Go implementations, not the proofs.
-- **Released so far:** **0.6.6.post1** (2026-07-30, packaging only) and
-  **0.6.7** (2026-07-31, the latest release). Both went out through the
-  workflow below; no release has ever been uploaded by hand. `master` carries
-  release tags from `v0.5.0` through `v0.6.7`. A bundle adopted in
-  `spec/ANCHORS.txt` creates no tag and no release: `v0.7.0` is adopted and, as
-  of 2026-09-17, has neither.
-- **Candidate:** `pyproject.toml` carries **0.7.0**, which packages the adopted
-  v0.7.0 bundle. It becomes a release only when the `v0.7.0` GitHub Release is
-  cut and the workflow below publishes it; until then 0.6.7 is the latest
-  release. README's "Status by surface" keeps the adopted
+- **Released so far:** **0.6.6.post1** (2026-07-30, packaging only), **0.6.7**
+  (2026-07-31) and **0.7.0** (2026-09-17, the latest release, the first that
+  packages the adopted v0.7.0 bundle). All three went out through the workflow
+  below; no release has ever been uploaded by hand. `master` carries release
+  tags from `v0.5.0` through `v0.7.0`. A bundle adopted in `spec/ANCHORS.txt`
+  still creates no tag and no release of its own: `v0.7.0` was adopted on
+  2026-08-30 and released on 2026-09-17, two separate acts. README's "Status by surface" keeps the adopted
   bundle and the distribution apart.
-- **What has been checked about the published artifact:** the maintainer
-  installed 0.6.7 from PyPI into a clean venv and ran the three self-tests to
-  `ALL PASS`. Nobody else is known to have installed it, and that is the whole
-  of the evidence — see `SECURITY-ASSUMPTIONS.md` SA-8. If this file and PyPI
+- **What has been checked about the published artifact:** for 0.6.7, the
+  maintainer installed it from PyPI into a clean venv and ran the three
+  self-tests to `ALL PASS`. For 0.7.0 the same was done, plus: the PyPI wheel
+  and sdist digests were compared against the release run's own `dist`
+  artifact and matched exactly; the installed modules were compared to `impl/`
+  at the tag and matched; and the anchored Book I/II/III suites — which the
+  distribution does not ship — were replayed from a corpus outside any
+  checkout against the installed modules (148/148, 33/33, 40/40), with
+  mutation controls showing that replay can fail. All of it on one host, by
+  the same party that cut the release; nobody else is known to have installed
+  either version — see `SECURITY-ASSUMPTIONS.md` SA-8. If this file and PyPI
   ever disagree, PyPI is right.
 
 ## Governance note
@@ -74,12 +78,12 @@ reused even after a delete.
 
 1. Bump `version` in `pyproject.toml` and merge to `master` through the normal
    branch + review path (`AGENTS.md` rule 1 — never commit to `master` directly).
-2. Cut a GitHub Release with tag **`v0.7.0`** — the `v` plus the exact pyproject
-   version (`0.7.0` right now, not yet released; any later release bumps it
-   first). The workflow fails the build if they disagree:
+2. Cut a GitHub Release with tag **`v0.7.1`** — the `v` plus the exact pyproject
+   version (which is `0.7.0` right now and already released, so it must be
+   bumped first). The workflow fails the build if they disagree:
 
    ```bash
-   gh release create v0.7.0 --generate-notes
+   gh release create v0.7.1 --generate-notes
    ```
 3. The `publish` workflow builds, runs `twine check`, installs the wheel into a
    fresh venv, runs all three self-tests **from /tmp** (not from the checkout),
