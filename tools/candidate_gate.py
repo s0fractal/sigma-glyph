@@ -315,7 +315,14 @@ def attempt_paths(freeze, family, retry):
     """
     directory = ROOT / freeze
     first = directory / f"review-{family}.md"
+    # Attempt records are append-only. A plain run files only a family's first
+    # attempt; once one exists, what may follow depends on what it said, and that
+    # is --retry's question, never a plain run's.
     if not retry:
+        if first.exists() or first.with_suffix(".json").exists():
+            sys.exit(f"{first.relative_to(ROOT)} already exists: {family} has been "
+                     f"asked in this round. After NO VERDICT use --retry; after a "
+                     f"named verdict, freeze a new round.")
         return first, directory / f"review-{family}.json", 1, None
     if not first.exists():
         sys.exit(f"--retry, but {first.relative_to(ROOT)} does not exist: there "
@@ -452,6 +459,11 @@ def recorded_prompt(freeze):
 
 def run(freeze, timeout, only, max_tokens, retry=False):
     head, _ = check_freeze(freeze)
+    # Refuse the whole run before any reviewer is asked or any file written, so a
+    # family that may not be asked again never lets an earlier one be asked first.
+    for family, _ in REVIEWERS:
+        if not only or family in only:
+            attempt_paths(freeze, family, retry)
     if retry:
         prompt, system, (prompt_digest, system_digest) = recorded_prompt(freeze)
         print(f"[gate] retry over the RECORDED prompt: {len(prompt)} bytes, "
