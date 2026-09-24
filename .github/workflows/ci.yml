@@ -171,7 +171,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/receipt_test.py | tee /dev/stderr | grep -q "^RECEIPT: "
-      - name: A reviewer's named verdict cannot be re-asked with --retry
+      - name: "Attempt records are append-only: a named verdict is not re-asked (plain run or --retry)"
         run: python3 tests/candidate_gate_retry_test.py
       - name: Reference test vectors (Book I, hash-thunk machine)
         run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
