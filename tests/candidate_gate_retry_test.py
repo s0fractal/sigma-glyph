@@ -17,6 +17,8 @@ import hashlib
 import importlib.util
 import io
 import json
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -119,6 +121,49 @@ def main():
         retried = False
     chk(retried and len(calls) == 1 and (cg.ROOT / mixed / f"review-{cg.REVIEWERS[0][0]}.retry-1.json").exists(),
         "--retry --only the NO VERDICT family still delivers", (retried, len(calls)))
+
+    # Concurrency (Codex review of #59): two processes can both pass the preflight before
+    # either writes, both ask the same family, and the last write_text() wins. A round is
+    # locked for the whole run, before any prompt, call or write; and an attempt record is
+    # created exclusively, so even a writer that got past the lock cannot replace one.
+    family = cg.REVIEWERS[0][0]
+    locked = "gates/probe-locked"
+    (cg.ROOT / locked).mkdir(parents=True)
+    holder = subprocess.Popen(
+        [sys.executable, "-c", "import fcntl, os, sys; fd = os.open(sys.argv[1], os.O_RDONLY); "
+         "fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB); print('held', flush=True); sys.stdin.read()",
+         str(cg.ROOT / locked)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    chk(holder.stdout.readline().strip() == "held", "another process holds the round")
+    calls.clear()
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            cg.run(locked, 1, [family], 100, False)
+        refused = False
+    except SystemExit:
+        refused = True
+    holder.stdin.close(); holder.wait(timeout=30)
+    chk(refused and calls == [] and list((cg.ROOT / locked).iterdir()) == [],
+        "a run over a round another process holds is refused before any call or write",
+        (refused, len(calls), sorted(p.name for p in (cg.ROOT / locked).iterdir())))
+
+    raced = "gates/probe-raced"
+    (cg.ROOT / raced).mkdir(parents=True)
+    other = {"family": family, "attempt": 1, "verdict": "REJECT", "model_answered": "other-process"}
+
+    def racing_ask(*a, **k):
+        # While this process waits on the API, another writes its own first attempt.
+        (cg.ROOT / raced / f"review-{family}.md").write_text("REJECT\n")
+        (cg.ROOT / raced / f"review-{family}.json").write_text(json.dumps(other))
+        return "VERDICT: ADOPT", "m", "stop"
+    cg.ask = racing_ask
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            cg.run(raced, 1, [family], 100, False)
+    except SystemExit:
+        pass
+    kept = json.loads((cg.ROOT / raced / f"review-{family}.json").read_text())
+    chk(kept == other and (cg.ROOT / raced / f"review-{family}.md").read_text() == "REJECT\n",
+        "an attempt record written by another process during the call is not replaced", kept)
     print("\nCANDIDATE-GATE-RETRY: " + ("ALL PASS" if all(ok) else "FAILURES PRESENT"))
     return 0 if all(ok) else 1
 
