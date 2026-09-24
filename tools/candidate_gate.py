@@ -427,8 +427,9 @@ def report(results, freeze):
     print(f"\nGATE: {len(named)}/{len(results)} reviewers returned a verdict"
           + (f"; {rejects} REJECT" if rejects else ""))
     if len(named) < len(REVIEWERS):
-        print("A three-family gate needs three verdicts. Re-run the reviewers "
-              "that returned NO VERDICT; do not average what is missing.")
+        print("A three-family gate needs three verdicts. Re-deliver to the "
+              "reviewers that returned NO VERDICT with --retry --only FAMILY; "
+              "do not average what is missing.")
         return 1
     return 1 if rejects else 0
 
