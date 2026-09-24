@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""--retry re-delivers a round's recorded prompt to a reviewer that could not be
+"""Attempt records are append-only. --retry re-delivers a round's recorded prompt to a reviewer that could not be
 reached. It must not let a family that returned a named verdict be asked again:
 the gate takes each family's LATEST attempt (`standing`), so re-asking a family
 that said REJECT until it says ADOPT turns a failed gate into a passing one.
+
+A plain re-run is the other re-ask path: it wrote review-{family}.json again, so the
+same shopping worked without --retry. Once a first attempt exists a plain run refuses;
+after NO VERDICT only --retry may follow; after a named verdict, only a new round.
+Refusal happens before any reviewer is called and before any file is written.
 
 Offline: no API call is made; attempts are written the way review_one() writes them.
 Run: python3 tests/candidate_gate_retry_test.py   (nonzero exit on any failure)
 """
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -33,7 +39,9 @@ def attempt(freeze, family, verdict, retry):
     except SystemExit:
         return None
     record = {"family": family, "attempt": number if retry else 1, "verdict": verdict,
-              "model_answered": family + "-model", "follows": previous}
+              "model_answered": family + "-model", "follows": previous,
+              "prompt_sha256": hashlib.sha256(b"prompt").hexdigest(),
+              "system_sha256": hashlib.sha256(cg.SYSTEM.encode()).hexdigest()}
     js.write_text(json.dumps(record)); md.write_text(verdict + "\n")
     return record
 
@@ -60,6 +68,57 @@ def main():
     chk(delivered is not None and delivered["attempt"] == 2 and delivered["follows"] == "review-qwen.md",
         "--retry of a family that returned NO VERDICT is allowed and follows it", delivered)
     chk(gate(freeze, [delivered]) == 1, "with the REJECT standing, the gate still fails")
+
+    # The plain re-run path (Codex review of #59): no --retry, same round, same family.
+    plain = attempt(freeze, "google", "ADOPT", False)
+    chk(plain is None, "a plain re-run of a family that returned REJECT is refused", plain)
+    chk(cg.standing(freeze)["google"]["verdict"] == "REJECT", "the REJECT still stands after a plain re-run",
+        cg.standing(freeze)["google"])
+    chk(attempt(freeze, "deepseek", "REJECT", False) is None,
+        "a plain re-run of a family that returned ADOPT is refused")
+    fresh = "gates/probe-nv"
+    (cg.ROOT / fresh).mkdir(parents=True)
+    attempt(fresh, "qwen", "NO VERDICT", False)
+    chk(attempt(fresh, "qwen", "ADOPT", False) is None,
+        "a plain re-run after NO VERDICT is refused too: only --retry files a next attempt")
+    chk(json.loads((cg.ROOT / fresh / "review-qwen.json").read_text())["verdict"] == "NO VERDICT",
+        "the first attempt record is unchanged")
+
+    # Both re-ask paths through run(). The first family in REVIEWERS order has only a
+    # NO VERDICT, so a tool that checks family by family would already have called it
+    # and written its record before reaching the named verdicts: the whole run must
+    # refuse up front, before any call and before any write.
+    calls = []
+    cg.ask = lambda *a, **k: calls.append(a) or ("VERDICT: ADOPT", "m", "stop")
+    cg.check_freeze = lambda f: ("0" * 40, None)
+    cg.build_prompt = lambda: "prompt"
+    mixed = "gates/probe-run"
+    (cg.ROOT / mixed).mkdir(parents=True)
+    (cg.ROOT / mixed / "prompt.txt").write_text("prompt")
+    (cg.ROOT / mixed / "prompt.system.txt").write_text(cg.SYSTEM)
+    for (family, _), verdict in zip(cg.REVIEWERS, ("NO VERDICT", "REJECT", "ADOPT")):
+        attempt(mixed, family, verdict, False)
+    before = {p.name: p.read_bytes() for p in (cg.ROOT / mixed).iterdir()}
+    for label, retry in (("--retry run", True), ("plain run", False)):
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                cg.run(mixed, 1, [], 100, retry)
+            refused = False
+        except SystemExit:
+            refused = True
+        chk(refused and calls == [], f"{label} over a round holding named verdicts is refused "
+            "before any reviewer is called", (refused, len(calls)))
+    after = {p.name: p.read_bytes() for p in (cg.ROOT / mixed).iterdir()}
+    chk(after == before, "no file was written or replaced",
+        sorted(n for n in set(after) | set(before) if after.get(n) != before.get(n)))
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            cg.run(mixed, 1, [cg.REVIEWERS[0][0]], 100, True)
+        retried = True
+    except SystemExit:
+        retried = False
+    chk(retried and len(calls) == 1 and (cg.ROOT / mixed / f"review-{cg.REVIEWERS[0][0]}.retry-1.json").exists(),
+        "--retry --only the NO VERDICT family still delivers", (retried, len(calls)))
     print("\nCANDIDATE-GATE-RETRY: " + ("ALL PASS" if all(ok) else "FAILURES PRESENT"))
     return 0 if all(ok) else 1
 
