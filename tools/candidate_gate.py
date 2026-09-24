@@ -40,6 +40,7 @@ never written to any output file.
 """
 import argparse
 import datetime
+import fcntl
 import hashlib
 import json
 import os
@@ -305,6 +306,36 @@ def keep_prompt(path, text):
     path.write_text(text)
 
 
+def create(path, text):
+    """Write a new attempt file; never replace one, whoever wrote it."""
+    try:
+        with path.open("x") as handle:
+            handle.write(text)
+    except FileExistsError:
+        sys.exit(f"{path.relative_to(ROOT)} appeared while this attempt was in "
+                 f"flight: another run wrote it. Attempt records are append-only; "
+                 f"this answer is not recorded.")
+
+
+def lock_round(freeze):
+    """Hold the round for this whole run, or refuse.
+
+    The preflight below is check-then-act: two runs could both pass it, both ask
+    the same family, and the second write would replace the first. An exclusive
+    lock on the round directory, taken before any prompt, call or write, makes one
+    run at a time the only kind there is. run() releases it when it returns; the
+    kernel releases it if the process dies. Nothing is written to take it.
+    """
+    fd = os.open(ROOT / freeze, os.O_RDONLY)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        sys.exit(f"{freeze} is held by another candidate_gate run. One run per "
+                 f"round at a time; wait for it to finish.")
+    return fd
+
+
 def attempt_paths(freeze, family, retry):
     """Where this attempt is written, and what it follows.
 
@@ -387,12 +418,12 @@ def review_one(freeze, family, model, context):
     header = "\n".join(f"{k}: {v}" for k, v in record.items() if v is not None)
     body = (text.strip() + "\n" if text
             else f"NO VERDICT — {record['no_verdict_reason']}\n")
-    out_md.write_text(f"<!--\n{header}\n-->\n\n{body}")
+    create(out_md, f"<!--\n{header}\n-->\n\n{body}")
     if trace:
         # Kept, because it is evidence about the reviewer and about this tool's
         # settings — but beside the record, never as the record.
-        out_md.with_suffix(".reasoning-trace.txt").write_text(trace)
-    out_json.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+        create(out_md.with_suffix(".reasoning-trace.txt"), trace)
+    create(out_json, json.dumps(record, indent=2, sort_keys=True) + "\n")
     print(f"[gate] {family}: {record['verdict']}", file=sys.stderr)
     return record
 
@@ -460,37 +491,41 @@ def recorded_prompt(freeze):
 
 def run(freeze, timeout, only, max_tokens, retry=False):
     head, _ = check_freeze(freeze)
-    # Refuse the whole run before any reviewer is asked or any file written, so a
-    # family that may not be asked again never lets an earlier one be asked first.
-    for family, _ in REVIEWERS:
-        if not only or family in only:
-            attempt_paths(freeze, family, retry)
-    if retry:
-        prompt, system, (prompt_digest, system_digest) = recorded_prompt(freeze)
-        print(f"[gate] retry over the RECORDED prompt: {len(prompt)} bytes, "
-              f"sha256 {prompt_digest[:16]}", file=sys.stderr)
-    else:
-        prompt, system = build_prompt(), SYSTEM
-        prompt_digest = hashlib.sha256(prompt.encode()).hexdigest()
-        system_digest = hashlib.sha256(system.encode()).hexdigest()
-        print(f"[gate] prompt {len(prompt)} bytes, sha256 {prompt_digest[:16]}",
-              file=sys.stderr)
-        keep_prompt(ROOT / freeze / "prompt.txt", prompt)
-        keep_prompt(ROOT / freeze / "prompt.system.txt", system)
-    context = {
-        "prompt": prompt,
-        "system": system,
-        "timeout": timeout,
-        "max_tokens": max_tokens,
-        "head": head,
-        "retry": retry,
-        "prompt_sha256": prompt_digest,
-        "system_sha256": system_digest,
-    }
-    results = [review_one(freeze, family, model, context)
-               for family, model in REVIEWERS
-               if not only or family in only]
-    return report(results, freeze)
+    lock = lock_round(freeze)
+    try:
+        # Refuse the whole run before any reviewer is asked or any file written, so a
+        # family that may not be asked again never lets an earlier one be asked first.
+        for family, _ in REVIEWERS:
+            if not only or family in only:
+                attempt_paths(freeze, family, retry)
+        if retry:
+            prompt, system, (prompt_digest, system_digest) = recorded_prompt(freeze)
+            print(f"[gate] retry over the RECORDED prompt: {len(prompt)} bytes, "
+                  f"sha256 {prompt_digest[:16]}", file=sys.stderr)
+        else:
+            prompt, system = build_prompt(), SYSTEM
+            prompt_digest = hashlib.sha256(prompt.encode()).hexdigest()
+            system_digest = hashlib.sha256(system.encode()).hexdigest()
+            print(f"[gate] prompt {len(prompt)} bytes, sha256 {prompt_digest[:16]}",
+                  file=sys.stderr)
+            keep_prompt(ROOT / freeze / "prompt.txt", prompt)
+            keep_prompt(ROOT / freeze / "prompt.system.txt", system)
+        context = {
+            "prompt": prompt,
+            "system": system,
+            "timeout": timeout,
+            "max_tokens": max_tokens,
+            "head": head,
+            "retry": retry,
+            "prompt_sha256": prompt_digest,
+            "system_sha256": system_digest,
+        }
+        results = [review_one(freeze, family, model, context)
+                   for family, model in REVIEWERS
+                   if not only or family in only]
+        return report(results, freeze)
+    finally:
+        os.close(lock)                           # releases the round
 
 
 def main():
