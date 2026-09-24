@@ -323,6 +323,14 @@ def attempt_paths(freeze, family, retry):
     n = 1 + len(list(directory.glob(f"review-{family}.retry-*.json")))
     previous = (f"review-{family}.retry-{n - 1}.md" if n > 1
                 else f"review-{family}.md")
+    # Only a delivery failure may be retried. A reviewer that returned a verdict
+    # has been heard; asking again until the answer changes is verdict shopping,
+    # and standing() would count the last answer.
+    last = json.loads((directory / (previous[:-3] + ".json")).read_text())
+    if last.get("verdict", "NO VERDICT") != "NO VERDICT":
+        sys.exit(f"--retry, but {family}'s latest attempt ({previous}) returned "
+                 f"{last['verdict']}: a named verdict is a review, not a delivery "
+                 f"failure, and is not re-asked. Freeze a new round instead.")
     return (directory / f"review-{family}.retry-{n}.md",
             directory / f"review-{family}.retry-{n}.json", n + 1, previous)
 
