@@ -40,6 +40,7 @@ never written to any output file.
 """
 import argparse
 import datetime
+import fcntl
 import hashlib
 import json
 import os
@@ -305,6 +306,36 @@ def keep_prompt(path, text):
     path.write_text(text)
 
 
+def create(path, text):
+    """Write a new attempt file; never replace one, whoever wrote it."""
+    try:
+        with path.open("x") as handle:
+            handle.write(text)
+    except FileExistsError:
+        sys.exit(f"{path.relative_to(ROOT)} appeared while this attempt was in "
+                 f"flight: another run wrote it. Attempt records are append-only; "
+                 f"this answer is not recorded.")
+
+
+def lock_round(freeze):
+    """Hold the round for this whole run, or refuse.
+
+    The preflight below is check-then-act: two runs could both pass it, both ask
+    the same family, and the second write would replace the first. An exclusive
+    lock on the round directory, taken before any prompt, call or write, makes one
+    run at a time the only kind there is. run() releases it when it returns; the
+    kernel releases it if the process dies. Nothing is written to take it.
+    """
+    fd = os.open(ROOT / freeze, os.O_RDONLY)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        sys.exit(f"{freeze} is held by another candidate_gate run. One run per "
+                 f"round at a time; wait for it to finish.")
+    return fd
+
+
 def attempt_paths(freeze, family, retry):
     """Where this attempt is written, and what it follows.
 
@@ -315,7 +346,14 @@ def attempt_paths(freeze, family, retry):
     """
     directory = ROOT / freeze
     first = directory / f"review-{family}.md"
+    # Attempt records are append-only. A plain run files only a family's first
+    # attempt; once one exists, what may follow depends on what it said, and that
+    # is --retry's question, never a plain run's.
     if not retry:
+        if first.exists() or first.with_suffix(".json").exists():
+            sys.exit(f"{first.relative_to(ROOT)} already exists: {family} has been "
+                     f"asked in this round. After NO VERDICT use --retry; after a "
+                     f"named verdict, freeze a new round.")
         return first, directory / f"review-{family}.json", 1, None
     if not first.exists():
         sys.exit(f"--retry, but {first.relative_to(ROOT)} does not exist: there "
@@ -323,6 +361,14 @@ def attempt_paths(freeze, family, retry):
     n = 1 + len(list(directory.glob(f"review-{family}.retry-*.json")))
     previous = (f"review-{family}.retry-{n - 1}.md" if n > 1
                 else f"review-{family}.md")
+    # Only a delivery failure may be retried. A reviewer that returned a verdict
+    # has been heard; asking again until the answer changes is verdict shopping,
+    # and standing() would count the last answer.
+    last = json.loads((directory / (previous[:-3] + ".json")).read_text())
+    if last.get("verdict", "NO VERDICT") != "NO VERDICT":
+        sys.exit(f"--retry, but {family}'s latest attempt ({previous}) returned "
+                 f"{last['verdict']}: a named verdict is a review, not a delivery "
+                 f"failure, and is not re-asked. Freeze a new round instead.")
     return (directory / f"review-{family}.retry-{n}.md",
             directory / f"review-{family}.retry-{n}.json", n + 1, previous)
 
@@ -372,12 +418,12 @@ def review_one(freeze, family, model, context):
     header = "\n".join(f"{k}: {v}" for k, v in record.items() if v is not None)
     body = (text.strip() + "\n" if text
             else f"NO VERDICT — {record['no_verdict_reason']}\n")
-    out_md.write_text(f"<!--\n{header}\n-->\n\n{body}")
+    create(out_md, f"<!--\n{header}\n-->\n\n{body}")
     if trace:
         # Kept, because it is evidence about the reviewer and about this tool's
         # settings — but beside the record, never as the record.
-        out_md.with_suffix(".reasoning-trace.txt").write_text(trace)
-    out_json.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+        create(out_md.with_suffix(".reasoning-trace.txt"), trace)
+    create(out_json, json.dumps(record, indent=2, sort_keys=True) + "\n")
     print(f"[gate] {family}: {record['verdict']}", file=sys.stderr)
     return record
 
@@ -412,8 +458,9 @@ def report(results, freeze):
     print(f"\nGATE: {len(named)}/{len(results)} reviewers returned a verdict"
           + (f"; {rejects} REJECT" if rejects else ""))
     if len(named) < len(REVIEWERS):
-        print("A three-family gate needs three verdicts. Re-run the reviewers "
-              "that returned NO VERDICT; do not average what is missing.")
+        print("A three-family gate needs three verdicts. Re-deliver to the "
+              "reviewers that returned NO VERDICT with --retry --only FAMILY; "
+              "do not average what is missing.")
         return 1
     return 1 if rejects else 0
 
@@ -444,32 +491,41 @@ def recorded_prompt(freeze):
 
 def run(freeze, timeout, only, max_tokens, retry=False):
     head, _ = check_freeze(freeze)
-    if retry:
-        prompt, system, (prompt_digest, system_digest) = recorded_prompt(freeze)
-        print(f"[gate] retry over the RECORDED prompt: {len(prompt)} bytes, "
-              f"sha256 {prompt_digest[:16]}", file=sys.stderr)
-    else:
-        prompt, system = build_prompt(), SYSTEM
-        prompt_digest = hashlib.sha256(prompt.encode()).hexdigest()
-        system_digest = hashlib.sha256(system.encode()).hexdigest()
-        print(f"[gate] prompt {len(prompt)} bytes, sha256 {prompt_digest[:16]}",
-              file=sys.stderr)
-        keep_prompt(ROOT / freeze / "prompt.txt", prompt)
-        keep_prompt(ROOT / freeze / "prompt.system.txt", system)
-    context = {
-        "prompt": prompt,
-        "system": system,
-        "timeout": timeout,
-        "max_tokens": max_tokens,
-        "head": head,
-        "retry": retry,
-        "prompt_sha256": prompt_digest,
-        "system_sha256": system_digest,
-    }
-    results = [review_one(freeze, family, model, context)
-               for family, model in REVIEWERS
-               if not only or family in only]
-    return report(results, freeze)
+    lock = lock_round(freeze)
+    try:
+        # Refuse the whole run before any reviewer is asked or any file written, so a
+        # family that may not be asked again never lets an earlier one be asked first.
+        for family, _ in REVIEWERS:
+            if not only or family in only:
+                attempt_paths(freeze, family, retry)
+        if retry:
+            prompt, system, (prompt_digest, system_digest) = recorded_prompt(freeze)
+            print(f"[gate] retry over the RECORDED prompt: {len(prompt)} bytes, "
+                  f"sha256 {prompt_digest[:16]}", file=sys.stderr)
+        else:
+            prompt, system = build_prompt(), SYSTEM
+            prompt_digest = hashlib.sha256(prompt.encode()).hexdigest()
+            system_digest = hashlib.sha256(system.encode()).hexdigest()
+            print(f"[gate] prompt {len(prompt)} bytes, sha256 {prompt_digest[:16]}",
+                  file=sys.stderr)
+            keep_prompt(ROOT / freeze / "prompt.txt", prompt)
+            keep_prompt(ROOT / freeze / "prompt.system.txt", system)
+        context = {
+            "prompt": prompt,
+            "system": system,
+            "timeout": timeout,
+            "max_tokens": max_tokens,
+            "head": head,
+            "retry": retry,
+            "prompt_sha256": prompt_digest,
+            "system_sha256": system_digest,
+        }
+        results = [review_one(freeze, family, model, context)
+                   for family, model in REVIEWERS
+                   if not only or family in only]
+        return report(results, freeze)
+    finally:
+        os.close(lock)                           # releases the round
 
 
 def main():
