@@ -28,9 +28,27 @@ are not style — breaking them corrupts the thing this project exists to protec
    "the suites are green" into "independently gated", or "self-audited" into
    "adopted".
 
-5. **Hard-to-reverse / outward-facing actions** (pushing, merging to `master`,
-   rewriting shared history, publishing) require explicit human authorization for
-   the specific action. Approval of one step is not approval of the next.
+5. **Pushing is at the agent's discretion; some actions still need the owner.**
+   - **At the agent's discretion:** pushing a working branch (never `master`), and
+     opening or updating a pull request.
+   - **Explicit owner authorization for the specific action:** merging to
+     `master`, rewriting shared history, and publishing (a release, a package,
+     a DOI deposit). Approval of one such step is not approval of the next.
+
+6. **Review is not required on every pull request.** Ordinary changes are decided
+   by the full test matrix plus whatever review the change warrants. These go
+   through the independent adversarial gate of rule 3, and only these:
+   - normative or anchored bytes, or an adoption candidate;
+   - a security or governance boundary;
+   - a publication;
+   - an unresolved disagreement between reviewers.
+
+   See `REVIEW-POLICY.md`. Rule 4 still applies to every PR: say what was
+   validated and what was not.
+
+   *(Rules 5 and 6 were relaxed by the owner on 2026-10-17. Rule 5 previously
+   required authorization for every push, and every pull request was treated as
+   if it needed a gate.)*
 
 ## Case-derived needs
 
