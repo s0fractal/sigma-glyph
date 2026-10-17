@@ -104,6 +104,12 @@ Under the Book I profile, no Sigma term with a state cycle is known: 0 among all
 3.1M SKI terms of ≤ 8 leaves. The rich profile (Y, M, W primitives; another
 session, `f371005`) has real ones: `Y I` (period 2), `M M` (period 1).
 
+Before any replay, the witness must have exactly the schema's fields, valid digests,
+in-domain integers, and no more actions than cost. Any other witness is
+INVALID_CYCLE_WITNESS (re-review N2). The period's cost is admitted against the
+same per-call `max_atp` that `advance` applies. A costlier period is a **local**
+`NOT_ASSESSED: ADMISSION_REFUSED`, not a verdict on the witness (re-review N1).
+
 ## 6. Second engine: `book1 resume <request.json>`
 
 - **Request:** `{available, state (hex), manifest [hex], delivered {hex: hex},
@@ -122,10 +128,10 @@ session, `f371005`) has real ones: `Y I` (period 2), `M M` (period 1).
 ## 7. Matrix
 
 `tests/resume_test.py`: N01–N37, N61/N62, the rich-profile cases and the PR #62
-review regressions R1–R3, **43 PASS, 0 FAIL, 3 UNRUN**:
+review regressions (R1–R3, SG04, N1, N2), **46 PASS, 0 FAIL, 3 UNRUN**:
 - N05: host persistence;
 - N15: no memo;
 - N27: attestation is Warrant's.
 
-`tests/resume_mutants.py`: 19 mutants, each killed by its own case (3 undo the
-R1–R3 fixes). All four suites now run in CI (`.github/workflows/ci.yml`).
+`tests/resume_mutants.py`: 22 mutants, each killed by its own case (6 undo review
+fixes). All four suites now run in CI (`.github/workflows/ci.yml`).

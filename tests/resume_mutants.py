@@ -17,6 +17,12 @@ SRC = (ROOT / "impl" / "sigma_resume.py").read_text()
 
 # (target case, what it breaks, exact text, replacement)
 MUTANTS = [
+    ("N1", "the cycle period skips the host ATP admission",
+     '    if allowed is not None and cost > allowed:',
+     '    if False:'),
+    ("N2", "the witness is not validated structurally before replay",
+     '    shape = _witness_shape_problem(witness)\n    if shape:\n        return f"INVALID_CYCLE_WITNESS: {shape}"\n',
+     '    shape = None\n'),
     ("SG04", "a completed return skips the size ceiling",
      '                try:\n                    G.resource_check(term, limits)\n                except G.ResourceFault as e:\n                    return term, spent, actions, peak, RESOURCE_FAULT, str(e)\n                return term, spent, actions, peak, NORMAL_FORM, None',
      '                return term, spent, actions, peak, NORMAL_FORM, None'),

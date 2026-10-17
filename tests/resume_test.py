@@ -406,6 +406,39 @@ def review_regressions():
          "a normal form over the configured size ceiling is RESOURCE_FAULT, never NORMAL_FORM",
          (deep_out, capped.outcome))
 
+    # Re-review of ad54abc (Codex): N1 cycle admission, N2 witness shape
+    mm = app(R.M_H, R.M_H)
+    hm = G.node_hash(mm)
+    envm = R.Environment([hm], {hm: mm})
+    rtm = R.root(hm, envm, R.RICH_RUNTIME_ID)
+    cm, im, sm = R.start(rtm[1], hm)
+    entry_m = R.advance(cm, im, sm, envm, 3, runtime=R.RICH_RUNTIME_ID)
+    cap3 = dict(G.VERIFIER_LIMITS, max_atp=3)
+    long_w = R.cycle_witness(rtm[1], entry_m.checkpoint, entry_m.state_bytes, 100, 200)   # 100 laps of period 1
+    small_w = R.cycle_witness(rtm[1], entry_m.checkpoint, entry_m.state_bytes, 1, 2)
+    long_v = R.verify_cycle(rtm, envm, long_w, cap3)
+    adv = R.advance(entry_m.checkpoint, entry_m.checkpoint_id, entry_m.state_bytes, envm, 200, limits=cap3,
+                    runtime=R.RICH_RUNTIME_ID)
+    case("N1", long_v.startswith("NOT_ASSESSED") and R.ADMISSION_REFUSED in long_v
+         and adv.outcome == R.ADMISSION_REFUSED and R.verify_cycle(rtm, envm, small_w, cap3) == "CYCLE_PROVEN"
+         and R.verify_cycle(rtm, envm, long_w) == "CYCLE_PROVEN",
+         "a period costlier than the host cap is refused locally (as advance refuses it), not proven; "
+         "a cost-2 cycle under cap 3 still proves, and the long one proves where the host admits it", long_v)
+    bad_ws = [{k: v for k, v in small_w.items() if k != "entry_state_id"},
+              dict(small_w, entry_state_id=7), dict(small_w, entry_state_id="AB" * 32),
+              dict(small_w, computation_id=None), dict(small_w, schema="other"), dict(small_w, extra=1),
+              dict(small_w, cycle_cost=True), dict(small_w, cycle_action_count=3, cycle_cost=2), ["not", "a", "dict"]]
+    verdicts = []
+    for bw in bad_ws:
+        try:
+            verdicts.append(R.verify_cycle(rtm, envm, bw))
+        except Exception as e:                   # noqa: BLE001 -- a host exception is the defect
+            verdicts.append(f"exception {type(e).__name__}")
+    case("N2", all(v.startswith("INVALID_CYCLE_WITNESS") for v in verdicts)
+         and R.verify_cycle(rtm, envm, small_w) == "CYCLE_PROVEN",
+         "missing/mistyped/non-hex ids, wrong schema, extra field, bool cost, more actions than cost: "
+         "INVALID_CYCLE_WITNESS before any replay; the intact witness still proves", verdicts)
+
     # R3: malformed identifiers are INVALID_ENCODING, with and without a cache
     bad_values = [{"untrusted": "object"}, ["x"], 7, True, "zz" * 32, "AB" * 32, "ab" * 31]
     ok3 = True

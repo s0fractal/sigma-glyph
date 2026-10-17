@@ -535,11 +535,34 @@ def cycle_witness(computation_id, entry_ckpt, entry_state_bytes, actions, cost):
     """A claim: from this entry, `actions` affordable actions costing `cost`
     lead back to the same machine state. Accounting is not part of the claim's
     projection; it only says how far to replay."""
-    return {"schema": "sigma-resume.cycle@draft-1", "computation_id": computation_id,
+    return {"schema": SCHEMA_CYCLE, "computation_id": computation_id,
             "entry_spent_total": _check_int("entry_spent_total", entry_ckpt["spent_total"]),
             "entry_state_id": state_id(entry_state_bytes),
             "cycle_action_count": _check_int("cycle_action_count", actions),
             "cycle_cost": _check_int("cycle_cost", cost)}
+
+
+WITNESS_FIELDS = {"schema", "computation_id", "entry_spent_total", "entry_state_id",
+                  "cycle_action_count", "cycle_cost"}
+SCHEMA_CYCLE = "sigma-resume.cycle@draft-1"
+
+
+def _witness_shape_problem(witness):
+    """Structural validation BEFORE any replay: exact fields, schema, integer
+    domain, digest format. A malformed witness is refused by name, never a host
+    exception (independent re-review N2)."""
+    if not isinstance(witness, dict) or set(witness) != WITNESS_FIELDS:
+        return "fields are not exactly the witness schema's"
+    if witness["schema"] != SCHEMA_CYCLE:
+        return "unknown witness schema"
+    if not (_is_digest(witness["computation_id"]) and _is_digest(witness["entry_state_id"])):
+        return "computation_id and entry_state_id must be 64 lowercase hex characters"
+    try:
+        for k in ("entry_spent_total", "cycle_action_count", "cycle_cost"):
+            _check_int(k, witness[k])
+    except InvalidEncoding as e:
+        return str(e)
+    return None
 
 
 def verify_cycle(expected_root, env, witness, limits=None):
@@ -548,16 +571,22 @@ def verify_cycle(expected_root, env, witness, limits=None):
     the state there is unique), then the period one action at a time."""
     limits = limits or G.VERIFIER_LIMITS
     root_doc, cid = expected_root
-    if witness.get("computation_id") != cid:
+    shape = _witness_shape_problem(witness)
+    if shape:
+        return f"INVALID_CYCLE_WITNESS: {shape}"
+    if witness["computation_id"] != cid:
         return "PREFIX_MISMATCH"
-    try:
-        entry_spent = _check_int("entry_spent_total", witness["entry_spent_total"])
-        n = _check_int("cycle_action_count", witness["cycle_action_count"])
-        cost = _check_int("cycle_cost", witness["cycle_cost"])
-    except (InvalidEncoding, KeyError) as e:
-        return f"INVALID_CYCLE_WITNESS: {e}"
+    entry_spent, n, cost = witness["entry_spent_total"], witness["cycle_action_count"], witness["cycle_cost"]
     if n == 0 or cost == 0:
         return "INVALID_CYCLE_WITNESS: a cycle needs at least one priced action"
+    if n > cost:
+        return "INVALID_CYCLE_WITNESS: more actions than cost (every action costs at least 1)"
+    allowed = limits.get("max_atp")
+    if allowed is not None and cost > allowed:
+        # The same per-call ceiling advance() applies: replaying the period is
+        # work this host would not admit for an ordinary run. A local refusal,
+        # NOT a judgement on the witness (independent re-review N1).
+        return f"NOT_ASSESSED: {ADMISSION_REFUSED} (period cost {cost} exceeds this host's {allowed})"
     ctx = _context_error(root_doc, env)
     if ctx:
         return ctx
