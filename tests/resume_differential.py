@@ -119,10 +119,8 @@ WASM = ROOT / "impl-rs" / "wasm-resume" / "target" / "wasm32-unknown-unknown" / 
 def wasm(state, available, manifest, delivered, deadline_ms=10000):
     req = {"available": available, "state": state.hex(), "manifest": sorted(h.hex() for h in manifest),
            "delivered": {h.hex(): b.hex() for h, b in delivered.items()}}
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
-        json.dump(req, f)
-    r = subprocess.run(["node", str(WORKER), f.name, str(deadline_ms)], capture_output=True, text=True, check=False)
-    Path(f.name).unlink()
+    r = subprocess.run(["node", str(WORKER), str(deadline_ms)], input=json.dumps(req),
+                       capture_output=True, text=True, check=False)
     return json.loads(r.stdout)
 
 
@@ -143,6 +141,16 @@ def wasm_route(budgets):
     late = wasm(R.encode_state(CID, ("thunk", omega)), G.VERIFIER_LIMITS["max_atp"], man, dl, deadline_ms=50)
     case("N62-worker", late == {"outcome": "DEADLINE"},
          "deadline in the worker: the worker is terminated, DEADLINE is local, no state and no answer", late)
+    # A host startup failure must be a local error, not an unhandled rejection.
+    # This copy has no adjacent WASM binary, so the failure is deterministic.
+    with tempfile.TemporaryDirectory() as tmp:
+        missing_binary_worker = Path(tmp).resolve() / WORKER.name
+        shutil.copy2(WORKER, missing_binary_worker)
+        failed = subprocess.run(["node", str(missing_binary_worker)], input="{}",
+                                capture_output=True, text=True, check=False)
+    case("N69-worker-startup", failed.returncode == 1
+         and json.loads(failed.stdout).get("outcome") == "RESOURCE_FAULT",
+         "worker CLI startup failure: structured local RESOURCE_FAULT, nonzero exit", failed.stdout)
 
 
 def case(nid, ok, what, detail=""):

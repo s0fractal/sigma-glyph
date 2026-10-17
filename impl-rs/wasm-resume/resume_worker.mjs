@@ -36,9 +36,15 @@ export function resumeInWorker(request, { deadlineMs = 10_000 } = {}) {
   });
 }
 
-// CLI: node resume_worker.mjs <request.json> [deadline-ms]
+// CLI: node resume_worker.mjs [deadline-ms] < request.json
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const request = readFileSync(process.argv[2], "utf8");
-  const deadlineMs = Number(process.argv[3] ?? 10_000);
-  resumeInWorker(request, { deadlineMs }).then((r) => console.log(JSON.stringify(r)));
+  try {
+    const request = readFileSync(0, "utf8");
+    const deadlineMs = Number(process.argv[2] ?? 10_000);
+    const result = await resumeInWorker(request, { deadlineMs });
+    console.log(JSON.stringify(result));
+  } catch (error) {
+    console.log(JSON.stringify({ outcome: "RESOURCE_FAULT", detail: String(error) }));
+    process.exitCode = 1;
+  }
 }

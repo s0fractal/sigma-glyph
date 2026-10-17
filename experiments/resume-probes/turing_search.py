@@ -11,7 +11,11 @@ def trees(n):
             for b in trees(n - k): yield ("app", a, b)
 def enc(t):
     if t[0] == "app": return "(" + enc(t[1]) + " " + enc(t[2]) + ")"
-    return {G.I_H: "I", G.K_H: "K", G.S_H: "S"}.get(G.term_hash(t)) or ("x" if t == X else "y" if t == Y else "?")
+    glyph = {G.I_H: "I", G.K_H: "K", G.S_H: "S"}.get(G.term_hash(t))
+    if glyph: return glyph
+    if t == X: return "x"
+    if t == Y: return "y"
+    return "?"
 def nf(t, n=200):
     for _ in range(n):
         if G.size(t) > 300: return None

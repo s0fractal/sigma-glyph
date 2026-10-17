@@ -111,7 +111,7 @@ def main():
     print(f"{'policy':28} {'size SKI':>9} {'size BC':>8} {'ATP SKI':>8} {'ATP BC':>7} {'peak SKI':>9} {'peak BC':>8}  answer")
     for f in files:
         blobs = {}
-        c = PL.compile_source(f.read_text(), lambda b: blobs.setdefault(hashlib.sha256(b).hexdigest(), b) and hashlib.sha256(b).hexdigest())
+        c = PL.compile_source(f.read_text(), lambda b, blobs=blobs: blobs.setdefault(hashlib.sha256(b).hexdigest(), b) and hashlib.sha256(b).hexdigest())
         import json
         doc = json.loads(blobs[c.blob])
         ski = rebuild(bytes.fromhex(doc["term"]), blobs, {})
@@ -120,8 +120,8 @@ def main():
         store = G.Store()
         h1, h2 = store_term(ski, store), store_term(opt, store)
         st = {"fetches": 0}
-        r1, a1, p1 = nf(("thunk", h1), lambda t: G.step5(t, 10**12, store, st, L))
-        r2, a2, p2 = nf(("thunk", h2), lambda t: bc_step(t, 10**12, store, st))
+        r1, a1, p1 = nf(("thunk", h1), lambda t, store=store, st=st: G.step5(t, 10**12, store, st, L))
+        r2, a2, p2 = nf(("thunk", h2), lambda t, store=store, st=st: bc_step(t, 10**12, store, st))
         same = G.term_hash(r1) == G.term_hash(r2)
         print(f"{f.name[:28]:28} {G.size(ski):9} {G.size(opt):8} {a1:8} {a2:7} {p1:9} {p2:8}  "
               f"{'same' if same else 'DIFFERENT'} ({'TRUE' if G.glyph_eq(r1, G.K_H) else 'FALSE/other'})")

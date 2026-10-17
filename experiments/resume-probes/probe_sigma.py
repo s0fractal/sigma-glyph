@@ -35,7 +35,9 @@ def run_states(h0, n=60):
 random.seed(7)
 atoms = [I, K, Sx]
 def rand_term(d):
-    if d == 0 or random.random() < 0.3: return random.choice(atoms)
+    # Seeded sampling makes this experiment reproducible; it does not generate
+    # keys, nonces or other security-sensitive values.
+    if d == 0 or random.random() < 0.3: return random.choice(atoms)  # NOSONAR python:S2245 -- deterministic test corpus
     return put_app(rand_term(d - 1), rand_term(d - 1))
 bad = 0; checked = 0; cycles = []
 import hashlib
