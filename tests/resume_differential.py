@@ -7,8 +7,9 @@ environments; every supported outcome must agree on outcome, state bytes,
 spent, actions, peak and the missing hash. Local limits are compared as local
 outcomes, never against a canonical answer.
 
-Scope: the Book I runtime profile. The rich profile (Y, M, W) has no Rust
-engine yet; this file says so instead of comparing it.
+Scope: both runtime profiles. The Book I profile over the corpus below, and the
+draft rich profile (SKI + Y + M + W) over its own corpus (R-N69), with the
+profile named in the request so neither engine can fall back to the other.
 """
 import hashlib
 import json
@@ -35,11 +36,13 @@ def app(left, right):
     return G.ser(G.APPLY, G.F_LEFT | G.F_RIGHT, left=left, right=right)
 
 
-def rust(state, available, manifest, delivered, max_actions=None):
+def rust(state, available, manifest, delivered, max_actions=None, runtime=None):
     req = {"available": available, "state": state.hex(), "manifest": sorted(h.hex() for h in manifest),
            "delivered": {h.hex(): b.hex() for h, b in delivered.items()}}
     if max_actions is not None:
         req["max_actions"] = max_actions
+    if runtime is not None:
+        req["runtime"] = runtime
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         json.dump(req, f)
     r = subprocess.run([str(BOOK1), "resume", f.name], capture_output=True, text=True, check=False)
@@ -47,14 +50,15 @@ def rust(state, available, manifest, delivered, max_actions=None):
     return json.loads(r.stdout)
 
 
-def python(state, available, manifest, delivered, max_actions=None):
+def python(state, available, manifest, delivered, max_actions=None, runtime=None):
     if len(state) > R.MAX_STATE_BYTES if hasattr(R, "MAX_STATE_BYTES") else False:
         return {"outcome": "ADMISSION_REFUSED"}
     if available > G.VERIFIER_LIMITS["max_atp"]:
         return {"outcome": "ADMISSION_REFUSED"}
     _, term = R.decode_state(state)
     env = R.Environment(list(manifest), dict(delivered))
-    term, spent, actions, peak, outcome, _ = R._run(term, available, env, G.VERIFIER_LIMITS, max_actions)
+    step = R.PROFILES[runtime or R.RUNTIME_SEMANTICS_ID][0]()
+    term, spent, actions, peak, outcome, _ = R._run(term, available, env, G.VERIFIER_LIMITS, max_actions, step=step)
     outcome = outcome or "INCOMPLETE"           # the reference names an action limit by detail only
     missing = env.missing.hex() if outcome == "BLOCKED_REFERENCE" and env.missing else None
     if outcome in ("EVIDENCE_UNAVAILABLE", "CAS_MISMATCH"):
@@ -146,6 +150,71 @@ def case(nid, ok, what, detail=""):
     print(("ok    " if ok else "FAIL  ") + f"{nid} {what}" + ("" if ok else f" | {detail}"))
 
 
+def rich_corpus():
+    """Programs of the rich profile: terminating ones, the two cycles, random terms."""
+    store = {}
+
+    def put(b):
+        h = G.node_hash(b)
+        store[h] = b
+        return h
+    Y, M, W = R.Y_H, R.M_H, R.W_H
+    named = [("Y I (cycle, period 2)", put(app(Y, I))), ("M M (cycle, period 1)", put(app(M, M))),
+             ("W K I", put(app(put(app(W, K)), I))), ("M (K I)", put(app(M, put(app(K, I))))),
+             ("Y K (grows)", put(app(Y, K))), ("W S I K", put(app(put(app(put(app(W, S)), I)), K)))]
+    rng = random.Random(1017)
+    for n in range(80):
+        def rand(d):
+            if d == 0 or rng.random() < 0.3:
+                return rng.choice([I, K, S, Y, M, W])
+            return put(app(rand(d - 1), rand(d - 1)))
+        named.append((f"rich random #{n}", rand(5)))
+    return [(label, h, set(store), dict(store)) for label, h in named]
+
+
+def rich(budgets):
+    rid = R.RICH_RUNTIME_ID
+    agree, total, first_bad, kinds = 0, 0, None, set()
+    for label, h, manifest, delivered in rich_corpus():
+        state = R.encode_state(CID, ("thunk", h))
+        for b in budgets:
+            for limit in (None, 2):
+                py = python(state, b, manifest, delivered, limit, runtime=rid)
+                rs = rust(state, b, manifest, delivered, limit, runtime=rid)
+                total += 1
+                kinds.add(py["outcome"])
+                if same(py, rs):
+                    agree += 1
+                elif first_bad is None:
+                    first_bad = (label, b, limit, py, rs)
+    case("R-N69", agree == total, f"rich profile: Python and Rust agree on {agree}/{total} runs; outcomes {sorted(kinds)}",
+         first_bad)
+    label, mm, man, dl = rich_corpus()[1]
+    # Under Book I, M is an ordinary stored literal: deliver its bytes, or the
+    # Book I run is (correctly) BLOCKED on it.
+    dl = dict(dl)
+    dl[R.M_H] = R.RICH_GENESIS[R.M_H]
+    man = set(man) | {R.M_H}
+    st = R.encode_state(CID, ("thunk", mm))
+    as_book1 = rust(st, 100, man, dl)                       # M is an inert literal under Book I
+    as_rich = rust(st, 100, man, dl, runtime=rid)
+    unknown = subprocess.run([str(BOOK1), "resume", _request_file(st, 100, man, dl, "made-up-runtime")],
+                             capture_output=True, text=True, check=False)
+    case("R-ISO-rust", as_book1["outcome"] == "NORMAL_FORM" and as_rich["outcome"] == "PAUSED"
+         and "unknown runtime profile" in unknown.stdout and unknown.returncode != 0,
+         "Rust: M M halts under Book I, loops under the rich profile; an unknown profile is refused",
+         (as_book1, as_rich, unknown.stdout))
+
+
+def _request_file(state, available, manifest, delivered, runtime):
+    req = {"available": available, "state": state.hex(), "manifest": sorted(h.hex() for h in manifest),
+           "delivered": {h.hex(): b.hex() for h, b in delivered.items()}, "runtime": runtime}
+    f = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+    json.dump(req, f)
+    f.close()
+    return f.name
+
+
 def main():
     if not BOOK1.is_file():
         print("UNRUN  impl-rs not built (cargo build --release in impl-rs)")
@@ -181,6 +250,7 @@ def main():
          and resumed["state"] == whole["state"] and cut_rs["spent"] + resumed["spent"] == whole["spent"],
          "stopped by a limit: INCOMPLETE with the last atomic state, which resumes to the same normal form",
          (cut_py, cut_rs))
+    rich(budgets)
     wasm_route(budgets)
     print()
     print("RESUME DIFFERENTIAL:", "ALL AGREE" if all(results.values()) else "DISAGREEMENT")

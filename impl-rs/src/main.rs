@@ -412,33 +412,8 @@ fn step(
         }
         Term::Literal(_) | Term::Dissonance(_) => Ok(None),
         Term::Apply(function, argument) => {
-            if glyph_eq(function, &glyphs.0) {
-                if remaining < 1 {
-                    return Err(StepError::Exhausted);
-                }
-                return Ok(Some(((**argument).clone(), 1)));
-            }
-            if let Term::Apply(f1, f2) = function.as_ref() {
-                if glyph_eq(f1, &glyphs.1) {
-                    if remaining < 1 {
-                        return Err(StepError::Exhausted);
-                    }
-                    return Ok(Some(((**f2).clone(), 1)));
-                }
-                if let Term::Apply(f11, f12) = f1.as_ref() {
-                    if glyph_eq(f11, &glyphs.2) {
-                        let cost = 1u64.saturating_add(term_size(argument)?);
-                        if cost > remaining {
-                            return Err(StepError::Exhausted);
-                        }
-                        let z = (**argument).clone();
-                        let result = Term::Apply(
-                            Box::new(Term::Apply(Box::new((**f12).clone()), Box::new(z.clone()))),
-                            Box::new(Term::Apply(Box::new((**f2).clone()), Box::new(z))),
-                        );
-                        return Ok(Some((result, cost)));
-                    }
-                }
+            if let Some(reduced) = head_reduction(function, argument, remaining, glyphs)? {
+                return Ok(Some(reduced));
             }
             if let Some((new_function, cost)) = step(function, remaining, fetch, glyphs, depth + 1)?
             {
@@ -457,6 +432,115 @@ fn step(
             Ok(None)
         }
     }
+}
+
+/// Book I's I/K/S head contraction of `function argument`, priced before it
+/// happens, or `None` when the head is not a redex. Shared by `step` and by the
+/// rich profile's `rich_step`, so the two cannot drift apart on S, K and I.
+fn head_reduction(
+    function: &Term,
+    argument: &Term,
+    remaining: u64,
+    glyphs: &(Hash, Hash, Hash),
+) -> Result<Option<(Term, u64)>, StepError> {
+    if glyph_eq(function, &glyphs.0) {
+        if remaining < 1 {
+            return Err(StepError::Exhausted);
+        }
+        return Ok(Some((argument.clone(), 1)));
+    }
+    if let Term::Apply(f1, f2) = function {
+        if glyph_eq(f1, &glyphs.1) {
+            if remaining < 1 {
+                return Err(StepError::Exhausted);
+            }
+            return Ok(Some(((**f2).clone(), 1)));
+        }
+        if let Term::Apply(f11, f12) = f1.as_ref() {
+            if glyph_eq(f11, &glyphs.2) {
+                let cost = 1u64.saturating_add(term_size(argument)?);
+                if cost > remaining {
+                    return Err(StepError::Exhausted);
+                }
+                let z = argument.clone();
+                let result = Term::Apply(
+                    Box::new(Term::Apply(Box::new((**f12).clone()), Box::new(z.clone()))),
+                    Box::new(Term::Apply(Box::new((**f2).clone()), Box::new(z))),
+                );
+                return Ok(Some((result, cost)));
+            }
+        }
+    }
+    Ok(None)
+}
+
+// ---------------------------------------------------------------------------
+// Draft rich runtime profile: SKI + Y + M + W (impl/sigma_resume.py RICH_*)
+// ---------------------------------------------------------------------------
+// Y and M are primitives because their SKI encodings behave differently (no
+// SKI term with a state cycle is known; Y I and M M cycle). Duplication is
+// priced like Book I's S: 1 + the size of what is duplicated, which keeps
+// `semantic size <= initial size + spent`.
+const BOOK1_RUNTIME_ID: &str = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost";
+const RICH_RUNTIME_ID: &str = "sigma-resume-draft/ski+Y+M+W/hash-thunk/leftmost-outermost";
+
+fn rich_glyphs() -> (Hash, Hash, Hash) {
+    let lit = |name: &[u8]| sha256(&serialize(LITERAL, Some(&sha256(name)), None, None));
+    (lit(b"Y"), lit(b"M"), lit(b"W"))
+}
+
+fn duplicate(cost: Result<u64, ResourceFault>, remaining: u64) -> Result<u64, StepError> {
+    let cost = 1u64.saturating_add(cost?);
+    if cost > remaining {
+        return Err(StepError::Exhausted);
+    }
+    Ok(cost)
+}
+
+/// One priced action of the rich profile, in Book I's order: a rich head rule,
+/// else an I/K/S head rule, else the function part, else the argument.
+fn rich_step(
+    term: &Term,
+    remaining: u64,
+    fetch: Fetch,
+    glyphs: &(Hash, Hash, Hash),
+    rich: &(Hash, Hash, Hash),
+    depth: usize,
+) -> Result<Option<(Term, u64)>, StepError> {
+    if depth > MAX_TERM_DEPTH {
+        return Err(StepError::Fault(ResourceFault("term depth (stepping)")));
+    }
+    let (function, argument) = match term {
+        Term::Thunk(hash) if hash == &rich.0 || hash == &rich.1 || hash == &rich.2 => return Ok(None),
+        Term::Apply(function, argument) => (function, argument),
+        _ => return step(term, remaining, fetch, glyphs, depth),
+    };
+    if glyph_eq(function, &rich.0) {
+        let cost = duplicate(term_size(argument), remaining)?;
+        let again = Term::Apply(function.clone(), argument.clone());
+        return Ok(Some((Term::Apply(argument.clone(), Box::new(again)), cost)));
+    }
+    if glyph_eq(function, &rich.1) {
+        let cost = duplicate(term_size(argument), remaining)?;
+        return Ok(Some((Term::Apply(argument.clone(), argument.clone()), cost)));
+    }
+    if let Term::Apply(f1, f2) = function.as_ref() {
+        if glyph_eq(f1, &rich.2) {
+            let cost = duplicate(term_size(argument), remaining)?;
+            let inner = Term::Apply(f2.clone(), argument.clone());
+            return Ok(Some((Term::Apply(Box::new(inner), argument.clone()), cost)));
+        }
+    }
+    if let Some(reduced) = head_reduction(function, argument, remaining, glyphs)? {
+        return Ok(Some(reduced));
+    }
+    if let Some((f, cost)) = rich_step(function, remaining, fetch, glyphs, rich, depth + 1)? {
+        return Ok(Some((Term::Apply(Box::new(f), argument.clone()), cost)));
+    }
+    if let Some((a, cost)) = rich_step(argument, remaining, fetch, glyphs, rich, depth + 1)? {
+        return Ok(Some((Term::Apply(function.clone(), Box::new(a)), cost)));
+    }
+    Ok(None)
 }
 
 /// The three exits of §3.4. The result hash never identified the exit:
@@ -1283,9 +1367,11 @@ fn run_resume(
     available: u64,
     max_actions: Option<u64>,
     env: &Environment,
+    rich_profile: bool,
 ) -> Result<RunResult, ResourceFault> {
     let (i, k, s, _) = genesis();
     let glyphs = (i, k, s);
+    let rich = rich_glyphs();
     let fetch = |hash: &Hash| env_fetch(hash, env, &glyphs);
     let mut spent = 0u64;
     let mut actions = 0u64;
@@ -1295,7 +1381,12 @@ fn run_resume(
             return Ok(RunResult { outcome: "INCOMPLETE", term, spent, actions, peak, missing: None });
         }
         let done = |outcome, term, missing| RunResult { outcome, term, spent, actions, peak, missing };
-        match step(&term, available - spent, &fetch, &glyphs, 0) {
+        let stepped = if rich_profile {
+            rich_step(&term, available - spent, &fetch, &glyphs, &rich, 0)
+        } else {
+            step(&term, available - spent, &fetch, &glyphs, 0)
+        };
+        match stepped {
             Ok(Some((next, cost))) => {
                 term = next;
                 spent += cost;
@@ -1321,6 +1412,15 @@ pub(crate) fn resume_response(request: &[u8]) -> Result<String, String> {
         None | Some(Json::Null) => None,
         Some(value) => Some(value.number()?),
     };
+    // The runtime profile is part of the task; an unknown one is refused.
+    let rich_profile = match root.get("runtime") {
+        None | Some(Json::Null) => false,
+        Some(value) => match value.string()? {
+            id if id == BOOK1_RUNTIME_ID => false,
+            id if id == RICH_RUNTIME_ID => true,
+            other => return Err(format!("unknown runtime profile {other:?}")),
+        },
+    };
     let state_hex = field(root, "state")?.string()?;
     // Admission before decoding anything the request carries (N61).
     if state_hex.len() / 2 > MAX_STATE_BYTES || available > MAX_AVAILABLE {
@@ -1337,7 +1437,7 @@ pub(crate) fn resume_response(request: &[u8]) -> Result<String, String> {
         delivered.insert(hash_from_hex(key)?, decode_hex(value.string()?)?);
     }
     let env = Environment { manifest, delivered };
-    let run = match run_resume(term, available, max_actions, &env) {
+    let run = match run_resume(term, available, max_actions, &env, rich_profile) {
         Ok(run) => run,
         Err(ResourceFault(why)) => {
             return Ok(format!("{{\"outcome\":\"RESOURCE_FAULT\",\"detail\":\"{why}\"}}"));
