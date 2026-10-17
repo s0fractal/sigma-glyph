@@ -18,6 +18,9 @@ Each probe takes the repository root as its first argument:
   The term grows and never cycles.
 - **`turing_search.py N`** searches for a combinator `T` with
   `T x y ->> y (x x y)` exactly. Such a `T` would make `T T I` periodic.
+  - N=9 (10.5 min): 1736 such `T` found. None of the first eight cycles in 3000
+    actions: normal order reduces into the argument `x x y` instead of passing it
+    on unchanged.
 
 These are measurements, not proofs. Finding no cycle up to 8 leaves does not show
 that Sigma has no cycles.

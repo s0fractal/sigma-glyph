@@ -114,12 +114,16 @@ class Environment:
         return b                             # step5's force() checks the CAS relation
 
 
-def root(input_term_hash, env):
-    """ComputationRoot: the task, without any budget or segmentation."""
+def root(input_term_hash, env, runtime=RUNTIME_SEMANTICS_ID):
+    """ComputationRoot: the task, without any budget or segmentation. The
+    runtime profile is part of the task: the same term under another profile is
+    another computation."""
     if not (isinstance(input_term_hash, bytes) and len(input_term_hash) == 32):
         raise InvalidEncoding("input term hash must be 32 bytes")
-    doc = {"schema": SCHEMA_ROOT, "runtime_semantics_id": RUNTIME_SEMANTICS_ID,
-           "cost_model_id": COST_MODEL_ID, "input_term_hash": input_term_hash.hex(),
+    if runtime not in PROFILES:
+        raise InvalidEncoding(f"unknown runtime profile {runtime!r}")
+    doc = {"schema": SCHEMA_ROOT, "runtime_semantics_id": runtime,
+           "cost_model_id": PROFILES[runtime][1], "input_term_hash": input_term_hash.hex(),
            "environment_id": env.environment_id}
     return doc, _digest(doc)
 
@@ -270,7 +274,7 @@ def start(computation_id, input_term_hash):
 STEP = G.step5
 
 
-def _run(term, available, env, limits, max_actions=None):
+def _run(term, available, env, limits, max_actions=None, step=None):
     """Advance until normal form, an unaffordable or unresolved action, or
     `max_actions`. Returns (term, spent, actions, peak, outcome, detail)."""
     stats, spent, actions, peak = {"fetches": 0}, 0, 0, G.size(term)
@@ -279,7 +283,7 @@ def _run(term, available, env, limits, max_actions=None):
     try:
         while max_actions is None or actions < max_actions:
             try:
-                r = STEP(term, available - spent, env, stats, limits)
+                r = (step or STEP)(term, available - spent, env, stats, limits)
             except G.BudgetExhausted:
                 return term, spent, actions, peak, PAUSED, None
             except G.Unresolved:
@@ -305,7 +309,7 @@ def _run(term, available, env, limits, max_actions=None):
         sys.setrecursionlimit(old)
 
 
-def advance(ckpt, ckpt_id, state_bytes, env, additional_credit, limits=None):
+def advance(ckpt, ckpt_id, state_bytes, env, additional_credit, limits=None, runtime=RUNTIME_SEMANTICS_ID):
     """Add credit to a checkpoint and run. The caller vouches for the input
     checkpoint (its own, or one `verify` REPLAYED); advance checks only that the
     state bytes are the ones the checkpoint names."""
@@ -322,12 +326,83 @@ def advance(ckpt, ckpt_id, state_bytes, env, additional_credit, limits=None):
                       detail=f"available {credit - ckpt['spent_total']} exceeds {allowed}")
     cid, term = decode_state(state_bytes)
     env.missing = None
-    term, spent, actions, peak, outcome, detail = _run(term, credit - ckpt["spent_total"], env, limits)
+    term, spent, actions, peak, outcome, detail = _run(term, credit - ckpt["spent_total"], env, limits,
+                                                       step=PROFILES[runtime][0]())
     sb = encode_state(cid, term)
     doc, new_id = checkpoint(cid, sb, credit, ckpt["spent_total"] + spent,
                              max(ckpt["peak_semantic_size"], peak), ckpt_id, actions)
     missing = env.missing.hex() if outcome == BLOCKED_REFERENCE and env.missing else None
     return Result(outcome, doc, new_id, sb, missing=missing, detail=detail)
+
+
+# ---------------------------------------------------------------- runtime profiles
+
+# A DRAFT richer basis, as its own profile (its own runtime id, so its own
+# computations): Y and M are primitives because their SKI encodings behave
+# differently (leftover `(I a)` wrappers: no SKI term with a state cycle is known,
+# while Y I and M M cycle), W because it duplicates the way M does. Pricing keeps
+# Book I's rule for S: duplicating costs 1 + the size of what is duplicated, so
+# `semantic size <= initial size + spent` still holds. B, C, T are left out until
+# measured: they only shorten terms.
+RICH_RUNTIME_ID = "sigma-resume-draft/ski+Y+M+W/hash-thunk/leftmost-outermost"
+RICH_COST_MODEL_ID = "atp/size-priced/adr-001+adr-003+duplication-priced(Y,M,W)"
+
+
+def _genesis_literal(name):
+    b = G.ser(G.LITERAL, G.F_ATOM, atom=G.sha(name))
+    return G.node_hash(b), b
+
+
+Y_H, _Y_BYTES = _genesis_literal(b"Y")
+M_H, _M_BYTES = _genesis_literal(b"M")
+W_H, _W_BYTES = _genesis_literal(b"W")
+RICH_GENESIS = {Y_H: _Y_BYTES, M_H: _M_BYTES, W_H: _W_BYTES}
+
+
+def _dup(cost, remaining):
+    if cost > remaining:
+        raise G.BudgetExhausted()
+    return cost
+
+
+def _rich_head(t, remaining):
+    f, a = t[1], t[2]
+    if G.glyph_eq(f, Y_H):                                   # Y f -> f (Y f)
+        return ("app", a, ("app", f, a)), _dup(1 + G.size(a), remaining)
+    if G.glyph_eq(f, M_H):                                   # M x -> x x
+        return ("app", a, a), _dup(1 + G.size(a), remaining)
+    if f[0] == "app" and G.glyph_eq(f[1], W_H):              # W g x -> g x x
+        return ("app", ("app", f[2], a), a), _dup(1 + G.size(a), remaining)
+    return None
+
+
+def rich_step(t, remaining, env, stats, limits):
+    """One priced action under the rich profile, in Book I's order: a head
+    contraction (rich rules, then S/K/I), else the function part, else the
+    argument. Same contract as `step5`."""
+    if t[0] == "thunk" and t[1] in RICH_GENESIS:
+        return None                                          # intrinsic leaf, never fetched
+    if t[0] != "app":
+        return G.step5(t, remaining, env, stats, limits)
+    r = _rich_head(t, remaining)
+    if r is not None:
+        return r
+    r = G._head_reduction(t[1], t[2], remaining)
+    if r is not G._NO_REDUCTION:
+        return r
+    r = rich_step(t[1], remaining, env, stats, limits)
+    if r is not None:
+        return ("app", r[0], t[2]), r[1]
+    r = rich_step(t[2], remaining, env, stats, limits)
+    if r is not None:
+        return ("app", t[1], r[0]), r[1]
+    return None
+
+
+# runtime id -> (transition, cost model id). The Book I entry reads STEP late, so
+# a test may substitute it.
+PROFILES = {RUNTIME_SEMANTICS_ID: (lambda: STEP, COST_MODEL_ID),
+            RICH_RUNTIME_ID: (lambda: rich_step, RICH_COST_MODEL_ID)}
 
 
 # ---------------------------------------------------------------- verification
@@ -362,8 +437,9 @@ def verify(expected_root, env, raw_checkpoint, state_bytes, cache=None, limits=N
     except InvalidEncoding as e:
         return UNVERIFIED, f"INVALID_ENCODING: {e}", 0
     root_doc, cid = expected_root
-    if root_doc["environment_id"] != env.environment_id or root_doc["runtime_semantics_id"] != RUNTIME_SEMANTICS_ID \
-            or root_doc["cost_model_id"] != COST_MODEL_ID:
+    runtime = root_doc["runtime_semantics_id"]
+    if root_doc["environment_id"] != env.environment_id or runtime not in PROFILES \
+            or root_doc["cost_model_id"] != PROFILES[runtime][1]:
         return UNVERIFIED, "CONTEXT_MISMATCH", 0
     if doc["computation_id"] != cid or cid_in_state != cid:
         return UNVERIFIED, "ROOT_MISMATCH", 0
@@ -378,7 +454,7 @@ def verify(expected_root, env, raw_checkpoint, state_bytes, cache=None, limits=N
         (b_doc, b_state), b_id = base, doc["parent_checkpoint_id"]
     if doc["credit_total"] < b_doc["credit_total"]:
         return UNVERIFIED, "INVALID_TRANSITION: credit decreased", 0
-    replay = advance(b_doc, b_id, b_state, env, doc["credit_total"] - b_doc["credit_total"], limits)
+    replay = advance(b_doc, b_id, b_state, env, doc["credit_total"] - b_doc["credit_total"], limits, runtime)
     if not replay.kernel:
         return UNVERIFIED, f"NOT_ASSESSED: replay stopped locally ({replay.outcome})", replay.checkpoint["transition_claim"]["actions"]
     got = replay.checkpoint
@@ -420,14 +496,17 @@ def verify_cycle(expected_root, env, witness, limits=None):
         return f"INVALID_CYCLE_WITNESS: {e}"
     if n == 0 or cost == 0:
         return "INVALID_CYCLE_WITNESS: a cycle needs at least one priced action"
+    runtime = root_doc.get("runtime_semantics_id")
+    if runtime not in PROFILES or root_doc.get("cost_model_id") != PROFILES[runtime][1]:
+        return "CONTEXT_MISMATCH"
     s_doc, s_id, s_state = start(cid, bytes.fromhex(root_doc["input_term_hash"]))
-    pre = advance(s_doc, s_id, s_state, env, entry_spent, limits)
+    pre = advance(s_doc, s_id, s_state, env, entry_spent, limits, runtime)
     if pre.outcome != PAUSED or pre.checkpoint["spent_total"] != entry_spent:
         return f"PREFIX_MISMATCH: replay to spent {entry_spent} ends {pre.outcome} at {pre.checkpoint['spent_total']}"
     if pre.checkpoint["state_id"] != witness["entry_state_id"]:
         return "PREFIX_MISMATCH: the entry is not the state the root reaches"
     _, entry = decode_state(pre.state_bytes)
-    term, spent, done, _, outcome, _ = _run(entry, cost, env, limits, max_actions=n)
+    term, spent, done, _, outcome, _ = _run(entry, cost, env, limits, max_actions=n, step=PROFILES[runtime][0]())
     if done != n or outcome is not None and outcome != PAUSED:
         return f"INVALID_CYCLE_WITNESS: the period stops after {done} actions ({outcome})"
     if spent != cost:

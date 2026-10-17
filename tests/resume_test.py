@@ -311,6 +311,7 @@ def main():
 
     # ---------------------------------------------------------- E. cycles
     cycles(env)
+    rich()
 
     print()
     counts = {k: sum(v == k for v in results.values()) for k in ("PASS", "FAIL", "UNRUN")}
@@ -395,6 +396,107 @@ def cycles(env):
     rt, doc, cid, sb = fresh(G.node_hash(app(a, a)), e36)
     om = R.advance(doc, cid, sb, e36, 2000)
     case("N36", om.outcome == R.PAUSED, "a long non-periodic run (Omega) ends PAUSED, not DIVERGES", om.outcome)
+
+
+# ---------------------------------------------------------------- rich profile (draft)
+
+def rich():
+    """The draft SKI+Y+M+W profile on the real Sigma transition."""
+    import random
+    RID = R.RICH_RUNTIME_ID
+    Yt, Mt, Wt = ("thunk", R.Y_H), ("thunk", R.M_H), ("thunk", R.W_H)
+
+    def stored(*nodes):
+        d = Delivered()
+        for b in nodes:
+            d[G.node_hash(b)] = b
+        return d
+
+    def go(h, env, grants, runtime=RID):
+        rt = R.root(h, env, runtime)
+        doc, cid, sb = R.start(rt[1], h)
+        res = None
+        for g in grants:
+            res = R.advance(doc, cid, sb, env, g, runtime=runtime)
+            doc, cid, sb = res.checkpoint, res.checkpoint_id, res.state_bytes
+        return rt, res
+
+    # N29 on Sigma itself: Y I (period 2) and M M (period 1) are proved cycles.
+    verdicts = []
+    for node, entry_spent, n, cost in ((app(R.Y_H, I), 0, 2, 3), (app(R.M_H, R.M_H), 0, 1, 2)):
+        d = stored(node)
+        e = R.Environment(list(d), d)
+        h = G.node_hash(node)
+        rt, warm = go(h, e, [3])            # force the stored node first (cost 3), entry after it
+        w = R.cycle_witness(rt[1], warm.checkpoint, warm.state_bytes, n, cost)
+        verdicts.append(R.verify_cycle(rt, e, w))
+    case("R-N29", verdicts == ["CYCLE_PROVEN", "CYCLE_PROVEN"],
+         "Sigma rich profile: Y I (period 2, cost 3) and M M (period 1, cost 2) are CYCLE_PROVEN", str(verdicts))
+
+    # The same stored term under the Book I profile: Y and M are inert literals there.
+    node = app(R.M_H, R.M_H)
+    d = stored(node)
+    d[R.M_H] = R.RICH_GENESIS[R.M_H]          # under Book I, M is a stored literal
+    e = R.Environment(list(d), d)
+    rt_ski, res_ski = go(G.node_hash(node), e, [100], runtime=R.RUNTIME_SEMANTICS_ID)
+    rt_rich, res_rich = go(G.node_hash(node), e, [100])
+    basis, code, _ = R.verify(rt_ski, e, R._canon(res_rich.checkpoint), res_rich.state_bytes)
+    case("R-ISO", rt_ski[1] != rt_rich[1] and res_ski.outcome == R.NORMAL_FORM and res_rich.outcome == R.PAUSED
+         and code == "ROOT_MISMATCH",
+         "profile is part of the task: M M halts under Book I, loops under rich; checkpoints do not cross",
+         f"{res_ski.outcome} {res_rich.outcome} {code}")
+
+    # Segmentation invariance on terminating rich programs: W K I -> K I I -> I ; M (K I) -> I.
+    ki = app(K, I)
+    progs = [(app(G.node_hash(app(R.W_H, K)), I), [app(R.W_H, K)]),
+             (app(R.M_H, G.node_hash(ki)), [ki])]
+    ok = True
+    n_parts = 0
+    for top, extra in progs:
+        d = stored(top, *extra)
+        e = R.Environment(list(d), d)
+        h = G.node_hash(top)
+        full = go(h, e, [10**6])[1].checkpoint["spent_total"]
+        for budget in range(full + 2):
+            ref = go(h, e, [budget])[1]
+            for parts in _partitions(budget, 3):
+                n_parts += 1
+                got = go(h, e, list(parts))[1]
+                if (got.checkpoint["state_id"], got.checkpoint["spent_total"], got.outcome) != \
+                        (ref.checkpoint["state_id"], ref.checkpoint["spent_total"], ref.outcome):
+                    ok = False
+    case("R-N09", ok, f"rich profile segmentation invariance: {n_parts} partitions of W K I and M (K I)")
+
+    # Size bound and budget-independent action choice on random rich terms.
+    random.seed(11)
+    atoms = [("thunk", I), ("thunk", K), ("thunk", S), Yt, Mt, Wt]
+
+    def rnd(depth):
+        if depth == 0 or random.random() < 0.3:
+            return random.choice(atoms)
+        return ("app", rnd(depth - 1), rnd(depth - 1))
+    viol_size = viol_choice = pairs = 0
+    empty = R.Environment([], {})
+    for _ in range(250):
+        t, spent = rnd(5), 0
+        s0 = G.size(t)
+        for _ in range(40):
+            full = R.rich_step(t, 10**9, empty, {"fetches": 0}, G.DEFAULT_LIMITS)
+            if full is None or G.size(t) > 2000:
+                break
+            for r in range(full[1] + 1):
+                pairs += 1
+                try:
+                    got = R.rich_step(t, r, empty, {"fetches": 0}, G.DEFAULT_LIMITS)
+                except G.BudgetExhausted:
+                    viol_choice += r >= full[1]
+                    continue
+                viol_choice += got != full
+            t, spent = full[0], spent + full[1]
+            viol_size += G.size(t) > s0 + spent
+    case("R-N16", viol_size == 0 and viol_choice == 0,
+         f"rich profile: size <= initial + spent and budget-independent action choice ({pairs} pairs)",
+         f"size {viol_size}, choice {viol_choice}")
 
 
 # ---------------------------------------------------------------- helpers
