@@ -187,6 +187,17 @@ jobs:
           ./impl-rs/target/release/book1 selftest | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
           ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
             | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"
+      # sigma-resume DRAFT kernel (PR #62): the matrix, its on-target mutants, the
+      # Python = Rust differential and the broken-engine controls. Draft surface,
+      # not Book I; wired so the PR's own status tests it (Codex review of #62).
+      - name: sigma-resume draft kernel (matrix, mutants, Python = Rust, controls)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/resume_test.py | tee /dev/stderr | grep -q "^SIGMA-RESUME: [0-9]* PASS, 0 FAIL"
+          python3 tests/resume_mutants.py | tee /dev/stderr | grep -q "RESUME MUTANTS: ALL KILLED ON TARGET"
+          python3 tests/resume_differential.py | tee /dev/stderr | grep -q "RESUME DIFFERENTIAL: ALL AGREE"
+          sh tests/resume_differential_controls.sh | tee /dev/stderr | grep -q "DIFFERENTIAL CONTROLS: ALL BITE"
       # Cheap half of EXP-004: nine controls, each required to fail for its own
       # reason. The full corpus replay is path-filtered into its own workflow.
       - name: EXP-004 controls can fail (interaction-net harness)

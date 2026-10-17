@@ -1,0 +1,16 @@
+[package]
+name = "sigma-resume-wasm"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Draft: the book1 resume engine (../src/main.rs, the same file) as a wasm32 module for JS workers."
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[workspace]
+
+[profile.release]
+overflow-checks = true
+opt-level = "s"
