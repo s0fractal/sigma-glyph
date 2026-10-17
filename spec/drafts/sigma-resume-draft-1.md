@@ -99,10 +99,10 @@ session, `f371005`) has real ones: `Y I` (period 2), `M M` (period 1).
 - **WASM:** `impl-rs/wasm-resume` builds the same `main.rs` for wasm32, and
   `resume_worker.mjs` runs one request per disposable worker with a deadline
   (DEADLINE is local).
-- **Agreement:** `tests/resume_differential.py` holds Python = Rust on 2268 runs
-  covering all six reachable outcomes, wasm = native on 60, and two broken
-  engines are caught. That covers the Book I profile only; the rich profile has
-  no Rust engine yet.
+- **Agreement:** `tests/resume_differential.py` holds Python = Rust on 2268 Book I
+  runs covering all six reachable outcomes, and on 1548 rich-profile runs
+  (R-N69; `runtime` field in the request, `897f1e7`). wasm = native on 60. Four
+  broken engines are caught (`resume_differential_controls.sh`).
 
 ## 7. Matrix
 
