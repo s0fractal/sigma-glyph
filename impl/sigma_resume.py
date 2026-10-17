@@ -288,10 +288,14 @@ STEP = G.step5
 def _run(term, available, env, limits, max_actions=None, step=None):
     """Advance until normal form, an unaffordable or unresolved action, or
     `max_actions`. Returns (term, spent, actions, peak, outcome, detail)."""
-    stats, spent, actions, peak = {"fetches": 0}, 0, 0, G.size(term)
+    stats, spent, actions, peak = {"fetches": 0}, 0, 0, 0
     old = sys.getrecursionlimit()
     sys.setrecursionlimit(max(old, 3 * limits["max_node_depth"] + 2000))
     try:
+        # Measure the incoming state only once the fence is up and inside the
+        # handler: a deep foreign state is a local fault, never a host exception
+        # (independent review SG04).
+        peak = G.size(term)
         while max_actions is None or actions < max_actions:
             try:
                 r = (step or STEP)(term, available - spent, env, stats, limits)
@@ -305,6 +309,12 @@ def _run(term, available, env, limits, max_actions=None, step=None):
                 kind = CAS_MISMATCH if "CAS" in str(e) or "non-bytes" in str(e) else RESOURCE_FAULT
                 return term, spent, actions, peak, kind, str(e)
             if r is None:
+                # As Book I's evaluator does: a configured ceiling must hold on a
+                # completed return, so no NORMAL_FORM is ever larger than allowed.
+                try:
+                    G.resource_check(term, limits)
+                except G.ResourceFault as e:
+                    return term, spent, actions, peak, RESOURCE_FAULT, str(e)
                 return term, spent, actions, peak, NORMAL_FORM, None
             term, spent, actions = r[0], spent + r[1], actions + 1
             peak = max(peak, G.size(term))

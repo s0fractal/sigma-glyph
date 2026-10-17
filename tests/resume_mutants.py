@@ -17,6 +17,9 @@ SRC = (ROOT / "impl" / "sigma_resume.py").read_text()
 
 # (target case, what it breaks, exact text, replacement)
 MUTANTS = [
+    ("SG04", "a completed return skips the size ceiling",
+     '                try:\n                    G.resource_check(term, limits)\n                except G.ResourceFault as e:\n                    return term, spent, actions, peak, RESOURCE_FAULT, str(e)\n                return term, spent, actions, peak, NORMAL_FORM, None',
+     '                return term, spent, actions, peak, NORMAL_FORM, None'),
     # Codex review of PR #62 (R1-R3): each fix has a mutant that undoes it.
     ("R1", "cycle verification skips the shared context check",
      '    ctx = _context_error(root_doc, env)\n    if ctx:\n        return ctx\n',

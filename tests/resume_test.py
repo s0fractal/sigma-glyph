@@ -6,6 +6,7 @@ Each case names its N-id and checks the reason, not only that something failed.
 Cases the reference deliberately does not implement are reported UNRUN with the
 reason; an UNRUN is not a pass and the summary says so.
 """
+import hashlib
 import itertools
 import sys
 from pathlib import Path
@@ -383,6 +384,28 @@ def review_regressions():
          and final[:2] == (R.REPLAYED, R.NORMAL_FORM),
          "INCOMPLETE checkpoint with unused credit: REPLAYED as PREFIX (not terminal), from root and via a "
          "verified parent; resumed, it ends where the uninterrupted run ends", (from_root, via_parent, final))
+    # SG04 (independent review): the local resource boundary is complete
+    deep = ("thunk", I)
+    for _ in range(1100):
+        deep = ("app", deep, ("thunk", K))
+    dcid = hashlib.sha256(b"deep").hexdigest()
+    dsb = R.encode_state(dcid, deep)
+    ddoc, dck = R.checkpoint(dcid, dsb, 0, 0, 1, None, 0)
+    try:
+        deep_out = R.advance(ddoc, dck, dsb, R.Environment([], {}), 0, max_actions=0).outcome
+    except Exception as e:                       # noqa: BLE001 -- a host exception is the defect
+        deep_out = f"exception {type(e).__name__}"
+    ki = app(K, I)
+    hk = G.node_hash(ki)
+    envk = R.Environment([hk], {hk: ki})
+    rtk = R.root(hk, envk)
+    ck, ik, sk = R.start(rtk[1], hk)
+    capped = R.advance(ck, ik, sk, envk, 3, limits=dict(G.VERIFIER_LIMITS, max_materialized_nodes=2))
+    case("SG04", deep_out == R.INCOMPLETE and capped.outcome == R.RESOURCE_FAULT,
+         "a 1100-deep foreign state with max_actions 0 is INCOMPLETE (as in Rust), not a host exception; "
+         "a normal form over the configured size ceiling is RESOURCE_FAULT, never NORMAL_FORM",
+         (deep_out, capped.outcome))
+
     # R3: malformed identifiers are INVALID_ENCODING, with and without a cache
     bad_values = [{"untrusted": "object"}, ["x"], 7, True, "zz" * 32, "AB" * 32, "ab" * 31]
     ok3 = True
