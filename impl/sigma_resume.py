@@ -219,6 +219,11 @@ def parse_checkpoint(raw):
         raise InvalidEncoding("checkpoint fields are not exactly the schema's")
     for k in ("credit_total", "spent_total", "peak_semantic_size"):
         _check_int(k, doc[k])
+    for k in ("computation_id", "state_id"):
+        if not _is_digest(doc[k]):
+            raise InvalidEncoding(f"{k} must be 64 lowercase hex characters")
+    if doc["parent_checkpoint_id"] is not None and not _is_digest(doc["parent_checkpoint_id"]):
+        raise InvalidEncoding("parent_checkpoint_id must be null or 64 lowercase hex characters")
     claim = doc["transition_claim"]
     if not isinstance(claim, dict) or set(claim) != {"actions"}:
         raise InvalidEncoding("transition_claim must be {actions}")
@@ -228,6 +233,10 @@ def parse_checkpoint(raw):
     if _canon(doc) != raw:
         raise InvalidEncoding("checkpoint bytes are not canonical")
     return doc, hashlib.sha256(raw).hexdigest()
+
+
+def _is_digest(v):
+    return isinstance(v, str) and len(v) == 64 and all(c in "0123456789abcdef" for c in v)
 
 
 def _no_duplicates(pairs):
@@ -429,6 +438,33 @@ class VerifiedCache:
         return self.entries.get((verifier_id or VERIFIER_ID, computation_id, ckpt_id))
 
 
+PREFIX = "PREFIX"      # verified reachable atomic prefix; its credit allows more actions (not terminal)
+
+
+def _context_error(root_doc, env):
+    """The context a recipient selected: the environment, runtime and cost
+    model of THEIR root. Shared by checkpoint and cycle verification, so a
+    producer cannot swap the environment under either (review R1)."""
+    runtime = root_doc.get("runtime_semantics_id")
+    if root_doc.get("environment_id") != env.environment_id or runtime not in PROFILES \
+            or root_doc.get("cost_model_id") != PROFILES[runtime][1]:
+        return "CONTEXT_MISMATCH"
+    return None
+
+
+def _replay_base(cid, root_doc, doc, cache):
+    """Where replay starts: a parent this verifier replayed before, else the root.
+    Returned with credit equal to its spent, so replay adds exactly the spent
+    the claim needs."""
+    base = cache.get(cid, doc["parent_checkpoint_id"]) if cache is not None and doc["parent_checkpoint_id"] else None
+    if base is None:
+        b_doc, b_id, b_state = start(cid, bytes.fromhex(root_doc["input_term_hash"]))
+    else:
+        (b_doc, b_state), b_id = base, doc["parent_checkpoint_id"]
+    b_doc = dict(b_doc, credit_total=b_doc["spent_total"])
+    return b_doc, b_id, b_state
+
+
 def verify(expected_root, env, raw_checkpoint, state_bytes, cache=None, limits=None):
     """Is this checkpoint reachable from the root WE expect, under OUR semantics?
 
@@ -436,7 +472,15 @@ def verify(expected_root, env, raw_checkpoint, state_bytes, cache=None, limits=N
     verifier reproduced the state, spent and peak by running the machine, from
     the root or from a checkpoint it replayed before (cache). A signature is
     never consulted here: whoever signed it, an unreplayed checkpoint is
-    UNVERIFIED."""
+    UNVERIFIED.
+
+    Replay goes to the claimed SPENT, not the claimed credit: spent strictly
+    increases, so exactly one state has it, and an atomic prefix taken with
+    credit left over (an action limit, a deadline) is still verifiable (review
+    R2). The code then says what the checkpoint is at its own credit: a kernel
+    outcome if no further action fits, else PREFIX, a verified reachable prefix
+    that is not terminal. `transition_claim.actions` is segment-local and
+    informational; reachability does not rest on it."""
     limits = limits or G.VERIFIER_LIMITS
     try:
         doc, ckpt_id = parse_checkpoint(raw_checkpoint)
@@ -444,34 +488,35 @@ def verify(expected_root, env, raw_checkpoint, state_bytes, cache=None, limits=N
     except InvalidEncoding as e:
         return UNVERIFIED, f"INVALID_ENCODING: {e}", 0
     root_doc, cid = expected_root
+    ctx = _context_error(root_doc, env)
+    if ctx:
+        return UNVERIFIED, ctx, 0
     runtime = root_doc["runtime_semantics_id"]
-    if root_doc["environment_id"] != env.environment_id or runtime not in PROFILES \
-            or root_doc["cost_model_id"] != PROFILES[runtime][1]:
-        return UNVERIFIED, "CONTEXT_MISMATCH", 0
     if doc["computation_id"] != cid or cid_in_state != cid:
         return UNVERIFIED, "ROOT_MISMATCH", 0
     if state_id(state_bytes) != doc["state_id"]:
         return UNVERIFIED, "STATE_MISMATCH", 0
-    base = None
-    if cache is not None and doc["parent_checkpoint_id"]:
-        base = cache.get(cid, doc["parent_checkpoint_id"])
-    if base is None:
-        b_doc, b_id, b_state = start(cid, bytes.fromhex(root_doc["input_term_hash"]))
-    else:
-        (b_doc, b_state), b_id = base, doc["parent_checkpoint_id"]
-    if doc["credit_total"] < b_doc["credit_total"]:
-        return UNVERIFIED, "INVALID_TRANSITION: credit decreased", 0
-    replay = advance(b_doc, b_id, b_state, env, doc["credit_total"] - b_doc["credit_total"], limits, runtime)
+    b_doc, b_id, b_state = _replay_base(cid, root_doc, doc, cache)
+    if doc["spent_total"] < b_doc["spent_total"]:
+        return UNVERIFIED, "INVALID_TRANSITION: spent decreased", 0
+    replay = advance(b_doc, b_id, b_state, env, doc["spent_total"] - b_doc["spent_total"], limits, runtime)
+    actions = replay.checkpoint["transition_claim"]["actions"]
     if not replay.kernel:
-        return UNVERIFIED, f"NOT_ASSESSED: replay stopped locally ({replay.outcome})", replay.checkpoint["transition_claim"]["actions"]
+        return UNVERIFIED, f"NOT_ASSESSED: replay stopped locally ({replay.outcome})", actions
     got = replay.checkpoint
     same = (got["state_id"] == doc["state_id"] and got["spent_total"] == doc["spent_total"]
             and got["peak_semantic_size"] == doc["peak_semantic_size"])
     if not same:
-        return UNVERIFIED, "UNVERIFIED_PREFIX: replay does not reach this state", got["transition_claim"]["actions"]
+        return UNVERIFIED, "UNVERIFIED_PREFIX: replay does not reach this state", actions
     if cache is not None:
         cache.put(cid, ckpt_id, doc, state_bytes)
-    return REPLAYED, replay.outcome, got["transition_claim"]["actions"]
+    # What is the checkpoint at its own credit? Probe from the verified state.
+    probe_doc = dict(got, credit_total=doc["spent_total"])
+    probe = advance(probe_doc, ckpt_id, state_bytes, env, doc["credit_total"] - doc["spent_total"], limits,
+                    runtime, max_actions=1)
+    if probe.outcome in KERNEL and probe.checkpoint["transition_claim"]["actions"] == 0:
+        return REPLAYED, probe.outcome, actions
+    return REPLAYED, PREFIX if probe.checkpoint["transition_claim"]["actions"] else probe.outcome, actions
 
 
 # ---------------------------------------------------------------- cycles
@@ -503,9 +548,10 @@ def verify_cycle(expected_root, env, witness, limits=None):
         return f"INVALID_CYCLE_WITNESS: {e}"
     if n == 0 or cost == 0:
         return "INVALID_CYCLE_WITNESS: a cycle needs at least one priced action"
-    runtime = root_doc.get("runtime_semantics_id")
-    if runtime not in PROFILES or root_doc.get("cost_model_id") != PROFILES[runtime][1]:
-        return "CONTEXT_MISMATCH"
+    ctx = _context_error(root_doc, env)
+    if ctx:
+        return ctx
+    runtime = root_doc["runtime_semantics_id"]
     s_doc, s_id, s_state = start(cid, bytes.fromhex(root_doc["input_term_hash"]))
     pre = advance(s_doc, s_id, s_state, env, entry_spent, limits, runtime)
     if pre.outcome != PAUSED or pre.checkpoint["spent_total"] != entry_spent:

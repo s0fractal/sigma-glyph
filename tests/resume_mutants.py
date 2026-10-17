@@ -17,6 +17,16 @@ SRC = (ROOT / "impl" / "sigma_resume.py").read_text()
 
 # (target case, what it breaks, exact text, replacement)
 MUTANTS = [
+    # Codex review of PR #62 (R1-R3): each fix has a mutant that undoes it.
+    ("R1", "cycle verification skips the shared context check",
+     '    ctx = _context_error(root_doc, env)\n    if ctx:\n        return ctx\n',
+     ''),
+    ("R2", "replay runs to the claimed credit, not the claimed spent",
+     '    replay = advance(b_doc, b_id, b_state, env, doc["spent_total"] - b_doc["spent_total"], limits, runtime)',
+     '    replay = advance(b_doc, b_id, b_state, env, doc["credit_total"] - b_doc["spent_total"], limits, runtime)'),
+    ("R3", "a malformed parent id is not refused",
+     '    if doc["parent_checkpoint_id"] is not None and not _is_digest(doc["parent_checkpoint_id"]):',
+     '    if False:'),
     ("N01", "state codec keeps only the term hash",
      '        else:\n            out += _TAG[t[0]] + t[1]\n    return bytes(out)',
      '        else:\n            out += _TAG[t[0]] + t[1]\n    return bytes(STATE_MAGIC + bytes.fromhex(computation_id) + b"T" + G.term_hash(term))'),
@@ -27,10 +37,10 @@ MUTANTS = [
      '    doc, new_id = checkpoint(cid, sb, credit, ckpt["spent_total"] + spent,',
      '    doc, new_id = checkpoint(cid, sb, max(credit, spent), spent,'),
     ("N03", "a checkpoint is accepted without replay",
-     '    base = None\n    if cache is not None and doc["parent_checkpoint_id"]:',
-     '    return REPLAYED, "NORMAL_FORM", 0\n    base = None\n    if cache is not None and doc["parent_checkpoint_id"]:'),
+     '    b_doc, b_id, b_state = _replay_base(cid, root_doc, doc, cache)',
+     '    return REPLAYED, "NORMAL_FORM", 0\n    b_doc, b_id, b_state = _replay_base(cid, root_doc, doc, cache)'),
     ("N04", "the verifier ignores the environment in the context",
-     '    if root_doc["environment_id"] != env.environment_id or runtime not in PROFILES \\',
+     '    if root_doc.get("environment_id") != env.environment_id or runtime not in PROFILES \\',
      '    if runtime not in PROFILES \\'),
     ("N18", "undelivered bytes read as a semantic absence",
      '        if b is None:\n            raise EvidenceUnavailable(h.hex())',

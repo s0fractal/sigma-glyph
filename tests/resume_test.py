@@ -327,6 +327,9 @@ def main():
          "an action limit stops the run: INCOMPLETE (local) with the last atomic state, which resumes to the same end",
          (cut.outcome, rest.outcome))
 
+    # ---------------------------------------------------------- PR #62 review (Codex, AMEND)
+    review_regressions()
+
     # ---------------------------------------------------------- E. cycles
     cycles(env)
     rich()
@@ -336,6 +339,65 @@ def main():
     print(f"SIGMA-RESUME: {counts['PASS']} PASS, {counts['FAIL']} FAIL, {counts['UNRUN']} UNRUN"
           + ("" if counts["UNRUN"] == 0 else " (an UNRUN is not a pass)"))
     return 0 if counts["FAIL"] == 0 else 1
+
+
+def review_regressions():
+    """Codex review of PR #62 at b19cd04: R1-R3, each as a regression."""
+    # R1: a cycle proof must be about the recipient's environment
+    yi = app(R.Y_H, I)
+    h = G.node_hash(yi)
+    empty, foreign = R.Environment([], {}), R.Environment([h], {h: yi})
+    rt = R.root(h, empty, R.RICH_RUNTIME_ID)
+    c, i, s = R.start(rt[1], h)
+    blocked = R.advance(c, i, s, empty, 3, runtime=R.RICH_RUNTIME_ID)
+    entry = R.advance(c, i, s, foreign, 3, runtime=R.RICH_RUNTIME_ID)
+    w = R.cycle_witness(rt[1], entry.checkpoint, entry.state_bytes, 2, 3)
+    rt_f = R.root(h, foreign, R.RICH_RUNTIME_ID)
+    cf, i_f, sf = R.start(rt_f[1], h)
+    entry_f = R.advance(cf, i_f, sf, foreign, 3, runtime=R.RICH_RUNTIME_ID)
+    w_f = R.cycle_witness(rt_f[1], entry_f.checkpoint, entry_f.state_bytes, 2, 3)
+    case("R1", blocked.outcome == R.BLOCKED_REFERENCE and R.verify_cycle(rt, foreign, w) == "CONTEXT_MISMATCH"
+         and R.verify_cycle(rt_f, foreign, w_f) == "CYCLE_PROVEN",
+         "a cycle witness under a substituted environment: CONTEXT_MISMATCH; the root that commits to "
+         "that environment still proves it", (blocked.outcome, R.verify_cycle(rt, foreign, w)))
+    # R2: an INCOMPLETE prefix with unused credit is verifiable, from root and via a verified parent
+    ik = app(I, K)
+    h2 = G.node_hash(ik)
+    env2 = R.Environment([h2], {h2: ik})
+    rt2 = R.root(h2, env2)
+    c2, i2, s2 = R.start(rt2[1], h2)
+    mid = R.advance(c2, i2, s2, env2, 100, max_actions=1)
+    from_root = R.verify(rt2, env2, R._canon(mid.checkpoint), mid.state_bytes)
+    cache = R.VerifiedCache()
+    parent = R.advance(c2, i2, s2, env2, 0)
+    R.verify(rt2, env2, R._canon(parent.checkpoint), parent.state_bytes, cache=cache)
+    child = R.advance(parent.checkpoint, parent.checkpoint_id, parent.state_bytes, env2, 100, max_actions=1)
+    via_parent = R.verify(rt2, env2, R._canon(child.checkpoint), child.state_bytes, cache=cache)
+    resumed = R.advance(mid.checkpoint, mid.checkpoint_id, mid.state_bytes, env2, 0)
+    whole = R.advance(c2, i2, s2, env2, 100)
+    final = R.verify(rt2, env2, R._canon(whole.checkpoint), whole.state_bytes)
+    case("R2", mid.outcome == R.INCOMPLETE and from_root[:2] == (R.REPLAYED, "PREFIX")
+         and via_parent[:2] == (R.REPLAYED, "PREFIX") and resumed.outcome == R.NORMAL_FORM
+         and resumed.checkpoint["state_id"] == whole.checkpoint["state_id"]
+         and resumed.checkpoint["spent_total"] == whole.checkpoint["spent_total"]
+         and final[:2] == (R.REPLAYED, R.NORMAL_FORM),
+         "INCOMPLETE checkpoint with unused credit: REPLAYED as PREFIX (not terminal), from root and via a "
+         "verified parent; resumed, it ends where the uninterrupted run ends", (from_root, via_parent, final))
+    # R3: malformed identifiers are INVALID_ENCODING, with and without a cache
+    bad_values = [{"untrusted": "object"}, ["x"], 7, True, "zz" * 32, "AB" * 32, "ab" * 31]
+    ok3 = True
+    for field_name in ("parent_checkpoint_id", "computation_id", "state_id"):
+        for v in bad_values:
+            raw = R._canon(dict(whole.checkpoint, **{field_name: v}))
+            for cache3 in (None, R.VerifiedCache()):
+                try:
+                    basis, code, _ = R.verify(rt2, env2, raw, whole.state_bytes, cache=cache3)
+                except Exception:      # noqa: BLE001 -- a host exception is exactly the defect
+                    ok3 = False
+                    continue
+                ok3 &= basis == R.UNVERIFIED and code.startswith("INVALID_ENCODING")
+    case("R3", ok3, "object/list/number/bool/non-hex/uppercase/short ids in parent, computation_id or state_id: "
+         "INVALID_ENCODING with and without a cache, never a host exception")
 
 
 # ---------------------------------------------------------------- cycles (toy)

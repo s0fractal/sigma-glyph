@@ -61,19 +61,34 @@ store read.
 
 ## 4. verify(expected_root, env, checkpoint, state[, cache])
 
-The verifier chooses the root. REPLAYED only when this verifier reproduced the
-state, spent and peak, by one run from the root with the claimed `credit_total`
-(segmentation invariance makes one run enough), or from a parent it replayed
-before. The local cache is keyed by verifier identity. No signature is consulted.
+**The verifier chooses the root and its context.** CONTEXT_MISMATCH covers the
+environment, runtime and cost model. Checkpoint verification and cycle
+verification share this check (PR #62 review, R1).
 
-| Result | When |
+**Replay goes to the claimed `spent_total`, not the claimed credit.** `spent`
+strictly increases, so exactly one state has it. An atomic prefix taken with
+credit left over (an action limit or a deadline) is therefore still verifiable,
+from the root or from a parent this verifier replayed before (R2). The cache is
+keyed by verifier identity.
+
+**REPLAYED** means this verifier reproduced the state, spent and peak. The code
+then says what the checkpoint is at its own credit:
+- the kernel outcome, if no further action fits that credit;
+- **PREFIX**, if it is a verified reachable prefix with credit for more. PREFIX
+  is not terminal and is never a kernel outcome.
+
+`transition_claim.actions` is segment-local and informational. Reachability does
+not rest on it.
+
+| Refusal | When |
 |---|---|
-| REPLAYED | this verifier reproduced the checkpoint, as above |
-| UNVERIFIED_PREFIX | the replay does not reach this state |
+| INVALID_ENCODING | non-canonical bytes, or a malformed id: `computation_id` and `state_id` must be 64 lowercase hex, parent null or 64 lowercase hex (R3). Never a host exception, with or without a cache. |
+| UNVERIFIED_PREFIX | replay does not reach the claimed state |
 | ROOT_MISMATCH | the checkpoint belongs to another computation |
-| CONTEXT_MISMATCH | the runtime, cost model or environment differs |
-| INVALID_ENCODING | the checkpoint or state bytes are not canonical |
+| CONTEXT_MISMATCH | the environment, runtime or cost model differs |
 | NOT_ASSESSED | a local limit stopped the replay |
+
+No signature is consulted.
 
 ## 5. Cycles
 
@@ -106,9 +121,11 @@ session, `f371005`) has real ones: `Y I` (period 2), `M M` (period 1).
 
 ## 7. Matrix
 
-`tests/resume_test.py`: N01–N37 plus N61/N62, **40 PASS, 0 FAIL, 3 UNRUN**:
+`tests/resume_test.py`: N01–N37, N61/N62, the rich-profile cases and the PR #62
+review regressions R1–R3, **43 PASS, 0 FAIL, 3 UNRUN**:
 - N05: host persistence;
 - N15: no memo;
 - N27: attestation is Warrant's.
 
-`tests/resume_mutants.py`: 16 mutants, each killed by its own case.
+`tests/resume_mutants.py`: 19 mutants, each killed by its own case (3 undo the
+R1–R3 fixes). All four suites now run in CI (`.github/workflows/ci.yml`).
