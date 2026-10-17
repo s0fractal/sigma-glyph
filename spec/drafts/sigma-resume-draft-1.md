@@ -1,0 +1,114 @@
+# sigma-resume, draft 1: the resumable Book I kernel as implemented (DRAFT, not reviewed)
+
+**Status:** DRAFT. This describes `impl/sigma_resume.py` and `book1 resume`
+(impl-rs) on the local branch `resume/p1-p2-reference`. Book I, its vectors, and
+`eval_receipt`/`eval_hash` are unchanged and remain the specification. Nothing
+here is adopted. Adoption is a threshold warrant signed by roster keys
+(AGENTS.md), and this text has had no independent gate.
+
+## 1. Identities
+
+- **ComputationRoot** = `{schema, runtime_semantics_id, cost_model_id,
+  input_term_hash, environment_id}`.
+  - `computation_id` is the SHA-256 of its canonical JSON.
+  - No budget is part of it.
+  - The runtime profile is part of it: one term under two profiles is two
+    computations.
+- **Environment** = a frozen manifest of NodeHashes. `environment_id` is the
+  digest of the sorted manifest. Delivery is separate from identity.
+- **MachineState** bytes are `b"SGS1" ‖ computation_id(32) ‖ tree`. The tree is
+  written in preorder: `A` for APPLY, then `T`/`L`/`R`/`D` plus 32 bytes for
+  thunk / literal / ref / dissonance. `state_id = SHA-256(bytes)`. The codec
+  keeps a thunk apart from its materialization, and it does not depend on
+  physical sharing.
+- **Checkpoint** = `{schema, computation_id, state_id, credit_total,
+  spent_total, peak_semantic_size, parent_checkpoint_id, transition_claim
+  {actions}}`.
+  - It must be strict canonical JSON.
+  - Integers must lie in 0..2^53−1.
+  - `spent ≤ credit`.
+  - Duplicates, floats, bools and unknown fields are refused.
+
+## 2. No control state
+
+Book I's `step5` derives the leftmost-outermost demanded action from the tree on
+every call. Which action it picks does not depend on the remaining budget. The
+budget only decides whether the action is affordable. This was measured over
+20,114 (state, budget) pairs, and over 60,729 for the rich profile.
+
+So the tree is the whole operational state. **Segmentation invariance** follows
+from determinism plus pre-checked, atomic charging: any split of the same total
+credit reaches the same state, spent and outcome. Measured: 12,649 partitions.
+
+## 3. advance(checkpoint, state, env, additional_credit[, max_actions])
+
+Credit accumulates: `available = credit_total − spent_total`.
+
+| Outcome | Kind | Meaning |
+|---|---|---|
+| NORMAL_FORM | kernel | no next action under the fixed semantics (not "TRUE") |
+| PAUSED | kernel | the next action costs more than is available; nothing changed |
+| BLOCKED_REFERENCE | kernel | the demanded hash is outside the manifest (it is named) |
+| EVIDENCE_UNAVAILABLE | local | in the manifest, bytes not delivered here |
+| CAS_MISMATCH | local | the bytes do not hash to their key |
+| INCOMPLETE | local | an action limit / deadline stopped the run; the last atomic state is kept |
+| ADMISSION_REFUSED | local | credit or state over this host's ceiling, refused before decoding |
+| RESOURCE_FAULT | local | a configured size/depth limit was breached |
+
+A local outcome never stands in for an answer. Normal-form detection costs
+nothing. A non-genesis thunk needs 1 before its fetch, so at credit 0 there is no
+store read.
+
+## 4. verify(expected_root, env, checkpoint, state[, cache])
+
+The verifier chooses the root. REPLAYED only when this verifier reproduced the
+state, spent and peak, by one run from the root with the claimed `credit_total`
+(segmentation invariance makes one run enough), or from a parent it replayed
+before. The local cache is keyed by verifier identity. No signature is consulted.
+
+| Result | When |
+|---|---|
+| REPLAYED | this verifier reproduced the checkpoint, as above |
+| UNVERIFIED_PREFIX | the replay does not reach this state |
+| ROOT_MISMATCH | the checkpoint belongs to another computation |
+| CONTEXT_MISMATCH | the runtime, cost model or environment differs |
+| INVALID_ENCODING | the checkpoint or state bytes are not canonical |
+| NOT_ASSESSED | a local limit stopped the replay |
+
+## 5. Cycles
+
+`verify_cycle` replays from the chosen root to exactly the entry's spent (spent
+strictly increases, so that state is unique), then replays the period one action
+at a time. CYCLE_PROVEN requires all of these:
+- at least one priced action;
+- the claimed cost exactly;
+- no terminal state on the way;
+- the same machine state at the end, not merely the same term_hash.
+
+Under the Book I profile, no Sigma term with a state cycle is known: 0 among all
+3.1M SKI terms of ≤ 8 leaves. The rich profile (Y, M, W primitives; another
+session, `f371005`) has real ones: `Y I` (period 2), `M M` (period 1).
+
+## 6. Second engine: `book1 resume <request.json>`
+
+- **Request:** `{available, state (hex), manifest [hex], delivered {hex: hex},
+  max_actions?}`.
+- **Response:** `{outcome, state, spent, actions, peak, missing}`.
+- **Sharing:** one `step` serves both the Book I conformance path and resume mode,
+  through a fetch callback. Book I conformance stays 49/49.
+- **WASM:** `impl-rs/wasm-resume` builds the same `main.rs` for wasm32, and
+  `resume_worker.mjs` runs one request per disposable worker with a deadline
+  (DEADLINE is local).
+- **Agreement:** `tests/resume_differential.py` holds Python = Rust on 2268 runs
+  covering all six reachable outcomes, wasm = native on 60, and two broken
+  engines are caught. That covers the Book I profile only; the rich profile has
+  no Rust engine yet.
+
+## 7. Matrix
+
+`tests/resume_test.py`: N01–N37 plus N61/N62, **40 PASS, 0 FAIL, 3 UNRUN**:
+- N05: host persistence;
+- N15: no memo;
+- N27: attestation is Warrant's.
+
+`tests/resume_mutants.py`: 16 mutants, each killed by its own case.

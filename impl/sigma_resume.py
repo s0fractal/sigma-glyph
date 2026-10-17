@@ -50,7 +50,9 @@ KERNEL = (NORMAL_FORM, PAUSED, BLOCKED_REFERENCE)
 # Local outcomes: what this host could or would not do. Never an answer.
 EVIDENCE_UNAVAILABLE, CAS_MISMATCH = "EVIDENCE_UNAVAILABLE", "CAS_MISMATCH"
 RESOURCE_FAULT, ADMISSION_REFUSED = "RESOURCE_FAULT", "ADMISSION_REFUSED"
-LOCAL = (EVIDENCE_UNAVAILABLE, CAS_MISMATCH, RESOURCE_FAULT, ADMISSION_REFUSED)
+INCOMPLETE = "INCOMPLETE"           # an action limit / deadline stopped the run; last atomic state kept (N62)
+LOCAL = (EVIDENCE_UNAVAILABLE, CAS_MISMATCH, RESOURCE_FAULT, ADMISSION_REFUSED, INCOMPLETE)
+MAX_STATE_BYTES = 64 * 1024 * 1024  # admission before decoding (N61); the same ceiling as impl-rs resume mode
 # Verification bases.
 REPLAYED, ATTESTED, UNVERIFIED = "REPLAYED", "ATTESTED", "UNVERIFIED"
 
@@ -309,12 +311,15 @@ def _run(term, available, env, limits, max_actions=None, step=None):
         sys.setrecursionlimit(old)
 
 
-def advance(ckpt, ckpt_id, state_bytes, env, additional_credit, limits=None, runtime=RUNTIME_SEMANTICS_ID):
+def advance(ckpt, ckpt_id, state_bytes, env, additional_credit, limits=None, runtime=RUNTIME_SEMANTICS_ID,
+            max_actions=None):
     """Add credit to a checkpoint and run. The caller vouches for the input
     checkpoint (its own, or one `verify` REPLAYED); advance checks only that the
     state bytes are the ones the checkpoint names."""
     limits = limits or G.VERIFIER_LIMITS
     _check_int("additional_credit", additional_credit)
+    if len(state_bytes) > MAX_STATE_BYTES:
+        return Result(ADMISSION_REFUSED, ckpt, ckpt_id, state_bytes, detail="state larger than admitted")
     if state_id(state_bytes) != ckpt["state_id"]:
         raise InvalidEncoding("state bytes are not the checkpoint's state")
     credit = ckpt["credit_total"] + additional_credit
@@ -327,7 +332,9 @@ def advance(ckpt, ckpt_id, state_bytes, env, additional_credit, limits=None, run
     cid, term = decode_state(state_bytes)
     env.missing = None
     term, spent, actions, peak, outcome, detail = _run(term, credit - ckpt["spent_total"], env, limits,
-                                                       step=PROFILES[runtime][0]())
+                                                       max_actions, step=PROFILES[runtime][0]())
+    if outcome is None:                 # _run's action limit; verify_cycle reads it as None
+        outcome = INCOMPLETE
     sb = encode_state(cid, term)
     doc, new_id = checkpoint(cid, sb, credit, ckpt["spent_total"] + spent,
                              max(ckpt["peak_semantic_size"], peak), ckpt_id, actions)

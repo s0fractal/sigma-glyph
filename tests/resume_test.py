@@ -309,6 +309,24 @@ def main():
     case("N28", basis == R.UNVERIFIED and code.startswith("NOT_ASSESSED"),
          "replay stopped by a local limit: NOT_ASSESSED, never verified", code)
 
+    # ---------------------------------------------------------- H. host limits (advance level)
+    saved = R.MAX_STATE_BYTES
+    R.MAX_STATE_BYTES = len(p2.state_bytes) - 1           # a ceiling just below this state
+    try:
+        adm = R.advance(p2.checkpoint, p2.checkpoint_id, p2.state_bytes, env, 5)
+    finally:
+        R.MAX_STATE_BYTES = saved
+    case("N61", adm.outcome == R.ADMISSION_REFUSED and adm.state_bytes == p2.state_bytes and not adm.kernel,
+         "state over the admission ceiling: ADMISSION_REFUSED before decoding, checkpoint unchanged", adm.outcome)
+    rt, doc, cid, sb = fresh(PROG_H, env)
+    cut = R.advance(doc, cid, sb, env, 10**6, max_actions=2)
+    rest = R.advance(cut.checkpoint, cut.checkpoint_id, cut.state_bytes, env, 0)
+    case("N62", cut.outcome == R.INCOMPLETE and not cut.kernel and cut.checkpoint["transition_claim"]["actions"] == 2
+         and rest.outcome == R.NORMAL_FORM and rest.checkpoint["state_id"] == total.checkpoint["state_id"]
+         and rest.checkpoint["spent_total"] == full_spent,
+         "an action limit stops the run: INCOMPLETE (local) with the last atomic state, which resumes to the same end",
+         (cut.outcome, rest.outcome))
+
     # ---------------------------------------------------------- E. cycles
     cycles(env)
     rich()
