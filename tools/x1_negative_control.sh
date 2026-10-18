@@ -74,7 +74,7 @@ BAD=0
 #   after mutating something, or non-zero if it had nothing to mutate.
 #   <selected-step> is handed to X1 as --only=, so the run executes that step
 #   and its preparation only. <must-fail-step> is the predicate as before: the
-#   grep needle that must appear on a FAIL line (E's labels are "E:<file>").
+#   grep needle that must appear on a FAIL line (step-specific outcome labels).
 #   [expect] is `outcome` (default): the red line at the named step must be an
 #   outcome of the step's own predicate; or `unrun`: the red line must be the
 #   strict-mode "required crossing did not run" skip -- for the one control
@@ -321,23 +321,7 @@ else
   echo "        (we are warrant; C2 reads OUR examples, and CI must not corrupt those)"
 fi
 
-# --------------------------------------------------------------------------
-# Control 7 — gate REMOVAL must go red (E). Divergence was already detected;
-# deletion was not, and deletion is the cheaper attack: drop X1 from one repo
-# and its workflow simply stops running, while the other side used to skip and
-# stay green (Codex X1 gate, P1). Runs from both directions.
-# --------------------------------------------------------------------------
-control "deleting a mirrored X1 file must break E" "E:" E '
-import sys, pathlib
-root = pathlib.Path(sys.argv[1])
-for rel in ("tools/x1_negative_control.sh", "tools/x1_cross_repo.sh",
-            "tools/book1_coverage.py", ".github/workflows/x1-cross-repo.yml"):
-    p = root / rel
-    if p.exists():
-        p.unlink()
-        sys.exit(0)
-sys.exit(1)
-'
+# Control 7 (gate removal must break E) is retired with E.
 
 # --------------------------------------------------------------------------
 # Control 8 — an unbuildable sibling must NOT be green (A1). warrant-go is
@@ -430,12 +414,13 @@ fi
 selector_refusal "an empty selector must refuse"            --only=
 selector_refusal "a bare --only must refuse"                --only
 selector_refusal "an unknown selector must refuse"          --only=Z9
+selector_refusal "the retired mirror step must refuse"       --only=E
 selector_refusal "a selector list must refuse"              --only=A1,D1
 selector_refusal "a repeated selector must refuse"          --only=A1 --only=D1
 selector_refusal "a stray positional argument must refuse"  D1
 selector_refusal "the informational pin report is not selectable" --only=F
 selector_refusal "a whitespace-separated selector list must refuse" '--only=A1 A2'
-selector_refusal "the entire step set as one selector must refuse" '--only=A1 A2 B1 B2 C1 C2 C3 D1 D2 E'
+selector_refusal "the entire step set as one selector must refuse" '--only=A1 A2 B1 B2 C1 C2 C3 D1 D2'
 selector_refusal "a padded selector is not trimmed into acceptance" '--only= D1'
 
 # --------------------------------------------------------------------------

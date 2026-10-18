@@ -1,16 +1,8 @@
-# X1 — cross-repo coupling gate (warrant <-> sigma-glyph), HEAD against HEAD.
-#
-# The existing conformance jobs pin the sibling BY COMMIT on purpose, and this
-# workflow does NOT replace them: pinned = the reproducibility gate. But a pin is
-# a snapshot, so a change on either HEAD stays invisible until a human bumps it.
-# Measured 2026-07-27, the pins had drifted 19 days apart (sigma pinned three
-# different warrant commits at once; warrant pinned a sigma commit older than its
-# last 50 commits) and nothing anywhere ran HEAD against HEAD. X1 is that canary.
-#
-# A red X1 with green pinned jobs means: the seam moved, bump or fix deliberately.
-#
-# NOT AN INDEPENDENT GATE (AGENTS.md §3). It runs suites; it hunts no
-# counter-vectors. Green here is necessary and never sufficient.
+# Sigma HEAD vs the frozen Warrant 0.x consumer, not Warrant 2.
+# Runtime/normative pins in other workflows are unchanged. This required job
+# retains the historical contract checks and their negative controls; mirrored
+# source equality E is retired because Warrant no longer maintains that copy.
+# This is a regression lane, not an independent review.
 name: x1-cross-repo
 
 on:
@@ -50,54 +42,31 @@ jobs:
           pip install --quiet --only-binary=:all:
           'cryptography==45.0.7'
 
-      - name: Clone sibling at HEAD (deliberately UNPINNED — that is the point)
-        env:
-          PR_HEAD_OWNER: ${{ github.event.pull_request.head.repo.owner.login }}
-          PR_HEAD_REF: ${{ github.head_ref }}
+      - name: Clone the historical Warrant consumer and verify its commit
         run: |
           set -euo pipefail
-          case "${{ github.repository }}" in
-            */warrant)     SIB=sigma-glyph ;;
-            */sigma-glyph) SIB=warrant ;;
-            *) echo "X1: unexpected repository ${{ github.repository }}" >&2; exit 2 ;;
-          esac
-          URL="https://github.com/s0fractal/$SIB.git"
-          # A paired same-owner PR may carry the sibling half under the same
-          # branch name. Test candidate against candidate there; push/schedule
-          # events still test master against master. If the paired branch is
-          # absent, fall back to sibling master and let the seam fail normally.
-          if [[ "${{ github.event_name }}" = "pull_request" \
-             && "$PR_HEAD_OWNER" = "s0fractal" \
-             && -n "$PR_HEAD_REF" \
-             && $(git ls-remote --heads "$URL" "refs/heads/$PR_HEAD_REF" | wc -l) -eq 1 ]]; then
-            git clone -q --depth 50 --branch "$PR_HEAD_REF" "$URL" /tmp/$SIB
-            echo "X1 sibling candidate: $SIB/$PR_HEAD_REF"
-          else
-            git clone -q --depth 50 "$URL" /tmp/$SIB
-          fi
+          SIB=warrant
+          PIN=$(cat tools/x1-warrant-commit)
+          git clone -q --depth 1 --branch history/warrant-0.x-2026-10-18 \
+            https://github.com/s0fractal/warrant.git /tmp/warrant
+          test "$(git -C /tmp/warrant rev-parse HEAD)" = "$PIN"
           echo "SIBLING=/tmp/$SIB" >> "$GITHUB_ENV"
           echo "X1 sibling: $SIB @ $(git -C /tmp/$SIB rev-parse --short HEAD)"
 
-      - name: X1 coupling matrix (HEAD vs HEAD)
+      - name: X1 compatibility matrix (Sigma vs frozen Warrant 0.x)
         env:
           X1_SEEDS: '1 2 3'
-          # Both are the defaults; they are set here anyway so the mode CI runs
-          # in is visible in the workflow and cannot be changed by editing a
-          # default in the script. A crossing that does not run is a failure, and
-          # a missing mirror file is a failure -- there is no bootstrap window
-          # left now that X1 is landed in both repositories.
+          # Required crossings that cannot run fail; no degraded CI mode.
           X1_DEGRADED: '0'
-          X1_BOOTSTRAP: '0'
         run: bash tools/x1_cross_repo.sh
 
       - name: Negative control — the gate must be able to FAIL
         # Guards against a vacuous green. Each control corrupts one thing in the
         # sibling and names the X1 step that must go red; a control that finds
         # nothing to tamper, or turns a *different* step red, fails the job.
-        # Covers every Book I vector kind separately, gate deletion, and an
+        # Covers every Book I vector kind separately and an
         # unbuildable sibling — see the header of tools/x1_negative_control.sh
         # for the drafts of this file that were themselves vacuous.
         env:
           X1_DEGRADED: '0'
-          X1_BOOTSTRAP: '0'
         run: bash tools/x1_negative_control.sh
