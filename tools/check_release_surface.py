@@ -91,8 +91,9 @@ FEDERATION_PASS = "FEDERATION: ALL PASS"
 REPLAY_SKIP = "recorded-vector replay"
 CHECKOUT_REQUIRED = "requires a source checkout"
 
-# The distribution's contract: these three modules, importable at top level.
-MODULES = ("sigma_glyph", "sigma_wave", "sigma_federation")
+# The distribution's contract: these modules, importable at top level, each with a
+# self-test. sigma_resume ships beside them as the library sigma_provider runs.
+MODULES = ("sigma_glyph", "sigma_wave", "sigma_federation", "sigma_provider")
 
 # (module, machine tag the suite MUST print, floor on the number of OK lines)
 #
@@ -106,6 +107,7 @@ SUITES = (
     ("sigma_glyph", ALL_PASS, 35),
     ("sigma_wave", WAVE_PASS, 13),
     ("sigma_federation", FEDERATION_PASS, 15),
+    ("sigma_provider", "PROVIDER: ALL PASS", 14),
 )
 
 # Replay corpora live in the repo. If a build starts shipping them, the expected
@@ -144,6 +146,8 @@ VERB_TABLE = {
     ("sigma_federation", ""): (RUNNABLE, None),
     ("sigma_wave", "gen"): (NOT_RUNNABLE, CHECKOUT_REQUIRED),
     ("sigma_federation", "gen"): (NOT_RUNNABLE, CHECKOUT_REQUIRED),
+    ("sigma_provider", ""): (RUNNABLE, None),
+    ("sigma_provider", "serve"): (RUNNABLE, None),
 }
 
 # A verb name no module declares. Typing it must be refused, not silently
@@ -348,7 +352,9 @@ def run(python, args, cwd, env=None):
     e = dict(os.environ)
     e.pop("PYTHONPATH", None)          # the checkout must not leak onto sys.path
     e.update(env or {})
-    p = subprocess.run([python, *args], cwd=str(cwd), env=e,
+    # stdin is empty, never inherited: a verb that reads a request (sigma_provider
+    # serve) must answer an empty one, not wait for a terminal.
+    p = subprocess.run([python, *args], cwd=str(cwd), env=e, stdin=subprocess.DEVNULL,
                        capture_output=True, text=True, timeout=300)
     return p.returncode, p.stdout, p.stderr
 
@@ -606,11 +612,12 @@ def _report_release(args, target, problems):
     # snippet against; claiming otherwise here would be the same species of
     # untruth this file exists to catch.
     nverbs = len(VERB_TABLE) + len(MODULES)          # + the undeclared-verb probe
-    did = (f"three modules import from site-packages, three self-tests clean "
+    n = len(MODULES)
+    did = (f"{n} modules import from site-packages, {len(SUITES)} self-tests clean "
            f"from outside the checkout, {nverbs} verb invocations behave as "
            f"classified, documented snippet reproduces byte-identically"
            if args.bin else
-           f"three self-tests clean, {nverbs} verb invocations behave as "
+           f"{len(SUITES)} self-tests clean, {nverbs} verb invocations behave as "
            f"classified against a non-checkout copy of impl/, documented "
            f"snippet runs — NOT an artifact check; pass --wheel/--bin for that")
     print(f"RELEASE SURFACE: ALL PASS ({target}: {did})")

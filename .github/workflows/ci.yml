@@ -198,6 +198,21 @@ jobs:
           python3 tests/resume_mutants.py | tee /dev/stderr | grep -q "RESUME MUTANTS: ALL KILLED ON TARGET"
           python3 tests/resume_differential.py | tee /dev/stderr | grep -q "RESUME DIFFERENTIAL: ALL AGREE"
           sh tests/resume_differential_controls.sh | tee /dev/stderr | grep -q "DIFFERENTIAL CONTROLS: ALL BITE"
+      # The resume provider as a consumer gets it: a wheel built from this commit,
+      # installed in a fresh environment, run from outside the checkout. The same
+      # gate publish.yml runs, here on every change, so a module the provider
+      # needs cannot silently stay out of the wheel.
+      - name: sigma-resume provider, installed (wheel, fresh venv, no checkout on the path)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip wheel --quiet --no-deps -w "$RUNNER_TEMP/wheelhouse" .
+          python3 -m venv "$RUNNER_TEMP/pv"
+          "$RUNNER_TEMP/pv/bin/pip" install --quiet "$RUNNER_TEMP"/wheelhouse/sigma_glyph-*.whl
+          python3 tools/check_release_surface.py --wheel "$RUNNER_TEMP"/wheelhouse/sigma_glyph-*.whl --bin "$RUNNER_TEMP/pv/bin" \
+            | tee /dev/stderr | grep -q "^RELEASE SURFACE: ALL PASS"
+          python3 tests/provider_protocol_test.py --python "$RUNNER_TEMP/pv/bin/python" \
+            | tee /dev/stderr | grep -q "^PROVIDER-PROTOCOL (installed): ALL PASS"
       # Cheap half of EXP-004: nine controls, each required to fail for its own
       # reason. The full corpus replay is path-filtered into its own workflow.
       - name: EXP-004 controls can fail (interaction-net harness)
