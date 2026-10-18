@@ -1,54 +1,17 @@
 #!/usr/bin/env bash
-# X1 — cross-repo coupling gate (warrant <-> sigma-glyph), HEAD against HEAD.
+# X1 — Sigma HEAD against the frozen Warrant 0.x contract.
 #
-# WHY THIS EXISTS
-# ---------------
-# Both repos already pin the sibling BY COMMIT, deliberately, for reproducible
-# conformance. That is correct and this script does not replace it.
+# Warrant 2 retired its 0.x implementations and mirrored X1 scripts (PR #138).
+# The default sibling is now the historical tag, checked against the exact
+# commit in tools/x1-warrant-commit. This lane validates Sigma against that
+# historical consumer; it makes no claim about compatibility with Warrant 2.
+# E (mirror equality) and its negative control are deliberately retired.
 #
-# But a pin is a *snapshot*: a change on either HEAD is invisible until a human
-# bumps the pin by hand. Measured on 2026-07-27, the pins had drifted 19 days
-# apart -- sigma-glyph's CI pinned three DIFFERENT warrant commits at once
-# (2026-07-08 / 07-17 / 07-27) and warrant's CI pinned a sigma commit older than
-# its last 50. So each repo was testing against a fractured historical composite
-# of the other, and no job anywhere ran HEAD against HEAD.
-#
-# X1 is the canary for exactly that gap: pinned jobs stay the reproducibility
-# gate; this one is the early warning. A red X1 with green pinned jobs means the
-# seam moved.
-#
-# WHAT THIS IS NOT
-# ----------------
-# This is a REGRESSION gate, not an independent adversarial gate (AGENTS.md §3).
-# It runs suites. It hunts no counter-vectors. Green here is necessary, never
-# sufficient, and must never be reported as "independently gated".
-#
-# STRICT BY DEFAULT
-# A crossing that cannot run is not a crossing that passed. X1 used to `c_skip`
-# A1/A2/C2 when the Go toolchain or build was unavailable and still print
-# ALL PASS -- so a sibling whose Go code did not compile produced a green gate
-# with no Go implementation tested at all (Codex X1 gate, P1). Now every skip of
-# a required crossing is a FAILURE unless X1_DEGRADED=1 is set explicitly, which
-# is for local exploration only and must never be set in CI.
-#
-# THE LANDING SEAM (read before merging this to either master)
-# A cross-repo merge is not atomic, so the FIRST of the two master merges
-# necessarily sees the sibling's master without the new X1 — a real
-# mirror-absence, and under the rules above a red gate. That window is expected
-# and must be crossed deliberately, not papered over by leaving absence
-# permanently skippable:
-#
-#   1. land tools/book1_coverage.py and the pin change on BOTH masters first.
-#      A1 derives its expected summary from that helper, so X1 cannot move
-#      before the artifact it depends on exists on both sides. (The original X1
-#      landing had no such dependency and went the other way round: X1 first,
-#      pins after. Order follows the dependency, not habit.)
-#   2. merge X1 on one master (explicitly authorised; section E there will be
-#      red until step 3, and that redness is CORRECT);
-#   3. merge X1 on the other master immediately — not a step to postpone;
-#   4. re-run X1 strict on BOTH masters and require fail=0, skip=0.
-#
-# X1_BOOTSTRAP=1 exists for step 2 alone and CI never sets it.
+# This runs regression suites, not an independent review. Required crossings
+# that cannot execute remain failures; X1_DEGRADED=1 is local exploration only.
+# SIBLING is an explicit test operand (also used by the negative controls).
+# X1_SIBLING_REF, when set explicitly, selects a diagnostic alternate clone;
+# CI always supplies the checked historical sibling.
 #
 # SELECTING ONE STEP (--only=<step>)
 # The negative controls hand X1 a tampered sibling and ask whether ONE named
@@ -68,22 +31,21 @@
 #   * not open-ended. The selector set is closed; empty, missing, unknown,
 #     repeated or list-valued selectors refuse (exit 2) before the sibling is
 #     located, cloned or built.
-# Strict/degraded/bootstrap and the ambient-variable erasure apply unchanged.
+# Strict/degraded modes and the ambient-variable erasure apply unchanged.
 #
 # USAGE
-#   tools/x1_cross_repo.sh                 # clone sibling at HEAD, strict
+#   tools/x1_cross_repo.sh                 # clone frozen Warrant 0.x, strict
 #   SIBLING=/path/to/sibling tools/x1_cross_repo.sh   # use a local checkout
 #   X1_SIBLING_REF=branch tools/x1_cross_repo.sh      # paired candidate branch
 #   X1_SEEDS="1 2 3" tools/x1_cross_repo.sh           # more fuzzer seeds
 #   X1_DEGRADED=1 tools/x1_cross_repo.sh              # allow skips (NOT for CI)
-#   X1_BOOTSTRAP=1 tools/x1_cross_repo.sh             # sibling has no X1 yet
 #   tools/x1_cross_repo.sh --only=D1       # ONE step; never reports ALL PASS
 set -uo pipefail
 
 # ------------------------------------------------------------- step selection
 # Parsed first, before any repository is located, cloned or built: a refused
 # selector must cost nothing. The set is closed and matched exactly.
-STEPS="A1 A2 B1 B2 C1 C2 C3 D1 D2 E"
+STEPS="A1 A2 B1 B2 C1 C2 C3 D1 D2"
 ONLY=""
 refuse_only() {
   echo "X1: refused: $1 (closed set: $STEPS; usage: --only=<step>)" >&2
@@ -240,11 +202,19 @@ else
       || { echo "X1: invalid X1_SIBLING_REF=$SIB_REF" >&2; exit 2; }
     CLONE_ARGS+=(--branch "$SIB_REF")
     echo "X1: cloning paired candidate $SIB_NAME/$SIB_REF (no pin) ..."
+  elif [[ "$OWN" = "sigma-glyph" ]]; then
+    CLONE_ARGS=(--depth 1 --branch history/warrant-0.x-2026-10-18)
+    echo "X1: cloning frozen Warrant 0.x ..."
   else
     echo "X1: cloning $SIB_NAME at HEAD (no pin) ..."
   fi
   git clone -q "${CLONE_ARGS[@]}" "https://github.com/s0fractal/$SIB_NAME.git" "$SIB" \
     || { echo "X1: clone failed" >&2; exit 2; }
+  if [[ "$OWN" = "sigma-glyph" && -z "$SIB_REF" ]]; then
+    EXPECTED="$(cat "$SELF/tools/x1-warrant-commit")"
+    [[ "$(git -C "$SIB" rev-parse HEAD)" = "$EXPECTED" ]] \
+      || { echo "X1: historical Warrant tag moved from $EXPECTED" >&2; exit 2; }
+  fi
 fi
 
 WARRANT=$([[ "$OWN" = warrant ]] && echo "$SELF" || echo "$SIB")
@@ -257,7 +227,7 @@ SIGMA=$(  [[ "$OWN" = warrant ]] && echo "$SIB"  || echo "$SELF")
 # opts into its intended mode explicitly, so erase caller state before running.
 unset SIGMA_GLYPH WARRANT_SIGMA_DIFFERENTIAL WARRANT_POSITIONAL WARRANT_SKI_MAX_ATP
 
-hdr "X1 cross-repo coupling gate — HEAD vs HEAD"
+hdr "X1 compatibility gate — Sigma vs frozen Warrant 0.x (explicit SIBLING may override)"
 echo "  own      : $OWN      $(git -C "$SELF" log -1 --format='%h %ad' --date=short 2>/dev/null)"
 echo "  sibling  : $SIB_NAME $(git -C "$SIB"  log -1 --format='%h %ad' --date=short 2>/dev/null)"
 # A2 contributes one step per fuzzer seed, so the pass TOTAL depends on this and
@@ -441,42 +411,9 @@ else
 fi
 fi
 
-if want E; then
-hdr "E. Mirror integrity — the gate itself is the same gate on both sides"
-
-# X1 only means anything if both repos run the SAME X1. Nothing else checks
-# that, so a well-meaning fix on one side would silently turn one coupling gate
-# into two different ones.
-#
-# ABSENCE IS FATAL, NOT A SKIP. Treating a missing mirror as "landing in
-# progress" is a permanent bypass once landing is done (Codex X1 gate, P1):
-# delete X1 from one repo and its workflow stops running, while the surviving
-# repo sees the file absent, skips, and stays green — so the gate can be removed
-# from the coupling without either side going red. The bootstrap window is now
-# explicit and opt-in: X1_BOOTSTRAP=1 for the single landing where one side has
-# X1 and the other does not. CI never sets it.
-BOOTSTRAP="${X1_BOOTSTRAP:-0}"
-# tools/book1_coverage.py is mirrored too: A1 derives its expected summary
-# from it, so the two sides asserting different coverage rules would be the
-# same class of silent divergence E exists to catch.
-for f in tools/x1_cross_repo.sh tools/x1_negative_control.sh \
-         tools/book1_coverage.py .github/workflows/x1-cross-repo.yml; do
-  if [[ ! -f "$SIB/$f" ]]; then
-    if [[ "$BOOTSTRAP" = "1" ]]; then
-      printf '  \033[33mSKIP\033[0m  E:%s absent in %s (X1_BOOTSTRAP=1)\n' "$f" "$SIB_NAME"
-      SKIP=$((SKIP+1))
-      mark_executed "E:$f"
-    else
-      c_bad "E:$f is MISSING from $SIB_NAME — the gate was removed from one side"
-    fi
-  elif [[ "$(shasum -a 256 "$SELF/$f" | awk '{print $1}')" = "$(shasum -a 256 "$SIB/$f" | awk '{print $1}')" ]]; then
-    c_ok "E:$f byte-identical in both repos"
-  else
-    c_bad "E:$f DIFFERS between the repos — the two sides are not running the same gate"
-    diff -u "$SIB/$f" "$SELF/$f" | head -20 | indent
-  fi
-done
-fi
+# E (mirror integrity) is retired. Warrant 2 no longer carries X1; its side of
+# this coupling is the fixed historical tag history/warrant-0.x-2026-10-18, which
+# x1-cross-repo.yml clones by name, so there is no second live copy to mirror.
 
 # ================================================================== pin drift
 # Informational and not a step: it cannot fail, so it is not selectable, and a
