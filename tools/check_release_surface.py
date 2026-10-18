@@ -107,7 +107,7 @@ SUITES = (
     ("sigma_glyph", ALL_PASS, 35),
     ("sigma_wave", WAVE_PASS, 13),
     ("sigma_federation", FEDERATION_PASS, 15),
-    ("sigma_provider", "PROVIDER: ALL PASS", 13),
+    ("sigma_provider", "PROVIDER: ALL PASS", 14),
 )
 
 # Replay corpora live in the repo. If a build starts shipping them, the expected

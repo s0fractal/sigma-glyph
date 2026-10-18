@@ -217,6 +217,49 @@ def verify_cycle(runtime, inp, hashes, blobs, witness):
 
 # ---------------------------------------------------------------- process protocol
 
+def _need(ok, why):
+    if not ok:
+        raise Refused(why)
+
+
+def _hex64(v):
+    return isinstance(v, str) and len(v) == 64 and all(c in "0123456789abcdef" for c in v)
+
+
+def _int(v, low=0):
+    return type(v) is int and v >= low
+
+
+# The operands each op reads, with their JSON types, checked before any is used
+# (S64-01: a list where a mapping or string belonged reached .items / .replace).
+_ARGS = {
+    "term": {"expr": lambda v: isinstance(v, str)},
+    "start": {"runtime": lambda v: isinstance(v, str), "input": _hex64,
+              "hashes": lambda v: isinstance(v, list) and all(_hex64(h) for h in v)},
+    "advance": {"checkpoint": lambda v: isinstance(v, str), "state": lambda v: isinstance(v, str),
+                "credit": _int, "max_actions": lambda v: v is None or _int(v, 1)},
+    "verify": {"chain": lambda v: isinstance(v, list) and all(
+                   isinstance(x, list) and len(x) == 2 and all(isinstance(y, str) for y in x) for x in v),
+               "cache": lambda v: isinstance(v, bool)},
+    "find_cycle": {"max_steps": lambda v: _int(v, 1)},
+    "verify_cycle": {"witness": lambda v: isinstance(v, str)},
+}
+_COMMON = ("runtime", "input", "hashes")
+_OPTIONAL = {"max_actions", "cache"}
+
+
+def _check_args(op, args):
+    spec = dict(_ARGS[op])
+    if op != "term":
+        spec.update({k: _ARGS["start"][k] for k in _COMMON})
+    for key, ok in spec.items():
+        if key in args:
+            _need(ok(args[key]), f"{op}: {key} has the wrong type or form")
+        else:
+            _need(key in _OPTIONAL, f"{op}: {key} is required")
+    _need(not set(args) - set(spec), f"{op}: unknown arguments {sorted(set(args) - set(spec))}")
+
+
 def _b(v):
     return base64.b64decode(v, validate=True)
 
@@ -266,7 +309,11 @@ def handle(req):
         if not (isinstance(req, dict) and req.get("sigma_provider") == PROTOCOL and req.get("op") in OPS
                 and isinstance(req.get("args"), dict)):
             raise Refused("not a sigma_provider 1 request with a known op")
-        blobs = {h: _b(v) for h, v in req.get("blobs", {}).items()}
+        raw = req.get("blobs", {})
+        _need(isinstance(raw, dict) and all(_hex64(h) and isinstance(v, str) for h, v in raw.items()),
+              "blobs must map 64-hex hashes to base64 strings")
+        _check_args(req["op"], req["args"])
+        blobs = {h: _b(v) for h, v in raw.items()}
         return {"sigma_provider": PROTOCOL, "ok": OPS[req["op"]](req["args"], blobs)}
     except Refused as e:
         return {"sigma_provider": PROTOCOL, "refused": str(e)}
@@ -325,6 +372,16 @@ def selftest():
     bad = handle({"sigma_provider": PROTOCOL, "op": "start", "args": {"runtime": "latest", "input": t["input"], "hashes": hs}})
     ok("an unsupported runtime is refused, not guessed", "refused" in bad)
     ok("a malformed request is refused", "refused" in handle({"op": "verify"}))
+    bad_shapes = [{"op": "term", "args": {"expr": "I"}, "blobs": []},
+                  {"op": "term", "args": {"expr": []}},
+                  {"op": "start", "args": {"runtime": b1, "input": t["input"], "hashes": "x"}},
+                  {"op": "advance", "args": {"runtime": b1, "input": t["input"], "hashes": hs, "checkpoint": "", "state": "",
+                                             "credit": True}},
+                  {"op": "verify", "args": {"runtime": b1, "input": t["input"], "hashes": hs, "chain": [["a"]]}},
+                  {"op": "find_cycle", "args": {"runtime": rich, "input": mm["input"], "hashes": [], "max_steps": "9"}}]
+    ok("operands of the wrong JSON type are refused, never a traceback",
+       all("refused" in handle(dict(r, sigma_provider=PROTOCOL)) for r in bad_shapes)
+       and "ok" in handle({"sigma_provider": PROTOCOL, "op": "term", "args": {"expr": "I"}, "blobs": {}}))
     here = {n: (Path(__file__).resolve().parent / n).read_bytes() for n in FILES}
     ok("the identity names these bytes", identity_of(here) != identity_of(dict(here, **{"sigma_resume.py": here["sigma_resume.py"] + b"\n"})))
     passed = all(results)
