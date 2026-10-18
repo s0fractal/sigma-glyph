@@ -315,7 +315,7 @@ def _verify_artifact(out, manifest, problems):
         return
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
-    for module in ("sigma_glyph.py", "sigma_wave.py", "sigma_federation.py"):
+    for module in ("sigma_glyph.py", "sigma_wave.py", "sigma_federation.py", "sigma_resume.py", "sigma_provider.py"):
         if module not in names:
             problems.append(f"the wheel does not ship {module}")
 

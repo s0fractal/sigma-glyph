@@ -128,7 +128,7 @@ STATUS_SECTION = "## Status by surface"
 # "### Current: vX" heading, which called an adopted-but-unreleased bundle
 # current, matches neither.
 STATUS_LABELS = {"Adopted bundle": r'v\d+(?:\.\d+)*',
-                 "Distribution": r'\d+(?:\.\d+)*(?:\.post\d+)?'}
+                 "Distribution": r'\d+(?:\.\d+)*(?:\.post\d+|\.dev\d+)?'}
 
 
 def readme_status_headings(text: str) -> tuple[int, dict[str, list[tuple[int, str, bool]]]]:

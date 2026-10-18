@@ -4,6 +4,23 @@
 
 No normative bundle changes after adopted `v0.7.0`.
 
+- **The resume kernel installs, with a consumer surface** (`0.8.0.dev0`, not
+  published). The wheel now also ships `sigma_resume` (the DRAFT resumable
+  kernel, unchanged bytes) and the new `sigma_provider`. `sigma_provider` is a
+  small library over it plus a one-request-per-process protocol
+  (`python -m sigma_provider serve`):
+  - build a computation from a term;
+  - run a budgeted segment;
+  - resume from a checkpoint;
+  - verify a receipt by replay;
+  - verify a cycle witness.
+
+  `identity_of()` names the exact module bytes, so a consumer can choose which
+  provider it accepts. `python -m sigma_provider` runs a 13-check self-test.
+  `tools/check_release_surface.py` and a new CI step hold the installed wheel to
+  it from outside the checkout. Warrant 2 is the consumer. No Book, ATP rule,
+  genesis hash or anchored byte changes, and draft resume stays draft.
+
 ## Distribution 0.7.0 — the package catches up with the bundle (2026-09-17)
 
 Released from tag `v0.7.0` (commit `9d10bbc`) through the OIDC publish workflow;
