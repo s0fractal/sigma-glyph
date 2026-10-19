@@ -75,10 +75,11 @@ differentials.
 ### SA-3. Warrant verification is an external machine boundary
 
 Sigma-Glyph deliberately does not ship an independent partial Warrant verifier.
-`tools/warrant_gate.py` consumes the real Warrant CLI's closed machine report and
-fails closed when that verifier is absent, malformed, contaminated, or reports a
-failure. A source-only Sigma-Glyph checkout therefore cannot audit `.warrants/`
-without explicitly naming a pinned Warrant checkout or binary in `$WARRANT`.
+`.warrants/` is Warrant 0.x format and is verified by the pinned Warrant 0.x
+CLI itself (ci.yml, `WARRANT_PIN`). A source-only Sigma-Glyph checkout therefore
+cannot audit `.warrants/` without that pinned CLI. (The fail-closed
+`warrant_gate.py` connector over its report was retired on 2026-10-19; see
+`history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`.)
 This is a dependency boundary, not an alternate local interpretation of Warrant
 semantics.
 

@@ -7,6 +7,9 @@ not say "Sonar clean" while this file has entries.*
 Read with `SECURITY-ASSUMPTIONS.md`: that file records what the system assumes,
 this one records what a static analyser reports that we have decided not to change.
 
+Entries naming `tools/anchor_governance.py` are historical: that file was retired
+on 2026-10-19 (`history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`).
+
 ## Accepted
 
 ### `python:S3776` — cognitive complexity in a frozen reproduction fixture

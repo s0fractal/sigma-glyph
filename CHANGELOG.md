@@ -4,6 +4,17 @@
 
 No normative bundle changes after adopted `v0.7.0`.
 
+- **Warrant 0.x gates retired** (owner decision, 2026-10-19;
+  `history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`).
+  - Removed: `warrant_gate`, `anchor_governance` and its Go twin `gov-replay`,
+    the GOV differential, the `x1_*` matrix and its negative control,
+    `prepare_adoption` and the receipt-atom experiment.
+  - The required `cross-repo` check now tests this Sigma against Warrant 2 at a
+    pinned commit: provider self-test plus Warrant 2's compute suites.
+  - `.warrants` is verified by the pinned 0.x CLI directly.
+  - Adoption of the anchored bundle is no longer re-verified. The anchored bytes
+    are still recomputed. No anchored byte changed.
+
 - **`sigma_provider` resume: checked continuation of a foreign checkpoint.**
   Raw `advance` is the producer's primitive and trusts its checkpoint. That is
   its documented precondition, so it will continue a checkpoint of another

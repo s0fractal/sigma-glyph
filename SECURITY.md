@@ -68,8 +68,8 @@ reporter hits most often:
 - **`native_decide` is in the trusted base** for part of the Lean chain, which
   puts the compiler there too. `C1Compiler.lean` does not use it. (SA-1)
 - **Warrant verification is an external machine boundary.** A source-only
-  checkout needs a pinned Warrant checkout or binary; `tools/warrant_gate.py`
-  fails closed rather than re-deriving Warrant semantics locally. (SA-3)
+  checkout needs the pinned Warrant 0.x CLI; nothing here re-derives Warrant
+  semantics locally. (SA-3)
 - **Book III accepts a JCS-equivalent non-canonical assertion blob**; the v0.6.6
   fix narrowed this to the governance verifier only. Deferred and stated. (SA-4)
 - **LORE.md is non-normative.** Disagreeing with the naming or the cosmology is

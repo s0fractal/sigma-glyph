@@ -2,8 +2,8 @@
 """Two sovereign jurisdictions, one node — Book III live, end to end.
 
 Everything the Books promise on paper, exercised with real artifacts:
-actual Warrant-format records (signed, content-addressed, verifiable through
-tools/warrant_gate.py), a file-copy transport between two stores, and
+actual Warrant-format records (signed, content-addressed, verifiable by the
+Warrant 0.x verifier named in $WARRANT), a file-copy transport between two stores, and
 every view derived by the reference oracle impl/sigma_federation.py.
 
     python3 examples/two-jurisdictions/demo.py [--keep DIR]
@@ -26,7 +26,7 @@ vectors); a production annotator would use Book I NodeHashes. Warrant ids in
 this transcript are deterministic (fixed timestamps; signatures never enter a
 WarrantID) — only key material differs between runs.
 """
-import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
+import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "impl"))
@@ -295,13 +295,25 @@ def main():
     print(f"  permanent and by design; kyiv still sees wave {kv['wave']}.")
 
     print("\n== 7. These are real warrant stores ==")
-    verifier = os.path.join(REPO, "tools", "warrant_gate.py")
+    # The verifier is the operator's, named in $WARRANT (e.g. "python3
+    # /tmp/warrant.py" at the CI pin); its machine report must say ok with no
+    # errors and exit 0. Nothing here guesses a verifier path.
+    cmd = shlex.split(os.environ.get("WARRANT", ""))
+    if not cmd:
+        sys.exit("WARRANT is required (the Warrant 0.x verifier command)")
     ok = True
     for j in (kyiv, lviv):
-        r = subprocess.run([sys.executable, verifier, j.dir],
+        r = subprocess.run(cmd + ["--store", j.dir, "verify", "--store-mode", "--json"],
                            capture_output=True, text=True)
-        print(f"  {j.name}: {r.stdout.strip().splitlines()[-1]}")
-        ok &= r.returncode == 0
+        try:
+            rep = json.loads(r.stdout)
+        except ValueError:
+            rep = {}
+        good = (r.returncode == 0 and isinstance(rep, dict) and rep.get("ok") is True
+                and rep.get("errors") == 0)
+        print(f"  {j.name}: {'verified' if good else 'NOT verified'}: "
+              f"{rep.get('records')} record(s), {rep.get('warnings')} warning(s)")
+        ok &= good
     if not ok:
         sys.exit("warrant verification FAILED")
 
