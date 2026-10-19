@@ -102,7 +102,8 @@ echo '{"sigma_provider":1,"op":"term","args":{"expr":"S K K (K I)"}}' | python -
 ```
 
 The library and the one-request-per-process protocol are documented in the
-module's docstring. A consumer decides which provider bytes it accepts:
+module's docstring. To continue someone else's checkpoint, use `resume`, which
+replays it from your own root first; raw `advance` trusts its checkpoint. A consumer decides which provider bytes it accepts:
 `sigma_provider.identity_of(...)` names them, and a provider reporting its own
 identity grants nothing.
 

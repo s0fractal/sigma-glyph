@@ -15,6 +15,8 @@ Library (bytes and hex in, JSON-able values out):
                                                 -> {"outcome", "checkpoint", "state", "result"?}
     verify(runtime, input, hashes, blobs, chain, cache=False)
                                                 -> [{"basis", "code", "result"?}]
+    resume(runtime, input, hashes, blobs, checkpoint, state, credit, max_actions=None)
+                                                -> {"base_verification", "status", ...}   (checked foreign resume)
     find_cycle(runtime, input, hashes, blobs, max_steps) -> {"witness"} | {"outcome"}
     verify_cycle(runtime, input, hashes, blobs, witness) -> "CYCLE_PROVEN" | refusal
     identity_of(sources)                        -> the provider identity of these module bytes
@@ -186,6 +188,43 @@ def verify(runtime, inp, hashes, blobs, chain, cache=False):
     return out
 
 
+TERMINAL = (R.NORMAL_FORM, R.BLOCKED_REFERENCE)
+RESUMABLE = (R.PAUSED, R.PREFIX)
+
+
+def resume(runtime, inp, hashes, blobs, checkpoint, state, credit, max_actions=None):
+    """Continue a checkpoint someone else produced, from the root THIS caller names.
+
+    `advance` is the producer's primitive: it trusts its checkpoint. A consumer
+    must first know the checkpoint is reachable from its own root under its own
+    runtime and environment, and that the next action can run here. So:
+      verify the base against the caller's root (replay, sigma_resume.verify);
+      not REPLAYED                      -> REFUSED, advance is never called;
+      REPLAYED, a terminal kernel code  -> TERMINAL, no segment, no credit added;
+      REPLAYED, PAUSED or PREFIX        -> ADVANCED: one advance from those bytes;
+      REPLAYED, any other code          -> DEFERRED: a local diagnostic (bytes not
+                                           delivered, a host limit), no credit.
+    The base verification and the segment are returned separately: a verified
+    prefix is not an answer, and the caller still verifies a final receipt for
+    its own purpose. Pure in its inputs: the same parent and credit give the same
+    segment, with no hidden job between calls."""
+    env = _env(hashes, blobs)
+    root = _root(runtime, inp, env)
+    basis, code, _ = R.verify(root, env, checkpoint, state)
+    base = {"basis": basis, "code": code, "verifier": R.VERIFIER_ID}
+    if basis != R.REPLAYED:
+        return {"status": "REFUSED", "base_verification": base}
+    if code in TERMINAL:
+        out = {"status": "TERMINAL", "base_verification": base, "code": code}
+        if code == R.NORMAL_FORM:
+            out["result"] = _result(state)
+        return out
+    if code not in RESUMABLE:
+        return {"status": "DEFERRED", "base_verification": base, "diagnostic": code}
+    return {"status": "ADVANCED", "base_verification": base,
+            "segment": advance(runtime, hashes, blobs, checkpoint, state, credit, max_actions)}
+
+
 def find_cycle(runtime, inp, hashes, blobs, max_steps):
     """Producer side: one action at a time until a machine state repeats."""
     env = _env(hashes, blobs)
@@ -241,6 +280,8 @@ _ARGS = {
     "verify": {"chain": lambda v: isinstance(v, list) and all(
                    isinstance(x, list) and len(x) == 2 and all(isinstance(y, str) for y in x) for x in v),
                "cache": lambda v: isinstance(v, bool)},
+    "resume": {"checkpoint": lambda v: isinstance(v, str), "state": lambda v: isinstance(v, str),
+               "credit": _int, "max_actions": lambda v: v is None or _int(v, 1)},
     "find_cycle": {"max_steps": lambda v: _int(v, 1)},
     "verify_cycle": {"witness": lambda v: isinstance(v, str)},
 }
@@ -289,6 +330,15 @@ def _op_verify(a, blobs):
             "verifier": R.VERIFIER_ID}
 
 
+def _op_resume(a, blobs):
+    out = resume(a["runtime"], a["input"], a["hashes"], blobs, _b(a["checkpoint"]), _b(a["state"]), a["credit"],
+                 a.get("max_actions"))
+    if "segment" in out:
+        seg = out["segment"]
+        out["segment"] = dict(seg, checkpoint=_e(seg["checkpoint"]), state=_e(seg["state"]))
+    return out
+
+
 def _op_find_cycle(a, blobs):
     out = find_cycle(a["runtime"], a["input"], a["hashes"], blobs, a["max_steps"])
     return {"witness": _e(out["witness"])} if "witness" in out else out
@@ -299,7 +349,7 @@ def _op_verify_cycle(a, blobs):
             "verifier": R.VERIFIER_ID}
 
 
-OPS = {"term": _op_term, "start": _op_start, "advance": _op_advance, "verify": _op_verify,
+OPS = {"term": _op_term, "start": _op_start, "advance": _op_advance, "verify": _op_verify, "resume": _op_resume,
        "find_cycle": _op_find_cycle, "verify_cycle": _op_verify_cycle}
 
 
@@ -379,6 +429,12 @@ def selftest():
                                              "credit": True}},
                   {"op": "verify", "args": {"runtime": b1, "input": t["input"], "hashes": hs, "chain": [["a"]]}},
                   {"op": "find_cycle", "args": {"runtime": rich, "input": mm["input"], "hashes": [], "max_steps": "9"}}]
+    rs = resume(b1, t["input"], hs, t["nodes"], a1["checkpoint"], a1["state"], 100)
+    ok("resume verifies a foreign PAUSED checkpoint, then advances it to the normal form",
+       rs["status"] == "ADVANCED" and rs["base_verification"]["basis"] == R.REPLAYED
+       and rs["segment"]["outcome"] == R.NORMAL_FORM)
+    ok("resume refuses a checkpoint under another root without advancing",
+       resume(b1, other, hs, t["nodes"], a1["checkpoint"], a1["state"], 100)["status"] == "REFUSED")
     ok("operands of the wrong JSON type are refused, never a traceback",
        all("refused" in handle(dict(r, sigma_provider=PROTOCOL)) for r in bad_shapes)
        and "ok" in handle({"sigma_provider": PROTOCOL, "op": "term", "args": {"expr": "I"}, "blobs": {}}))
