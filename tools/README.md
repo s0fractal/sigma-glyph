@@ -51,33 +51,6 @@ python3 tools/verify_anchors.py
 
 ---
 
-## `warrant_gate.py` — fail-closed consumer of the Warrant machine boundary
-
-**Purpose:** sigma-glyph's **single machine verification boundary** for CI/tooling.
-It INVOKES the real Warrant verifier's documented machine interface —
-`warrant verify --store-mode --json` (`warrant.verify-report@v0`) — and consumes
-**only** the normative report fields, failing closed on everything else (stderr
-contamination, non-single-line / invalid / multiple JSON, an unknown report tag, a
-self-inconsistent report, a counts/findings mismatch, an exit code disagreeing with
-`ok`, or `ok:false`). It never branches on a finding's `message` (non-portable
-prose).
-
-**Usage:**
-```bash
-export WARRANT="python3 /path/to/warrant/impl/warrant.py"   # required; or a warrant-go binary
-python3 tools/warrant_gate.py .warrants                       # exit 0 iff verified
-python3 tools/warrant_gate.py .warrants --settlement --trust-config trust-config.json
-```
-
-**Not a re-implementation.** Sigma-Glyph no longer ships a second, partial
-Warrant verifier. `warrant_gate.py` consumes the real verifier's output and
-proves that the published machine contract is sufficient for an external
-consumer. `$WARRANT` must name the selected pinned checkout/binary; the tool
-does not guess a filesystem path. Countervectors (real + hostile) live in
-`tests/warrant_gate_test.py`.
-
----
-
 ## `evidence_view.py` — one derived version/evidence view
 
 **Purpose:** print, as one deterministic JSON document, which bytes carry which
@@ -94,8 +67,7 @@ python3 tools/evidence_view.py --warrant /absolute/path/to/warrant  # both halve
 (`spec/ANCHORS.txt`, `pyproject.toml`, `campaigns/phase-4a/candidate-receipt.json`,
 the operand's `trust/ski-runtime-evaluators.json` and `SPEC.md` §13.1) or
 recomputed from bytes on the run that prints it, and each verifier's result is
-reused under that verifier's name (`verify_anchors.py`, `version_check.py`,
-`anchor_governance.py status`). There is no committed artifact to go stale and
+reused under that verifier's name (`verify_anchors.py`, `version_check.py`). There is no committed artifact to go stale and
 no second truth table to drift.
 
 **What a digest proves:** identity, and nothing else. Adoption is a threshold

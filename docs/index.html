@@ -111,13 +111,9 @@ $ (cd impl-rs &amp;&amp; cargo build --release) &amp;&amp; \
     ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json
 <span class="out">RUST-CONFORMANCE: ALL PASS (49/49)</span>
 
-<span class="cmt"># the governance verifier's own selftest (anchor-set replay)</span>
-$ python3 tools/anchor_governance.py selftest
-<span class="out">ANCHOR-GOVERNANCE: ALL PASS</span>
-
 <span class="cmt"># the Lean proofs + oracle differential (run in CI; needs a Lean toolchain)</span>
 $ lean proofs/EvalMachine.lean &amp;&amp; python3 proofs/eval_bridge_check.py</pre>
-  <p class="note">A third independent Book I evaluator — <a href="https://github.com/s0fractal/warrant">warrant</a>'s <code>ski@v1</code> runtime — replays the same vectors from a separate repository. The in-repo <code>impl-go/</code> is the Book III federation/governance tool, not a Book I evaluator.</p>
+  <p class="note">A third independent Book I evaluator — <a href="https://github.com/s0fractal/warrant">warrant</a>'s <code>ski@v1</code> runtime — replays the same vectors from a separate repository. The in-repo <code>impl-go/</code> is the Book III federation tool, not a Book I evaluator.</p>
 
   <h2>What it is / what it is not</h2>
   <div class="grid">

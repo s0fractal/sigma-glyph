@@ -13,9 +13,10 @@ FOUR SURFACES THAT MOVE SEPARATELY
 ----------------------------------
   sigma.protocol       the adopted bundle -- spec/ANCHORS.txt, its anchors
                        recomputed by tools/verify_anchors.py, the anchor-set
-                       blob in .warrants, and the adoption verdict of
-                       tools/anchor_governance.py under an OUT-OF-BAND trust
-                       anchor (which only a Warrant operand can supply)
+                       blob in .warrants. Adoption is NOT re-verified: the
+                       GOV-anchors adoption verifier was retired on 2026-10-19
+                       (history/RETIREMENT-2026-10-WARRANT-0X-GATES.md), so
+                       the view reports it unchecked rather than inventing one
   sigma.distribution   the published package -- pyproject.toml, the git tag it
                        implies, and the evaluator bytes at that tag
   sigma.evaluators     the Book I module on this tree and the one at the
@@ -107,10 +108,6 @@ RECEIPT_STRINGS = ("artifact_filename", "artifact_sha256", "source_commit",
                    "adopted_anchor_set_sha256")
 RUNTIME_RECORD = "trust/ski-runtime-evaluators.json"
 RUNTIME_RECORD_KIND = "warrant/ski-runtime-evaluators@v0"
-TRUST_ANCHOR = "trust/sigma-glyph-anchor-trust.json"
-# Every verdict tools/anchor_governance.py status prints per release section.
-# Matched as one exact token, never as a prefix.
-ADOPTION_TOKENS = ("AUTHORIZED", "NOT AUTHORIZED", "UNGOVERNED")
 WARRANT_MARKERS = ("SPEC.md", "impl/warrant.py")
 
 # Development and cross-repository overrides that other tools read. None is an
@@ -278,7 +275,7 @@ def protocol_section(root: Path, warrant: Path | None, rel: Relations):
         if bundle != top:
             anchor_set = None
 
-    adoption = adoption_section(root, warrant, top, rel)
+    adoption = adoption_section(rel)
     books = {name: vc.book_version(path) for name, path in vc.VERSIONED.items()}
     return {
         "owner": ANCHORS,
@@ -292,82 +289,19 @@ def protocol_section(root: Path, warrant: Path | None, rel: Relations):
     }, top, anchor_set
 
 
-def adoption_verdict(stdout: str, top: str):
-    """`(exact status token, status lines)` that tools/anchor_governance.py
-    printed for the bundle `top`.
+def adoption_section(rel: Relations):
+    """The adoption verifier is retired; say so instead of projecting a verdict.
 
-    The token is one of ADOPTION_TOKENS or None. The producer writes the bundle,
-    the token and then a delimiter, all whitespace-separated, so the words after
-    the bundle are compared to the token's words. Matching a prefix instead --
-    `startswith`, then a `(?![\\w-])` boundary -- accepted any foreign token that
-    merely began that way, since `/` and `.` are neither a word character nor a
-    hyphen: `AUTHORIZED_BUT_REVOKED` was refused but `AUTHORIZED/REVOKED` and
-    `AUTHORIZED.v2` both read as an adoption. The caller also needs to see how
-    MANY lines spoke about `top`, because a producer that printed two of them
-    did not give one answer.
-    """
-    lines = [l.strip() for l in stdout.splitlines()
-             if l.split()[:1] == [top]]
-    if len(lines) != 1:
-        return None, lines
-    words = lines[0].split()[1:]
-    # Match the producer's whole verdict field, including its delimiter.  A
-    # whitespace split alone would still accept `AUTHORIZED REVOKED` because
-    # its first word is the known token.  AUTHORIZED / NOT AUTHORIZED are
-    # followed by the producer's em dash; UNGOVERNED carries its parenthesised
-    # explanation directly.
-    token = None
-    for candidate in ADOPTION_TOKENS:
-        width = len(candidate.split())
-        delimiter = words[width] if len(words) > width else None
-        expected = "(" if candidate == "UNGOVERNED" else "—"
-        if (words[:width] == candidate.split() and delimiter
-                and delimiter.startswith(expected)):
-            token = candidate
-            break
-    return token, lines
-
-
-def adoption_section(root: Path, warrant: Path | None, top: str, rel: Relations):
-    name = ("the adopted bundle is AUTHORIZED under the out-of-band trust "
-            "anchor (tools/anchor_governance.py status --trust-config)")
-    if warrant is None:
-        rel.add(name, UNCHECKED, "no --warrant operand carries a trust anchor")
-        return {"status": "unavailable",
-                "reason": "authority is a fact of the out-of-band trust anchor, "
-                          "which lives in the Warrant checkout; none was named"}
-    trust = warrant / TRUST_ANCHOR
-    if not trust.is_file():
-        rel.add(name, UNCHECKED, f"operand carries no {TRUST_ANCHOR}")
-        return {"status": "unavailable",
-                "reason": f"the operand revision carries no {TRUST_ANCHOR}"}
-    done = run([sys.executable, "tools/anchor_governance.py", "status",
-                "--trust-config", str(trust)], cwd=root)
-    token, lines = adoption_verdict(done.stdout, top)
-    section = {"tool": "tools/anchor_governance.py status --trust-config",
-               "exit": done.returncode,
-               "trust_anchor": {"path": TRUST_ANCHOR, "sha256": sha256_file(trust),
-                                "read_from": "warrant operand"},
-               "verdict_line": lines[0] if len(lines) == 1 else None,
-               "note": ("a threshold warrant over anchored bytes, replayed under the "
-                        "operand's trust anchor; adoption is not a release")}
-    if done.returncode == 0 and token == "AUTHORIZED":
-        rel.add(name, HOLDS, lines[0])
-        return {**section, "status": "authorized"}
-    if token in ("NOT AUTHORIZED", "UNGOVERNED"):
-        rel.add(name, FAILS, lines[0])
-        return {**section, "status": "not_authorized"}
-    # Anything else is a run this view cannot read a verdict out of: a producer
-    # that died mid-output, a status token it does not know, or none/several
-    # lines for the bundle it asked about. None of those earns adoption credit,
-    # and none of them is a finding about the bundle either.
-    reason = (f"tools/anchor_governance.py status exited {done.returncode} and "
-              f"printed {len(lines)} status line(s) for {top!r}"
-              + (f" carrying the unrecognised token {lines[0][len(top):].strip()[:40]!r}"
-                 if len(lines) == 1 and token is None else "")
-              + f"; stdout tail {done.stdout.strip()[-160:]!r}")
-    rel.add(name, UNCHECKED, reason)
-    return {**section, "status": "unavailable", "reason": reason}
+    Until 2026-10-19 this replayed the GOV-anchors adoption warrant under the
+    out-of-band trust anchor. That verifier and its Go twin were retired with
+    the Warrant 0.x gates (history/RETIREMENT-2026-10-WARRANT-0X-GATES.md). The
+    anchored bytes are still recomputed by verify_anchors; whether they were
+    adopted is no longer checked here, and nothing earns adoption credit."""
+    reason = ("the GOV-anchors adoption verifier was retired on 2026-10-19 "
+              "(history/RETIREMENT-2026-10-WARRANT-0X-GATES.md); adoption is "
+              "not re-verified")
+    rel.add("the adopted bundle's adoption is re-verified", UNCHECKED, reason)
+    return {"status": "retired", "reason": reason}
 
 
 def distribution_section(root: Path):

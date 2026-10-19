@@ -2,8 +2,8 @@
 """Two sovereign jurisdictions, one node — Book III live, end to end.
 
 Everything the Books promise on paper, exercised with real artifacts:
-actual Warrant-format records (signed, content-addressed, verifiable through
-tools/warrant_gate.py), a file-copy transport between two stores, and
+actual Warrant-format records (signed, content-addressed, verifiable by the
+Warrant 0.x verifier named in $WARRANT), a file-copy transport between two stores, and
 every view derived by the reference oracle impl/sigma_federation.py.
 
     python3 examples/two-jurisdictions/demo.py [--keep DIR]
@@ -26,7 +26,7 @@ vectors); a production annotator would use Book I NodeHashes. Warrant ids in
 this transcript are deterministic (fixed timestamps; signatures never enter a
 WarrantID) — only key material differs between runs.
 """
-import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
+import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "impl"))
@@ -235,6 +235,38 @@ def show(tag, name, v):
     print(f"        set_root {v['set_root']}")
 
 
+REPORT_TAG = "warrant.verify-report@v0"
+REPORT_KEYS = {"report", "grade", "ok", "records", "errors", "warnings", "findings"}
+FINDING_KEYS = {"level", "subject", "message"}
+
+
+def report_problem(stdout, stderr, returncode):
+    """None iff `stdout` is one closed warrant.verify-report@v0 base report that
+    says ok, agrees with its findings and with the exit status; else why not."""
+    if stderr:
+        return "verifier wrote to stderr"
+    try:
+        rep = json.loads(stdout)
+    except ValueError:
+        return "stdout is not one JSON value"
+    if not isinstance(rep, dict) or set(rep) != REPORT_KEYS or rep["report"] != REPORT_TAG:
+        return f"not a {REPORT_TAG} report"
+    if rep["grade"] != "base" or type(rep["ok"]) is not bool:
+        return "grade or ok has the wrong value or type"
+    if any(type(rep[k]) is not int or rep[k] < 0 for k in ("records", "errors", "warnings")):
+        return "records/errors/warnings are not non-negative integers"
+    findings = rep["findings"]
+    if not isinstance(findings, list) or any(not isinstance(f, dict) or set(f) != FINDING_KEYS
+                                             or f["level"] not in ("ERR", "WARN") for f in findings):
+        return "findings are not the documented {level, subject, message}"
+    if (sum(f["level"] == "ERR" for f in findings), sum(f["level"] == "WARN" for f in findings)) \
+            != (rep["errors"], rep["warnings"]) or rep["ok"] != (rep["errors"] == 0):
+        return "the report contradicts itself"
+    if returncode != (0 if rep["ok"] else 1):
+        return f"exit {returncode} disagrees with ok={rep['ok']}"
+    return None if rep["ok"] else f"{rep['errors']} error(s)"
+
+
 def main():
     epoch_label = "epoch 8"
     ap = argparse.ArgumentParser()
@@ -295,13 +327,22 @@ def main():
     print(f"  permanent and by design; kyiv still sees wave {kv['wave']}.")
 
     print("\n== 7. These are real warrant stores ==")
-    verifier = os.path.join(REPO, "tools", "warrant_gate.py")
+    # The verifier is the operator's, named in $WARRANT (e.g. "python3
+    # /tmp/warrant.py" at the CI pin). Its machine report is read closed-world:
+    # anything but the documented warrant.verify-report@v0 shape, self-consistent
+    # and agreeing with the exit status, is a failure. Nothing here guesses a
+    # verifier path.
+    cmd = shlex.split(os.environ.get("WARRANT", ""))
+    if not cmd:
+        sys.exit("WARRANT is required (the Warrant 0.x verifier command)")
     ok = True
     for j in (kyiv, lviv):
-        r = subprocess.run([sys.executable, verifier, j.dir],
+        r = subprocess.run(cmd + ["--store", j.dir, "verify", "--store-mode", "--json"],
                            capture_output=True, text=True)
-        print(f"  {j.name}: {r.stdout.strip().splitlines()[-1]}")
-        ok &= r.returncode == 0
+        why = report_problem(r.stdout, r.stderr, r.returncode)
+        print(f"  {j.name}: " + (f"verified: {json.loads(r.stdout)['records']} record(s)" if why is None
+                                  else f"NOT verified: {why}"))
+        ok &= why is None
     if not ok:
         sys.exit("warrant verification FAILED")
 

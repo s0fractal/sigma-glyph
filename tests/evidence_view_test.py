@@ -185,11 +185,14 @@ def positive_sigma(temp: Path):
           and view.get("warrant", {}).get("tags") == {"status": "unavailable"},
           json.dumps(view.get("warrant", {}))[:120])
     unchecked = [r for r in view.get("relations", []) if r["status"] == ev.UNCHECKED]
-    check("no operand: every Warrant-dependent relation is unchecked, none holds",
-          len(unchecked) == 4 and all("no --warrant operand" in r.get("detail", "")
-                                      or "trust anchor" in r.get("detail", "")
-                                      for r in unchecked),
-          f"{len(unchecked)} unchecked")
+    retired = [r for r in unchecked if "adoption is re-verified" in r["relation"]]
+    dependent = [r for r in unchecked if r not in retired]
+    check("no operand: every Warrant-dependent relation is unchecked, none holds; "
+          "the retired adoption check is unchecked for its own stated reason",
+          len(dependent) == 3 and all("no --warrant operand" in r.get("detail", "")
+                                      for r in dependent)
+          and len(retired) == 1 and "retired" in retired[0].get("detail", ""),
+          f"{len(dependent)} dependent + {len(retired)} retired unchecked")
     check("no operand: no top-level badge and no credit is widened",
           ev.credit_problems(view) == [], "; ".join(ev.credit_problems(view)))
 
@@ -555,113 +558,19 @@ def ambiguous_runtime_table(temp: Path):
           f"exit {status}, {json.dumps(relation(view, unique))[:160]}")
 
 
-# --------------------------- the adoption verdict comes from a completed run
+# ------------------------------------------- adoption is reported, not invented
 
-FAKE_GOVERNANCE = """import sys
-sys.stdout.write({stdout!r})
-raise SystemExit({exit!r})
-"""
-
-
-def adoption_boundary(temp: Path):
-    """What the view accepts as "this bundle is adopted", at the consumer edge.
-
-    Found by review of f3b7099: it took any line beginning with the bundle name
-    and called it authorized when the rest merely STARTED WITH `AUTHORIZED`,
-    ignoring the producer's exit status. A run killed mid-output, and a token
-    that only begins that way, both earned adoption credit. The producer here is
-    replaced by a stub so the boundary can be driven directly; none of this is a
-    claim that tools/anchor_governance.py ever prints these.
-    """
-    top = ev.vc.top_bundle()
-    name = "is AUTHORIZED under the out-of-band trust anchor"
-    operand = make_operand(temp / "adoption-operand")
-    write(operand / ev.TRUST_ANCHOR, "{}")
-
-    def outcome(label, stdout, exit_status):
-        tree = stand_in_tree(temp / f"adoption-{label}", tools={
-            "anchor_governance.py": FAKE_GOVERNANCE.format(stdout=stdout,
-                                                           exit=exit_status)})
-        done = run_view("--warrant", str(operand), tree=tree)
-        view = json.loads(done.stdout) if done.stdout.strip() else {}
-        return (done.returncode, view,
-                view.get("sigma", {}).get("protocol", {}).get("adoption", {}),
-                relation(view, name))
-
-    status, view, adoption, rel = outcome(
-        "authorized", f"{top}   AUTHORIZED — quorum reached\n", 0)
-    check("ADOPTION: a completed run whose one status line is the exact token "
-          "AUTHORIZED holds",
-          status == 0 and adoption.get("status") == "authorized"
-          and rel.get("status") == ev.HOLDS and adoption.get("exit") == 0,
-          f"exit {status}, {json.dumps(adoption)[:200]}")
-
-    status, view, adoption, rel = outcome(
-        "died", f"{top} AUTHORIZED partial output before failure\n", 1)
-    check("ADOPTION: a producer that printed AUTHORIZED and then FAILED earns "
-          "no credit; the relation is unchecked and the exit is recorded",
-          adoption.get("status") == "unavailable"
-          and rel.get("status") == ev.UNCHECKED
-          and adoption.get("exit") == 1 and "exited 1" in adoption.get("reason", ""),
-          f"{json.dumps(adoption)[:220]}")
-
-    status, view, adoption, rel = outcome(
-        "foreign-token", f"{top} AUTHORIZED_BUT_REVOKED\n", 0)
-    check("ADOPTION: a status token that merely BEGINS with AUTHORIZED is "
-          "unrecognised, not an adoption",
-          adoption.get("status") == "unavailable"
-          and rel.get("status") == ev.UNCHECKED
-          and "unrecognised token" in adoption.get("reason", ""),
-          f"{json.dumps(adoption)[:220]}")
-
-    # Found by review of aef98ec: the old `(?![\w-])` boundary let through any
-    # foreign token whose extra character was neither a word character nor a
-    # hyphen. The producer emits a whitespace-separated token, so these are two
-    # different words, not adoptions.
-    for label, token in (("slashed", "AUTHORIZED/REVOKED"),
-                         ("dotted", "AUTHORIZED.v2"),
-                         ("extra-word", "AUTHORIZED REVOKED")):
-        status, view, adoption, rel = outcome(
-            label, f"{top} {token} — quorum reached\n", 0)
-        check(f"ADOPTION: {token} is a foreign token, not the exact token "
-              "AUTHORIZED",
-              adoption.get("status") == "unavailable"
-              and rel.get("status") == ev.UNCHECKED
-              and "unrecognised token" in adoption.get("reason", ""),
-              f"{json.dumps(adoption)[:220]}")
-
-    status, view, adoption, rel = outcome(
-        "missing-delimiter", f"{top} AUTHORIZED\n", 0)
-    check("ADOPTION: AUTHORIZED without the producer's delimiter is incomplete",
-          adoption.get("status") == "unavailable"
+def adoption_retired(temp: Path):
+    """The adoption verifier is retired (2026-10-19): the view must say so and
+    give no adoption credit, with or without a Warrant operand."""
+    status, view, err = view_of(make_operand(temp / "adoption-operand"))
+    adoption = (view or {}).get("sigma", {}).get("protocol", {}).get("adoption", {})
+    rel = relation(view or {}, "adoption is re-verified")
+    check("ADOPTION: the retired verifier is reported as retired and unchecked, "
+          "never as an adoption",
+          status == 0 and adoption.get("status") == "retired"
           and rel.get("status") == ev.UNCHECKED,
-          f"{json.dumps(adoption)[:220]}")
-
-    status, view, adoption, rel = outcome(
-        "not-authorized", f"{top} NOT AUTHORIZED — no anchor-set blob in store\n", 1)
-    check("ADOPTION: a definite negative verdict FAILS the relation, exit 1",
-          status == 1 and adoption.get("status") == "not_authorized"
-          and rel.get("status") == ev.FAILS,
-          f"exit {status}, {json.dumps(adoption)[:200]}")
-
-    status, view, adoption, rel = outcome(
-        "two-lines", f"{top} AUTHORIZED — one\n{top} NOT AUTHORIZED — two\n", 0)
-    check("ADOPTION: two status lines for the same bundle are not one answer",
-          adoption.get("status") == "unavailable"
-          and rel.get("status") == ev.UNCHECKED
-          and "2 status line(s)" in adoption.get("reason", "")
-          and adoption.get("verdict_line") is None,
-          f"{json.dumps(adoption)[:220]}")
-
-    status, view, adoption, rel = outcome(
-        "no-line", "ERR: trust config invalid (want sigma-glyph.anchor-trust@v1)\n", 1)
-    check("ADOPTION: a run that said nothing about this bundle is unchecked, "
-          "with the producer's own words kept",
-          adoption.get("status") == "unavailable"
-          and rel.get("status") == ev.UNCHECKED
-          and "0 status line(s)" in adoption.get("reason", "")
-          and "trust config invalid" in adoption.get("reason", ""),
-          f"{json.dumps(adoption)[:220]}")
+          f"exit {status}, {json.dumps(adoption)[:200]} {err[-200:]}")
 
 
 # ------------------------------- the receipt projection matches its predicate
@@ -885,7 +794,7 @@ def main() -> int:
         ambient(temp)
         good = warrant_half(temp)
         ambiguous_runtime_table(temp)
-        adoption_boundary(temp)
+        adoption_retired(temp)
         candidate_receipt(temp)
         guard_controls(good)
         if operand:

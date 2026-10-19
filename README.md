@@ -37,9 +37,9 @@ they consume different things:
   pins nothing here by commit; the recipient accepts a provider by the identity
   of the bytes it executes.
 - **Warrant 0.x** (frozen at warrant tag `history/warrant-0.x-2026-10-18`,
-  `8feb335`) used `ski@v1` reasons with the Book I v0.5 evaluator bytes. X1 and
-  the pinned CI steps here still check that historical consumer; it no longer
-  moves.
+  `8feb335`) used `ski@v1` reasons with the Book I v0.5 evaluator bytes. The
+  pinned CI steps here still check that historical consumer (the X1 matrix was
+  retired on 2026-10-19); it no longer moves.
 
 Three implementations from one author/model lineage agree on all 49 Book I
 conformance vectors: the Python reference, Warrant's native Go evaluator and a

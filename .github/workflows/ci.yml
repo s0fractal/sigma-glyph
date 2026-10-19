@@ -3,9 +3,9 @@ on: [push, pull_request]
 
 # ONE pin of the sibling repo, for the whole workflow.
 #
-# Three steps below consume warrant artifacts — the Go evaluator, impl/warrant.py,
-# and the out-of-band anchor-trust config — and until now each carried its OWN
-# hard-coded commit. They had drifted to THREE DIFFERENT commits spanning
+# Steps below consume warrant artifacts — the Go evaluator and impl/warrant.py
+# (until 2026-10-19 also the out-of-band anchor-trust config, retired with the
+# GOV verifier) — and until 2026-07 each carried its OWN hard-coded commit. They had drifted to THREE DIFFERENT commits spanning
 # 2026-07-08 to 2026-07-27, so a single CI run tested this repo against a
 # historical composite of the sibling that never existed as a state. Nothing
 # reported it, because each step was individually green.
@@ -18,10 +18,11 @@ on: [push, pull_request]
 # Being behind HEAD is the normal state and is not a defect.
 #
 # REFRESH ONLY when a surface consumed here actually changes: the Book I
-# evaluator or its conformance behaviour, the verify-report boundary that
-# tools/warrant_gate.py reads, or the anchor-trust roster. Do NOT refresh because
-# `tools/x1_cross_repo.sh` reports drift — that report is context for a human,
-# never a trigger. Treating "behind HEAD" as the trigger is a ping-pong
+# evaluator or its conformance behaviour, or the Warrant 0.x CLI's store
+# verification. Do NOT refresh because the sibling moved — drift is context for
+# a human, never a trigger. (The warrant_gate connector, the anchor-trust roster
+# and the x1 drift report were retired on 2026-10-19:
+# history/RETIREMENT-2026-10-WARRANT-0X-GATES.md.) Treating "behind HEAD" as the trigger is a ping-pong
 # generator: merging the pin bump moves this repo's HEAD, which obliges warrant
 # to bump in reply, forever, over commits that changed nothing either consumes.
 #
@@ -49,7 +50,8 @@ jobs:
           python3 /tmp/decision-archaeology/tools/validate_need.py "${packets[@]}"
       - name: DA-SIGMA-0001 owner-side reproducer
         run: python3 needs/DA-SIGMA-0001-numeral-encoding-profile/fixtures/reproduce.py
-      # Mirrored from warrant (X1 enforces byte-identity of shared tooling).
+      # Mirrored from warrant (until 2026-10-19 X1 enforced byte-identity of
+      # shared tooling; that matrix is retired and this copy is now ours).
       # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
       # it demands instead that every citation be accounted for in the committed
       # MAP.md. Cite a document nobody has located and this fails.
@@ -241,15 +243,6 @@ jobs:
           # the tag names what ran, so "python only" cannot pass this grep.
           python3 tests/federation_order_control.py \
             | tee /dev/stderr | grep -q "FEDERATION-ORDER-CONTROL: ALL PASS (.*; python, go)"
-      - name: Governance second implementation (Go) + differential
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -m pip install --quiet --only-binary=:all: cryptography==45.0.7
-          ./impl-go/sigma-federation-go gov-replay tests/spec_conformance/governance_vectors.json \
-            | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
-          python3 tests/governance_differential.py \
-            | tee /dev/stderr | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
       - name: Exit statuses tell the truth (a printed failure must not return 0)
         # Book I's module entry point printed FAILURES PRESENT and exited 0, so a
         # script branching on $? -- which is what CI does by default -- saw success.
@@ -318,39 +311,26 @@ jobs:
           python3 tests/spec_conformance/generate.py
           python3 impl/sigma_wave.py gen
           python3 impl/sigma_federation.py gen
-          python3 -m pip install --quiet --only-binary=:all: cryptography==45.0.7
-          python3 tools/anchor_governance.py gen
-          git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json tests/spec_conformance/federation_vectors.json tests/spec_conformance/governance_vectors.json
+          git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json tests/spec_conformance/federation_vectors.json
       - name: Conformance suite (vectors.json vs oracle)
         run: python3 tests/spec_conformance/run_reference.py
       - name: Property-based suite (seeded, stdlib-only)
         run: python3 tests/spec_conformance/test_properties.py
       - name: Verify Specification Anchors
         run: python3 tools/verify_anchors.py
-      - name: Verify adjudication warrants via the warrant machine boundary (verify --store-mode --json)
+      - name: Verify the adjudication warrants with the pinned Warrant 0.x CLI
         run: |
           python3 -m pip install --quiet --only-binary=:all: cryptography==45.0.7
-          # Pinned to the warrant commit that ships the machine boundary (verify
-          # --store-mode --json / warrant.verify-report@v0). We DOGFOOD that boundary:
-          # sigma-glyph consumes the structured report through the single fail-closed
-          # connector (tools/warrant_gate.py) instead of parsing human text / raw exit
-          # codes. The connector trusts ONLY the documented normative fields and fails
-          # closed on anything else.
+          # This repository's .warrants store is Warrant 0.x format; the CLI that
+          # reads it is pinned by $WARRANT_PIN. Base and settlement grade, the
+          # same two invocations tools/test-all.sh runs. (The fail-closed
+          # warrant_gate connector over this was retired on 2026-10-19.)
           curl --proto '=https' --tlsv1.2 -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/impl/warrant.py" -o /tmp/warrant.py
-          export WARRANT="python3 /tmp/warrant.py" WARRANT_PY=/tmp/warrant.py
-          # ONE settlement gate: settlement grade already includes base integrity, so a
-          # single invocation binds both to one snapshot (no base/settlement TOCTOU).
-          SIGMA_GLYPH=impl python3 tools/warrant_gate.py .warrants --settlement --trust-config trust-config.json
-          # prove the connector's fail-closed contract (real + hostile countervectors)
-          SIGMA_GLYPH=impl python3 tests/warrant_gate_test.py | tee /dev/stderr | grep -q "WARRANT-GATE: ALL PASS"
-      - name: Anchor governance (GOV-anchors.md, ENFORCED — trust anchor fetched out-of-band from the warrant repo)
-        shell: bash
+          SIGMA_GLYPH=impl python3 /tmp/warrant.py verify
+          SIGMA_GLYPH=impl python3 /tmp/warrant.py verify --settlement --trust-config trust-config.json
+      - name: One signing construction (tools/warrant_sig.py only; none left in impl-go)
         run: |
-          set -euo pipefail
-          python3 tools/anchor_governance.py selftest | tee /dev/stderr | grep -q "ANCHOR-GOVERNANCE: ALL PASS"
-          python3 tools/anchor_governance.py replay | tee /dev/stderr | grep -q "GOVERNANCE-REPLAY: ALL PASS"
-          curl --proto '=https' --tlsv1.2 -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" -o /tmp/anchor-trust.json
-          python3 tools/anchor_governance.py status --enforce --trust-config /tmp/anchor-trust.json | tee /dev/stderr | grep -q "AUTHORIZED"
+          python3 tests/one_signing_path.py | tee /dev/stderr | grep -q "ONE-SIGNING-PATH: ALL PASS"
       - name: Two-jurisdictions federation demo (Book III live, real stores)
         shell: bash
         run: |

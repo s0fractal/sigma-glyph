@@ -5,7 +5,7 @@ A gate that has never been seen to fail is not a gate. The Book I and Book II
 generators now carry hand-written, spec-cited expectations and REFUSE to write
 their vector files when the oracle disagrees (tests/spec_conformance/generate.py
 SPEC_EXPECT; impl/sigma_wave.py SPEC_EXPECT) — the discipline the governance
-suite has had since v0.6.x (tools/anchor_governance.py cmd_gen).
+suite has had since v0.6.x (the GOV generator (retired 2026-10-19) cmd_gen).
 
 This test proves the refusal fires. For each mutation it copies the oracle and
 its generator into a scratch tree, breaks exactly one normative behaviour, and

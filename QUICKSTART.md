@@ -98,7 +98,7 @@ Governed anchor adoptions and the adjudication records stored here are signed,
 re-runnable records; ordinary commits and reviews are not thereby adopted:
 
 ```bash
-python3 tools/warrant_gate.py .warrants  # consume the real Warrant verifier's machine report
+SIGMA_GLYPH=impl python3 /path/to/warrant-0.x/impl/warrant.py verify  # the pinned Warrant 0.x CLI (see ci.yml WARRANT_PIN)
 ```
 
 Deeper: `spec/book-1-truth.md` is ~200 lines and self-contained.
