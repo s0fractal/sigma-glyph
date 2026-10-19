@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## Distribution 0.8.0 — the checked resume provider ships (release pending)
 
-No normative bundle changes after adopted `v0.7.0`.
+`pyproject.toml` moves from `0.8.0.dev0` to `0.8.0`. To be released from tag
+`v0.8.0` through the OIDC publish workflow; until that run, PyPI's latest is
+0.7.0. The provider modules are byte-identical to `f3fd1dd` (Codex ACCEPT of
+#65 at `22742b5`, same tree), so the provider identity Warrant 2 accepts,
+`0caff793…`, does not change. No normative bundle changes after adopted `v0.7.0`.
 
 - **Warrant 0.x gates retired** (owner decision, 2026-10-19;
   `history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`).
@@ -37,8 +41,7 @@ No normative bundle changes after adopted `v0.7.0`.
   No Book, ATP rule, root, checkpoint or state codec changes. The provider's
   identity changes because its bytes do.
 
-- **The resume kernel installs, with a consumer surface** (`0.8.0.dev0`, not
-  published). The wheel now also ships `sigma_resume` (the DRAFT resumable
+- **The resume kernel installs, with a consumer surface** (`0.8.0`). The wheel now also ships `sigma_resume` (the DRAFT resumable
   kernel, unchanged bytes) and the new `sigma_provider`. `sigma_provider` is a
   small library over it plus a one-request-per-process protocol
   (`python -m sigma_provider serve`):
