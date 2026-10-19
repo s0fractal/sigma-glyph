@@ -10,8 +10,10 @@ then every release publishes itself.
 - **Import modules:** `sigma_glyph` (Book I), `sigma_wave` (Book II),
   `sigma_federation` (Book III). No console scripts; each module is runnable with
   `python -m`.
-- **What ships:** those three modules. Not the spec, not `tests/`, not the Rust
-  or Go implementations, not the proofs.
+- **What ships:** those three modules, and since 0.8.0 also `sigma_resume`
+  (the DRAFT resumable kernel) and `sigma_provider` (its consumer surface and
+  process protocol, `python -m sigma_provider`). Not the spec, not `tests/`,
+  not the Rust or Go implementations, not the proofs.
 - **Released so far:** **0.6.6.post1** (2026-07-30, packaging only), **0.6.7**
   (2026-07-31) and **0.7.0** (2026-09-17, the latest release, the first that
   packages the adopted v0.7.0 bundle). All three went out through the workflow
@@ -78,12 +80,11 @@ reused even after a delete.
 
 1. Bump `version` in `pyproject.toml` and merge to `master` through the normal
    branch + review path (`AGENTS.md` rule 1 — never commit to `master` directly).
-2. Cut a GitHub Release with tag **`v0.7.1`** — the `v` plus the exact pyproject
-   version (which is `0.7.0` right now and already released, so it must be
-   bumped first). The workflow fails the build if they disagree:
+2. Cut a GitHub Release with tag **`v<version>`** — the `v` plus the exact
+   pyproject version. The workflow fails the build if they disagree:
 
    ```bash
-   gh release create v0.7.1 --generate-notes
+   gh release create v0.8.0 --generate-notes
    ```
 3. The `publish` workflow builds, runs `twine check`, installs the wheel into a
    fresh venv, runs all three self-tests **from /tmp** (not from the checkout),
@@ -101,6 +102,7 @@ reused even after a delete.
    /tmp/v/bin/python -m sigma_glyph        # -> ALL PASS
    /tmp/v/bin/python -m sigma_wave         # -> WAVE: ALL PASS … SKIPPED: recorded-vector replay
    /tmp/v/bin/python -m sigma_federation   # -> FEDERATION: ALL PASS … SKIPPED: …
+   /tmp/v/bin/python -m sigma_provider     # -> PROVIDER: ALL PASS (16/16), since 0.8.0
    ```
 
 ## Dry run on TestPyPI (never actually performed)

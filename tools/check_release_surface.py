@@ -94,6 +94,10 @@ CHECKOUT_REQUIRED = "requires a source checkout"
 # The distribution's contract: these modules, importable at top level, each with a
 # self-test. sigma_resume ships beside them as the library sigma_provider runs.
 MODULES = ("sigma_glyph", "sigma_wave", "sigma_federation", "sigma_provider")
+# Imported by a module above but not exercised as a verb surface of its own.
+# A checkout-mode run copies these too, or sigma_provider cannot import its
+# kernel (Codex AMEND of #67: the copy held sigma_provider without sigma_resume).
+SUPPORT_MODULES = ("sigma_resume",)
 
 # (module, machine tag the suite MUST print, floor on the number of OK lines)
 #
@@ -582,7 +586,7 @@ def _exercise_verbs(args, python, workdir, problems):
         check_verbs(python, workdir, problems)
     else:
         with tempfile.TemporaryDirectory(prefix="sigma-verbs-") as verbdir:
-            for m in MODULES:
+            for m in MODULES + SUPPORT_MODULES:
                 shutil.copy(ROOT / "impl" / f"{m}.py", Path(verbdir) / f"{m}.py")
             check_verbs(python, verbdir, problems)
 
