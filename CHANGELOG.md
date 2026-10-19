@@ -8,6 +8,14 @@
 #65 at `22742b5`, same tree), so the provider identity Warrant 2 accepts,
 `0caff793…`, does not change. No normative bundle changes after adopted `v0.7.0`.
 
+- **The checkout-mode release surface copies its support module.**
+  `tools/check_release_surface.py` without `--wheel` copied `sigma_provider.py`
+  into a temporary directory without `sigma_resume.py`, so the provider could
+  not import its kernel and `tools/test-all.sh` failed at this step. Codex found
+  it in its AMEND of #67. The defect was inherited and had been misread as a
+  local environment problem. `SUPPORT_MODULES` is now copied next to the
+  exercised `MODULES`. The `--wheel` mode CI runs was not affected.
+
 - **Warrant 0.x gates retired** (owner decision, 2026-10-19;
   `history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`).
   - Removed: `warrant_gate`, `anchor_governance` and its Go twin `gov-replay`,
