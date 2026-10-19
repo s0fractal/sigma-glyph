@@ -48,7 +48,7 @@ jobs:
           git -C "$RUNNER_TEMP/warrant" checkout -q "$WARRANT2_PIN"
           test "$(git -C "$RUNNER_TEMP/warrant" rev-parse HEAD)" = "$WARRANT2_PIN"
           python -m pip wheel --quiet --no-deps -w "$RUNNER_TEMP/wh" . "$RUNNER_TEMP/warrant"
-          python -m pip download --quiet -d "$RUNNER_TEMP/wh" 'cryptography>=41'
+          python -m pip download --quiet -d "$RUNNER_TEMP/wh" 'cryptography==45.0.7'
           python -m venv "$RUNNER_TEMP/v"
           "$RUNNER_TEMP/v/bin/pip" install --quiet --no-index -f "$RUNNER_TEMP/wh" warrant-loops sigma-glyph
 

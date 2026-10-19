@@ -174,12 +174,17 @@ def main():
     # 2026-10-19 (history/RETIREMENT-2026-10-WARRANT-0X-GATES.md), so a copy
     # there now would be a second construction with no consumer to keep it
     # honest.
-    go = read(GO_MIRROR)
+    go_files = [f for f in tracked_files() if f.startswith("impl-go/") and f.endswith(".go")]
     checks += 1
-    if warrant_sig.SIG_DOMAIN.decode() in go or "ed25519" in go:
-        failures.append(
-            f"{GO_MIRROR} contains a Warrant signing construction again; impl-go "
-            f"verifies no signatures since the gov-replay retirement.")
+    if GO_MIRROR not in go_files:
+        failures.append(f"{GO_MIRROR} is not tracked; the Go scan below would be vacuous")
+    for rel in go_files:
+        go = read(rel)
+        checks += 1
+        if warrant_sig.SIG_DOMAIN.decode() in go or "ed25519" in go:
+            failures.append(
+                f"{rel} contains a Warrant signing construction again; impl-go "
+                f"verifies no signatures since the gov-replay retirement.")
 
     # --- The module does what everything above assumes ----------------------
     wid = "a" * 64

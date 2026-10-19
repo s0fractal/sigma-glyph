@@ -50,7 +50,8 @@ jobs:
           python3 /tmp/decision-archaeology/tools/validate_need.py "${packets[@]}"
       - name: DA-SIGMA-0001 owner-side reproducer
         run: python3 needs/DA-SIGMA-0001-numeral-encoding-profile/fixtures/reproduce.py
-      # Mirrored from warrant (X1 enforces byte-identity of shared tooling).
+      # Mirrored from warrant (until 2026-10-19 X1 enforced byte-identity of
+      # shared tooling; that matrix is retired and this copy is now ours).
       # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
       # it demands instead that every citation be accounted for in the committed
       # MAP.md. Cite a document nobody has located and this fails.
@@ -327,6 +328,9 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/impl/warrant.py" -o /tmp/warrant.py
           SIGMA_GLYPH=impl python3 /tmp/warrant.py verify
           SIGMA_GLYPH=impl python3 /tmp/warrant.py verify --settlement --trust-config trust-config.json
+      - name: One signing construction (tools/warrant_sig.py only; none left in impl-go)
+        run: |
+          python3 tests/one_signing_path.py | tee /dev/stderr | grep -q "ONE-SIGNING-PATH: ALL PASS"
       - name: Two-jurisdictions federation demo (Book III live, real stores)
         shell: bash
         run: |

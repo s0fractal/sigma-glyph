@@ -235,6 +235,38 @@ def show(tag, name, v):
     print(f"        set_root {v['set_root']}")
 
 
+REPORT_TAG = "warrant.verify-report@v0"
+REPORT_KEYS = {"report", "grade", "ok", "records", "errors", "warnings", "findings"}
+FINDING_KEYS = {"level", "subject", "message"}
+
+
+def report_problem(stdout, stderr, returncode):
+    """None iff `stdout` is one closed warrant.verify-report@v0 base report that
+    says ok, agrees with its findings and with the exit status; else why not."""
+    if stderr:
+        return "verifier wrote to stderr"
+    try:
+        rep = json.loads(stdout)
+    except ValueError:
+        return "stdout is not one JSON value"
+    if not isinstance(rep, dict) or set(rep) != REPORT_KEYS or rep["report"] != REPORT_TAG:
+        return f"not a {REPORT_TAG} report"
+    if rep["grade"] != "base" or type(rep["ok"]) is not bool:
+        return "grade or ok has the wrong value or type"
+    if any(type(rep[k]) is not int or rep[k] < 0 for k in ("records", "errors", "warnings")):
+        return "records/errors/warnings are not non-negative integers"
+    findings = rep["findings"]
+    if not isinstance(findings, list) or any(not isinstance(f, dict) or set(f) != FINDING_KEYS
+                                             or f["level"] not in ("ERR", "WARN") for f in findings):
+        return "findings are not the documented {level, subject, message}"
+    if (sum(f["level"] == "ERR" for f in findings), sum(f["level"] == "WARN" for f in findings)) \
+            != (rep["errors"], rep["warnings"]) or rep["ok"] != (rep["errors"] == 0):
+        return "the report contradicts itself"
+    if returncode != (0 if rep["ok"] else 1):
+        return f"exit {returncode} disagrees with ok={rep['ok']}"
+    return None if rep["ok"] else f"{rep['errors']} error(s)"
+
+
 def main():
     epoch_label = "epoch 8"
     ap = argparse.ArgumentParser()
@@ -296,8 +328,10 @@ def main():
 
     print("\n== 7. These are real warrant stores ==")
     # The verifier is the operator's, named in $WARRANT (e.g. "python3
-    # /tmp/warrant.py" at the CI pin); its machine report must say ok with no
-    # errors and exit 0. Nothing here guesses a verifier path.
+    # /tmp/warrant.py" at the CI pin). Its machine report is read closed-world:
+    # anything but the documented warrant.verify-report@v0 shape, self-consistent
+    # and agreeing with the exit status, is a failure. Nothing here guesses a
+    # verifier path.
     cmd = shlex.split(os.environ.get("WARRANT", ""))
     if not cmd:
         sys.exit("WARRANT is required (the Warrant 0.x verifier command)")
@@ -305,15 +339,10 @@ def main():
     for j in (kyiv, lviv):
         r = subprocess.run(cmd + ["--store", j.dir, "verify", "--store-mode", "--json"],
                            capture_output=True, text=True)
-        try:
-            rep = json.loads(r.stdout)
-        except ValueError:
-            rep = {}
-        good = (r.returncode == 0 and isinstance(rep, dict) and rep.get("ok") is True
-                and rep.get("errors") == 0)
-        print(f"  {j.name}: {'verified' if good else 'NOT verified'}: "
-              f"{rep.get('records')} record(s), {rep.get('warnings')} warning(s)")
-        ok &= good
+        why = report_problem(r.stdout, r.stderr, r.returncode)
+        print(f"  {j.name}: " + (f"verified: {json.loads(r.stdout)['records']} record(s)" if why is None
+                                  else f"NOT verified: {why}"))
+        ok &= why is None
     if not ok:
         sys.exit("warrant verification FAILED")
 

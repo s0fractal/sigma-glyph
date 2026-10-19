@@ -46,10 +46,10 @@ Why the other subjects went with them:
 | Role | Now |
 | --- | --- |
 | Required check `cross-repo` | `.github/workflows/cross-repo.yml`. A Sigma wheel from this checkout is installed beside **Warrant 2** at a pinned commit, from a local wheelhouse. It runs the provider self-test plus Warrant 2's `compute` and `agent_compute` suites (compute C13/C15 check Sigma's own identity formulas). It fails when Sigma's environment identity drifts, which was checked by mutation. |
-| Verifying this repo's `.warrants` (Warrant 0.x format) | The pinned Warrant 0.x CLI is called directly, base and settlement grade, in `ci.yml` and `tools/test-all.sh`. Before, these were the same calls wrapped by `warrant_gate`. |
-| The two-jurisdictions demo's store check | It calls `$WARRANT verify --store-mode --json` itself and requires `ok`, zero errors and exit 0. It now runs only where `warrant.py` is available. Before, it ran unconditionally and needed `$WARRANT` anyway. |
+| Verifying this repo's `.warrants` (Warrant 0.x format) | The pinned Warrant 0.x CLI is called directly, at base and settlement grade, in `ci.yml` and `tools/test-all.sh`; the decision is its **exit status**. Lost from `warrant_gate`: the closed-schema parsing of `verify --store-mode --json` (report tag, field set, grade-downgrade, empty stderr, findings/counts agreement). Kept: a corrupted record or a missing store still exits non-zero (checked in review). |
+| The two-jurisdictions demo's store check | It calls `$WARRANT verify --store-mode --json` itself and reads the report closed-world (`report_problem`): tag, field set, grade, types, findings/counts and exit agreement, empty stderr. It refuses a stub that prints only `{"ok": true, "errors": 0}`. It now runs only where `warrant.py` is available; before, it ran unconditionally and needed `$WARRANT` anyway. |
 | `evidence_view` adoption section | Reports `retired` / UNCHECKED and gives no adoption credit. |
-| `one_signing_path` Go mirror | It now asserts that **no** Warrant signing construction is left in `impl-go`, instead of passing on a dead constant. This was checked by mutation. |
+| `one_signing_path` Go mirror | It now asserts that **no** Warrant signing construction is left in any tracked `impl-go/*.go`, instead of passing on a dead constant. It now runs in `ci.yml`; before, it ran only in `tools/test-all.sh`. Checked by mutation: a new `impl-go/sig.go` containing `ed25519` fails it. |
 
 ## What is lost
 
@@ -80,4 +80,5 @@ Re-adoption of any of these would need a new owner decision. Restoring the bytes
 - **`tools/test-all.sh`:** ALL GREEN, run in a venv with this tree installed and with `$WARRANT` set to the pinned 0.x CLI. One step was run separately: `check_release_surface.py`, in `--wheel` mode as CI runs it, which gave ALL PASS. Its local no-wheel mode fails the same way on unchanged master. `warrant-go` was skipped locally (not built); CI builds it from the pin.
 - **`impl-go`:** `go vet` and `go test` pass.
 - **New `cross-repo` job:** simulated locally on Python 3.11 with a no-index wheelhouse. Results: provider 16/16, Warrant 2 compute 15/15, agent_compute 6/6. A mutation of Sigma's environment schema makes C15 fail.
+- **Same-model adversarial pass** (a fresh-context subagent, not independent): no P0 or P1. It found four P2s, all fixed in the follow-up commit: the demo check was weaker than the old gate; the CI `.warrants` loss was not declared; the `one_signing_path` Go scan covered one file and did not run in CI; and `README.md`, `publish.yml` and `ci.yml` had stale prose. `cross-repo` now pins `cryptography`.
 - **Not done:** an independent adversarial review.
