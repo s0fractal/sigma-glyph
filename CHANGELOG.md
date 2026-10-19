@@ -4,6 +4,28 @@
 
 No normative bundle changes after adopted `v0.7.0`.
 
+- **`sigma_provider` resume: checked continuation of a foreign checkpoint.**
+  Raw `advance` is the producer's primitive and trusts its checkpoint. That is
+  its documented precondition, so it will continue a checkpoint of another
+  computation under the caller's input.
+
+  `resume` composes the existing `verify` and `advance` on the same bytes:
+  - it replays the base from the caller's own root and reports that
+    verification separately;
+  - it advances only a REPLAYED PAUSED or PREFIX base;
+  - it returns TERMINAL for a normal form or a blocked reference, without
+    re-crediting;
+  - it returns DEFERRED for a local diagnostic (bytes not delivered here);
+  - it returns REFUSED when the base does not replay.
+
+  `tests/provider_resume_test.py` covers this through the real `serve` (CI runs
+  it against the installed wheel): ten cases, including that raw-advance
+  control, and three guard mutants killed on target. The self-test floor goes
+  14 -> 16.
+
+  No Book, ATP rule, root, checkpoint or state codec changes. The provider's
+  identity changes because its bytes do.
+
 - **The resume kernel installs, with a consumer surface** (`0.8.0.dev0`, not
   published). The wheel now also ships `sigma_resume` (the DRAFT resumable
   kernel, unchanged bytes) and the new `sigma_provider`. `sigma_provider` is a
