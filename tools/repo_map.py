@@ -462,12 +462,17 @@ def selftest():
     import shutil
     import tempfile
 
-    branch = (subprocess.run(["git", "-C", str(ROOT), "branch", "--show-current"],
-                             capture_output=True, text=True).stdout.strip()
-              or os.environ.get("GITHUB_HEAD_REF", ""))
+    # The same names the gate itself answers to (`_current_branch_names`): the
+    # checked-out branch, GITHUB_HEAD_REF on a pull_request event, GITHUB_REF_NAME
+    # on a push. A tag push (v0.8.0, 2026-10-19) is detached with no
+    # GITHUB_HEAD_REF, and this control refused instead of standing in on the
+    # tag name — the only name that checkout answers to — so the release tag's
+    # conformance run went red for a reason that had nothing to do with the map.
+    names = sorted(_current_branch_names())
+    branch = names[0] if names else ""
     if not branch:
-        print("SELFTEST: no current branch to stand in for the PR branch",
-              file=sys.stderr)
+        print("SELFTEST: no current branch, GITHUB_HEAD_REF or GITHUB_REF_NAME to "
+              "stand in for the ref under review", file=sys.stderr)
         return 1
 
     failures = []
