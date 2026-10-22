@@ -25,7 +25,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 API = "https://openrouter.ai/api/v1"
-ANCHOR_GOVERNANCE = "tools/anchor_governance.py"
 
 PRIMARY_SOURCES = [
     "reviews/README.md",
@@ -44,7 +43,6 @@ PRIMARY_SOURCES = [
     "proofs/EvalMachine.lean",
     "proposals/ADR-007-governed-anchors.md",
     "spec/GOV-anchors.md",
-    ANCHOR_GOVERNANCE,
 ]
 # Pass 2 sees the LIVE inbox, not a hard-coded list: the July 2026 corpus this
 # list used to name was retired on 2026-09-07 (history/RETIREMENT-2026-09-SURFACE.md).
@@ -57,12 +55,8 @@ GATES = [
     ["python3", "tests/spec_conformance/run_reference.py"],
     ["python3", "tests/spec_conformance/test_properties.py"],
     ["python3", "tests/federation_differential.py"],
-    ["python3", "tests/governance_differential.py"],
     ["python3", "tools/verify_anchors.py"],
     ["python3", "tools/check_lazy_edges.py"],
-    ["python3", "tools/warrant_gate.py", ".warrants"],
-    ["python3", ANCHOR_GOVERNANCE, "selftest"],
-    ["python3", ANCHOR_GOVERNANCE, "replay"],
     ["python3", "examples/two-jurisdictions/demo.py"],
 ]
 

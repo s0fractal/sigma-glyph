@@ -11,7 +11,8 @@ six files -- two verifiers and five signers -- and found them only because
 something unrelated went red. Nothing in the suite could name the copies, so
 copy number eight would have arrived the same way: silently, agreeing with the
 spec on the day it was written and drifting from it afterwards. (Copy number
-eight in fact already existed, in Go; see the impl-go section below.)
+eight in fact already existed, in Go; it left with the gov-replay retirement
+of 2026-10-19, and the impl-go section below now keeps it out.)
 
 A duplicated crypto construction is not a tidiness problem. If one copy drifts,
 this repository ships a store where its own verifier and its own governance
@@ -43,9 +44,7 @@ outliving its subject is how the next copy gets in under it.
 WHAT THIS DOES NOT DO
 ---------------------
 It reads source text. It does not prove the module is correct; the executable
-part of that is the round-trip and the two negative vectors at the end, and the
-real guarantee is `tests/governance_differential.py` driving Python against Go
-over the same records. It cannot see a copy in a language it does not scan, or
+part of that is the round-trip and the two negative vectors at the end. It cannot see a copy in a language it does not scan, or
 one assembled at runtime from string fragments, or one in an untracked file. It
 is a floor, not a ceiling: it makes copy number eight impossible to add by
 accident, which is the failure that actually happened here.
@@ -73,16 +72,6 @@ SELF_EXEMPT = {MODULE, SELF}
 
 # Shape B allowlist: path -> why signing a bare digest is CORRECT there.
 BARE_DIGEST_ALLOWED = {
-    "experiments/receipt-atom/verify_receipt.py":
-        "sigma-glyph.verdict-receipt@v1 is NOT a Warrant: different envelope "
-        "shape ({body, sig} with no sigs[]/actor/key), different tag, and its "
-        "id is a receipt id rather than a WarrantID. Its signature must not be "
-        "reachable as a Warrant signature, and after v0.4 it is not -- which is "
-        "the property warrant-sig-v1 exists to give. RECORDED, NOT FIXED: that "
-        "protocol has no domain separator of its own, so a receipt signature "
-        "remains reachable as some OTHER bare-digest protocol's signature. It "
-        "is an experiment, and changing its construction would move the "
-        "receipt.json committed beside it.",
 }
 
 # impl/ is a dependency-free reference implementation (Book I/II/III oracles).
@@ -179,24 +168,23 @@ def main():
                 f"signing site is genuinely needed in impl/, the boundary moves "
                 f"deliberately -- it is not crossed to satisfy this test.")
 
-    # --- The Go mirror is pinned to the module ------------------------------
-    # impl-go cannot import Python, so that copy is legitimate and is the ONLY
-    # legitimate one. It is compared against the module's own constant rather
-    # than against a string written a second time in this file.
-    go = read(GO_MIRROR)
+    # --- No Go copy remains --------------------------------------------------
+    # impl-go held the one legitimate cross-language copy while it verified
+    # GOV-anchors signatures (gov-replay). That verifier was retired on
+    # 2026-10-19 (history/RETIREMENT-2026-10-WARRANT-0X-GATES.md), so a copy
+    # there now would be a second construction with no consumer to keep it
+    # honest.
+    go_files = [f for f in tracked_files() if f.startswith("impl-go/") and f.endswith(".go")]
     checks += 1
-    if f'"{warrant_sig.SIG_DOMAIN.decode()}"' not in go:
-        failures.append(
-            f"{GO_MIRROR} does not contain the domain separator "
-            f"{warrant_sig.SIG_DOMAIN.decode()!r} that {MODULE} defines. The "
-            f"Go governance verifier and the Python one would then disagree "
-            f"about which signatures count.")
-    checks += 1
-    if re.search(r"ed25519\.Verify\([^,]+,\s*ridBytes\s*,", go):
-        failures.append(
-            f"{GO_MIRROR}: ed25519.Verify over the bare ridBytes -- the "
-            f"pre-v0.4 construction. It must verify the domain-separated "
-            f"message.")
+    if GO_MIRROR not in go_files:
+        failures.append(f"{GO_MIRROR} is not tracked; the Go scan below would be vacuous")
+    for rel in go_files:
+        go = read(rel)
+        checks += 1
+        if warrant_sig.SIG_DOMAIN.decode() in go or "ed25519" in go:
+            failures.append(
+                f"{rel} contains a Warrant signing construction again; impl-go "
+                f"verifies no signatures since the gov-replay retirement.")
 
     # --- The module does what everything above assumes ----------------------
     wid = "a" * 64
@@ -239,7 +227,7 @@ def main():
         print(f"\nONE-SIGNING-PATH: {len(failures)} FAILURES ({checks} checks)")
         return 1
     print(f"ONE-SIGNING-PATH: ALL PASS ({checks} checks; the construction "
-          f"exists in {MODULE} and, of necessity, in {GO_MIRROR})")
+          f"exists only in {MODULE})")
     return 0
 
 

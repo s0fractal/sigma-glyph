@@ -32,7 +32,7 @@ an external audit returns 0×P0/P1.
 | S3 | Put **warrant-go** (independent Book I impl) into sigma's own CI as a conformance gate | CI job runs `warrant-go sigma-conformance` on every push | **done** (pinned by commit, in CI) |
 | S1 | Extend Lean → **C1 compiler** (serialization/hash canonicality was already done in `MachineBytes.lean` — my review overstated the gap) | `C1Compiler.lean`: FV-preservation + closed→var-free, kernel-checked (propext-only) + 3000-case oracle bridge | **done** |
 | S4 | ATP-boundary: the cost arithmetic never wraps at `uint32` budgets | Lean `evalHash_spent_le` (`spent ≤ atp`, over ℕ — wrap is unrepresentable in the model) + `book1_fuzz` sends genuine `2³²-1` budgets to all 3 engines + Go R-S in `uint64` | **done** (no new artifact: the semantic proof already existed; an executable wrap vector is infeasible, needs ~2³² ATP) |
-| X1 | Combined CI: Book III verified against a live warrant store, so cross-repo coupling regressions surface | CI job across both repos | **done** (`tools/x1_cross_repo.sh` + `x1_negative_control.sh` + workflow, mirrored byte-identically in warrant; 11 crossings HEAD-vs-HEAD, 2 effective negative controls per direction) |
+| X1 | Combined CI: Book III verified against a live warrant store, so cross-repo coupling regressions surface | CI job across both repos | **retired 2026-10-19** — replaced by the `cross-repo` job against Warrant 2 (`.github/workflows/cross-repo.yml`); see `history/RETIREMENT-2026-10-WARRANT-0X-GATES.md` |
 
 **Explicitly NOT doing** (anti-gold-plating): rewriting Book II/III for
 elegance, new features, marketing, or spec prose without a vector behind it.

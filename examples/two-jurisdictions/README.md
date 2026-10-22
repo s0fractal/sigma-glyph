@@ -24,7 +24,7 @@ sibling checkout or silently substitute another verifier.
 | Two epoch-tied Lviv assertions | §4: ConflictSet — clients MUST NOT merge; automation treats the node as unannotated |
 | The conflict makes `APPLY(I, node)` derive to absent | §5: absent-poisoning of structural derivation |
 | Divergence printed as two ViewIDs + set roots | §6: disagreement is named mechanically, never argued |
-| `tools/warrant_gate.py` passes on both stores | the real Warrant machine boundary accepts the records; they are not demo mocks |
+| The pinned Warrant 0.x verifier (`$WARRANT verify --store-mode --json`) passes on both stores | a real Warrant verifier accepts the records; they are not demo mocks |
 
 A detail worth noticing in step 7: after gossip, Lviv's store reports **two
 roots** — Kyiv's genesis arrived with its records and sits there as an

@@ -27,11 +27,19 @@ dated finding remains at
 
 ## What it establishes
 
-Σ-GLYPH owns deterministic reduction, content addressing and bounded replay.
-[Warrant](https://github.com/s0fractal/warrant) owns decision records,
-provenance, authority and settlement. A Warrant `ski@v1` reason uses the frozen
-Book I v0.5 evaluator bytes; Sigma-Glyph HEAD is a differential target, not a
-silent replacement for that runtime.
+Σ-GLYPH owns deterministic reduction, content addressing, resume and bounded
+replay. [Warrant](https://github.com/s0fractal/warrant) owns records, closure,
+acceptance and authority. Two Warrant generations consume this repository, and
+they consume different things:
+
+- **Warrant 2** (current warrant `master`) closes `compute` conditions by
+  replaying receipts through the installed `sigma_provider` module below. It
+  pins nothing here by commit; the recipient accepts a provider by the identity
+  of the bytes it executes.
+- **Warrant 0.x** (frozen at warrant tag `history/warrant-0.x-2026-10-18`,
+  `8feb335`) used `ski@v1` reasons with the Book I v0.5 evaluator bytes. The
+  pinned CI steps here still check that historical consumer (the X1 matrix was
+  retired on 2026-10-19); it no longer moves.
 
 Three implementations from one author/model lineage agree on all 49 Book I
 conformance vectors: the Python reference, Warrant's native Go evaluator and a
@@ -55,7 +63,7 @@ python3 impl/sigma_glyph.py                     # Book I
 python3 tests/spec_conformance/run_reference.py # 49/49 vectors
 python3 impl/sigma_wave.py                      # Book II
 python3 impl/sigma_federation.py                # Book III
-export WARRANT="python3 /absolute/path/to/warrant/impl/warrant.py"
+export WARRANT="python3 /absolute/path/to/warrant-0.x/impl/warrant.py"   # warrant tag history/warrant-0.x-2026-10-18
 tools/test-all.sh                               # full repository suite
 ```
 
@@ -63,8 +71,7 @@ The full suite includes a live Book III specimen that invokes the real Warrant
 verifier. `WARRANT` is an explicit cross-repository operand; the suite refuses
 to guess it from the checkout layout and fails before running if it is absent.
 
-From PyPI, whose latest release is the distribution named under
-"Status by surface" below:
+From PyPI (latest release 0.7.0; see "Status by surface" below):
 
 ```bash
 pip install sigma-glyph
@@ -73,10 +80,33 @@ python -m sigma_wave
 python -m sigma_federation
 ```
 
-The wheel contains the three Python modules, not the replay corpora. Installed
+The wheel contains the Python modules, not the replay corpora. Installed
 Book II/III self-tests therefore report recorded-vector replay as `SKIP` while
 still running their property checks. Full re-derivation needs a checkout. The
 artifact boundary and release procedure are in [`PUBLISHING.md`](PUBLISHING.md).
+
+### The resume provider, installed
+
+`sigma_provider` is the consumer surface of the DRAFT resumable kernel
+(`impl/sigma_resume.py`, `spec/drafts/sigma-resume-draft-1.md`): build a
+computation from a term, run a budgeted segment (PAUSED or a normal form or an
+explicit local refusal), resume from a checkpoint, verify a receipt by replay,
+verify a cycle witness. It is not normative Book I. It ships from 0.8.0
+(`pip install sigma-glyph==0.8.0` once that release is on PyPI), or build the
+wheel from a commit and install that file.
+
+```bash
+pip wheel --no-deps -w wheelhouse "git+https://github.com/s0fractal/sigma-glyph@<commit>"
+pip install wheelhouse/sigma_glyph-0.8.0-py3-none-any.whl
+python -m sigma_provider                          # self-test
+echo '{"sigma_provider":1,"op":"term","args":{"expr":"S K K (K I)"}}' | python -m sigma_provider serve
+```
+
+The library and the one-request-per-process protocol are documented in the
+module's docstring. To continue someone else's checkpoint, use `resume`, which
+replays it from your own root first; raw `advance` trusts its checkpoint. A consumer decides which provider bytes it accepts:
+`sigma_provider.identity_of(...)` names them, and a provider reporting its own
+identity grants nothing.
 
 ## Status by surface
 
@@ -105,11 +135,15 @@ not the adoption of 2026-08-30. Release history and exact changed anchors
 belong to [`CHANGELOG.md`](CHANGELOG.md), `spec/ANCHORS.txt` and
 [`spec/VERSIONS.md`](spec/VERSIONS.md).
 
-### Distribution: 0.7.0
+### Distribution: 0.8.0
 
-`sigma-glyph` **0.7.0** (2026-09-17) is the latest PyPI release, built from git
-tag `v0.7.0` (commit `9d10bbc…`) by `.github/workflows/publish.yml`, and
-`pyproject.toml` carries that version. It packages the adopted v0.7.0 bundle
+`pyproject.toml` carries **0.8.0**, the first distribution that ships
+`sigma_resume` and `sigma_provider` (the checked `resume`) next to the three
+Books. It is published only when a GitHub Release `v0.8.0` runs
+`.github/workflows/publish.yml`; until then PyPI has 0.7.0, and PyPI is right.
+
+`sigma-glyph` **0.7.0** (2026-09-17) is the latest PyPI release before it, built from git
+tag `v0.7.0` (commit `9d10bbc…`) by `.github/workflows/publish.yml`. It packages the adopted v0.7.0 bundle
 (Book I 0.6.0, Books II and III 0.7.0), so an installed copy is no longer one
 bundle behind — the first release for which that is true since the bundle was
 adopted. The published wheel is `c9ee4768…6276a` and the sdist `5ad36077…bcf8`;
@@ -118,15 +152,17 @@ installed modules are byte-identical to `impl/` at the tag.
 [`PUBLISHING.md`](PUBLISHING.md) owns the release procedure; if it and PyPI
 disagree, PyPI is right.
 
-### Evaluator bytes and Warrant runtime tags
+### Evaluator bytes and Warrant runtime tags (Warrant 0.x, historical)
 
-Two Book I Python modules exist, and they are not interchangeable:
+This section describes the frozen Warrant 0.x consumer. Warrant 2 has no
+runtime tags; see "What it establishes". Two Book I Python modules exist, and
+they are not interchangeable:
 
 - `git show v0.6.7:impl/sigma_glyph.py`, byte-identical to the module inside
   PyPI 0.6.7 (SHA-256 `80299d68…7bab5`), implements Book I v0.5. Warrant pins
   exactly these bytes as its `ski@v1` evaluator and checks the digest before
   import, so `ski@v1` does not move when this repository does — and it does not
-  follow this distribution either: `pip install sigma-glyph` now gets 0.7.0,
+  follow this distribution either: `pip install sigma-glyph` gets 0.7.0 or later,
   which is **not** the `ski@v1` module.
 - `impl/sigma_glyph.py` on `master` implements Book I 0.6.0, the v0.7.0
   bundle, and is the module inside PyPI 0.7.0 (SHA-256 `f4d9990d…3feb4`). No

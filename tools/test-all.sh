@@ -140,15 +140,17 @@ say "Conformance vectors are fresh (regeneration is a no-op)"
 # stronger, commit-state-independent property: regenerating changes nothing in
 # the working tree. Catches a stale generator or hand-edited vectors.
 python3 -c "import cryptography" 2>/dev/null || {
-  echo "ERR: 'cryptography' is required for the governance generator"; exit 1; }
+  echo "ERR: 'cryptography' is required (signing round-trips and settlement)"; exit 1; }
 _freshdir="$(mktemp -d)"
 trap 'rm -rf "$_freshdir"' EXIT
-_vecs=(vectors.json wave_vectors.json federation_vectors.json governance_vectors.json)
+# governance_vectors.json is anchored data with no generator since the GOV
+# verifier retirement (history/RETIREMENT-2026-10-WARRANT-0X-GATES.md);
+# verify_anchors.py still recomputes its bytes.
+_vecs=(vectors.json wave_vectors.json federation_vectors.json)
 for f in "${_vecs[@]}"; do cp "tests/spec_conformance/$f" "$_freshdir/$f"; done
 python3 tests/spec_conformance/generate.py >/dev/null
 python3 impl/sigma_wave.py gen           >/dev/null
 python3 impl/sigma_federation.py gen     >/dev/null
-python3 tools/anchor_governance.py gen   >/dev/null
 for f in "${_vecs[@]}"; do
   diff -q "$_freshdir/$f" "tests/spec_conformance/$f" >/dev/null \
     || { echo "STALE VECTORS: tests/spec_conformance/$f changed on regeneration"; exit 1; }
@@ -220,18 +222,10 @@ grep -q "FEDERATION-GO: ALL PASS" <<<"$_gofed"
 # the tally — if this line ever disappears, a Go report can be read as Book I
 # coverage again.
 grep -q "VACUOUS FV-BOOK-I-UNREACHABLE" <<<"$_gofed"
-./impl-go/sigma-federation-go gov-replay tests/spec_conformance/governance_vectors.json \
-  | tee /dev/stderr | grep -q "GOVERNANCE-GO: ALL PASS"
 python3 tests/federation_differential.py   | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
-python3 tests/governance_differential.py   | tee /dev/stderr | grep -q "GOVERNANCE-DIFFERENTIAL: ALL AGREE"
 
-say "Book III live (two-jurisdictions demo, real stores)"
-python3 examples/two-jurisdictions/demo.py | tee /dev/stderr | grep -q "DEMO: ALL ASSERTIONS HELD"
-
-say "Anchors + governance"
+say "Anchors"
 python3 tools/verify_anchors.py            | tee /dev/stderr | grep -q "anchors verified"
-python3 tools/anchor_governance.py selftest | tee /dev/stderr | grep -q "ANCHOR-GOVERNANCE: ALL PASS"
-python3 tools/anchor_governance.py replay  | tee /dev/stderr | grep -q "GOVERNANCE-REPLAY: ALL PASS"
 
 say "Guard regression: WARRANT_PIN extraction fails hard on duplicate/malformed pins"
 python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUARD: ALL PASS"
@@ -245,9 +239,8 @@ python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUAR
 python3 tools/paper_claims.py --selftest   | tee /dev/stderr | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
 python3 tools/paper_claims.py              | tee /dev/stderr | grep -q "PAPER-CLAIMS: ALL PASS"
 
-# Network-gated surfaces that CI runs against pinned out-of-band sources (the
-# anchor trust anchor and the Warrant CLI both live in the warrant repo, never
-# in this tree). Run them when reachable; skip cleanly offline so the local
+# Network-gated surfaces that CI runs against a pinned out-of-band source (the
+# Warrant 0.x CLI lives in the warrant repo's history, never in this tree). Run them when reachable; skip cleanly offline so the local
 # matrix stays runnable without network.
 #
 # ONE pin, read from ci.yml — the single visible pin its header mandates.
@@ -264,33 +257,15 @@ WARRANT_PIN="$(tools/read_warrant_pin.sh)" \
   || { echo "ERR: WARRANT_PIN extraction failed — see message above"; exit 1; }
 RAW=https://raw.githubusercontent.com/s0fractal/warrant
 
-say "Governance status --enforce (out-of-band trust anchor)"
-if curl --proto '=https' --tlsv1.2 -sfL \
-        "$RAW/$WARRANT_PIN/trust/sigma-glyph-anchor-trust.json" \
-        -o "$_freshdir/anchor-trust.json" 2>/dev/null; then
-  # `grep -q AUTHORIZED` matched NOT AUTHORIZED too -- the gate passed on an
-  # unauthorized set and failed only because pipefail happened to catch the
-  # exit status. Remove pipefail and the substring silently greens a store with
-  # no adoption warrant in it. Verified: deleting the v0.6.7 adoption warrant
-  # makes the old form pass and this one fail. Anchored to the column so a
-  # release line must START with AUTHORIZED, and a second pass refuses if the
-  # word NOT appears anywhere -- one release unauthorized fails the whole gate.
-  python3 tools/anchor_governance.py status --enforce \
-    --trust-config "$_freshdir/anchor-trust.json" | tee /dev/stderr \
-    | grep -qE '^[^ ]+ +AUTHORIZED' \
-    && ! python3 tools/anchor_governance.py status --enforce \
-         --trust-config "$_freshdir/anchor-trust.json" 2>/dev/null \
-       | grep -q "NOT AUTHORIZED"
-else
-  skip "out-of-band anchor trust not reachable — run online for full parity"
-fi
-
 say "Settlement-grade adjudication warrants (Warrant CLI, incl. ski@v1 re-runs)"
 if curl --proto '=https' --tlsv1.2 -sfL \
         "$RAW/$WARRANT_PIN/impl/warrant.py" \
         -o "$_freshdir/warrant.py" 2>/dev/null; then
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify
   SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify --settlement --trust-config trust-config.json
+  say "Book III live (two-jurisdictions demo, real stores, verified by the pinned Warrant CLI)"
+  WARRANT="python3 $_freshdir/warrant.py" python3 examples/two-jurisdictions/demo.py \
+    | tee /dev/stderr | grep -q "DEMO: ALL ASSERTIONS HELD"
 else
   skip "Warrant CLI not reachable — run online for full parity"
 fi

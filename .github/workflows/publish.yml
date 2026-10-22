@@ -88,9 +88,9 @@ jobs:
       # package data the gate flips to demanding the replay actually RAN.
       #
       # HONEST SCOPE: the wheel is the Python reference implementation only.
-      # The Rust and Go implementations, the proof guard, the governance
-      # anchors and the cross-repo X1 checks are gated by ci.yml and
-      # tools/test-all.sh against the checkout; nothing here re-proves them.
+      # The Rust and Go implementations, the proof guard and the anchors are
+      # gated by ci.yml and tools/test-all.sh against the checkout, and the
+      # Warrant 2 consumer by cross-repo.yml; nothing here re-proves them.
       # The OIDC publish path itself cannot be exercised anywhere but here.
       - name: The wheel behaves as the docs say
         run: python3 tools/check_release_surface.py --wheel "$(ls dist/*.whl)" --bin /tmp/sv/bin

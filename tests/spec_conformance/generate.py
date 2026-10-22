@@ -13,7 +13,7 @@ Two kinds of expected value live in vectors.json, and the difference matters:
     and a record makes the edition non-conformant rather than being settled in the
     oracle's favour. Books II and III carry the same rule now. Same discipline as
     the governance suite
-    (tools/anchor_governance.py cmd_gen, which has refused since v0.6.x).
+    (the GOV generator (retired 2026-10-19) cmd_gen, which has refused since v0.6.x).
 
   * ORACLE-GENERATED (regression-only). Everything without a declaration is
     still whatever impl/sigma_glyph.py says. Replaying those against the same
@@ -543,7 +543,7 @@ assert all(v["kind"] != "eval" or "result_hash" in v["expected"] for v in vector
 
 # ---------- refuse to generate when the oracle contradicts the spec ----------
 # The governance suite has done exactly this since v0.6.x
-# (tools/anchor_governance.py cmd_gen). Before that fix, and before this one,
+# (the GOV generator (retired 2026-10-19) cmd_gen). Before that fix, and before this one,
 # a vector file could only ever say what its own oracle already believed.
 for label, got, want in SPEC_SELFCHECK:
     if got != want:

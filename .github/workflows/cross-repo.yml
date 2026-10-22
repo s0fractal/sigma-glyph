@@ -1,0 +1,68 @@
+# Sigma HEAD against its current consumer: Warrant 2 at a pinned commit.
+#
+# Until 2026-10-19 this required job (`cross-repo`) ran the X1 matrix against
+# the frozen Warrant 0.x consumer. That matrix, its negative control and its
+# sibling pin were retired with the 0.x gates
+# (history/RETIREMENT-2026-10-WARRANT-0X-GATES.md). The job name stays: it is a
+# required check on master.
+#
+# What it establishes: a Sigma wheel built from THIS checkout installs beside
+# the pinned Warrant 2 wheel from a local wheelhouse (no index), its provider
+# self-test passes, and Warrant 2's computation suites pass against it,
+# including the checks that Warrant computes the provider identity and the
+# environment identity with Sigma's own formulas (compute C13, C15).
+# What it does not: it is a regression lane against one consumer revision, not
+# an independent review, and it does not test Warrant HEAD.
+#
+# REFRESH WARRANT2_PIN when Warrant changes a surface it consumes from Sigma
+# (sigma_provider, sigma_resume identities), citing old and new commits.
+name: cross-repo
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-repo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      WARRANT2_PIN: 575804ca94608ccc5974666c5ecb82b8688cf910
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Wheelhouse (Sigma from this checkout, Warrant 2 at the pin)
+        run: |
+          set -euo pipefail
+          git clone -q https://github.com/s0fractal/warrant "$RUNNER_TEMP/warrant"
+          git -C "$RUNNER_TEMP/warrant" checkout -q "$WARRANT2_PIN"
+          test "$(git -C "$RUNNER_TEMP/warrant" rev-parse HEAD)" = "$WARRANT2_PIN"
+          python -m pip wheel --quiet --no-deps -w "$RUNNER_TEMP/wh" . "$RUNNER_TEMP/warrant"
+          python -m pip download --quiet -d "$RUNNER_TEMP/wh" 'cryptography==45.0.7'
+          python -m venv "$RUNNER_TEMP/v"
+          "$RUNNER_TEMP/v/bin/pip" install --quiet --no-index -f "$RUNNER_TEMP/wh" warrant-loops sigma-glyph
+
+      - name: Installed provider self-test
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/v/bin/python" -m sigma_provider | tee /dev/stderr | grep -q "^PROVIDER: ALL PASS"
+
+      - name: Warrant 2 computation suites against this Sigma (installed bytes)
+        run: |
+          set -euo pipefail
+          SITE=$("$RUNNER_TEMP/v/bin/python" -c 'import pathlib, warrant; print(pathlib.Path(warrant.__file__).parent.parent)')
+          cd "$RUNNER_TEMP/warrant/tests"
+          for t in compute agent_compute; do
+            WARRANT_IMPL="$SITE" "$RUNNER_TEMP/v/bin/python" "${t}_test.py"
+          done
