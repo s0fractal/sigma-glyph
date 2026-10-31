@@ -45,6 +45,19 @@ the reserved one; §6 no η, the K rule of A; §7 the suite, TV-4, TV-7): 24 mor
 in Lean and bridged, not mutated). 43 claims in all, 39 backed, 36 of 36
 mutants killed.
 
+**sigma-resume is normative.** `spec/sigma-resume.md` (was
+`spec/drafts/sigma-resume-draft-1.md`) states identities, segmentation
+invariance, `advance`, `verify`, cycles and the Book I profile as MUST
+sentences; the schema strings stay (they are in every `computation_id`), and
+the experimental Y/M/W profile and the second engine are outside it. Its 23
+claims (22 backed: `tests/resume_claims_test.py` R01–R22, mutants H01–H23) join
+Book I's in one `.warrant/claims.json` naming both documents (warrant-graph
+3.0.0a4). The claims checker (`claim/verifier`) and the review replayer are
+bound in `.warrant/v3.json`; CI re-executes their acceptances. The overlapped
+tests (admission, input boundary, receipt, lazy edges) are folded into Book I's
+witnesses (mutants G39–G42). 67 claims, 61 backed, every cited mutant killed.
+The provider identity changes with the module docstrings (and with #72's).
+
 What stays is checked as before: Book I oracle, Rust engine (now the only other
 engine in the fuzzer), conformance and properties, the Book I Lean fronts and
 their guard (its registry cases moved from the wave front to the bytes front),

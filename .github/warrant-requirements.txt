@@ -1,8 +1,8 @@
 # Warrant 3 for this repository's .warrant/ store: exact versions and hashes, installed with
 # `pip install --no-deps --require-hashes -r` (CI, Python 3.12 on Linux x86_64 and arm64).
-warrant-graph==3.0.0a3 \
-    --hash=sha256:edae1385968aaf17dc4efcc2967e528d153fa5ac6c00c05c21588132be282220 \
-    --hash=sha256:f473a93376de9783869f28185067a77b7ec6ac1f87eac4aad77d7f3021d10c16
+warrant-graph==3.0.0a4 \
+    --hash=sha256:04246172df26ef1bdf1de4ff37499268e3b2af8f6baf56ee6aa2bce4e9129c40 \
+    --hash=sha256:5ced5e120d7ffecfa80af4de27e3446f660ed61002ff577451aecf291740e1d9
 cryptography==50.0.2 \
     --hash=sha256:630ebfea3bf689d075f82316324ff7433dc447fe6bc1bfc76524b74b4a9567d2 \
     --hash=sha256:79def8d059362e7831389ed3be0ecdf58a89386e1271e35dd9f5af84e81bffd0 \
