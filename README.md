@@ -177,6 +177,14 @@ For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent
 gate or governance adoption.
 
+Book I's normative sentences are claims: `.warrant/claims.json` names the Book,
+the witness file (`tests/book1_claims_test.py`) and the mutant harness
+(`tests/claims_mutants.py`); each claim@1 record quotes one sentence verbatim and
+cites the cases that witness it and the mutants that must break them, or says
+why it is unbacked. `warrant claims check` refuses a sentence the Book no longer
+holds, a witness nobody prints or a mutant off its claim; `warrant claims view`
+prints them.
+
 Reviews are records, not prose: `.warrant/` is this repository's Warrant 3
 store (`warrant-graph`, pinned in `.github/warrant-requirements.txt`). A pull
 request's head is a `pr-head@1` version; the reviewer named by

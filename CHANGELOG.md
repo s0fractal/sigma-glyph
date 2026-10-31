@@ -28,6 +28,13 @@ canonical, nothing rejected, no problem. `MAP.md` and `tools/repo_map.py` are
 retired: where a document lives is git's answer, and what is in force is
 `master`.
 
+Book I's first claims (§1–§5.1: flags, opcodes, the Canonical Invalid Object,
+layout and identity, length, R-I/R-K/R-S/R-R, identity by hash, laziness,
+prices, exhaustion before action, genesis): 19 claim@1 records, 17 backed by a
+witness case of `tests/book1_claims_test.py` and a mutant of
+`tests/claims_mutants.py` (17 of 17 killed), 2 unbacked with the layer that
+holds them named. CI runs `warrant claims check`, the witnesses and the mutants.
+
 What stays is checked as before: Book I oracle, Rust engine (now the only other
 engine in the fuzzer), conformance and properties, the Book I Lean fronts and
 their guard (its registry cases moved from the wave front to the bytes front),
