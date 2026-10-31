@@ -172,9 +172,10 @@ omega_env = env_of(si, sii, omega_half)
 # §3.4: the interface and the Receipt
 exits = [receipt(ik, env_of(ik))[2], receipt(skki, env_of(sk, skk, skki), atp=11)[2], receipt(i_ghost, env_of(i_ghost))[2]]
 r_dict = tried(lambda: sorted(sg.eval_receipt(sg.node_hash(ik), 10, env_of(ik)).as_dict()))
-check("B201 a Receipt is {exit, result_hash, atp_spent}, its exit one of normal_form, atp_exhausted, unresolved_reference",
-      exits == ["normal_form", "atp_exhausted", "unresolved_reference"] and r_dict == ["atp_spent", "exit", "result_hash"],
-      (exits, r_dict))
+foreign_exit = tried(sg.Receipt, ("lit", ATOM), 0, "finished")
+check("B201 a Receipt is {exit, result_hash, atp_spent}, its exit one of normal_form, atp_exhausted, unresolved_reference "
+      "and no other", exits == ["normal_form", "atp_exhausted", "unresolved_reference"]
+      and r_dict == ["atp_spent", "exit", "result_hash"] and foreign_exit == "ValueError", (exits, r_dict, foreign_exit))
 stored = receipt(dis_atp, env_of(dis_atp))
 exhausted = receipt(skki, env_of(sk, skk, skki), atp=11)
 check("B202 the same result_hash can be a normal form or an exhaustion: a stored DISSONANCE(ATP Exhausted) evaluates to "
@@ -182,8 +183,10 @@ check("B202 the same result_hash can be a normal form or an exhaustion: a stored
       (stored, exhausted))
 out_of_domain = [reads_of(sg.eval_receipt, sg.node_hash(ik), atp, Counting(env_of(ik)))
                  for atp in (2 ** 32, -1, True, 1.5, 2 ** 64)]
-check("B203 an ATP budget outside uint32 is refused locally (ValueError), before the environment is read, never clamped",
-      all(got == "ValueError" and n == 0 for got, n in out_of_domain), out_of_domain)
+edges = [tried(lambda n=n: tuple(sg.eval_receipt(I_H, n, {}))[1]) for n in (0, 2 ** 32 - 1)]
+check("B203 an ATP budget outside uint32 is refused locally (ValueError), before the environment is read, never clamped; "
+      "0 and 2^32-1 are budgets", all(got == "ValueError" and n == 0 for got, n in out_of_domain) and edges == [0, 0],
+      (out_of_domain, edges))
 ref_missing = sg.ser(sg.REF, sg.F_ATOM, atom=sg.sha(b"missing"))
 zero = reads_of(lambda: (lambda r: (r.exit, r.atp_spent))(sg.eval_receipt(sg.node_hash(ref_missing), 0, Counting(env_of(ref_missing)))))
 check("B204 at spent == atp exhaustion is decided before any store access: eval(REF(missing), 0) = ATP Exhausted, spent 0, "
@@ -215,8 +218,11 @@ check("B207 along every execution materialized_size(t) - 1 <= spent: TV-6 (S I I
       and receipt(tv6, env_of(si, sii, ik, tv6))[1:] == (21, "normal_form"))
 # §3.5: the content environment
 foreign = {sg.node_hash(ik): sg.K_BYTES}
-check("B208 bytes under a key they do not hash to are not executed as that key's node: a local refusal, no Receipt",
-      tried(sg.eval_receipt, sg.node_hash(ik), 10, foreign) == "ResourceFault", tried(sg.eval_receipt, sg.node_hash(ik), 10, foreign))
+not_bytes = {sg.node_hash(ik): bytearray(ik)}
+check("B208 bytes under a key they do not hash to are not executed as that key's node, nor is a value that is not bytes: "
+      "a local refusal, no Receipt", tried(sg.eval_receipt, sg.node_hash(ik), 10, foreign) == "ResourceFault"
+      and tried(sg.eval_receipt, sg.node_hash(ik), 10, not_bytes) == "ResourceFault",
+      (tried(sg.eval_receipt, sg.node_hash(ik), 10, foreign), tried(sg.eval_receipt, sg.node_hash(ik), 10, not_bytes)))
 extra = {**env_of(ki, k_i_missing), sg.sha(b"unrelated"): b"\x03\x01" + ATOM, sg.sha(b"wrong key"): sg.I_BYTES}
 check("B209 an entry the execution never demands changes no Receipt (even an invalid one, or one under a foreign key)",
       receipt(k_i_missing, extra) == receipt(k_i_missing, env_of(ki, k_i_missing)), receipt(k_i_missing, extra))
@@ -231,9 +237,14 @@ tight = dict(sg.DEFAULT_LIMITS, max_store_fetches=2)
 check("B212 a local resource limit breached during eval is a ResourceFault, never serialized as a DISSONANCE",
       tried(sg.eval_receipt, sg.node_hash(skki), 100, env_of(sk, skk, skki), tight) == "ResourceFault",
       tried(sg.eval_receipt, sg.node_hash(skki), 100, env_of(sk, skk, skki), tight))
-admission = reads_of(sg.eval_receipt, sg.node_hash(ik), 1000, Counting(env_of(ik)), dict(sg.DEFAULT_LIMITS, max_atp=100))
-check("B213 a verifier may refuse before execution: a budget above its admission limit is AdmissionRefused, no read, no Receipt",
-      admission == ("AdmissionRefused", 0), admission)
+policy = dict(sg.DEFAULT_LIMITS, max_atp=100)
+admission = reads_of(sg.eval_receipt, sg.node_hash(ik), 101, Counting(env_of(ik)), policy)
+at_limit = tried(lambda: sg.eval_receipt(sg.node_hash(ik), 100, env_of(ik), policy).exit)
+refusal = sg.AdmissionRefused(101, 100)
+check("B213 a verifier may refuse before execution: a budget above its admission limit is AdmissionRefused (naming what was "
+      "claimed and allowed, not a ResourceFault), no read, no Receipt; a budget at the limit runs",
+      admission == ("AdmissionRefused", 0) and at_limit == "normal_form" and (refusal.claimed, refusal.allowed) == (101, 100)
+      and not isinstance(refusal, (sg.ResourceFault, tuple)), (admission, at_limit))
 short_hash = [reads_of(sg.eval_receipt, h, 10, Counting(env_of(ik))) for h in (sg.node_hash(ik)[:31], sg.node_hash(ik) + b"\x00")]
 check("B214 a term_hash that is not exactly 32 bytes is refused locally, before the environment is read",
       all(got == "ValueError" and n == 0 for got, n in short_hash), short_hash)
@@ -269,6 +280,12 @@ check("B219 the machine-readable suite is part of the edition: every vector of v
 tv4 = [receipt(ik, env_of(ik), atp=n)[1:] for n in (0, 2, 3)]
 check("B220 TV-4 at budgets 0, 2, 3: exhausted with spent 0, 0 (the root's bytes discarded: force costs 3 > 2) and 3",
       tv4 == [(0, "atp_exhausted"), (0, "atp_exhausted"), (3, "atp_exhausted")], tv4)
+
+pair = tried(lambda: sg.eval_hash(sg.node_hash(ik), 10, env_of(ik)))
+full = sg.eval_receipt(sg.node_hash(ik), 10, env_of(ik))
+check("B221 the compatibility profile eval -> (result_term, atp_spent) is the Receipt's answer without exit, and a Receipt "
+      "unpacks as that pair", not isinstance(pair, str) and (sg.term_hash(pair[0]), pair[1]) == (full.result_hash, full.atp_spent)
+      and len(tuple(full)) == 2 and sg.term_hash(tuple(full)[0]) == full.result_hash, (pair, full))
 
 print(f"\nBOOK1-CLAIMS: {'ALL PASS' if not failures else 'FAILURES ' + ' '.join(failures)}")
 sys.exit(1 if failures else 0)

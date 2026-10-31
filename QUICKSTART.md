@@ -83,7 +83,7 @@ total. This is the only layer two nodes must agree on.
 **sigma-resume.** A long computation in budgeted segments: each segment ends in
 a normal form, an explicit local refusal or a checkpoint (PAUSED); anyone can
 resume a checkpoint from their own root and verify a receipt by replaying it.
-Draft, not normative Book I (`spec/drafts/sigma-resume-draft-1.md`).
+Specified in `spec/sigma-resume.md`; Book I governs the transition.
 
 Books II (waves) and III (federation) were retired on 2026-10-31
 (`history/RETIREMENT-2026-10-ECHO.md`).

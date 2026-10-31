@@ -52,9 +52,6 @@ say "Guard regression: the Book I self-test puts its verdict in the EXIT STATUS"
 # demands a non-zero exit (and a passing one, exit 0).
 python3 tests/exit_status_guard.py         | tee /dev/stderr | grep -q "EXIT-STATUS-GUARD: ALL PASS"
 
-say "Security boundaries: content addresses"
-python3 tests/oracle_input_boundary_test.py | tee /dev/stderr | grep -q "ORACLE-INPUT-BOUNDARY: ALL PASS"
-
 say "Release surface (what an installed copy promises)"
 # The checkout half only. It drives the gate's classifier against the two real
 # 0.6.6 install failures, then re-runs the three self-tests and the documented
@@ -67,8 +64,9 @@ say "Release surface (what an installed copy promises)"
 python3 tools/check_release_surface.py --selftest | tee /dev/stderr | grep -q "RELEASE-SURFACE-SELFTEST: ALL PASS"
 python3 tools/check_release_surface.py            | tee /dev/stderr | grep -q "RELEASE SURFACE: ALL PASS"
 
-say "Book I's claims: witnesses, and every cited mutant killed"
+say "The claims of Book I and sigma-resume: witnesses, and every cited mutant killed"
 python3 tests/book1_claims_test.py         | tee /dev/stderr | grep -q "^BOOK1-CLAIMS: ALL PASS"
+python3 tests/resume_claims_test.py        | tee /dev/stderr | grep -q "^RESUME-CLAIMS: ALL PASS"
 python3 tests/claims_mutants.py            # exits 0 only when every mutant is killed
 
 say "Conformance + properties"

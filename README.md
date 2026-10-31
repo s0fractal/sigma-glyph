@@ -72,11 +72,11 @@ in [`PUBLISHING.md`](PUBLISHING.md). The published 0.7.0 and 0.8.0 still ship
 
 ### The resume provider, installed
 
-`sigma_provider` is the consumer surface of the DRAFT resumable kernel
-(`impl/sigma_resume.py`, `spec/drafts/sigma-resume-draft-1.md`): build a
+`sigma_provider` is the consumer surface of the resumable kernel
+(`impl/sigma_resume.py`, specified by `spec/sigma-resume.md`): build a
 computation from a term, run a budgeted segment (PAUSED or a normal form or an
 explicit local refusal), resume from a checkpoint, verify a receipt by replay,
-verify a cycle witness. It is not normative Book I. It ships from 0.8.0
+verify a cycle witness. It ships from 0.8.0
 (`pip install sigma-glyph==0.8.0`), or build the wheel from a commit and install
 that file.
 
@@ -148,7 +148,7 @@ disagree, PyPI is right.
 | Document | Status | Owns |
 |---|---|---|
 | [`Book I — Truth`](spec/book-1-truth.md) ([EN](spec/book-1-truth.en.md)) | Normative | canonical bytes, SHA-256 identity, SKI normal-order reduction, ATP totalization, content resolution, C1 compiler profile |
-| [`sigma-resume`](spec/drafts/sigma-resume-draft-1.md) | Draft | budgeted segments, checkpoints, resume, receipts verified by replay, cycle witnesses |
+| [`sigma-resume`](spec/sigma-resume.md) | Normative (draft standard) | budgeted segments, checkpoints, resume, receipts verified by replay, cycle witnesses |
 
 [`spec/GLOSSARY.md`](spec/GLOSSARY.md) fixes the local meaning of work, size,
 memory and materialization; [`WHY-THESE-THREE.md`](WHY-THESE-THREE.md) explains
@@ -177,13 +177,16 @@ For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent
 gate or governance adoption.
 
-Book I's normative sentences are claims: `.warrant/claims.json` names the Book,
-the witness file (`tests/book1_claims_test.py`) and the mutant harness
-(`tests/claims_mutants.py`); each claim@1 record quotes one sentence verbatim and
+The normative sentences of Book I and sigma-resume are claims:
+`.warrant/claims.json` names both documents, the witness files
+(`tests/book1_claims_test.py`, `tests/resume_claims_test.py`) and the mutant
+harness (`tests/claims_mutants.py`); each claim@1 record quotes one sentence verbatim and
 cites the cases that witness it and the mutants that must break them, or says
-why it is unbacked. `warrant claims check` refuses a sentence the Book no longer
-holds, a witness nobody prints or a mutant off its claim; `warrant claims view`
-prints them.
+why it is unbacked. `warrant claims check` refuses a sentence its document no
+longer holds, a witness nobody prints or a mutant off its claim; `warrant claims
+view` prints them. A backed claim is accepted by the claims checker
+(`claim/verifier`), a key bound in `.warrant/v3.json` whose acceptance is a replay
+of the witnesses and mutants at one commit; CI re-executes every new acceptance.
 
 Reviews are records, not prose: `.warrant/` is this repository's Warrant 3
 store (`warrant-graph`, pinned in `.github/warrant-requirements.txt`). A pull

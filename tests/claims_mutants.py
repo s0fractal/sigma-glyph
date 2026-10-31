@@ -21,6 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BOOK1 = "tests/book1_claims_test.py"
 ORACLE = "impl/sigma_glyph.py"
+RESUME = "tests/resume_claims_test.py"
+KERNEL = "impl/sigma_resume.py"
 
 # (id, file, find, replace, test file, [cases])
 MUTANTS = [
@@ -79,6 +81,50 @@ MUTANTS = [
      '    if x not in _fv(m) and m[0] != "var": return ("app", KG, m)\n', BOOK1, ["B218"]),
     ("G37", ORACLE, "        return function[2], 1\n", "        return function[2], 2\n", BOOK1, ["B219"]),
     ("G38", ORACLE, "        _require_budget(c, remaining)                         # fetched bytes discarded\n", "", BOOK1, ["B220"]),
+    ("G39", ORACLE, "    term, spent, _ = _eval_hash_raw(h, atp, store, limits)\n    return term, spent\n",
+     "    term, spent, _ = _eval_hash_raw(h, atp, store, limits)\n    return term, spent + 1\n", BOOK1, ["B221"]),
+    ("G40", ORACLE, '    if not isinstance(b, bytes):\n        raise ResourceFault("store returned non-bytes")\n',
+     '    if False:\n        raise ResourceFault("store returned non-bytes")\n', BOOK1, ["B208"]),
+    ("G41", ORACLE, "    if allowed is not None and atp > allowed:\n", "    if allowed is not None and atp >= allowed:\n", BOOK1, ["B213"]),
+    ("G42", ORACLE, "    if type(atp) is not int or not 0 <= atp <= UINT32_MAX:\n", "    if type(atp) is not int or not 0 < atp <= UINT32_MAX:\n",
+     BOOK1, ["B203"]),
+    ("H01", KERNEL, '    return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()\n',
+     '    return json.dumps(doc, sort_keys=True, separators=(", ", ": "), ensure_ascii=False).encode()\n', RESUME, ["R01"]),
+    ("H02", KERNEL, '           "environment_id": env.environment_id}\n', '           "environment_id": env.environment_id, "credit": 0}\n',
+     RESUME, ["R02"]),
+    ("H03", KERNEL, '    doc = {"schema": SCHEMA_ROOT, "runtime_semantics_id": runtime,\n           "cost_model_id": PROFILES[runtime][1],',
+     '    doc = {"schema": SCHEMA_ROOT, "runtime_semantics_id": RUNTIME_SEMANTICS_ID,\n           "cost_model_id": COST_MODEL_ID,',
+     RESUME, ["R03"]),
+    ("H04", KERNEL, 'SCHEMA_ENV = "sigma-resume.environment@draft-1"\n', 'SCHEMA_ENV = "sigma-resume.environment@draft-2"\n', RESUME, ["R04"]),
+    ("H05", KERNEL, "        if h not in self.hashes:\n", "        if False:\n", RESUME, ["R05"]),
+    ("H06", KERNEL, "            stack.append(t[2])\n            stack.append(t[1])\n",
+     "            stack.append(t[1])\n            stack.append(t[2])\n", RESUME, ["R06"]),
+    ("H07", KERNEL, "            out += _TAG[t[0]] + t[1]\n", '            out += b"L" + G.term_hash(t)\n', RESUME, ["R07"]),
+    ("H08", KERNEL, '    if i != len(b):\n        raise InvalidEncoding("trailing bytes after state")\n',
+     '    if False:\n        raise InvalidEncoding("trailing bytes after state")\n', RESUME, ["R08"]),
+    ("H09", KERNEL, '    if doc["spent_total"] > doc["credit_total"]:\n', "    if False:\n", RESUME, ["R09"]),
+    ("H10", KERNEL, '    if not isinstance(doc, dict) or set(doc) != want or doc["schema"] != SCHEMA_CHECKPOINT:\n',
+     '    if not isinstance(doc, dict) or not want <= set(doc) or doc["schema"] != SCHEMA_CHECKPOINT:\n', RESUME, ["R10"]),
+    ("H11", KERNEL, "    if type(v) is not int or not 0 <= v <= MAX_INT:\n", "    if not isinstance(v, int) or not 0 <= v <= MAX_INT:\n",
+     RESUME, ["R10"]),
+    ("H12", KERNEL, '    credit = ckpt["credit_total"] + additional_credit\n', '    credit = max(ckpt["credit_total"], additional_credit)\n',
+     RESUME, ["R11"]),
+    ("H13", KERNEL, "KERNEL = (NORMAL_FORM, PAUSED, BLOCKED_REFERENCE)\n",
+     'KERNEL = (NORMAL_FORM, PAUSED, BLOCKED_REFERENCE, "EVIDENCE_UNAVAILABLE", "CAS_MISMATCH")\n', RESUME, ["R12"]),
+    ("H14", KERNEL, "            except G.BudgetExhausted:\n                return term, spent, actions, peak, PAUSED, None\n",
+     "            except G.BudgetExhausted:\n                return term, spent + 1, actions, peak, PAUSED, None\n", RESUME, ["R13"]),
+    ("H15", ORACLE, "        _require_budget(1, remaining)\n        v = force(", "        v = force(", RESUME, ["R14"]),
+    ("H16", KERNEL, "    if credit > MAX_INT:\n", "    if False:\n", RESUME, ["R15"]),
+    ("H17", KERNEL, "    if len(state_bytes) > MAX_STATE_BYTES:\n", "    if False:\n", RESUME, ["R16"]),
+    ("H18", KERNEL, '    if root_doc.get("environment_id") != env.environment_id or runtime not in PROFILES \\\n',
+     "    if runtime not in PROFILES \\\n", RESUME, ["R17"]),
+    ("H19", KERNEL, '    replay = advance(b_doc, b_id, b_state, env, doc["spent_total"] - b_doc["spent_total"], limits, runtime)\n',
+     '    replay = advance(b_doc, b_id, b_state, env, doc["credit_total"] - b_doc["spent_total"], limits, runtime)\n', RESUME, ["R18"]),
+    ("H20", KERNEL, '            and got["peak_semantic_size"] == doc["peak_semantic_size"])\n', "            )\n", RESUME, ["R19"]),
+    ("H21", KERNEL, "    if spent != cost:\n", "    if False:\n", RESUME, ["R20"]),
+    ("H22", KERNEL, "    if n > cost:\n", "    if False:\n", RESUME, ["R21"]),
+    ("H23", KERNEL, 'RUNTIME_SEMANTICS_ID = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost"\n',
+     'RUNTIME_SEMANTICS_ID = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost/2"\n', RESUME, ["R22"]),
 ]
 
 
