@@ -17,11 +17,16 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: '3.12' }
-      # Mirrored from warrant (until 2026-10-19 X1 enforced byte-identity of
-      # shared tooling; that matrix is retired and this copy is now ours).
-      # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
-      # it demands instead that every citation be accounted for in the committed
-      # MAP.md. Cite a document nobody has located and this fails.
+      # This repository's records (.warrant/: schemas, pull-request heads, reviews) are
+      # Warrant 3's; warrant-graph and its dependencies at exact versions and hashes.
+      - name: The .warrant store under Warrant 3 (canonical, nothing rejected, no problem)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/warrant"
+          "$RUNNER_TEMP/warrant/bin/pip" install --quiet --no-deps --require-hashes -r .github/warrant-requirements.txt
+          "$RUNNER_TEMP/warrant/bin/warrant" status | tee /dev/stderr > /dev/null
+          "$RUNNER_TEMP/warrant/bin/warrant" status --json | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if d["canonical"] and not d["rejected"] and not d["problems"] and not d["schemas_pending"] else 1)'
       # Six version numbers in three schemes, and nothing said how they relate.
       - name: The version numbers agree with each other
         shell: bash
@@ -31,23 +36,6 @@ jobs:
             | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
           python3 tools/version_check.py | tee /dev/stderr \
             | grep -q "VERSION-CHECK:"
-      # --selftest first, because --check-map alone went GREEN on a MAP row
-      # pointing at a renamed file: the checkout is detached, the row named the
-      # PR's own branch, and "cannot look" was reported as UNCHECKED. The
-      # selftest plants a wrong path for the branch under review in a real
-      # detached shallow clone and requires MISPLACED, so a pass here means the
-      # gate can still fail.
-      - name: Reference map (every cited document is located in MAP.md)
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Retired proposal branches are preserved as public archive tags.
-          # Fetch that namespace so the map verifies their bytes rather than
-          # silently treating a preserved historical address as unavailable.
-          git fetch --force origin 'refs/tags/archive/*:refs/tags/archive/*'
-          python3 tools/repo_map.py --selftest | tee /dev/stderr \
-            | grep -q "REPO-MAP-SELFTEST: ALL PASS"
-          python3 tools/repo_map.py --check-map
       # A normative JSON artifact needs a normative shape. The shape is an
       # anchored closed-world schema; the selftest breaks each rule so the
       # validator is known to be able to fail.

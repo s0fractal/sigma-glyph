@@ -97,6 +97,6 @@ tools/test-all.sh          # the full matrix; a skipped surface exits 2, not ALL
 
 If a document and a command disagree, the command is right. Several reports
 against this project have been artefacts of reading a feature branch, an archived
-evidence blob, or truncated output rather than the thing itself; `MAP.md` says
-which ref holds what, and `SECURITY-ASSUMPTIONS.md` states the known boundaries so you do not spend a pass
+evidence blob, or truncated output rather than the thing itself; `master` is what
+is in force, and `SECURITY-ASSUMPTIONS.md` states the known boundaries so you do not spend a pass
 rediscovering them.
