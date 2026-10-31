@@ -39,8 +39,10 @@ Book I's transition derives the leftmost-outermost demanded action from the tree
 it picks does not depend on the remaining budget: the budget only decides whether that action is affordable. The
 tree is therefore the whole operational state.
 
-**Segmentation invariance (MUST).** Any split of the same total credit into segments MUST reach the same state,
-spent and outcome as one segment with all of it.
+**Segmentation invariance (MUST).** Any split of the same total credit into segments, none of which ends in a
+local outcome (§3), MUST reach the same state, spent and outcome as one segment with all of it. A local outcome is
+a host's decision about one segment (an admission ceiling, a fetch limit), not an answer, so a host's limits may
+stop a split run where one segment would not, or the other way round (Codex finding on #76).
 
 ## 3. advance(checkpoint, state, env, additional_credit)
 
@@ -97,6 +99,12 @@ REPLAYED.
 | NOT_ASSESSED | a local limit stopped the replay |
 
 ## 5. Cycles
+
+A cycle witness is the canonical JSON `{schema, computation_id, entry_spent_total, entry_state_id,
+cycle_action_count, cycle_cost}`, exactly these fields: `schema = "sigma-resume.cycle@draft-1"`; `computation_id`
+and `entry_state_id` are 64 lowercase hex characters; the three counts are integers in 0..2^53−1. It claims that
+the computation, at the state `entry_state_id` it reaches when exactly `entry_spent_total` has been spent, returns
+to that same state after `cycle_action_count` further actions costing `cycle_cost` in all.
 
 `verify_cycle` replays from the chosen root to exactly the entry's spent, then replays the period one action at a
 time. **CYCLE_PROVEN requires all of these (MUST):** at least one priced action; the claimed cost exactly; no

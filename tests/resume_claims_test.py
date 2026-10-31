@@ -196,8 +196,12 @@ check("R20 CYCLE_PROVEN requires a priced action, the exact cost and the same ma
 shapes = {"unknown field": R.verify_cycle(rt_y, env_y, witness(2, 3, note="x")),
           "more actions than cost": R.verify_cycle(rt_y, env_y, witness(5, 3)),
           "bad digest": R.verify_cycle(rt_y, env_y, witness(2, 3, entry_state_id="XYZ"))}
-check("R21 a malformed witness is refused by name before any replay: unknown field, more actions than cost, a bad digest",
-      shapes["unknown field"] == "INVALID_CYCLE_WITNESS: fields are not exactly the witness schema's"
+check("R21 a witness is exactly {schema: sigma-resume.cycle@draft-1, computation_id, entry_spent_total, entry_state_id, "
+      "cycle_action_count, cycle_cost}; a malformed one is refused by name before any replay: unknown field, more actions "
+      "than cost, a bad digest", witness(2, 3)["schema"] == "sigma-resume.cycle@draft-1"
+      and sorted(witness(2, 3)) == ["computation_id", "cycle_action_count", "cycle_cost", "entry_spent_total",
+                                    "entry_state_id", "schema"]
+      and shapes["unknown field"] == "INVALID_CYCLE_WITNESS: fields are not exactly the witness schema's"
       and shapes["more actions than cost"] == "INVALID_CYCLE_WITNESS: more actions than cost (every action costs at least 1)"
       and shapes["bad digest"].startswith("INVALID_CYCLE_WITNESS"), shapes)
 # §6 the profile

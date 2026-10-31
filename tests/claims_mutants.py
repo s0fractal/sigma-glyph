@@ -125,6 +125,7 @@ MUTANTS = [
     ("H22", KERNEL, "    if n > cost:\n", "    if False:\n", RESUME, ["R21"]),
     ("H23", KERNEL, 'RUNTIME_SEMANTICS_ID = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost"\n',
      'RUNTIME_SEMANTICS_ID = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost/2"\n', RESUME, ["R22"]),
+    ("H24", KERNEL, 'SCHEMA_CYCLE = "sigma-resume.cycle@draft-1"\n', 'SCHEMA_CYCLE = "sigma-resume.cycle@draft-2"\n', RESUME, ["R21"]),
 ]
 
 

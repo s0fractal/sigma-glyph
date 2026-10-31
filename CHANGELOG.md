@@ -55,7 +55,7 @@ Book I's in one `.warrant/claims.json` naming both documents (warrant-graph
 3.0.0a4). The claims checker (`claim/verifier`) and the review replayer are
 bound in `.warrant/v3.json`; CI re-executes their acceptances. The overlapped
 tests (admission, input boundary, receipt, lazy edges) are folded into Book I's
-witnesses (mutants G39–G42). 67 claims (Book I 44, sigma-resume 23), 62 backed, every cited mutant killed.
+witnesses (mutants G39–G42). 68 claims (Book I 44, sigma-resume 24), 63 backed, every cited mutant killed.
 The provider identity changes with the module docstrings (and with #72's).
 
 What stays is checked as before: Book I oracle, Rust engine (now the only other
