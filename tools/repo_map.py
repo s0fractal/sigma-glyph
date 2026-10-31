@@ -575,11 +575,11 @@ def selftest():
         else:
             identifier, ref_cell, path_cell = anchor
             here = subprocess.run(["git", "-C", str(clone), "ls-tree", "-r",
-                                   "--name-only", "HEAD", "proposals/"],
+                                   "--name-only", "HEAD", "spec/"],
                                   capture_output=True, text=True).stdout.split()
             real = here[0] if here else None
             if real is None:
-                failures.append("HEAD carries no proposals/ document to point a "
+                failures.append("HEAD carries no spec/ document to point a "
                                 "row at")
                 broken = present = original
                 target = None
@@ -594,7 +594,7 @@ def selftest():
                         f"`{path}` |", 1)
 
                 present = row(real)
-                broken = row("proposals/NOT-THERE.md")
+                broken = row("spec/NOT-THERE.md")
                 if present == original or broken == original:
                     failures.append("could not rewrite the anchor row")
 
