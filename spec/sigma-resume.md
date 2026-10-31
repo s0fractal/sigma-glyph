@@ -39,10 +39,11 @@ Book I's transition derives the leftmost-outermost demanded action from the tree
 it picks does not depend on the remaining budget: the budget only decides whether that action is affordable. The
 tree is therefore the whole operational state.
 
-**Segmentation invariance (MUST).** Any split of the same total credit into segments, none of which ends in a
-local outcome (§3), MUST reach the same state, spent and outcome as one segment with all of it. A local outcome is
-a host's decision about one segment (an admission ceiling, a fetch limit), not an answer, so a host's limits may
-stop a split run where one segment would not, or the other way round (Codex finding on #76).
+**Segmentation invariance (MUST).** Take any split of a total credit into segments, and one segment with all of
+it. When neither execution ends any segment in a local outcome (§3), both MUST reach the same state, spent and
+outcome. A local outcome is a host's decision about one segment (an admission ceiling, a fetch limit), not an
+answer, so a host's limits may stop a split run where one segment would not, or the other way round (Codex
+findings on #76).
 
 ## 3. advance(checkpoint, state, env, additional_credit)
 
