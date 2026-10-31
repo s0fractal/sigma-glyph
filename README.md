@@ -21,32 +21,25 @@ before reading untrusted terms or stores.
 The three-input form above is normative in Book I 0.6.0. Earlier README text
 incorrectly omitted the content environment even though the Lean model, Python
 implementation and unresolved-reference semantics already depended on it. The
-defect was found in external review and resolved in v0.7.0 through ADR-010; the
-dated finding remains at
-[`reviews/2026-08-codex-store-parameter.md`](reviews/2026-08-codex-store-parameter.md).
+defect was found in external review and resolved in v0.7.0 through ADR-010.
 
 ## What it establishes
 
-Σ-GLYPH owns deterministic reduction, content addressing, resume and bounded
-replay. [Warrant](https://github.com/s0fractal/warrant) owns records, closure,
-acceptance and authority. Two Warrant generations consume this repository, and
-they consume different things:
+Σ-GLYPH owns two things: **Book I** (deterministic reduction, content addressing,
+one ATP budget for work and memory) and **sigma-resume** (budgeted segments,
+checkpoints, resume and verification by replay). Everything else this
+repository once carried (Books II and III, the GOV-anchors governance, the
+Warrant 0.x apparatus, gate and review material) was retired on 2026-10-31;
+[`history/RETIREMENT-2026-10-ECHO.md`](history/RETIREMENT-2026-10-ECHO.md) says
+what left, why and where its bytes are.
 
-- **Warrant 2** (current warrant `master`) closes `compute` conditions by
-  replaying receipts through the installed `sigma_provider` module below. It
-  pins nothing here by commit; the recipient accepts a provider by the identity
-  of the bytes it executes.
-- **Warrant 0.x** (frozen at warrant tag `history/warrant-0.x-2026-10-18`,
-  `8feb335`) used `ski@v1` reasons with the Book I v0.5 evaluator bytes. The
-  pinned CI steps here still check that historical consumer (the X1 matrix was
-  retired on 2026-10-19); it no longer moves.
-
-Three implementations from one author/model lineage agree on all 49 Book I
-conformance vectors: the Python reference, Warrant's native Go evaluator and a
-from-scratch Rust implementation. Lean 4 checks determinism, totality, the
-semantic-size bound and valid-store monotonicity. This is strong internal
-conformance evidence, not independent custody, outside adoption, semantic truth
-or immunity of a binary to local faults.
+Two implementations agree on all 49 Book I conformance vectors and on generated
+terms: the Python reference and a from-scratch Rust implementation, from one
+author/model lineage (a third, Warrant 0.x's Go evaluator, left with Warrant
+0.x). Lean 4 checks determinism, totality, the semantic-size bound and
+valid-store monotonicity. This is strong internal conformance evidence, not
+independent custody, outside adoption, semantic truth or immunity of a binary to
+local faults.
 
 The cheapest attacks have repeatedly targeted the apparatus around the kernel:
 hidden theorem scope, weakened statements, omitted files and guards that stopped
@@ -60,30 +53,22 @@ From a checkout:
 
 ```bash
 python3 impl/sigma_glyph.py                     # Book I
-python3 tests/spec_conformance/run_reference.py # 49/49 vectors
-python3 impl/sigma_wave.py                      # Book II
-python3 impl/sigma_federation.py                # Book III
-export WARRANT="python3 /absolute/path/to/warrant-0.x/impl/warrant.py"   # warrant tag history/warrant-0.x-2026-10-18
+python3 tests/spec_conformance/run_reference.py # the conformance vectors
+python3 tests/resume_test.py                    # sigma-resume
 tools/test-all.sh                               # full repository suite
 ```
 
-The full suite includes a live Book III specimen that invokes the real Warrant
-verifier. `WARRANT` is an explicit cross-repository operand; the suite refuses
-to guess it from the checkout layout and fails before running if it is absent.
-
-From PyPI (latest release 0.7.0; see "Status by surface" below):
+From PyPI (latest release 0.8.0; see "Status by surface" below):
 
 ```bash
 pip install sigma-glyph
 python -m sigma_glyph
-python -m sigma_wave
-python -m sigma_federation
 ```
 
-The wheel contains the Python modules, not the replay corpora. Installed
-Book II/III self-tests therefore report recorded-vector replay as `SKIP` while
-still running their property checks. Full re-derivation needs a checkout. The
-artifact boundary and release procedure are in [`PUBLISHING.md`](PUBLISHING.md).
+The wheel contains the Python modules, not the replay corpora; full
+re-derivation needs a checkout. The artifact boundary and release procedure are
+in [`PUBLISHING.md`](PUBLISHING.md). The published 0.7.0 and 0.8.0 still ship
+`sigma_wave` and `sigma_federation`; the next distribution will not.
 
 ### The resume provider, installed
 
@@ -92,12 +77,12 @@ artifact boundary and release procedure are in [`PUBLISHING.md`](PUBLISHING.md).
 computation from a term, run a budgeted segment (PAUSED or a normal form or an
 explicit local refusal), resume from a checkpoint, verify a receipt by replay,
 verify a cycle witness. It is not normative Book I. It ships from 0.8.0
-(`pip install sigma-glyph==0.8.0` once that release is on PyPI), or build the
-wheel from a commit and install that file.
+(`pip install sigma-glyph==0.8.0`), or build the wheel from a commit and install
+that file.
 
 ```bash
 pip wheel --no-deps -w wheelhouse "git+https://github.com/s0fractal/sigma-glyph@<commit>"
-pip install wheelhouse/sigma_glyph-0.8.0-py3-none-any.whl
+pip install wheelhouse/sigma_glyph-*.whl
 python -m sigma_provider                          # self-test
 echo '{"sigma_provider":1,"op":"term","args":{"expr":"S K K (K I)"}}' | python -m sigma_provider serve
 ```
@@ -110,7 +95,7 @@ identity grants nothing.
 
 ## Status by surface
 
-Five things move separately here, and their labels are not interchangeable.
+Several things move separately here, and their labels are not interchangeable.
 Each paragraph names its authoritative source; when this section and that
 source disagree, the source is right. `tools/version_check.py` checks the two
 version headings below against `spec/ANCHORS.txt` and `pyproject.toml`.
@@ -120,8 +105,10 @@ version headings below against `spec/ANCHORS.txt` and `pyproject.toml`.
 **v0.7.0** (2026-08-30) is the newest adopted anchor set in
 [`spec/ANCHORS.txt`](spec/ANCHORS.txt): Book I 0.6.0, Books II and III 0.7.0,
 GOV-anchors 1.0.2. It was adopted by threshold warrant `0e634c17…46e1` (2-of-3,
-two distinct roster keys) over anchor set `abf10f2a…adf59`, recorded in
-`.warrants/`. The bundle makes the content environment and receipt explicit,
+two distinct roster keys) over anchor set `abf10f2a…adf59`, recorded in the
+Warrant 0.x store `.warrants/`, retired 2026-10-31 and kept at commit `96414ab`.
+The retired documents of the bundle are verified there by
+`tools/verify_anchors.py`. The bundle makes the content environment and receipt explicit,
 removes reference-oracle precedence, anchors all three suite schemas and admits
 at most one Pin per NodeHash in the annotation profile. Adoption records this
 project's own governance act; it does not claim outside review, custody or use.
@@ -135,14 +122,18 @@ not the adoption of 2026-08-30. Release history and exact changed anchors
 belong to [`CHANGELOG.md`](CHANGELOG.md), `spec/ANCHORS.txt` and
 [`spec/VERSIONS.md`](spec/VERSIONS.md).
 
-### Distribution: 0.8.0
+### Distribution: 0.9.0.dev0
 
-`pyproject.toml` carries **0.8.0**, the first distribution that ships
-`sigma_resume` and `sigma_provider` (the checked `resume`) next to the three
-Books. It is published only when a GitHub Release `v0.8.0` runs
-`.github/workflows/publish.yml`; until then PyPI has 0.7.0, and PyPI is right.
+`pyproject.toml` carries **0.9.0.dev0**: the next distribution ships Book I
+(`sigma_glyph`) and the resume kernel and provider (`sigma_resume`,
+`sigma_provider`), without the retired Book II and III modules. Nothing is
+published until a GitHub Release runs `.github/workflows/publish.yml`.
 
-`sigma-glyph` **0.7.0** (2026-09-17) is the latest PyPI release before it, built from git
+`sigma-glyph` **0.8.0** is the latest PyPI release: the first that ships
+`sigma_resume` and `sigma_provider` (the checked `resume`), next to the three
+Books' modules. PyPI is right about what it holds.
+
+`sigma-glyph` **0.7.0** (2026-09-17), the release before it, was built from git
 tag `v0.7.0` (commit `9d10bbc…`) by `.github/workflows/publish.yml`. It packages the adopted v0.7.0 bundle
 (Book I 0.6.0, Books II and III 0.7.0), so an installed copy is no longer one
 bundle behind — the first release for which that is true since the bundle was
@@ -152,62 +143,22 @@ installed modules are byte-identical to `impl/` at the tag.
 [`PUBLISHING.md`](PUBLISHING.md) owns the release procedure; if it and PyPI
 disagree, PyPI is right.
 
-### Evaluator bytes and Warrant runtime tags (Warrant 0.x, historical)
-
-This section describes the frozen Warrant 0.x consumer. Warrant 2 has no
-runtime tags; see "What it establishes". Two Book I Python modules exist, and
-they are not interchangeable:
-
-- `git show v0.6.7:impl/sigma_glyph.py`, byte-identical to the module inside
-  PyPI 0.6.7 (SHA-256 `80299d68…7bab5`), implements Book I v0.5. Warrant pins
-  exactly these bytes as its `ski@v1` evaluator and checks the digest before
-  import, so `ski@v1` does not move when this repository does — and it does not
-  follow this distribution either: `pip install sigma-glyph` gets 0.7.0 or later,
-  which is **not** the `ski@v1` module.
-- `impl/sigma_glyph.py` on `master` implements Book I 0.6.0, the v0.7.0
-  bundle, and is the module inside PyPI 0.7.0 (SHA-256 `f4d9990d…3feb4`). No
-  Warrant runtime tag reaches it. `ski@v2` is reserved for Book I
-  0.6.0 in Warrant's `SPEC.md` §3.2 but registered and admitted in no body
-  version; body version `0.3` is reserved and unspecified; Warrant ships no
-  `ski@v2` evaluator, and a conforming verifier rejects `ski@v2` today.
-  Admitting it is a future Warrant registration act, not something this
-  repository can do by editing or releasing.
-
-The five surfaces above are also readable as one machine-readable document,
-recomputed from bytes on the run that prints it:
-
-```bash
-python3 tools/evidence_view.py --warrant /absolute/path/to/warrant
-```
-
-That view is a projection of the sources named in this section, not a second
-truth table: it adopts, releases, registers and admits nothing, and without the
-explicit Warrant operand its Warrant-owned half is typed `unavailable` rather
-than guessed. [`tools/README.md`](tools/README.md) describes what it does and
-does not assert.
-
-## The Three Books
+## The specification
 
 | Document | Status | Owns |
 |---|---|---|
 | [`Book I — Truth`](spec/book-1-truth.md) ([EN](spec/book-1-truth.en.md)) | Normative | canonical bytes, SHA-256 identity, SKI normal-order reduction, ATP totalization, content resolution, C1 compiler profile |
-| [`Book II — Navigation`](spec/book-2-navigation.md) | Normative | detached WaveVectorQ annotations, pinned LUT, interference and coordinate rules; never identity |
-| [`Book III — Federation`](spec/book-3-federation.md) | Normative | Warrant-backed annotation assertions, selection policies and permanent jurisdictional divergence |
-| [`GOV anchors`](spec/GOV-anchors.md) | Normative meta | adopted anchor sets, threshold warrants, succession and fork legitimacy |
+| [`sigma-resume`](spec/drafts/sigma-resume-draft-1.md) | Draft | budgeted segments, checkpoints, resume, receipts verified by replay, cycle witnesses |
 
-The wave layer is an optional view over identity. Ignore Books II and III and
-Book I still holds. [`spec/GLOSSARY.md`](spec/GLOSSARY.md) fixes the local meaning
-of work, size, memory and materialization;
-[`WHY-THESE-THREE.md`](WHY-THESE-THREE.md) explains why determinism, addressing
-and one semantic bound are combined; [`spec/LORE.md`](spec/LORE.md) is explicitly
-non-normative.
+[`spec/GLOSSARY.md`](spec/GLOSSARY.md) fixes the local meaning of work, size,
+memory and materialization; [`WHY-THESE-THREE.md`](WHY-THESE-THREE.md) explains
+why determinism, addressing and one semantic bound are combined.
 
 ## Implement and verify
 
-`impl/sigma_glyph.py` is the Book I Python reference. `impl/sigma_wave.py` is
-Book II. Book III has Python and Go implementations. `impl-rs/` independently
-implements Book I within the same author/model lineage; `impl-go/` in this repo
-implements Books II and III only.
+`impl/sigma_glyph.py` is the Book I Python reference and `impl/sigma_resume.py`
+the resumable kernel. `impl-rs/` independently implements Book I (and
+`impl-rs/wasm-resume/` the resume kernel) within the same author/model lineage.
 
 ```bash
 (cd impl-rs && cargo build --release)
@@ -222,9 +173,9 @@ Every adopted specification byte set is detached in
 [`spec/ANCHORS.txt`](spec/ANCHORS.txt); a specification update is an explicit
 fork, not a mutable page edit.
 
-For AI or human review, read [`reviews/README.md`](reviews/README.md), run the
-reference suite first, and attack one exact claim/operand boundary. Green tests
-are baseline evidence, not an independent gate or governance adoption.
+For AI or human review, run the reference suite first and attack one exact
+claim/operand boundary. Green tests are baseline evidence, not an independent
+gate or governance adoption.
 
 ## Published evidence
 
@@ -237,7 +188,8 @@ are baseline evidence, not an independent gate or governance adoption.
 - *Does One Integer Still Price Work and Memory in Parallel?* —
   [Zenodo 10.5281/zenodo.22073568](https://doi.org/10.5281/zenodo.22073568), a
   preregistered experiment: the aggregate bound survived the measured parallel
-  reducer while per-redex refusal did not. See [`experiments/exp-004/`](experiments/exp-004/).
+  reducer while per-redex refusal did not. Its harness (`experiments/exp-004/`)
+  is kept at commit `96414ab` and in the deposit.
 
 Prior eras and their historical hashes are preserved in git history and in the
 deposited snapshot, not in the default tree: `history/` holds the retirement

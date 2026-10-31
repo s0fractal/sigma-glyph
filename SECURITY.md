@@ -42,16 +42,12 @@ The things this project asks you to trust:
 - **Non-determinism, non-totality, or an escaped budget.** An input that hangs,
   that consumes more than `atp` allows, or that violates
   `materialized size − 1 ≤ spent`.
-- **The wave layer deciding identity.** Book II is a view over identity and never
-  part of it. Anything that lets a wave, a coordinate or an annotation change a
-  NodeHash or a verification outcome breaks the invariant the whole stack rests
-  on, and is a P0 regardless of how narrow it looks.
+- **Resume diverging from a straight run.** A checkpoint that, resumed from your
+  own root, reaches a different normal form, spend or receipt than running the
+  term in one segment; a receipt that verifies by replay when it should not.
 - **Canonical bytes.** Two distinct byte sequences accepted as the same object, or
   a canonical object rejected; non-canonical blobs admitted where the text
   requires rejection.
-- **Governance (GOV-anchors).** A release adopted without its threshold, a roster
-  member removed unilaterally, a jurisdiction deadlocked with no recovery, or an
-  anchor chain that accepts a forged ancestor.
 - **The Lean chain.** A theorem whose statement does not mean what the prose says
   it means, or a bridge that compares the model against something other than the
   oracle.
@@ -60,36 +56,24 @@ The things this project asks you to trust:
 
 Not because it does not matter, but because it is a **stated boundary of the
 threat model** rather than a defect. The boundary is defined in one place —
-[SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md) — as ten scoped assumptions
-(`SA-1` … `SA-10`) and seven explicit non-goals (`NG-1` … `NG-7`), each with its
-reasoning. That document is where they live; this list points at the ones a
+[SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md) — as scoped assumptions
+(`SA-n`) and explicit non-goals (`NG-n`), each with its reasoning. That document is where they live; this list points at the ones a
 reporter hits most often:
 
 - **`native_decide` is in the trusted base** for part of the Lean chain, which
   puts the compiler there too. `C1Compiler.lean` does not use it. (SA-1)
-- **Warrant verification is an external machine boundary.** A source-only
-  checkout needs the pinned Warrant 0.x CLI; nothing here re-derives Warrant
-  semantics locally. (SA-3)
-- **Book III accepts a JCS-equivalent non-canonical assertion blob**; the v0.6.6
-  fix narrowed this to the governance verifier only. Deferred and stated. (SA-4)
-- **LORE.md is non-normative.** Disagreeing with the naming or the cosmology is
-  welcome and is not a specification defect. (NG-7)
 - Local resource faults are not canonical failures — that distinction is
   specified, not a bug (see Book I on `DISSONANCE` versus `ResourceFault`). (NG-6)
-- **Governance declines to decide some things on purpose**: it will not pick a
-  winner between rival adoptions (the chain freezes), will not prevent a fork,
-  and will not recover a jurisdiction that has deadlocked below quorum.
-  (NG-1, NG-3, NG-4)
 
 A report showing that any of these is *worse than stated* is in scope and is the
 most valuable thing this project receives; one restating it is not.
 
 ## Severity, as this project ranks it
 
-The ladder used in `reviews/` and in the gate policy:
+The ladder this project's reviews use:
 
-- **P0** — two conforming nodes can disagree on a result hash; or the wave layer
-  affects identity; or something forged reads as verified.
+- **P0** — two conforming nodes can disagree on a result hash; or a resumed
+  computation disagrees with a straight run; or something forged reads as verified.
 - **P1** — the specification is silent where an implementer must guess.
 - **P2** — clarity, structure, misleading output.
 - **P3** — roadmap.
@@ -114,6 +98,5 @@ tools/test-all.sh          # the full matrix; a skipped surface exits 2, not ALL
 If a document and a command disagree, the command is right. Several reports
 against this project have been artefacts of reading a feature branch, an archived
 evidence blob, or truncated output rather than the thing itself; `MAP.md` says
-which ref holds what, `reviews/README.md` lists settled points, and
-`SECURITY-ASSUMPTIONS.md` states the known boundaries so you do not spend a pass
+which ref holds what, and `SECURITY-ASSUMPTIONS.md` states the known boundaries so you do not spend a pass
 rediscovering them.

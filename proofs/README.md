@@ -19,46 +19,9 @@ The assurance stack for Book I's normative memory bound
 3. **Pinned end results** — the conformance vectors and property P7
    (`tests/spec_conformance/`).
 
-## Book II wave algebra (`WaveAlgebra.lean`)
-
-The §5 `interfere()` integer algebra is mechanized against the generated
-LUT (`LutData.lean`, written by `gen_lut_lean.py`, which imports the
-oracle's table and therefore inherits the Book II §4 SHA-256 arbiter
-fail-fast; encoded as a string literal because a 32769-element array
-literal elaborates quadratically). Theorems:
-
-- `interfere_valid` — **range closure**: valid operands give valid results
-  (the §3 width guarantee behind the int64 implementer note);
-- `zero_amp_cascade` — §6.2's "the zero-amplitude cascade is a theorem",
-  now literally one;
-- `left_dominance_ph` — §5.2 Law of Left Dominance;
-- `crystallization` — §5.1 Resonance Identity: the unique non-zero fixed
-  point of self-interference is `{am = 65535, en = −32768}` (phase free);
-- `fold_not_associative` / `not_commutative` — the ADR-006 fold killer and
-  Left Dominance as machine-checked witnesses (FV-FOLD-UNSOUND operands).
-
-**Bridge** — `wave_bridge_check.py`: (a) `LutData.lean` regenerates
-byte-identically; (b) no `sorry`/`axiom` sneaks past `lean`'s exit code;
-(c) the Lean `interfere` (executed via `WaveRun.lean`) agrees with the
-live oracle on a 582-case deterministic boundary grid incl. the
-crystallization point, the FV-FOLD-UNSOUND triple and negative-tie
-parities. Run: `python3 proofs/wave_bridge_check.py`.
-
-TCB honesty (sharpened by the Kimi v0.6.4 focused review): the base LUT
-facts (`lut_range`, `lut_zero`, `lut_size`), the 65536-case amplitude
-fixed-point scan (`am_fixed_scan`) and the concrete `divRoundHalfUp`
-witnesses use `native_decide`, which adds the Lean compiler to the trusted
-base. The interference theorems are *reasoning*-symbolic but not
-TCB-independent: `interfere_valid` consumes `lut_range`, `zero_amp_cascade`
-and `crystallization` consume `lut_zero`/`native_decide` witnesses — so
-their soundness transitively rests on the compiler too. Only the pure
-integer lemmas of this file (the `divRoundHalfUp` bounds, `clamp_range`,
-`prod01_bounds`, `af_bounds`) and `left_dominance_ph` (via
-`Int.emod_eq_of_lt`) are fully kernel-checked with no `native_decide` in
-their dependency cone. (`size_pos` is the evaluator's size lemma and lives in
-`EvalMachine.lean`, not here — this list named it by mistake until a 2026-07
-review checked the attribution.) The differential bridge is the empirical check
-that the Lean `interfere` is the oracle's, independent of the TCB question.
+Book II's wave algebra (`WaveAlgebra.lean`, `LutData.lean`, `WaveRun.lean` and its bridge) was retired with
+Book II on 2026-10-31 (history/RETIREMENT-2026-10-ECHO.md): with no oracle to bridge to, it would state facts
+about a model nobody runs.
 
 ## Book I byte-level machine correspondence (`MachineBytes.lean` + `Sha256.lean`)
 
@@ -161,7 +124,7 @@ budget-respecting Lean function IS the oracle on the whole pinned surface.
 TCB honesty: all eleven guarded evaluator theorems are **fully kernel-checked**
 — `propext`/`Classical.choice`/`Quot.sound` only, and the guard's allowed-axiom
 set for this front is exactly that standard set: no `native_decide`, so the
-Lean *compiler* is not in this front's trusted base (unlike the wave and
+Lean *compiler* is not in this front's trusted base (unlike the
 byte-level genesis facts). What is NOT proved here: that the Lean model is the
 oracle — that is the differential's job, on 33 vectors, not a theorem; and that
 the `.dis rATP` / `.dis rUnres` leaves carry the spec's reason strings, which is
@@ -188,7 +151,7 @@ before A-3), and `c1`. Theorems:
 TCB: these are **fully kernel-checked** — every one of the five depends on
 `propext` alone, and the guard's allowed-axiom set for this front is exactly
 `{propext}` (not the broader standard set), so the documented claim and the
-enforced claim are the same sentence. The compiler behind the `Sha256`/wave
+enforced claim are the same sentence. The compiler behind the `Sha256`
 `native_decide` facts is NOT in this front's trusted base.
 
 **Bridge** — `c1_bridge_check.py`: source + environment guard (hard exit 2 if
@@ -203,9 +166,9 @@ applications too, and the model didn't.) Run: `python3 proofs/c1_bridge_check.py
 
 ## Mechanization status
 
-The three ROADMAP formal-verification targets are covered — the Book I
-memory bound (`SizeBound`), the Book II wave algebra (`WaveAlgebra`), Book I
-byte-level correspondence (`MachineBytes`/`Sha256`) — plus a fourth: the
+The Book I formal-verification targets are covered — the memory bound
+(`SizeBound`) and byte-level correspondence (`MachineBytes`/`Sha256`); the
+Book II wave algebra was covered until Book II was retired — plus the
 **Book I evaluator** (`EvalMachine`), giving Qwen's requested
 determinism/totality (definitional) with the budget bound as a theorem and a
 33-vector oracle differential. The Lean reduction relation *contains* redex
@@ -246,7 +209,7 @@ about that file: [`GUARD_CLAIMS.txt`](GUARD_CLAIMS.txt)):
    must lie inside that front's allowed set: the standard axioms (`propext`,
    `Classical.choice`, `Quot.sound`) — `{propext}` alone for C1 — plus
    `native_decide` trust axioms only for the theorems whose documented TCB
-   already includes the compiler (the wave theorems, the byte-level genesis
+   already includes the compiler (the byte-level genesis
    pins) **and only when the axiom was generated by a declaration on that
    front's claimed `native_decide_sources` list**, each of which is itself
    queried and statement-pinned. A trust axiom used to be accepted on its
@@ -393,10 +356,10 @@ than copying any of it.
 
 * **Which fronts have a Lean-executing differential, precisely.** An earlier
   version of this section named the four differentials as the control for
-  definition drift. Three of the four do run the compiled Lean model:
-  `byte_bridge_check.py` (334 buffers through `BytesRun.lean`),
-  `eval_bridge_check.py` (33 vectors through `EvalRun.lean`) and
-  `wave_bridge_check.py` (582 cases through `WaveRun.lean`). The other two do
+  definition drift. Two of them run the compiled Lean model:
+  `byte_bridge_check.py` (334 buffers through `BytesRun.lean`) and
+  `eval_bridge_check.py` (33 vectors through `EvalRun.lean`); a third,
+  `wave_bridge_check.py`, was retired with Book II. The other two do
   **not** run Lean beyond the guard: `bridge_check.py`'s 861 steps drive
   `impl/sigma_glyph.py` against the SizeBound *premise* (a cross-check of the
   Python oracle, not of the Lean file), and `c1_bridge_check.py`'s 3000 λ-terms

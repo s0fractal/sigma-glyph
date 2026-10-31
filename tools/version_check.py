@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Do the six version numbers in this repository agree with each other?
 
-There are six, in three schemes: each Book's own `**Version:**`, GOV-anchors'
+There are six, in three schemes: Book I's own `**Version:**`, GOV-anchors'
 document version, the conformance suites' `spec_version`, the suite package's
 `suite_version`, and the `vX.Y.Z` release bundle in `spec/ANCHORS.txt`. Nothing
 stated how they relate, so nothing could be wrong — and two of them are.
@@ -20,12 +20,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+sys.path.insert(0, str(ROOT / "tools"))
+from verify_anchors import read as anchored_bytes   # noqa: E402  (a retired anchored file: at its retirement's commit)
+
 BOOK_I = "Book I"
-BOOK_II = "Book II"
-BOOK_III = "Book III"
-BOOKS = {BOOK_I: "spec/book-1-truth.md",
-         BOOK_II: "spec/book-2-navigation.md",
-         BOOK_III: "spec/book-3-federation.md"}
+BOOKS = {BOOK_I: "spec/book-1-truth.md"}            # Books II and III retired 2026-10-31
 # Every anchored document that carries its own `**Version:**`, for the bundle
 # convention's example. It used to be readable only for Books, so illustrating
 # the convention with a document that does not move when a Book does -- which is
@@ -47,7 +46,7 @@ KNOWN = {}
 
 
 def book_version(path: str) -> str:
-    text = (ROOT / path).read_text()
+    text = anchored_bytes(path, str(ROOT))[0].decode()
     found = re.search(r'^\*\*Version:\*\* *(\d+(?:\.\d+)*)', text, re.M)
     return found.group(1) if found else ""
 
@@ -72,9 +71,7 @@ def top_bundle() -> str:
 
 def check_suite_versions(problems: list[str]) -> int:
     """Each suite says which Book it conforms to. It should be that Book's."""
-    pairs = (("tests/spec_conformance/vectors.json", BOOK_I),
-             ("tests/spec_conformance/wave_vectors.json", BOOK_II),
-             ("tests/spec_conformance/federation_vectors.json", BOOK_III))
+    pairs = (("tests/spec_conformance/vectors.json", BOOK_I),)
     checked = 0
     for path, book in pairs:
         declared = json.loads((ROOT / path).read_text()).get("spec_version")

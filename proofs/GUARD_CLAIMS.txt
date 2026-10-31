@@ -43,7 +43,7 @@
 # the registry can edit this file too. What it buys is that the edit is loud
 # and names the theorem, instead of hiding inside a 30 000-line pin file.
 
-pins-sha256 2b4cd70a064fa6ea889ec597ee14b545aa6063d744c63f038df028ab1c36f992
+pins-sha256 d699eb252d6e9e9fff7687618a4521d419e3ada3e7b435fcb65929b1e4de987b
 
 core-modules Init Lean Std
 
@@ -109,29 +109,6 @@ front eval guarded EvalMachine.evalHash_peak_size
 front eval native-decide-ok
 front eval native-decide-sources
 
-front wave build LutData WaveAlgebra
-front wave modules WaveAlgebra
-front wave strict-sources LutData.lean WaveAlgebra.lean
-front wave runner-sources WaveRun.lean
-front wave axioms propext Classical.choice Quot.sound
-front wave guarded WaveAlgebra.interfere_valid
-front wave guarded WaveAlgebra.zero_amp_cascade
-front wave guarded WaveAlgebra.left_dominance_ph
-front wave guarded WaveAlgebra.crystallization
-front wave guarded WaveAlgebra.fold_not_associative
-front wave guarded WaveAlgebra.not_commutative
-front wave native-decide-ok WaveAlgebra.interfere_valid
-front wave native-decide-ok WaveAlgebra.zero_amp_cascade
-front wave native-decide-ok WaveAlgebra.crystallization
-front wave native-decide-ok WaveAlgebra.fold_not_associative
-front wave native-decide-ok WaveAlgebra.not_commutative
-front wave native-decide-sources WaveAlgebra.am_fixed_scan
-front wave native-decide-sources WaveAlgebra.crystallization
-front wave native-decide-sources WaveAlgebra.fold_not_associative
-front wave native-decide-sources WaveAlgebra.lut_range
-front wave native-decide-sources WaveAlgebra.lut_zero
-front wave native-decide-sources WaveAlgebra.not_commutative
-front wave native-decide-sources WaveAlgebra.zero_amp_cascade
 
 front c1 build C1Compiler
 front c1 modules C1Compiler
@@ -153,15 +130,3 @@ unguarded EvalMachine.Extends.trans
 unguarded MachineBytes.append_inj'
 unguarded MachineBytes.take_length_append
 unguarded MachineBytes.drop_length_append
-unguarded WaveAlgebra.lut_size
-unguarded WaveAlgebra.lut_range
-unguarded WaveAlgebra.lut_zero
-unguarded WaveAlgebra.dr_nonneg
-unguarded WaveAlgebra.dr_le_65535
-unguarded WaveAlgebra.dr_le_65534
-unguarded WaveAlgebra.dr_cancel_65535
-unguarded WaveAlgebra.dr_double
-unguarded WaveAlgebra.clamp_range
-unguarded WaveAlgebra.prod01_bounds
-unguarded WaveAlgebra.af_bounds
-unguarded WaveAlgebra.am_fixed_scan

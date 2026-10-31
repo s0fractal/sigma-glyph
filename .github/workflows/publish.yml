@@ -60,8 +60,7 @@ jobs:
           python -m venv /tmp/sv
           /tmp/sv/bin/pip install dist/*.whl
           ( cd /tmp && /tmp/sv/bin/python -m sigma_glyph      | tail -1 )
-          ( cd /tmp && /tmp/sv/bin/python -m sigma_wave       | tail -1 )
-          ( cd /tmp && /tmp/sv/bin/python -m sigma_federation | tail -1 )
+          ( cd /tmp && /tmp/sv/bin/python -m sigma_provider   | tail -1 )
 
       # The gate is checked before it is trusted: its classifier is driven
       # against the two real 0.6.6 failures (a FAIL line and a traceback) and
@@ -77,6 +76,7 @@ jobs:
       #   python -m sigma_wave         FAIL wave_vectors.json present (exit 1, 13/14)
       #   python -m sigma_federation   FileNotFoundError traceback    (exit 1)
       #
+      # (sigma_wave and sigma_federation were retired after 0.8.0.)
       # Not one of those was a real failure: the replay corpora live in
       # `tests/spec_conformance/` and the wheel ships three modules and nothing
       # else. The self-tests now announce that as an explicit SKIP with the
@@ -88,9 +88,9 @@ jobs:
       # package data the gate flips to demanding the replay actually RAN.
       #
       # HONEST SCOPE: the wheel is the Python reference implementation only.
-      # The Rust and Go implementations, the proof guard and the anchors are
-      # gated by ci.yml and tools/test-all.sh against the checkout, and the
-      # Warrant 2 consumer by cross-repo.yml; nothing here re-proves them.
+      # The Rust implementation, the proof guard and the anchors are gated by
+      # ci.yml and tools/test-all.sh against the checkout; nothing here
+      # re-proves them.
       # The OIDC publish path itself cannot be exercised anywhere but here.
       - name: The wheel behaves as the docs say
         run: python3 tools/check_release_surface.py --wheel "$(ls dist/*.whl)" --bin /tmp/sv/bin

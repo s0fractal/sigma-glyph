@@ -36,10 +36,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
     ("tests/spec_conformance/vectors.json",
      "spec/schemas/book1-conformance.schema.json"),
-    ("tests/spec_conformance/wave_vectors.json",
-     "spec/schemas/book2-wave-conformance.schema.json"),
-    ("tests/spec_conformance/federation_vectors.json",
-     "spec/schemas/book3-federation-conformance.schema.json"),
 ]
 
 TYPES = {"object": dict, "array": list, "string": str, "boolean": bool,

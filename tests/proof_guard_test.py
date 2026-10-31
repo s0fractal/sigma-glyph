@@ -473,7 +473,7 @@ def main():
 
     def demoted():
         p = json.loads(json.dumps(real))
-        t = p["fronts"]["wave"]["guarded"].pop()
+        t = p["fronts"]["bytes"]["guarded"].pop()
         p["unguarded"][t] = "covered by the differential (a plausible reason)"
         return p, t
 
@@ -490,18 +490,18 @@ def main():
     # and the entire GUARD_CLAIMS.txt diff was the machine-written
     # `pins-sha256` line. Identity claims name both halves of the swap.
     p = json.loads(json.dumps(real))
-    victim = "WaveAlgebra.crystallization"
-    p["fronts"]["wave"]["guarded"] = [
-        x for x in p["fronts"]["wave"]["guarded"] if x != victim
-    ] + ["WaveAlgebra.placeholder_bound"]
-    p["fronts"]["wave"]["native_decide_ok"] = [
-        x for x in p["fronts"]["wave"]["native_decide_ok"] if x != victim]
+    victim = "MachineBytes.genesis_K"
+    p["fronts"]["bytes"]["guarded"] = [
+        x for x in p["fronts"]["bytes"]["guarded"] if x != victim
+    ] + ["MachineBytes.placeholder_bound"]
+    p["fronts"]["bytes"]["native_decide_ok"] = [
+        x for x in p["fronts"]["bytes"]["native_decide_ok"] if x != victim]
     probs = proof_guard.registry_guard(p)
     check("F18 a count-preserving demotion names the DROPPED theorem",
           any(f"claims '{victim}'" in x and "guarded" in x for x in probs),
           str(probs))
     check("F18 a count-preserving demotion names the ADDED theorem",
-          any("WaveAlgebra.placeholder_bound" in x and "does not claim" in x
+          any("MachineBytes.placeholder_bound" in x and "does not claim" in x
               for x in probs), str(probs))
     check("F18 it also names the dropped native-decide-ok entry",
           any(f"claims '{victim}'" in x and "native-decide-ok" in x
@@ -510,24 +510,24 @@ def main():
     # F18: the fields that had no claim at all
     for field, key, mutate in [
             ("build", "build",
-             lambda f: f.__setitem__("build", ["WaveAlgebra"])),
+             lambda f: f.__setitem__("build", ["MachineBytes"])),
             ("modules", "modules",
-             lambda f: f.__setitem__("modules", ["LutData"])),
+             lambda f: f.__setitem__("modules", ["Sha256"])),
             ("allowed_axioms", "axioms",
              lambda f: f["allowed_axioms"].append("Sneaky.axiom")),
             ("native_decide_ok", "native-decide-ok",
-             lambda f: f["native_decide_ok"].append("WaveAlgebra.lut_size")),
+             lambda f: f["native_decide_ok"].append("MachineBytes.deser_wf")),
             ("native_decide_sources", "native-decide-sources",
-             lambda f: f["native_decide_sources"].append("WaveAlgebra.lut_size")),
+             lambda f: f["native_decide_sources"].append("MachineBytes.deser_wf")),
             ("strict_sources", "strict-sources",
-             lambda f: f.__setitem__("strict_sources", ["WaveAlgebra.lean"])),
+             lambda f: f.__setitem__("strict_sources", ["MachineBytes.lean"])),
             ("runner_sources", "runner-sources",
              lambda f: f.__setitem__("runner_sources", []))]:
         p = json.loads(json.dumps(real))
-        mutate(p["fronts"]["wave"])
+        mutate(p["fronts"]["bytes"])
         probs = proof_guard.registry_guard(p)
         check(f"F18 an edit to `{field}` produces a named claim failure",
-              any(f"wave' {key}" in x for x in probs), str(probs))
+              any(f"bytes' {key}" in x for x in probs), str(probs))
 
     p = json.loads(json.dumps(real))
     p["core_modules"] = p["core_modules"] + ["Mathlib"]
@@ -568,14 +568,15 @@ def main():
     # reviewer's three restorations began by SHRINKING `build`, which the
     # missing direction (compiled ⊆ build, and modules ⊆ build) now catches
     # even before the derived scope does.
-    for name, shrunk in [("wave", ["LutData"]),
-                         ("bytes", ["MachineBytes"]),
-                         ("size", ["LutData"])]:
+    # (The reviewer's shapes named LutData, a module of the Book II front retired 2026-10-31; MachineBytes
+    # plays its part: another front's module the shrunk build compiles instead.)
+    for name, shrunk in [("bytes", ["MachineBytes"]),
+                         ("size", ["MachineBytes"])]:
         p = json.loads(json.dumps(real))
         p["fronts"][name]["build"] = shrunk
         if name == "size":                      # the reviewer's exact shape
             p["fronts"][name]["strict_sources"] = ["SizeBound.lean",
-                                                   "LutData.lean"]
+                                                   "MachineBytes.lean"]
         probs = proof_guard.registry_guard(p)
         check(f"F17 shrinking front {name!r}'s `build` is a hard failure "
               "(a strict source that is never compiled)",

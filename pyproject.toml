@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sigma-glyph"
-version = "0.8.0"
+version = "0.9.0.dev0"
 description = "A deterministic content-addressed check engine with bounded work and semantic materialization."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,7 +21,7 @@ classifiers = [
 ]
 # The reference implementation is deliberately stdlib-only (QUICKSTART:
 # "Three commands to trust nothing"). `cryptography` is used only by the
-# governance/signing helpers under tools/, which are not part of this package.
+# signing helpers under tools/, which are not part of this package.
 dependencies = []
 
 [project.urls]
@@ -29,12 +29,12 @@ Homepage = "https://github.com/s0fractal/sigma-glyph"
 Repository = "https://github.com/s0fractal/sigma-glyph"
 Changelog = "https://github.com/s0fractal/sigma-glyph/blob/master/CHANGELOG.md"
 
-# The repo keeps its flat impl/ layout; the three Books install as three
-# top-level modules, so `import sigma_glyph` works and
-# `python -m sigma_glyph` runs the same self-test as `python3 impl/sigma_glyph.py`.
-# sigma_resume (DRAFT resumable kernel) and sigma_provider (its consumer surface
-# and process protocol) install the same way, from the same files.
-# 0.8.0 is the first distribution that ships sigma_resume and sigma_provider.
+# The repo keeps its flat impl/ layout; Book I installs as a top-level module,
+# so `import sigma_glyph` works and `python -m sigma_glyph` runs the same
+# self-test as `python3 impl/sigma_glyph.py`. sigma_resume (DRAFT resumable
+# kernel) and sigma_provider (its consumer surface and process protocol)
+# install the same way, from the same files. Books II and III (sigma_wave,
+# sigma_federation) were retired after 0.8.0 (history/RETIREMENT-2026-10-ECHO.md).
 [tool.setuptools]
 package-dir = { "" = "impl" }
-py-modules = ["sigma_glyph", "sigma_wave", "sigma_federation", "sigma_resume", "sigma_provider"]
+py-modules = ["sigma_glyph", "sigma_resume", "sigma_provider"]

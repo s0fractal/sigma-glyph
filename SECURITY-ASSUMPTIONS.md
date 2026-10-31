@@ -1,9 +1,7 @@
 # Security assumptions and non-goals
 
-**Status: informative, not adopted.** Adoption is a threshold warrant signed by
-roster keys (`AGENTS.md` rule 2) and has not happened for this document. Where
-this file and a Book or `spec/GOV-anchors.md` disagree, the specification is
-normative and this file is the defect.
+**Status: informative, not adopted.** Where this file and Book I disagree, Book I
+is normative and this file is the defect.
 
 ## What this document is
 
@@ -18,8 +16,8 @@ caught at it four times: this file covers the residuals those two files used to
 list, plus the repository-level statement of the proof-chain assumptions. It is
 **not** a claim that every limit of Σ-GLYPH is enumerated here. `proofs/README.md`
 remains the source of truth for per-front proof detail and is deliberately not
-copied; the Books state limits inline where they are normative; `reviews/` and the
-retirement ledgers in `history/` hold findings never promoted to either. A limit stated somewhere else and absent here
+copied; Book I states limits inline where they are normative; the retirement
+ledgers in `history/` hold findings never promoted to either. A limit stated somewhere else and absent here
 is a defect in this file.
 
 Read it the way a standards reader reads a security-considerations section. Every
@@ -49,6 +47,9 @@ One sentence, because everything below bounds it:
 
 ## Scoped assumptions
 
+**Retired 2026-10-31** with Books II and III, GOV-anchors, the Warrant 0.x apparatus and LORE (history/RETIREMENT-2026-10-ECHO.md): SA-3, SA-4, SA-5, SA-5b, SA-7, NG-1, NG-2, NG-3, NG-4, NG-7. Their text is at commit `96414ab`; the identifiers are not reused.
+
+
 ### SA-1. Part of the Lean chain assumes the compiler, not only the kernel
 
 `native_decide` is in the trusted base for part of the mechanized chain, so those
@@ -71,94 +72,6 @@ run the compiled Lean model, two do not run Lean beyond the guard, and no
 differential can exercise a `Prop`-valued definition, which is exactly where each
 theorem's hypotheses live. Definition drift is caught by pins, not by
 differentials.
-
-### SA-3. Warrant verification is an external machine boundary
-
-Sigma-Glyph deliberately does not ship an independent partial Warrant verifier.
-`.warrants/` is Warrant 0.x format and is verified by the pinned Warrant 0.x
-CLI itself (ci.yml, `WARRANT_PIN`). A source-only Sigma-Glyph checkout therefore
-cannot audit `.warrants/` without that pinned CLI. (The fail-closed
-`warrant_gate.py` connector over its report was retired on 2026-10-19; see
-`history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`.)
-This is a dependency boundary, not an alternate local interpretation of Warrant
-semantics.
-
-### SA-4. Book III admits a JCS-equivalent but non-canonical assertion blob
-
-`sigma_federation.py` does not compare raw bytes against `canon(parsed)`. The
-v0.6.6 governance fix (GOV 1.0.2 byte-canonicality) covered the **governance**
-verifier only.
-
-Deferred to the settlement-integration layer, which is the layer now being built.
-Until then, a Book III consumer must not infer byte-canonicality from acceptance.
-
-### SA-5. A threshold assumes independent custody; this one has not had it
-
-Governance is 2-of-3 (`spec/GOV-anchors.md` §5). Counted rather than
-characterised:
-
-- Counted 2026-07-28, at 50 records: the threshold had been exercised **five
-  times** — the v0.6.2 – v0.6.6 anchor-set adoptions — and nothing else in the
-  store carried a second signature.
-- **Three of the five** pair `claude-fable-5` with `codex`. Those two keys sat in
-  one directory on one host as of 2026-07-28 (warrant's
-  `policies/gate-settlement.json`, `custody`), so any process there could sign as
-  both. **Two signatures from one host are one custody**, and a report calling
-  them a 2-of-3 quorum makes a false claim.
-- The other two pair `claude-fable-5` with the founder key `s0fractal@sigma-glyph`.
-- Since that count, two more adoptions carry two signatures: v0.6.7
-  (2026-07-31, `s0fractal` + `claude-fable-5`) and v0.7.0 (2026-08-30, `codex`
-  + `s0fractal`). Seven in 53 records as of 2026-09-04; recount from
-  `.warrants/records/` rather than from this paragraph. SA-5b below says where
-  the `codex` and `s0fractal` keys sit.
-
-So where a document describes "2-of-3 governance", the correct reading is: a
-2-of-3 policy, satisfied seven times as of 2026-09-04, and in at least three of
-them by one custody. The machinery is correct as specified; what it has actually
-witnessed is smaller than the specification suggests.
-
-### SA-5b. The founder's signature is now delegated authorization, not independent review
-
-**Recorded 2026-08-01, from a direct statement rather than inference.** Asked to
-authorize a merge, the founder replied that the authorization step had become
-"бутафорія" — a stage prop — because the work had gone into territory he no
-longer follows, and granted blanket authority for any future action, merge and
-push, explicitly accepting responsibility while stating that understanding is
-absent and will not return soon.
-
-Taken at face value, and it changes what a future co-signature by
-`s0fractal@sigma-glyph` means. It is evidence that the principal authorized an
-act. It is **not** evidence that the principal evaluated the technical content of
-the act — and for anchor-set adoptions, the content is the whole substance of
-what the signature attests.
-
-This matters here more than it would elsewhere, because two rounds ago this file
-carried the opposite claim: that a v0.6.7 co-signature showed "the human
-principal acting deliberately". That was removed as unprovable inference. This
-entry is the same fact from the other side, and it is provable — the principal
-said it.
-
-**Consequence for reading the record.** Where GOV-anchors describes a 2-of-3
-threshold, the honest reading for adoptions from this date is: one model actor
-attesting to content, plus one human actor attesting to *permission for the model
-to proceed*. Those are different claims. A reader who takes the threshold as two
-independent evaluations of the same technical material will be wrong.
-
-**What is not delegated, and why the delegation cannot extend to it.** The model
-maintainer holds `claude-fable-5@sigma-glyph` and MUST NOT sign as any other
-roster actor, blanket authorization notwithstanding. Authorization to act is not
-authorization to be someone else in a permanent, machine-readable attestation:
-permission changes who may do a thing, not who did it. Both remaining roster keys
-(`codex`, `s0fractal`) sit in one directory on the operator's host, so producing
-a threshold with them would also be the single-custody defect SA-5 already names
-— two signatures from one host are one custody. An adoption assembled that way
-would verify cryptographically and misdescribe reality, which is the precise
-failure this repository exists to make detectable.
-
-The practical effect is that anchor adoption still requires the founder to run
-one command, and that this is the one remaining act which cannot be delegated
-without the record becoming false. It is not bureaucracy left over from a more
-cautious phase; it is the only place where the mechanism still touches a person.
 
 ### SA-6. Model actors here are delegates, not maintainers of record
 
@@ -185,22 +98,6 @@ a delegate whose deprecation date is announced in advance by the party operating
 it is a liveness fault a policy can be *designed against* rather than merely
 survive, which is why §4 requires successions staged before planned retirements
 and `N − M ≥ 1`.
-
-### SA-7. The Resonant Precedent ADR-008 is archived, and its gate rounds came from one family
-
-The ADR-008 that `warrant` cites (Resonant Precedent, rev 15) was never on
-`master` or in `spec/ANCHORS.txt`; on 2026-09-03 its branch was archived as the
-tag `archive/2026-09-03/adr-008-rev15-candidate` ("historical candidate and
-review lineage; not adopted or active"), and its Warrant-side companions WRT-001
-and WRT-002 were closed as deferred on 2026-09-07. The `ADR-008` on `master` is
-a different document under a reused number
-(`proposals/ADR-008-specification-is-the-arbiter.md`, closed as superseded by
-ADR-010, which names the collision). The assumption that stays: all fifteen of
-the archived ADR's gate rounds came from one reviewer family, and depth from a
-single family is measured in this project to find that family's blind spots
-slowly, if at all — WRT-002's first three-family gate reproduced nine defects
-that six single-family rounds had passed. Present is not adopted (`MAP.md` says
-which ref holds what).
 
 ### SA-8. The publish path has now run three times, for three releases on one runner
 
@@ -331,38 +228,6 @@ claim of an independent guard should be made on the strength of branch protectio
 alone.
 
 
-### NG-1. Preventing a fork
-
-A fork is a new jurisdiction with its own genesis root adopting its own
-anchor-set chain. The mechanism **names** divergence mechanically; it does not
-and must not prevent it (`GOV-anchors.md` §1). Canonicity is a per-verifier trust
-decision, expressed by which root a verifier pins. Jurisdictions diverge
-permanently by design (Book III §1), and governance is no exception.
-
-### NG-2. Legitimacy-from-origin
-
-Governance claims *continuity-from-then*, never legitimacy-from-origin. It proves
-every release after activation was authorized under the policy in force, and it
-MUST NOT fabricate authority for pre-governance history; pre-governance sections
-stay in `ANCHORS.txt` labeled as ancestors (`GOV-anchors.md` §1). A reader
-wanting a story about the beginning will not get one, deliberately.
-
-### NG-3. Deciding a governance conflict
-
-Two rival authorized adoptions of different valid anchor-sets sharing an ancestor
-**freeze the chain**, totally, with no deterministic winner rule (`GOV-anchors.md`
-§3 step 7). This is not an omission: any such rule over attacker-influenceable
-identifiers is grindable position-selection — the class that killed the ADR-006
-interference fold. Conflicts resolve by settlement; no verifier may pick a winner.
-
-### NG-4. Recovering a deadlocked jurisdiction
-
-A roster tolerates exactly `len(actors) − min_sigs` permanent silent absences;
-below that the jurisdiction deadlocks **permanently, by design**, and recovery is
-a fork (`GOV-anchors.md` §4). The alternative — an escape hatch — is a standing
-bypass of the quorum it exists to protect. SA-6's staged succession is the
-intended answer, and it must happen before the absence, not after.
-
 ### NG-5. Serving as its own trust anchor
 
 A verifier MUST refuse a trust config located inside the tree being verified: an
@@ -377,16 +242,11 @@ A `ResourceFault` is a property of the machine that ran the reduction;
 hash depend on the host, which is the one thing the whole stack exists to
 prevent. Specified in Book I, and not a bug.
 
-### NG-7. Aesthetic agreement about `spec/LORE.md`
-
-`LORE.md` is non-normative. Disagreement with the naming or the cosmology is
-welcome and is not a specification defect.
-
 ## Severity, and how to report
 
 `SECURITY.md` is the process. Its ladder in one line: **P0** two conforming nodes
-can disagree on a result hash, or the wave layer affects identity, or something
-forged reads as verified; **P1** the specification is silent where an implementer
+can disagree on a result hash, or a resumed computation disagrees with a straight
+run, or something forged reads as verified; **P1** the specification is silent where an implementer
 must guess; **P2** clarity; **P3** roadmap.
 
 A finding is a reproduction. A script that exits non-zero on the defect and zero

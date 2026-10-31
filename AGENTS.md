@@ -11,11 +11,12 @@ are not style — breaking them corrupts the thing this project exists to protec
    agent or a one-off contributor.
 
 2. **Never assert review or roster authority in a commit.** A trailer like
-   `Reviewed-by: <X> (2-of-3 roster)` is **false provenance**. Real adoption is a
-   **threshold warrant signed by roster keys** (see `proposals/GOV-anchors*` /
-   the trust-config and threshold-policy machinery), recorded in `.warrants/` —
-   **not** a commit message. An agent is not a roster member and cannot self-grant
-   that authority.
+   `Reviewed-by: <X> (2-of-3 roster)` is **false provenance**. Adoption is a
+   signed record by the keys the repository's configuration names — **not** a
+   commit message. Through v0.7.0 that was a threshold warrant in the Warrant 0.x
+   store `.warrants/` (retired 2026-10-31, kept at commit `96414ab`); its
+   successor is the Warrant 3 store `.warrant/`. An agent is not a roster member
+   and cannot self-grant that authority.
 
 3. **An "independent gate" means adversarial counter-vector hunting by a fresh
    reviewer — NOT running the green test suites.** Green suites are *necessary but
@@ -43,21 +44,12 @@ are not style — breaking them corrupts the thing this project exists to protec
    - a publication;
    - an unresolved disagreement between reviewers.
 
-   See `REVIEW-POLICY.md`. Rule 4 still applies to every PR: say what was
+   Rule 4 still applies to every PR: say what was
    validated and what was not.
 
    *(Rules 5 and 6 were relaxed by the owner on 2026-10-17. Rule 5 previously
    required authorization for every push, and every pull request was treated as
    if it needed a gate.)*
-
-## Case-derived needs
-
-Before proposing a new protocol or profile capability, inspect `needs/` for
-reproducible application pressure on the same surface. A need packet must be
-replayed and classified owner-side. Merging a classified packet records demand
-and routing only; it is not review, adoption, or a protocol change. Preserve
-closed packets so later agents can reconstruct the decision from exact revisions,
-digests, fixtures, and the non-normative disposition.
 
 ## Precedent (why this file exists)
 

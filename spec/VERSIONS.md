@@ -11,10 +11,10 @@ were.
 | Number | Where | What it governs | What moves it |
 | --- | --- | --- | --- |
 | **Book version** | `**Version:**` in each Book | that document's bytes, and therefore its anchor | any edit to that Book; MINOR when a conforming implementation of the previous version could become non-conformant, PATCH when nothing observable changes |
-| **GOV-anchors version** | `spec/GOV-anchors.md` | the governance profile itself, which is meta to the protocol | its own §0 rules: a frozen schema or the seven-step mechanism changing requires a new tag, not an edit |
+| **GOV-anchors version** | `spec/GOV-anchors.md` (retired 2026-10-31; its bytes stay in the v0.7.0 bundle) | the governance profile itself, which is meta to the protocol | nothing now: the document left the tree |
 | **`spec_version`** | each conformance suite | *the version of the Book the suite conforms to* | the Book moving, and the suite being regenerated against it |
 | **`suite_version`** | `tests/spec_conformance/vectors.json` | the conformance-suite package, as released | adding or changing vectors, independently of the Book |
-| **bundle `vX.Y.Z`** | section headings in `spec/ANCHORS.txt` | which exact bytes of every anchored file constitute a release | a governed adoption, per GOV-anchors §3 |
+| **bundle `vX.Y.Z`** | section headings in `spec/ANCHORS.txt` | which exact bytes of every anchored file constitute a release | a governed adoption (through v0.7.0: GOV-anchors §3) |
 | **PyPI version** | `version` in `pyproject.toml`, the `sigma-glyph` distribution | the published Python modules | a distribution release per `PUBLISHING.md`; it may sit one bundle behind the adopted one |
 
 The `vX.Y.Z` git tags and GitHub releases follow the PyPI version, not the
