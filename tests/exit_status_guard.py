@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The three Book self-tests must put their verdict in the EXIT STATUS.
+"""Book I's self-test must put its verdict in the EXIT STATUS.
 
 WHY THIS EXISTS
 ---------------
@@ -18,8 +18,8 @@ false:
     FAILURES PRESENT
     0
 
-`sigma_wave` and `sigma_federation` always did `sys.exit(0 if selftest() else 1)`.
-So Book I was the odd one out, and nothing noticed, because every gate that
+The Books II and III oracles (retired 2026-10-31) always did `sys.exit(0 if
+selftest() else 1)`. So Book I was the odd one out, and nothing noticed, because every gate that
 consumes these suites greps stdout for the tag. Greping is a legitimate extra
 check; it is not a substitute. `python -m sigma_glyph && ./publish` — the shape
 CI uses by default — reported success on a failing oracle.
@@ -57,8 +57,6 @@ GUARD = 'if __name__ == "__main__":'
 # (module file, the function whose boolean must become the exit status)
 ENTRIES = (
     ("sigma_glyph.py", "run_tests"),
-    ("sigma_wave.py", "selftest"),
-    ("sigma_federation.py", "selftest"),
 )
 
 ok = []
@@ -88,7 +86,7 @@ def run_stubbed(tmp, name, entry, verdict):
         return None, None
     d = Path(tmp) / f"{name}-{verdict}"
     d.mkdir()
-    for other, _ in ENTRIES:                 # siblings: sigma_federation imports
+    for other, _ in ENTRIES:                 # siblings a module may import
         (d / other).write_text((ROOT / "impl" / other).read_text())
     (d / name).write_text(mutated)
     p = subprocess.run([sys.executable, str(d / name)], capture_output=True,

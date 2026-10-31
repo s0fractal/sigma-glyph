@@ -12,50 +12,10 @@ on 2026-10-19 (`history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`).
 
 ## Accepted
 
-### `python:S3776` — cognitive complexity in a frozen reproduction fixture
-
-`needs/DA-SIGMA-0002-memo-pricing/fixtures/reproduce.py`, `run()` and `main()`.
-
-This file is evidence, not a tool. Its worth is that it is the thing that was run
-when the packet was measured, and it pins ten values and the SHA-256 of the oracle
-it ran against so that a later reader can tell whether they are looking at the
-same measurement. Restructuring it for readability would improve nothing anyone
-depends on and would make the artifact different from the one the disposition
-cites. Suppressed by rule name at the two functions, pointing here.
-
-The same rule **is** fixed wherever it appears in a tool — `spec_audit.py`,
-`store_mono_bridge_check.py`, `repo_map.py` — because those are read and changed.
-
-### `pythonsecurity:S8707` — directories created under an operator-supplied root
-
-`examples/two-jurisdictions/demo.py`, three sites.
-
-A demonstration script that builds two throwaway jurisdiction stores under either
-a temporary directory or a path the operator passes with `--keep`. The
-jurisdiction *name* is already constrained to a lowercase label and the root is
-`realpath`-ed before use, so the traversal the rule warns about would have to be
-supplied by the person running their own demo on their own machine.
-
-What makes this acceptable is the trust boundary, not the arithmetic: nothing
-here is reachable from a stranger's input. It is not the same shape as
-`anchor_governance.py`'s replay path, which reads a file named on the command line
-and is now checked for being a regular file before its contents are believed —
-that one was fixed rather than accepted.
-
-### `pythonsecurity:S8705` — a revision from `argv` reaching `git`
-
-`tools/hermes_review.py`.
-
-**The defect was fixed and the finding remains, and those are two different
-sentences.** A revision taken from `argv` reached `git`, where a leading `-` is an
-option rather than a revision — the same shape that was an actual defect in the
-agent gate. It is now refused by pattern, and the refusal is exercised: `--` and
-`--upload-pack=evil` are both rejected.
-
-What the analyser reports is the *taint*: a value from the command line reaches a
-subprocess. For a command-line tool that takes a revision, that is the tool. No
-validation clears it, and pretending otherwise by restructuring would be theatre.
-Accepted with the guard in place, not accepted as-was.
+Three dispositions accepted here earlier (`python:S3776` in a needs-packet fixture,
+`pythonsecurity:S8707` in the two-jurisdictions demo, `pythonsecurity:S8705` in
+`tools/hermes_review.py`) left with their files on 2026-10-31
+(history/RETIREMENT-2026-10-ECHO.md); their text is at commit `96414ab`.
 
 ### `python:S2245` — a seeded PRNG in a differential bridge
 

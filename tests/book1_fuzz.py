@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Three-way Book I differential fuzzer (Python oracle vs Rust vs warrant-go).
+"""Book I differential fuzzer (Python oracle vs Rust).
 
 The pinned vectors.json fixes a curated battery; this generates thousands of
 random SKI terms and ATP budgets, has the Python oracle compute the expected
-(result_hash, atp_spent), and then makes the two INDEPENDENT Book I evaluators
+(result_hash, atp_spent), and then makes the INDEPENDENT Rust evaluator
 recompute them: any divergence surfaces as a conformance failure on that
 generated vector. This is the net that catches the splits no curated vector
-thought to (e.g. the warrant-go R-S uint32 overflow found in the 2026-07 review).
+thought to (e.g. the R-S uint32 overflow found in a third engine, warrant-go,
+in the 2026-07 review; that engine was retired with Warrant 0.x).
 
 Reuses the existing conformance harnesses so no new impl surface is needed:
 each generated case is emitted in tests/spec_conformance/vectors.json format and
-replayed by `book1 conformance` (Rust) and `warrant-go sigma-conformance` (Go).
+replayed by `book1 conformance` (Rust).
 
 Deterministic: seed the RNG so a divergence is reproducible.
 
 Usage:  python3 tests/book1_fuzz.py [--terms N] [--seed S]
 Env:    RUST_BOOK1=path   (default ./impl-rs/target/release/book1)
-        WARRANT_GO=path   (default ~/Projects/warrant/impl-go/warrant-go)
 Exit nonzero on any divergence; the failing engine prints the vector id.
 """
 import argparse
@@ -33,7 +33,6 @@ sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
 RUST = os.environ.get("RUST_BOOK1", str(ROOT / "impl-rs/target/release/book1"))
-WGO = os.environ.get("WARRANT_GO", str(Path.home() / "Projects/warrant/impl-go/warrant-go"))
 
 IG = ("lit", sg.sha(b"I"))
 KG = ("lit", sg.sha(b"K"))
@@ -183,8 +182,8 @@ def main():
 
         results = {}
         # The Python oracle computed the expected values by construction, so it
-        # trivially agrees; the test is whether the two INDEPENDENT engines
-        # recompute the same result_hash + atp_spent on every generated vector.
+        # trivially agrees; the test is whether the INDEPENDENT engine
+        # recomputes the same result_hash + atp_spent on every generated vector.
         if os.path.exists(RUST):
             p = subprocess.run([RUST, "conformance", path], capture_output=True, text=True)
             # Rust's summary line used to be hardwired to the pinned 49-vector
@@ -199,11 +198,6 @@ def main():
                                and summary in p.stdout, p)
         else:
             print(f"SKIP rust (not built at {RUST})")
-        if os.path.exists(WGO):
-            p = subprocess.run([WGO, "sigma-conformance", path], capture_output=True, text=True)
-            results["warrant-go"] = ("SIGMA CONFORMANCE: ALL PASS" in p.stdout, p)
-        else:
-            print(f"SKIP warrant-go (not built at {WGO})")
 
         n = len(vectors)
         bad = [(k, v[1]) for k, v in results.items() if not v[0]]

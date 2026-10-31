@@ -99,10 +99,9 @@ exhaustion — is unchanged by anything the store gains, and
 `proofs/store_mono_bridge_check.py` checks the same property against the live
 oracle by growing and shrinking the store under every eval vector.
 
-**On this branch** Book I 0.6.0 states the interface over three inputs and returns
-a `Receipt`. That is a **candidate**: `proposals/ADR-010-three-inputs-and-a-receipt.md`,
-not adopted, not in force. On `master` the Book still prints
-`eval(term_hash, atp: uint32)`.
+Book I 0.6.0 states the interface over three inputs and returns a `Receipt`
+(ADR-010, adopted in the v0.7.0 bundle; the ADRs left the tree on 2026-10-31 and
+are kept at commit `96414ab`).
 
 ## The honest caveats
 
@@ -158,12 +157,12 @@ does not name TV-12. The audit carries that as a named exception which fails the
 run if it ever stops reproducing, so the exception cannot outlive the defect.
 
 That sentence of §7 was changed in Book I 0.6.0 through ADR-010, which carried
-the narrower proposal that first argued it,
-[`proposals/ADR-008-specification-is-the-arbiter.md`](../proposals/ADR-008-specification-is-the-arbiter.md),
-now closed as superseded. Filing that vector remains an edit to anchored bytes.
+the narrower proposal that first argued it, ADR-008 (closed as superseded; at
+commit `96414ab`). Filing that vector remains an edit to anchored bytes.
 
-**Three implementations already agree, and that is weaker evidence than it
-looks.** The Python oracle, `warrant-go` and the Rust implementation were written
+**Two implementations agree (three did, until warrant-go left with Warrant 0.x),
+and that is weaker evidence than it looks.** The Python oracle, `warrant-go` and
+the Rust implementation were written
 from the same specification text by the same author with model assistance. They
 are good evidence about coding slips and specification ambiguity; they are weak
 evidence about specification *error*, because three implementations of a wrong

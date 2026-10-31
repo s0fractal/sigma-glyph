@@ -1,55 +1,22 @@
 name: conformance
 on: [push, pull_request]
 
-# ONE pin of the sibling repo, for the whole workflow.
-#
-# Steps below consume warrant artifacts — the Go evaluator and impl/warrant.py
-# (until 2026-10-19 also the out-of-band anchor-trust config, retired with the
-# GOV verifier) — and until 2026-07 each carried its OWN hard-coded commit. They had drifted to THREE DIFFERENT commits spanning
-# 2026-07-08 to 2026-07-27, so a single CI run tested this repo against a
-# historical composite of the sibling that never existed as a state. Nothing
-# reported it, because each step was individually green.
-#
-# A pin is still the right call — it is what makes the conformance gate
-# reproducible. But there must be exactly one, and it must be visible.
-#
-# WHAT THE PIN MEANS: a VERIFIED COMPATIBLE BASELINE — the warrant commit whose
-# consumed surfaces this repo has been checked against — not "warrant's latest".
-# Being behind HEAD is the normal state and is not a defect.
-#
-# REFRESH ONLY when a surface consumed here actually changes: the Book I
-# evaluator or its conformance behaviour, or the Warrant 0.x CLI's store
-# verification. Do NOT refresh because the sibling moved — drift is context for
-# a human, never a trigger. (The warrant_gate connector, the anchor-trust roster
-# and the x1 drift report were retired on 2026-10-19:
-# history/RETIREMENT-2026-10-WARRANT-0X-GATES.md.) Treating "behind HEAD" as the trigger is a ping-pong
-# generator: merging the pin bump moves this repo's HEAD, which obliges warrant
-# to bump in reply, forever, over commits that changed nothing either consumes.
-#
-# A refresh commit MUST cite the old and new sibling commits, name the consumed
-# surface that changed, and include the outputs run at the new pin.
-env:
-  WARRANT_PIN: 0d147aa12158d18e686270fe4eca2972bd4707f1
-  DECISION_ARCHAEOLOGY_NEEDS_PIN: 7e9a3a9f94af28d19bfb224348162ee9cf202e61
+# Book I and sigma-resume (resumable computation) are what this repository keeps.
+# Books II and III, GOV-anchors, the Warrant 0.x apparatus and the 0.7.0 gate
+# material were retired on 2026-10-31 (history/RETIREMENT-2026-10-ECHO.md): no
+# step here pins a sibling repository any more.
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # Full history from the start: version_check and verify_anchors read the
+      # retired anchored files at the commit they left (Codex on #72, F1).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: '3.12' }
-      - name: Case-derived needs are structurally valid (pinned needs@v0 validator)
-        shell: bash
-        run: |
-          set -euo pipefail
-          git clone -q https://github.com/s0fractal/decision-archaeology /tmp/decision-archaeology
-          git -C /tmp/decision-archaeology checkout -q "$DECISION_ARCHAEOLOGY_NEEDS_PIN"
-          mapfile -d '' packets < <(find needs -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
-          test "${#packets[@]}" -gt 0
-          python3 /tmp/decision-archaeology/tools/validate_need.py "${packets[@]}"
-      - name: DA-SIGMA-0001 owner-side reproducer
-        run: python3 needs/DA-SIGMA-0001-numeral-encoding-profile/fixtures/reproduce.py
       # Mirrored from warrant (until 2026-10-19 X1 enforced byte-identity of
       # shared tooling; that matrix is retired and this copy is now ours).
       # CI has no sibling checkout, so it cannot re-resolve cross-repo citations;
@@ -92,53 +59,12 @@ jobs:
             | grep -q "SUITE-SCHEMA-SELFTEST: ALL PASS"
           python3 tools/suite_schema.py | tee /dev/stderr \
             | grep -q "SUITE-SCHEMA: ALL PASS"
-      - name: One node, one wave — identity by hash, admission at load
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tests/wave_identity_selftest.py | tee /dev/stderr \
-            | grep -q "WAVE-IDENTITY-SELFTEST: ALL PASS"
       - name: The conformance runner checks four observables, not two
         shell: bash
         run: |
           set -euo pipefail
           python3 tests/conformance_runner_selftest.py | tee /dev/stderr \
             | grep -q "CONFORMANCE-RUNNER-SELFTEST: ALL PASS"
-      # The papers state numbers about this tree. Every one of them is recounted
-      # from the file it describes, and the selftest rewrites each number in turn
-      # and demands the audit go red -- a claim the gate does not gate on is
-      # decoration, which is the papers' own thesis pointed at the papers.
-      - name: The papers' numbers are recounted from the tree
-        shell: bash
-        run: |
-          set -euo pipefail
-          # The audit now checks figures against the COMMIT THE PAPER NAMES, not
-          # against the working tree, and it refuses rather than falling back
-          # when that commit is unreachable. actions/checkout is shallow, so
-          # `1c2b6ca` and `0481bd0` are absent and every provenance predicate
-          # correctly reports a named failure. That refusal is the feature; the
-          # history is what was missing.
-          git fetch --no-tags --unshallow || git fetch --no-tags
-          python3 tools/paper_claims.py --selftest | tee /dev/stderr \
-            | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
-          python3 tools/paper_claims.py | tee /dev/stderr \
-            | grep -q "PAPER-CLAIMS: ALL PASS"
-      # What left the default tree, and why, is a record read as data rather
-      # than prose about one: each retired subject's digest is recomputed from
-      # the object git holds at the before revision, its absence from the apply
-      # tree and the working tree is checked, loss must be non-empty, and no
-      # tracked file outside the tombstone class may cite a retired path as
-      # current. The selftest burns every refusal with a mutation first, and
-      # the manifest is closed, so deleting a record is a failure, not a pass.
-      - name: Retired subjects stay retired, and their records bind (controlled forgetting)
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --unshallow || git fetch --no-tags
-          python3 tools/retirement_check.py --selftest | tee /dev/stderr \
-            | grep -q "RETIREMENT-CHECK-SELFTEST: ALL PASS"
-          python3 tools/retirement_check.py | tee /dev/stderr \
-            | grep -q "RETIREMENT-RECORDS: ALL PASS"
       # Can Book I be implemented from Book I? The audit re-derives every
       # constant the Book prints from the Book alone, in both languages, checks
       # the prose against the normative vector suite, and requires the English
@@ -173,8 +99,6 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/receipt_test.py | tee /dev/stderr | grep -q "^RECEIPT: "
-      - name: "Attempt records are append-only: a named verdict is not re-asked (plain run or --retry)"
-        run: python3 tests/candidate_gate_retry_test.py
       - name: Reference test vectors (Book I, hash-thunk machine)
         run: python3 impl/sigma_glyph.py | tee /dev/stderr | grep -q "ALL PASS"
       - name: Book I third implementation (Rust) + conformance differential
@@ -182,13 +106,14 @@ jobs:
         run: |
           set -euo pipefail
           cd impl-rs && cargo build --release --locked && cargo test --locked && cd ..
-          python3 tools/go_test_gate.py --selftest | tee /dev/stderr \
-            | grep -q "GO-TEST-GATE-SELFTEST: ALL PASS"
-          python3 tools/go_test_gate.py | tee /dev/stderr \
-            | grep -q "GO-TEST-GATE: ALL PASS"
           ./impl-rs/target/release/book1 selftest | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
           ./impl-rs/target/release/book1 conformance tests/spec_conformance/vectors.json \
             | tee /dev/stderr | grep -q "RUST-CONFORMANCE: ALL PASS"
+          # Generated terms, Python oracle against Rust (the third engine, warrant-go, left with Warrant 0.x).
+          for s in 1337 4242 20240717; do
+            RUST_BOOK1=./impl-rs/target/release/book1 python3 tests/book1_fuzz.py --terms 200 --seed "$s" \
+              | tee /dev/stderr | grep -q "BOOK1-FUZZ: ALL AGREE"
+          done
       # sigma-resume DRAFT kernel (PR #62): the matrix, its on-target mutants, the
       # Python = Rust differential and the broken-engine controls. Draft surface,
       # not Book I; wired so the PR's own status tests it (Codex review of #62).
@@ -217,143 +142,28 @@ jobs:
             | tee /dev/stderr | grep -q "^PROVIDER-PROTOCOL (installed): ALL PASS"
           python3 tests/provider_resume_test.py --python "$RUNNER_TEMP/pv/bin/python" \
             | tee /dev/stderr | grep -q "^PROVIDER-RESUME (installed): ALL PASS"
-      # Cheap half of EXP-004: nine controls, each required to fail for its own
-      # reason. The full corpus replay is path-filtered into its own workflow.
-      - name: EXP-004 controls can fail (interaction-net harness)
-        run: |
-          cd experiments/exp-004
-          python3 selftest.py | tee /dev/stderr \
-            | grep -q "every control failed for its own reason"
-      - name: Wave reference (Book II, LUT arbiter + interfere coupling)
-        run: python3 impl/sigma_wave.py | tee /dev/stderr | grep -q "WAVE. ALL PASS"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.22' }
-      - name: Federation reference (Book III, selection-only oracle)
-        run: python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION. ALL PASS"
-      - name: Federation second implementation (Go) + differential
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd impl-go && go build -o sigma-federation-go . && cd ..
-          ./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json \
-            | tee /dev/stderr | grep -q "FEDERATION-GO: ALL PASS"
-          python3 tests/federation_differential.py \
-            | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
-          # Candidate order must not decide selection, in both implementations;
-          # the tag names what ran, so "python only" cannot pass this grep.
-          python3 tests/federation_order_control.py \
-            | tee /dev/stderr | grep -q "FEDERATION-ORDER-CONTROL: ALL PASS (.*; python, go)"
       - name: Exit statuses tell the truth (a printed failure must not return 0)
         # Book I's module entry point printed FAILURES PRESENT and exited 0, so a
         # script branching on $? -- which is what CI does by default -- saw success.
         # This guard covers every module entry point and verb dispatch.
         run: |
           python3 tests/exit_status_guard.py | tee /dev/stderr \
-            | grep -qx "EXIT-STATUS-GUARD: ALL PASS (15/15)"
+            | grep -qx "EXIT-STATUS-GUARD: ALL PASS (5/5)"
 
-      - name: "Book I fourth engine: warrant-go ski@v1 conformance + three-way differential fuzzer (Python/Rust/warrant-go, pinned)"
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Symmetric to warrant's CI pinning sigma. One pin for the whole
-          # workflow: $WARRANT_PIN, set at the top of this file.
-          git clone -q https://github.com/s0fractal/warrant /tmp/warrant
-          git -C /tmp/warrant checkout -q "$WARRANT_PIN"
-          ( cd /tmp/warrant/impl-go && go build -o warrant-go . )
-          # Substring "ALL PASS" is what let this gate accept 33 of our 49
-          # vectors for weeks: warrant-go skipped the object and deserialize
-          # classes and still printed a success line. The expected summary is
-          # derived from OUR vector file and matched with -x, ANCHORED to a
-          # whole line -- a substring match is forgeable, because the producer
-          # prints one line per vector and a vector id is free-form data.
-          python3 tools/book1_coverage.py --selftest | tee /dev/stderr \
-            | grep -q "BOOK1-COVERAGE: SELFTEST ALL PASS"
-          V=tests/spec_conformance/vectors.json
-          echo "expecting: $(python3 tools/book1_coverage.py "$V")"
-          # --check, not grep: the rule is POSITIONAL (the summary must be the
-          # transcript's last line) because a vector id may contain newlines and
-          # can otherwise forge a standalone line anywhere above it. pipefail
-          # binds the producer's own exit status into the same decision.
-          /tmp/warrant/impl-go/warrant-go sigma-conformance "$V" \
-            | tee /dev/stderr | python3 tools/book1_coverage.py --check "$V"
-          for s in 1337 4242 20240717; do
-            RUST_BOOK1=./impl-rs/target/release/book1 \
-            WARRANT_GO=/tmp/warrant/impl-go/warrant-go \
-            python3 tests/book1_fuzz.py --terms 200 --seed "$s" \
-              | tee /dev/stderr | grep -q "BOOK1-FUZZ: ALL AGREE"
-          done
-      # The derived version/evidence view. The synthetic controls (refusal,
-      # hostile ambient state, drift, missing, extra, widening) need nothing
-      # external; the real-checkout control needs a Warrant tree, so this step
-      # runs AFTER the clone above and reuses /tmp/warrant at $WARRANT_PIN
-      # rather than cloning a second time. The operand is passed explicitly on
-      # the command line — the view refuses to discover one, and the ambient
-      # control would go red if it ever started.
-      #
-      # WHAT THIS PIN EXERCISES TODAY: 0d147aa1 predates warrant's
-      # trust/ski-runtime-evaluators.json, so the real-checkout half of this
-      # step covers the MISSING-INPUT path — tags typed `unavailable`, the
-      # three tag relations `unchecked`, no credit — and not the admitted-tag
-      # path. That is the correct behaviour at this pin, not a gap to paper
-      # over: the admitted/reserved/mismatched statuses are covered by the
-      # synthetic operands, whose contents are ours to fix. When the pin next
-      # refreshes past the commit that adds that record, this step starts
-      # covering the admitted path too, with no edit here.
-      - name: The derived version/evidence view refuses, and can go red
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tests/evidence_view_test.py --warrant /tmp/warrant \
-            | tee /dev/stderr | grep -q "EVIDENCE-VIEW-CONTROLS: ALL PASS"
-          python3 tools/evidence_view.py --warrant /tmp/warrant > /dev/null
       - name: Conformance vectors are fresh (regenerate == no diff)
         run: |
           python3 tests/spec_conformance/generate.py
-          python3 impl/sigma_wave.py gen
-          python3 impl/sigma_federation.py gen
-          git diff --exit-code tests/spec_conformance/vectors.json tests/spec_conformance/wave_vectors.json tests/spec_conformance/federation_vectors.json
+          git diff --exit-code tests/spec_conformance/vectors.json
       - name: Conformance suite (vectors.json vs oracle)
         run: python3 tests/spec_conformance/run_reference.py
       - name: Property-based suite (seeded, stdlib-only)
         run: python3 tests/spec_conformance/test_properties.py
+      # A retired anchored file is verified at the commit it was retired from; any
+      # other missing file fails. The selftest burns both directions first.
       - name: Verify Specification Anchors
-        run: python3 tools/verify_anchors.py
-      - name: Verify the adjudication warrants with the pinned Warrant 0.x CLI
-        run: |
-          python3 -m pip install --quiet --only-binary=:all: cryptography==45.0.7
-          # This repository's .warrants store is Warrant 0.x format; the CLI that
-          # reads it is pinned by $WARRANT_PIN. Base and settlement grade, the
-          # same two invocations tools/test-all.sh runs. (The fail-closed
-          # warrant_gate connector over this was retired on 2026-10-19.)
-          curl --proto '=https' --tlsv1.2 -sfL "https://raw.githubusercontent.com/s0fractal/warrant/$WARRANT_PIN/impl/warrant.py" -o /tmp/warrant.py
-          SIGMA_GLYPH=impl python3 /tmp/warrant.py verify
-          SIGMA_GLYPH=impl python3 /tmp/warrant.py verify --settlement --trust-config trust-config.json
-      - name: One signing construction (tools/warrant_sig.py only; none left in impl-go)
-        run: |
-          python3 tests/one_signing_path.py | tee /dev/stderr | grep -q "ONE-SIGNING-PATH: ALL PASS"
-      - name: Two-jurisdictions federation demo (Book III live, real stores)
         shell: bash
         run: |
           set -euo pipefail
-          WARRANT="python3 /tmp/warrant.py" \
-            python3 examples/two-jurisdictions/demo.py \
-            | tee /dev/stderr | grep -q "DEMO: ALL ASSERTIONS HELD"
-      # NON-NORMATIVE draft (ADR-011, PR #36). Deliberately NOT in
-      # tools/test-all.sh: a stale draft receipt must not be able to block the
-      # normative matrix. But it must not be unwatched either — without a step
-      # here, a later commit could break admission or leave the receipt stale
-      # and the board would stay green. So it runs as its own step, and its
-      # failure is a failure of this draft, not of the anchored bytes.
-      - name: "ADR-011 (non-normative draft): profile controls and receipt freshness"
-        shell: bash
-        run: |
-          set -euo pipefail
-          # actions/checkout is shallow, and two checks here need real history.
-          # The selftest verifies that the ADR's digest of the PRESERVED
-          # ORIGINAL is the git object's digest, and the benchmark receipt
-          # records the commit that last changed impl/sigma_glyph.py — which
-          # `git log` answers WRONGLY, not not-at-all, in a truncated history.
-          # Both now refuse rather than skip, so unshallow first.
-          git fetch --no-tags --unshallow || git fetch --no-tags
-          python3 proposals/adr-011/selftest.py | tee /dev/stderr | grep -q "ADR-011-SELFTEST: ALL PASS"
-          python3 proposals/adr-011/benchmark.py --check
+          python3 tools/verify_anchors.py --selftest | tee /dev/stderr \
+            | grep -q "VERIFY-ANCHORS-SELFTEST: ALL PASS"
+          python3 tools/verify_anchors.py

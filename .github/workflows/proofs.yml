@@ -42,11 +42,6 @@ jobs:
             | grep -q "STORE-MONO BRIDGE: ALL AGREE"
       - name: Bridge - step premise holds on live oracle traces (+ SizeBound no-sorry guard)
         run: python3 proofs/bridge_check.py
-      - name: Wave-algebra proofs + differential bridge (Book II)
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 proofs/wave_bridge_check.py | tee /dev/stderr | grep -q "WAVE-BRIDGE: ALL AGREE"
       - name: Byte-level machine correspondence + differential bridge (Book I bytes)
         shell: bash
         run: |

@@ -6,17 +6,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# The live Book III specimen crosses the repository boundary through the real
-# Warrant CLI.  That dependency is an explicit operand, never a path guessed
-# from the checkout layout.  Refuse before the expensive matrix rather than
-# running most of the suite and failing at the live demo near the end.
-if [[ -z "${WARRANT:-}" ]]; then
-  printf '%s\n' \
-    'TEST-ALL: REFUSED — WARRANT must name the exact Warrant verifier command.' \
-    'Example: export WARRANT="python3 /absolute/path/to/warrant/impl/warrant.py"' >&2
-  exit 2
-fi
-
 say() {
   local heading="$1"
   printf '\n=== %s ===\n' "$heading"
@@ -37,16 +26,8 @@ skip() {
   printf '\n(skipping: %s)\n' "$reason"
 }
 
-say "Book I / II / III oracles"
+say "Book I oracle"
 python3 impl/sigma_glyph.py    | tee /dev/stderr | grep -q "ALL PASS"
-python3 impl/sigma_wave.py     | tee /dev/stderr | grep -q "WAVE: ALL PASS"
-python3 impl/sigma_federation.py | tee /dev/stderr | grep -q "FEDERATION: ALL PASS"
-
-# Book III selection is a derivation over a SET: the input order of candidates
-# must not decide the outcome, in Python and (when a toolchain is present) in
-# Go. The control proves it can fail: two order-dependent stand-ins are caught.
-say "Book III selection: candidate order does not decide (permutation control)"
-python3 tests/federation_order_control.py | tee /dev/stderr | grep -q "FEDERATION-ORDER-CONTROL: ALL PASS"
 
 # A specification that calls a JSON file normative has to say what shape that
 # file has. The shape is an anchored schema, closed-world, and the selftest
@@ -60,36 +41,10 @@ python3 tools/suite_schema.py          | tee /dev/stderr | grep -q "SUITE-SCHEMA
 say "Conformance runner: four observables, each failing on its own"
 python3 tests/conformance_runner_selftest.py | tee /dev/stderr | grep -q "CONFORMANCE-RUNNER-SELFTEST: ALL PASS"
 
-# One node, one wave. The pin belongs to the NodeHash, not to the spelling, and
-# the annotation profile is validated at load rather than at whichever query
-# happens to reach the pinned node. The controls mutate the implementation and
-# require the specific break to be caught.
-say "Identity by hash in the wave algebra, and admission at load"
-python3 tests/wave_identity_selftest.py | tee /dev/stderr | grep -q "WAVE-IDENTITY-SELFTEST: ALL PASS"
-
 say "Version-state guard: candidates are not adopted releases"
 python3 tests/version_check_selftest.py | tee /dev/stderr | grep -q "VERSION-CHECK-SELFTEST: ALL PASS"
 
-# Controlled forgetting: what left the default tree is a record read as data.
-# Subjects are re-digested from the before revision, checked absent from the
-# apply tree and the working tree, loss must be non-empty, and no tracked file
-# outside the tombstone class may cite a retired path. Selftest first.
-say "Retired subjects stay retired, and their records bind"
-python3 tools/retirement_check.py --selftest | tee /dev/stderr | grep -q "RETIREMENT-CHECK-SELFTEST: ALL PASS"
-python3 tools/retirement_check.py            | tee /dev/stderr | grep -q "RETIREMENT-RECORDS: ALL PASS"
-
-say "Derived version/evidence view: refuses, and can go red"
-# The view projects the owners above into one document, so its only real risk is
-# a wrong answer that reads like a right one: an operand discovered from ambient
-# state, or a reserved/missing/mismatched tag widened into credit. The controls
-# are synthetic Warrant checkouts in a temp dir -- no network, no sibling, and
-# nothing written to a real Warrant tree -- so they run everywhere this matrix
-# does. CI additionally runs the real-checkout control at $WARRANT_PIN.
-python3 tests/evidence_view_test.py | tee /dev/stderr | grep -q "EVIDENCE-VIEW-CONTROLS: ALL PASS"
-# And the document itself must build on THIS tree, not just on the fixtures.
-python3 tools/evidence_view.py > /dev/null
-
-say "Guard regression: the three self-tests put their verdict in the EXIT STATUS"
+say "Guard regression: the Book I self-test puts its verdict in the EXIT STATUS"
 # impl/sigma_glyph.py called run_tests() and discarded the boolean, so it printed
 # FAILURES PRESENT and exited 0 — every gate above catches that only by grepping
 # stdout, and `python -m sigma_glyph && ./anything` reported success on a failing
@@ -97,19 +52,7 @@ say "Guard regression: the three self-tests put their verdict in the EXIT STATUS
 # demands a non-zero exit (and a passing one, exit 0).
 python3 tests/exit_status_guard.py         | tee /dev/stderr | grep -q "EXIT-STATUS-GUARD: ALL PASS"
 
-say "Guard regression: exactly one construction of the Warrant signing message"
-# Warrant SPEC v0.4 §5 domain-separates the signed message, and this repository
-# had SEVEN hand-rolled copies of it in six Python files plus an eighth in
-# impl-go -- found while migrating, and only because something unrelated went
-# red. A signer and a verifier that disagree about those 47 bytes make this
-# repository's own tools split on the same store, one reporting a valid
-# signature and the other a forgery. The construction now lives in
-# tools/warrant_sig.py; this fails if any other file open-codes it, in either
-# the visible form (the literal) or the silent one (signing a bare digest).
-python3 tests/one_signing_path.py          | tee /dev/stderr | grep -q "ONE-SIGNING-PATH: ALL PASS"
-
-say "Security boundaries: content addresses and local check commands"
-python3 tests/security_boundary_test.py   | tee /dev/stderr | grep -q "SECURITY-BOUNDARY: ALL PASS"
+say "Security boundaries: content addresses"
 python3 tests/oracle_input_boundary_test.py | tee /dev/stderr | grep -q "ORACLE-INPUT-BOUNDARY: ALL PASS"
 
 say "Release surface (what an installed copy promises)"
@@ -128,29 +71,21 @@ say "Conformance + properties"
 python3 tests/spec_conformance/run_reference.py  | tee /dev/stderr | grep -q "ALL PASS"
 python3 tests/spec_conformance/test_properties.py
 
-say "Guard regression: the Book I/II generators refuse a spec-contradicting oracle"
+say "Guard regression: the Book I generator refuses a spec-contradicting oracle"
 # Replaying oracle-written vectors against that oracle can only detect CHANGE.
-# generate.py / sigma_wave.py gen now hold hand-declared, spec-cited values and
-# fail closed on disagreement; this proves the refusal fires (7 mutations, all
-# of which sailed through the pre-0.6.7 generators).
+# generate.py holds hand-declared, spec-cited values and fails closed on
+# disagreement; this proves the refusal fires.
 python3 tests/spec_expectation_guard.py    | tee /dev/stderr | grep -q "SPEC-EXPECTATION-GUARD: ALL PASS"
 
 say "Conformance vectors are fresh (regeneration is a no-op)"
 # CI diffs regenerated vectors against the committed tree; locally we assert the
 # stronger, commit-state-independent property: regenerating changes nothing in
 # the working tree. Catches a stale generator or hand-edited vectors.
-python3 -c "import cryptography" 2>/dev/null || {
-  echo "ERR: 'cryptography' is required (signing round-trips and settlement)"; exit 1; }
 _freshdir="$(mktemp -d)"
 trap 'rm -rf "$_freshdir"' EXIT
-# governance_vectors.json is anchored data with no generator since the GOV
-# verifier retirement (history/RETIREMENT-2026-10-WARRANT-0X-GATES.md);
-# verify_anchors.py still recomputes its bytes.
-_vecs=(vectors.json wave_vectors.json federation_vectors.json)
+_vecs=(vectors.json)
 for f in "${_vecs[@]}"; do cp "tests/spec_conformance/$f" "$_freshdir/$f"; done
 python3 tests/spec_conformance/generate.py >/dev/null
-python3 impl/sigma_wave.py gen           >/dev/null
-python3 impl/sigma_federation.py gen     >/dev/null
 for f in "${_vecs[@]}"; do
   diff -q "$_freshdir/$f" "tests/spec_conformance/$f" >/dev/null \
     || { echo "STALE VECTORS: tests/spec_conformance/$f changed on regeneration"; exit 1; }
@@ -183,18 +118,6 @@ PY
 # unit coverage whatsoever.
 ( cd impl-rs && cargo test ) | tee /dev/stderr | grep -qE "test result: ok\. [1-9][0-9]* passed"
 
-# The same lesson, the other language. `impl-go/jcs_test.go` has guarded a
-# Go/Python canonicalization split -- a federation-consensus fork -- since it was
-# written, and NOTHING ever ran it: cargo test was wired in at v0.6.7 and go test
-# was not. A test no gate executes is a comment. The grep demands a positive
-# count for the same reason cargo's does.
-say "Go unit tests actually run (they never did before 2026-08-30)"
-# NOT `go test | grep '^ok'`: `ok` is a successful PACKAGE, which a package with
-# no test functions also reports, and Go serves cached results. The gate names
-# the tests it expects, runs them with -count=1, and fails on a missing one, an
-# unexpected one, or a cached one.
-python3 tools/go_test_gate.py --selftest | tee /dev/stderr | grep -q "GO-TEST-GATE-SELFTEST: ALL PASS"
-python3 tools/go_test_gate.py            | tee /dev/stderr | grep -q "GO-TEST-GATE: ALL PASS"
 ./impl-rs/target/release/book1 selftest    | tee /dev/stderr | grep -q "SELFTEST: ALL PASS"
 # The count is pinned HERE, by whoever names the canonical file — it used to be
 # hardwired inside the binary, which made every other vectors file report FAIL.
@@ -207,68 +130,21 @@ say "Book I §3.6 resource fences (deep spine + hostile vectors file, Python vs 
 # ResourceFault. Every gate was blind to it — book1_fuzz.py capped depth at 5.
 python3 tests/book1_resource_fence.py      | tee /dev/stderr | grep -q "BOOK1-FENCE: ALL PASS"
 
-say "Three-way Book I differential fuzz (now including deep left spines)"
+say "Book I differential fuzz, Python oracle against Rust (deep left spines included)"
 # Requires the Rust engine by name: "ALL AGREE" with only the Python oracle in
 # the list would be the oracle agreeing with itself.
 python3 tests/book1_fuzz.py --terms 60 --seed 20260730 \
   | tee /dev/stderr | grep -qE "BOOK1-FUZZ: ALL AGREE .*python-oracle\+rust"
 
-say "Federation + governance second implementation (Go) + differentials"
-( cd impl-go && go build -o sigma-federation-go . )
-_gofed="$(./impl-go/sigma-federation-go replay tests/spec_conformance/federation_vectors.json | tee /dev/stderr)"
-grep -q "FEDERATION-GO: ALL PASS" <<<"$_gofed"
-# impl-go has no Book I evaluator; its FV-BOOK-I-UNREACHABLE "pass" was an echo
-# of a hand-transcribed constant. It must declare itself vacuous and stay out of
-# the tally — if this line ever disappears, a Go report can be read as Book I
-# coverage again.
-grep -q "VACUOUS FV-BOOK-I-UNREACHABLE" <<<"$_gofed"
-python3 tests/federation_differential.py   | tee /dev/stderr | grep -q "FEDERATION-DIFFERENTIAL: ALL AGREE"
+say "sigma-resume: matrix, mutants, Python = Rust, controls"
+python3 tests/resume_test.py | tee /dev/stderr | grep -q "^SIGMA-RESUME: [0-9]* PASS, 0 FAIL"
+python3 tests/resume_mutants.py | tee /dev/stderr | grep -q "RESUME MUTANTS: ALL KILLED ON TARGET"
+python3 tests/resume_differential.py | tee /dev/stderr | grep -q "RESUME DIFFERENTIAL: ALL AGREE"
+sh tests/resume_differential_controls.sh | tee /dev/stderr | grep -q "DIFFERENTIAL CONTROLS: ALL BITE"
 
 say "Anchors"
+python3 tools/verify_anchors.py --selftest | tee /dev/stderr | grep -q "VERIFY-ANCHORS-SELFTEST: ALL PASS"
 python3 tools/verify_anchors.py            | tee /dev/stderr | grep -q "anchors verified"
-
-say "Guard regression: WARRANT_PIN extraction fails hard on duplicate/malformed pins"
-python3 tests/warrant_pin_guard_test.py    | tee /dev/stderr | grep -q "PIN-GUARD: ALL PASS"
-
-# The papers in papers/ state numbers about this repository -- guard line counts,
-# pin totals, Lean size, front distributions, vector totals, implementation line
-# counts. They were correct on the day they moved in and nothing enforced that,
-# which is the defect the second paper is about. The selftest runs first and on
-# its own line: a claims checker whose checks cannot fail is the same defect one
-# level up, and it is the cheaper of the two, so it fails faster.
-python3 tools/paper_claims.py --selftest   | tee /dev/stderr | grep -q "PAPER-CLAIMS-SELFTEST: ALL PASS"
-python3 tools/paper_claims.py              | tee /dev/stderr | grep -q "PAPER-CLAIMS: ALL PASS"
-
-# Network-gated surfaces that CI runs against a pinned out-of-band source (the
-# Warrant 0.x CLI lives in the warrant repo's history, never in this tree). Run them when reachable; skip cleanly offline so the local
-# matrix stays runnable without network.
-#
-# ONE pin, read from ci.yml — the single visible pin its header mandates.
-# This script used to carry two sibling revs of its own (they had drifted to
-# commits different from CI's, so "the same surfaces" ran against a different
-# warrant than CI tested). ci.yml's header is the authority on what the pin
-# means and when it may refresh.
-#
-# Extraction lives in tools/read_warrant_pin.sh and fails HARD on a duplicate
-# WARRANT_PIN: line (the old inline sed+grep passed a two-line value, curl
-# then choked, and both parity checks skipped as "not reachable" — a
-# forbidden ci.yml state misdiagnosed as a network problem).
-WARRANT_PIN="$(tools/read_warrant_pin.sh)" \
-  || { echo "ERR: WARRANT_PIN extraction failed — see message above"; exit 1; }
-RAW=https://raw.githubusercontent.com/s0fractal/warrant
-
-say "Settlement-grade adjudication warrants (Warrant CLI, incl. ski@v1 re-runs)"
-if curl --proto '=https' --tlsv1.2 -sfL \
-        "$RAW/$WARRANT_PIN/impl/warrant.py" \
-        -o "$_freshdir/warrant.py" 2>/dev/null; then
-  SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify
-  SIGMA_GLYPH=impl python3 "$_freshdir/warrant.py" verify --settlement --trust-config trust-config.json
-  say "Book III live (two-jurisdictions demo, real stores, verified by the pinned Warrant CLI)"
-  WARRANT="python3 $_freshdir/warrant.py" python3 examples/two-jurisdictions/demo.py \
-    | tee /dev/stderr | grep -q "DEMO: ALL ASSERTIONS HELD"
-else
-  skip "Warrant CLI not reachable — run online for full parity"
-fi
 
 # Lean proofs + bridges run only where `lean` is installed (heavy toolchain).
 # c1_bridge_check is in this loop because CI's proofs.yml runs it: omitting it
@@ -276,7 +152,7 @@ fi
 # surface than CI (2026-07 review).
 if command -v lean >/dev/null 2>&1; then
   say "Lean proofs + differential bridges"
-  for b in bridge_check byte_bridge_check eval_bridge_check wave_bridge_check \
+  for b in bridge_check store_mono_bridge_check byte_bridge_check eval_bridge_check \
            c1_bridge_check; do
     python3 "proofs/$b.py" | tee /dev/stderr | grep -qE "HOLD|ALL AGREE"
   done

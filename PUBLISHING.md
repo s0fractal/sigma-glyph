@@ -7,13 +7,14 @@ then every release publishes itself.
 
 - **Distribution name:** `sigma-glyph` — claimed, and held by this repository's
   Trusted Publisher: <https://pypi.org/project/sigma-glyph/>.
-- **Import modules:** `sigma_glyph` (Book I), `sigma_wave` (Book II),
-  `sigma_federation` (Book III). No console scripts; each module is runnable with
-  `python -m`.
-- **What ships:** those three modules, and since 0.8.0 also `sigma_resume`
-  (the DRAFT resumable kernel) and `sigma_provider` (its consumer surface and
-  process protocol, `python -m sigma_provider`). Not the spec, not `tests/`,
-  not the Rust or Go implementations, not the proofs.
+- **Import modules:** `sigma_glyph` (Book I), `sigma_resume` (the DRAFT
+  resumable kernel) and `sigma_provider` (its consumer surface and process
+  protocol). No console scripts; each module is runnable with `python -m`.
+  Through 0.8.0 the distribution also shipped `sigma_wave` (Book II) and
+  `sigma_federation` (Book III); both were retired on 2026-10-31, and the next
+  distribution does not ship them.
+- **What ships:** those modules. Not the spec, not `tests/`, not the Rust
+  implementation, not the proofs.
 - **Released so far:** **0.6.6.post1** (2026-07-30, packaging only), **0.6.7**
   (2026-07-31) and **0.7.0** (2026-09-17, the latest release, the first that
   packages the adopted v0.7.0 bundle). All three went out through the workflow
@@ -100,8 +101,6 @@ reused even after a delete.
    ```bash
    python3 -m venv /tmp/v && /tmp/v/bin/pip install sigma-glyph
    /tmp/v/bin/python -m sigma_glyph        # -> ALL PASS
-   /tmp/v/bin/python -m sigma_wave         # -> WAVE: ALL PASS … SKIPPED: recorded-vector replay
-   /tmp/v/bin/python -m sigma_federation   # -> FEDERATION: ALL PASS … SKIPPED: …
    /tmp/v/bin/python -m sigma_provider     # -> PROVIDER: ALL PASS (16/16), since 0.8.0
    ```
 
@@ -115,67 +114,23 @@ pending publisher + `testpypi` environment exist:
 gh workflow run publish.yml
 gh run watch
 python3 -m venv /tmp/tv && /tmp/tv/bin/pip install -i https://test.pypi.org/simple/ sigma-glyph
-/tmp/tv/bin/python -m sigma_federation
+/tmp/tv/bin/python -m sigma_glyph
 ```
 
 ## What an installed copy can and cannot re-derive
 
-The replay corpora (`tests/spec_conformance/*.json`) live in the repo and are
-**not** part of the distribution. So from an installed copy the three self-tests
-run their property checks in full and announce the recorded-vector replay — and
-Book III's Book-I-unreachable fixture — as an explicit **SKIP**, with the reason
-and the command that runs them for real. That is the documented behaviour, and
-`tools/check_release_surface.py` asserts it.
-
-Before 2026-07-30 they did something else: `python -m sigma_wave` printed
-`FAIL wave_vectors.json present` (13/14, exit 1) and `python -m sigma_federation`
-exited 1 with a `FileNotFoundError` traceback. Neither was a real failure; both
-were a self-test mistaking "the distribution does not ship this" for "the check
-failed". Full re-derivation still requires a checkout:
+The replay corpus (`tests/spec_conformance/vectors.json`) lives in the repo and
+is **not** part of the distribution; full re-derivation requires a checkout:
 
 ```bash
 git clone https://github.com/s0fractal/sigma-glyph && cd sigma-glyph
 tools/test-all.sh
 ```
 
-The gate derives its expectation from the wheel's own file list, so if the
-corpora are ever shipped as package data it will start demanding that the replay
-actually ran, instead of being satisfied by a skip.
-
-### The `gen` verb is refused from an installed copy, on purpose
-
-`sigma_wave` and `sigma_federation` also accept `gen`, which rewrites
-`tests/spec_conformance/*.json`. Until 2026-07-31 it ended in a
-`FileNotFoundError` traceback from an installed copy (`_REPO` is site-packages'
-parent), and no gate had ever run it that way — the release gate ran
-`python -m <module>` and nothing else.
-
-It now refuses, with exit 2 and the reason:
-
-```
-$ /tmp/v/bin/python -m sigma_wave gen
-REFUSING: `gen` regenerates the conformance corpus at
-tests/spec_conformance/wave_vectors.json and requires a source checkout …
-```
-
-Shipping the corpus as package data would have made the verb "succeed" while
-writing a file with no spec text beside it to read the values off and no
-committed vectors to diff against — the appearance of a fix. `gen` is a
-maintainer verb; the honest installed-copy answer is that it does not apply here.
-
-`tools/check_release_surface.py` now carries a RUNNABLE / NOT_RUNNABLE table for
-every verb the modules declare, and **executes all of them** from outside a
-checkout. A verb the modules declare and the table does not classify fails the
-gate, so a new verb cannot ship unexercised the way `gen` did.
-
-Run it yourself before tagging:
-
-```bash
-python3 tools/check_release_surface.py --selftest       # the classifier
-python3 tools/check_release_surface.py                  # this checkout
-python3 -m build && python3 -m venv /tmp/sv && /tmp/sv/bin/pip install dist/*.whl
-python3 tools/check_release_surface.py --wheel dist/*.whl --bin /tmp/sv/bin
-```
+Until 0.8.0 the Book II and III modules announced their recorded-vector replay
+as an explicit SKIP from an installed copy and refused their `gen` verb there
+(`tools/check_release_surface.py` asserted both); the history of those two
+fixes is in `CHANGELOG.md` and at commit `96414ab`.
 
 ## After the first publish — done
 

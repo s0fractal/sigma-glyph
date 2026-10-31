@@ -5,12 +5,11 @@ No Books required. Three commands to trust nothing, one to compute.
 ```bash
 git clone https://github.com/s0fractal/sigma-glyph && cd sigma-glyph
 python3 impl/sigma_glyph.py         # Book I  (compute core)   -> ALL PASS
-python3 impl/sigma_wave.py          # Book II (wave views)     -> WAVE: ALL PASS
-python3 impl/sigma_federation.py    # Book III (federation)    -> FEDERATION: ALL PASS
+python3 tests/resume_test.py        # sigma-resume              -> SIGMA-RESUME: … PASS, 0 FAIL
 ```
 
-`pip install sigma-glyph` gets the same three modules as
-`python -m sigma_glyph` / `sigma_wave` / `sigma_federation`. README's "Status by
+`pip install sigma-glyph` gets the same module as `python -m sigma_glyph`
+(0.8.0 adds `sigma_provider`, the resume surface). README's "Status by
 surface" says which bundle the PyPI release packages and why it can be one
 bundle behind the adopted specification. **Clone anyway if
 you want the sentence below to be true:** the wheel does not ship
@@ -74,33 +73,27 @@ occurred; `eval_receipt(term, atp, store)` returns the exit explicitly (Book I
 earlier PyPI 0.6.7 module also has. The snippet is kept to that shared surface
 so the release gate can run it both ways.
 
-## The three layers in one paragraph each
+## The two layers in one paragraph each
 
 **Book I — TRUTH.** A content-addressed SKI machine. Identity is
 `SHA-256` of canonical bytes; evaluation is lazy, budgeted (`atp` pays
 for work and semantic materialized size: `size − 1 ≤ spent` is a proved invariant), and
 total. This is the only layer two nodes must agree on.
 
-**Book II — NAVIGATION.** Waves (phase/amplitude/entropy) are *views*
-over nodes — never part of identity, never able to touch `eval()` (there
-is a vector proving that). Interference, decay, crystallization: math
-for navigating, not for deciding.
+**sigma-resume.** A long computation in budgeted segments: each segment ends in
+a normal form, an explicit local refusal or a checkpoint (PAUSED); anyone can
+resume a checkpoint from their own root and verify a receipt by replaying it.
+Draft, not normative Book I (`spec/drafts/sigma-resume-draft-1.md`).
 
-**Book III — FEDERATION.** Annotations are *claims*, carried as signed
-[Warrant](https://github.com/s0fractal/warrant) records inside
-jurisdictions. A policy selects at most one claim per node; conflicts
-surface explicitly and are never merged. Jurisdictions may disagree
-forever — by design, with a mechanical name for every disagreement.
+Books II (waves) and III (federation) were retired on 2026-10-31
+(`history/RETIREMENT-2026-10-ECHO.md`).
 
 ## Audit the project itself
 
-Governed anchor adoptions and the adjudication records stored here are signed,
-re-runnable records; ordinary commits and reviews are not thereby adopted:
-
 ```bash
-SIGMA_GLYPH=impl python3 /path/to/warrant-0.x/impl/warrant.py verify  # the pinned Warrant 0.x CLI (see ci.yml WARRANT_PIN)
+tools/test-all.sh                   # the whole matrix CI runs, one command
+python3 tools/verify_anchors.py     # the adopted specification bytes
 ```
 
-Deeper: `spec/book-1-truth.md` is ~200 lines and self-contained.
-`reviews/README.md` explains how to attack this project properly —
-adversarial reviews are the development model, and yours is welcome.
+Deeper: `spec/book-1-truth.md` is ~250 lines and self-contained. Adversarial
+review is the development model: attack one exact claim, with a reproducer.

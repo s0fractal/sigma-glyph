@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Negative control for the spec-derived conformance gate.
 
-A gate that has never been seen to fail is not a gate. The Book I and Book II
-generators now carry hand-written, spec-cited expectations and REFUSE to write
-their vector files when the oracle disagrees (tests/spec_conformance/generate.py
-SPEC_EXPECT; impl/sigma_wave.py SPEC_EXPECT) — the discipline the governance
-suite has had since v0.6.x (the GOV generator (retired 2026-10-19) cmd_gen).
+A gate that has never been seen to fail is not a gate. The Book I generator
+carries hand-written, spec-cited expectations and REFUSES to write its vector
+file when the oracle disagrees (tests/spec_conformance/generate.py SPEC_EXPECT).
 
 This test proves the refusal fires. For each mutation it copies the oracle and
 its generator into a scratch tree, breaks exactly one normative behaviour, and
@@ -32,13 +30,6 @@ BOOK1 = {
     "output": "tests/spec_conformance/vectors.json",
     "spec": "spec/book-1-truth.md",
 }
-BOOK2 = {
-    "oracle": "impl/sigma_wave.py",
-    "generator": "impl/sigma_wave.py",
-    "argv": ["gen"],
-    "output": "tests/spec_conformance/wave_vectors.json",
-    "spec": "spec/book-2-navigation.md",
-}
 
 # (label, book, old, new, vector id the refusal must name)
 MUTATIONS = [
@@ -52,24 +43,11 @@ MUTATIONS = [
     ("Book I s4.1(3): the length check is dropped", BOOK1,
      "    if len(buf) != exp: return None", "    if False: return None",
      "INV-LEN-LONG"),
-    ("Book II s3: div_round_half_up degraded to floor division", BOOK2,
-     "    if 2 * r >= d:\n        q += 1\n", "    if False:\n        q += 1\n",
-     "WV-NEG-TIE"),
-    ("Book II s5: amp_factor normalised by 65536 instead of 65534", BOOK2,
-     "div_round_half_up((r + 32767) * 65535, 65534)",
-     "div_round_half_up((r + 32767) * 65535, 65536)", None),
-    ("Book II s6.2: the FALSE phase pin drifts by one", BOOK2,
-     '"FALSE": (["APPLY", "K", "I"], {"ph": 49152}),',
-     '"FALSE": (["APPLY", "K", "I"], {"ph": 49153}),', "WV-COORD-FALSE"),
 ]
 
-# The staged tree must be a CHECKOUT, because `gen` now refuses to run anywhere
-# else (impl/sigma_wave.py require_checkout). A checkout is defined structurally
-# in impl/sigma_wave.py as `impl/` beside `pyproject.toml` and
-# `tests/spec_conformance/`; leave pyproject.toml out and this guard measures
-# the wrong refusal — the corpus one instead of the spec one it exists to prove.
-NEEDED = ["impl/sigma_glyph.py", "impl/sigma_wave.py",
-          "tests/spec_conformance/generate.py", "pyproject.toml"]
+# The staged tree is a checkout (`impl/` beside `pyproject.toml` and
+# `tests/spec_conformance/`), as the generator expects.
+NEEDED = ["impl/sigma_glyph.py", "tests/spec_conformance/generate.py", "pyproject.toml"]
 
 ok = []
 
@@ -96,7 +74,7 @@ def run(tmp, book):
 def main():
     with tempfile.TemporaryDirectory() as td:
         tmp = stage(Path(td) / "clean")
-        for book in (BOOK1, BOOK2):
+        for book in (BOOK1,):
             p = run(tmp, book)
             out = tmp / book["output"]
             same = out.exists() and out.read_bytes() == (ROOT / book["output"]).read_bytes()

@@ -13,7 +13,7 @@ content environment), and returns a Receipt {exit, result_hash, atp_spent}:
 Admission (`AdmissionRefused`) and resource limits (`ResourceFault`) are
 local and non-canonical. This module does not arbitrate the edition: the
 Book and its anchored suite do. Serialization and NodeHashes are unchanged
-from v0.4.x. Waves live in impl/sigma_wave.py (Book II).
+from v0.4.x.
 """
 import hashlib
 import sys

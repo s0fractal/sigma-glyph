@@ -7,20 +7,23 @@
 > If the budget runs out, or demanded content is missing, that outcome is
 > deterministic too.
 
-Why anyone needs that: it lets you re-run a **stranger's** reason. A
-[Warrant](https://github.com/s0fractal/warrant) record says why an agent was
-allowed to act, and a reason there can be a Σ-GLYPH term — so a reviewer
-re-executes it on their own laptop instead of trusting the log of whoever wrote
-it. Bounding work *and* memory in advance is what makes running a stranger's
-computation safe by construction.
+Why anyone needs that: it lets you re-run a **stranger's** reason. A reviewer
+re-executes a computation on their own laptop instead of trusting the log of
+whoever wrote it. Bounding work *and* memory in advance is what makes running a
+stranger's computation safe by construction.
+
+This repository keeps two things: **Book I** (the compute core) and
+**sigma-resume** (a long computation in budgeted segments, resumed from
+checkpoints and verified by replay). Books II and III, GOV-anchors, LORE, the
+Warrant 0.x apparatus and the 0.7.0 gate and review material were retired on
+2026-10-31: [history/RETIREMENT-2026-10-ECHO.md](history/RETIREMENT-2026-10-ECHO.md)
+says what left, why, and the commit that keeps its bytes.
 
 ## Orient yourself first
 
 - **`master` is the only thing in force.** Branches are candidates: readable,
   citable, not adopted. Check the ref before reporting anything absent — that
   single mistake is the source of most false findings filed against this project.
-- **Present is not adopted.** Location is a fact about git; adoption is a
-  threshold warrant (2-of-3) recorded in `.warrants/`, never a heading.
 - [MAP.md](MAP.md): generated from git — where every cited document actually is.
 - [AGENTS.md](AGENTS.md): conduct rules, and the incident that caused them.
 
@@ -30,138 +33,51 @@ computation safe by construction.
 tools/test-all.sh                               # everything, one verdict
 ```
 
-A surface that could not be checked — no `lean` on PATH, no network for the
-cross-repo parity pulls — is named in the verdict and exits 2, never ALL GREEN.
-Until 2026-07-29 it printed ALL GREEN and exited 0 after skipping, so
-`tools/test-all.sh && echo verified` succeeded on a machine where the Lean
-bridges were never run. `ALLOW_SKIPS=1` is how you say the gap was deliberate.
+A surface that could not be checked (no `lean` on PATH) is named in the verdict
+and exits 2, never ALL GREEN. `ALLOW_SKIPS=1` is how you say the gap was
+deliberate.
 
 Individual pieces:
 
 ```bash
 python3 impl/sigma_glyph.py                     # ALL PASS            (Book I)
-python3 impl/sigma_wave.py                      # WAVE: ALL PASS      (Book II)
-python3 impl/sigma_federation.py                # FEDERATION: ALL PASS (Book III)
-python3 tests/spec_conformance/run_reference.py # CONFORMANCE: ALL PASS (49/49)
-python3 tools/repo_map.py --check-map           # every cited document is located
+python3 tests/spec_conformance/run_reference.py # CONFORMANCE: ALL PASS
+python3 tests/resume_test.py                    # SIGMA-RESUME: … PASS, 0 FAIL
+python3 tools/verify_anchors.py                 # the adopted specification bytes
 ```
 
 When a document and a command disagree, the command is right.
 
-From an **installed** copy (`pip install sigma-glyph`; README's "Status by
-surface" and [PUBLISHING.md](PUBLISHING.md) say which bundle the PyPI release
-packages, and that it can lag the adopted one) the same three self-tests run as
-`python -m sigma_glyph` / `sigma_wave` / `sigma_federation`, and they report one
-thing differently, on purpose: the recorded-vector replays and Book III's
-Book-I-unreachable fixture read `tests/spec_conformance/*.json`, which the wheel
-does not ship. Those are announced as an explicit `SKIP …` with the reason, and
-the verdict line names them (`WAVE: ALL PASS (13/13) — SKIPPED: recorded-vector
-replay`). The property checks run in full either way. A *missing* corpus in a
-CHECKOUT is still a failure — the two cases are distinguished structurally, not
-by guessing.
-
-Before 2026-07-30 an installed copy did something worse than skip: `sigma_wave`
-printed `FAIL wave_vectors.json present` (13/14, exit 1) and `sigma_federation`
-exited 1 with a `FileNotFoundError` traceback. Nothing was wrong with either
-Book; the self-tests were reading "the distribution does not ship this" as "the
-check failed". `tools/check_release_surface.py` now measures the built wheel and
-refuses to let that state be published, and it derives the expected skips from
-the wheel's own file list rather than hard-coding them.
-
-## The three Books, and the constitution
+## The specification
 
 - [spec/book-1-truth.md](spec/book-1-truth.md) — normative. Canonical bytes,
   SHA-256 identity, SKI normal-order reduction, size-priced ATP. The contract two
   independent nodes need to agree on a result hash. `book-1-truth.en.md` is an
   informative translation, not the citation target.
-- [spec/book-2-navigation.md](spec/book-2-navigation.md) — the wave layer. A
-  **view over identity, never part of it**: ignore it entirely and Book I still
-  holds. This invariant is load-bearing; anything that lets a wave decide a hash
-  is a P0.
-- [spec/book-3-federation.md](spec/book-3-federation.md) — annotation federation
-  as a Warrant v0.3 profile. Jurisdictions diverge permanently by design.
-- [spec/GOV-anchors.md](spec/GOV-anchors.md) — how releases are adopted, and why
-  the constitution is deliberately not a Book: it must not judge itself.
-- [spec/LORE.md](spec/LORE.md) — non-normative. Aesthetic disagreement with it is
-  welcome and is not a spec defect.
+- [spec/drafts/sigma-resume-draft-1.md](spec/drafts/sigma-resume-draft-1.md) —
+  draft, not normative Book I: segments, checkpoints, resume, receipts.
 
-Three implementations from one author/model lineage agree on all 49 vectors
-(Python, Rust, and warrant-go), and the evaluator's determinism, totality and memory bound are
-machine-checked in Lean 4 (`proofs/`). Bounded by SA-1: part of that chain rests
-transitively on `native_decide`, which puts the compiler in the trusted base as
-well as the kernel.
+Two implementations from one author/model lineage agree on all 49 vectors and on
+generated terms (Python and Rust), and the evaluator's determinism, totality and
+memory bound are machine-checked in Lean 4 (`proofs/`). Bounded by SA-1: part of
+that chain rests transitively on `native_decide`, which puts the compiler in the
+trusted base as well as the kernel.
 
 ## If you are reviewing
 
-[reviews/README.md](reviews/README.md) is the protocol, and it carries a long
-list of **settled points** — do not re-litigate them without a new argument. Two
-of three earlier reviewers filed "ambiguities" already answered by an executable
-test vector, which is why the first rule is: run first, read second.
-
-A finding is a reproduction, not a sentence. Blocks that report a violation
-whatever the machine does — asserting the correct behaviour and then announcing a
-defect — have been submitted here by three separate reviewers.
-
-## Optional
-
-- [ROADMAP.md](ROADMAP.md), [history/](history/): prior eras and retired
-  documents are in git history with a ledger saying what left, why and how to
-  retrieve it with status. Old hashes stay valid artefacts of their era; dirty
-  history is provenance, but it is not the default surface.
+Run first, read second. A finding is a reproduction, not a sentence: blocks that
+report a violation whatever the machine does have been submitted here by three
+separate reviewers.
 
 ## Reporting a defect
 
 [SECURITY.md](SECURITY.md) — scope, the reporting channel, and the severity
-ladder (P0 = two nodes disagree on a result hash, or the wave layer touches
-identity). Response capacity is stated rather than implied. What is out of scope
-is a stated boundary of the threat model, defined once in
-[SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md).
-
-## Security assumptions and non-goals
-
-This section used to be "Where the honest gaps are" and carried its own copy of
-the list. The items have not changed and none has been softened; they now live in
-one place, in the form a standards reader expects:
-**[SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md)** — ten scoped assumptions
-(`SA-1` … `SA-10`) and seven explicit non-goals (`NG-1` … `NG-7`), each with its
-reasoning.
-
-Not duplicated here on purpose. "A document claims closure where the fix only
-narrowed" is a recurring defect class in this stack and this file has been caught
-at it four times; a residual list maintained in two places is how the fifth
-happens.
-
-The sharpest five, at full strength so a summary cannot read softer than the
-thing it summarises:
-
-- **SA-1** — `native_decide` is in the trusted base for part of the Lean chain,
-  so those theorems trust the **compiler** as well as the kernel. Nothing
-  discharges that, and nothing can. `C1Compiler.lean` does not use it.
-- **SA-3** — Warrant verification is an external machine boundary. A pinned
-  Warrant checkout or binary is required; Sigma-Glyph does not re-derive it.
-- **SA-4** — Book III still admits a JCS-equivalent but non-canonical assertion
-  blob. The v0.6.6 fix narrowed this to the **governance** verifier only;
-  `sigma_federation.py` still does not compare raw bytes against `canon(parsed)`.
-- **SA-5** — every exercise of the 2-of-3 threshold is counted there, with its
-  date, and several of them were signed from one host, which is one custody,
-  not a quorum.
-- **SA-8/SA-9** — the OIDC publish path has now run three times (0.6.6.post1,
-  0.6.7 and 0.7.0 are on PyPI), on one hosted runner, with the TestPyPI dry run
-  still never performed and nobody outside this project having installed the
-  result; and no
-  independent gate is currently affordable, so work lands under a recorded
-  attestation rather than a passed gate.
-
-These are stated boundaries of the threat model, not defects. A report showing
-one is *worse than stated* is in scope and welcome; one restating it is not.
+ladder (P0 = two nodes disagree on a result hash, or a resumed computation
+disagrees with a straight run). What is out of scope is a stated boundary of the
+threat model, defined once in [SECURITY-ASSUMPTIONS.md](SECURITY-ASSUMPTIONS.md).
 
 ## Who holds authority here
 
 Model actors in this project are **delegated, bounded actors under a root of
 authority held by a human** — never the maintainer of record, never where
-non-repudiation rests. A model's signature attests that a delegated process ran
-under a policy a human signed. See SA-6, and
-[`warrant/MODEL-ACTORS.md`](https://github.com/s0fractal/warrant/blob/master/MODEL-ACTORS.md)
-for the full positioning including four places the mechanism does not yet match
-it — one of which is `spec/GOV-anchors.md` §4/§5, which names a model
-"maintainer" and is an anchored STANDARD that an agent may not re-word.
+non-repudiation rests. See SA-6.

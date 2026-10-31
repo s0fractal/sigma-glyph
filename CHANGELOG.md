@@ -1,5 +1,30 @@
 # Changelog
 
+## Distribution 0.9.0 (unreleased) — Book I and resume, and nothing else
+
+`pyproject.toml` moves to `0.9.0.dev0`. Only Book I and sigma-resume stay; the
+rest was retired on 2026-10-31 by the owner's decision
+([history/RETIREMENT-2026-10-ECHO.md](history/RETIREMENT-2026-10-ECHO.md), 478
+paths with their digests at `96414ab`):
+
+- **Books II and III** (specifications, schemas, suites, oracles `sigma_wave` and
+  `sigma_federation`, the Go federation engine, the wave proofs, the
+  two-jurisdictions demo). The distribution no longer ships the two modules.
+- **GOV-anchors and LORE**; their adopted bytes stay verifiable:
+  `tools/verify_anchors.py` reads a retired file of the current bundle at the
+  commit it left.
+- **The Warrant 0.x apparatus**: `.warrants/`, `trust-config.json`, the signing
+  helpers, the pinned Warrant 0.x CLI and warrant-go steps, `cross-repo.yml`.
+- **The 0.7.0 gate and campaign, reviews, experiments, proposals, needs**, the
+  roadmap, the review policy and the review scripts; `tools/paper_claims.py` and
+  `tools/retirement_check.py`.
+
+What stays is checked as before: Book I oracle, Rust engine (now the only other
+engine in the fuzzer), conformance and properties, the Book I Lean fronts and
+their guard (its registry cases moved from the wave front to the bytes front),
+the resume matrix, mutants and differential, the provider wheel. CI pins no
+sibling repository; `tools/test-all.sh` needs no `WARRANT` operand.
+
 ## Distribution 0.8.0 — the checked resume provider ships (release pending)
 
 `pyproject.toml` moves from `0.8.0.dev0` to `0.8.0`. To be released from tag

@@ -93,7 +93,7 @@ CHECKOUT_REQUIRED = "requires a source checkout"
 
 # The distribution's contract: these modules, importable at top level, each with a
 # self-test. sigma_resume ships beside them as the library sigma_provider runs.
-MODULES = ("sigma_glyph", "sigma_wave", "sigma_federation", "sigma_provider")
+MODULES = ("sigma_glyph", "sigma_provider")    # sigma_wave, sigma_federation retired after 0.8.0
 # Imported by a module above but not exercised as a verb surface of its own.
 # A checkout-mode run copies these too, or sigma_provider cannot import its
 # kernel (Codex AMEND of #67: the copy held sigma_provider without sigma_resume).
@@ -109,19 +109,13 @@ SUPPORT_MODULES = ("sigma_resume",)
 # have to be typed on purpose.
 SUITES = (
     ("sigma_glyph", ALL_PASS, 35),
-    ("sigma_wave", WAVE_PASS, 13),
-    ("sigma_federation", FEDERATION_PASS, 15),
     ("sigma_provider", "PROVIDER: ALL PASS", 16),
 )
 
 # Replay corpora live in the repo. If a build starts shipping them, the expected
 # behaviour of the installed self-tests changes, and this map is where the gate
 # finds that out (see `expected_skips`).
-CORPORA = {
-    "tests/spec_conformance/wave_vectors.json": ("sigma_wave", REPLAY_SKIP),
-    "tests/spec_conformance/federation_vectors.json": ("sigma_federation", REPLAY_SKIP),
-    "tests/spec_conformance/vectors.json": ("sigma_federation", "Book I unreachable fixture"),
-}
+CORPORA = {}
 
 TRACEBACK = "Traceback (most recent call last)"
 
@@ -146,10 +140,6 @@ NOT_RUNNABLE = "NOT_RUNNABLE"
 
 VERB_TABLE = {
     ("sigma_glyph", ""): (RUNNABLE, None),
-    ("sigma_wave", ""): (RUNNABLE, None),
-    ("sigma_federation", ""): (RUNNABLE, None),
-    ("sigma_wave", "gen"): (NOT_RUNNABLE, CHECKOUT_REQUIRED),
-    ("sigma_federation", "gen"): (NOT_RUNNABLE, CHECKOUT_REQUIRED),
     ("sigma_provider", ""): (RUNNABLE, None),
     ("sigma_provider", "serve"): (RUNNABLE, None),
 }
@@ -282,9 +272,9 @@ def check_verbs(python, verbdir, problems):
         _run_module_verbs(python, verbdir, module, problems)
 
 
-def expected_skips(module, shipped):
+def expected_skips(module, shipped, corpora=None):
     """What this module MUST announce as skipped, given what the wheel ships."""
-    return [label for path, (mod, label) in CORPORA.items()
+    return [label for path, (mod, label) in (CORPORA if corpora is None else corpora).items()
             if mod == module and path not in shipped]
 
 
@@ -516,9 +506,11 @@ def selftest():
         print(("OK  " if good_case else "FAIL"), name,
               "" if good_case else f"-> {problems}")
 
-    ship = set(CORPORA) | {"sigma_wave.py"}
-    e1 = expected_skips("sigma_wave", ship)
-    e2 = expected_skips("sigma_wave", {"sigma_wave.py"})
+    # The rule, on a corpus map of its own (no module of this distribution reads a repo corpus today).
+    corpora = {"tests/spec_conformance/wave_vectors.json": ("sigma_wave", REPLAY_SKIP)}
+    ship = set(corpora) | {"sigma_wave.py"}
+    e1 = expected_skips("sigma_wave", ship, corpora)
+    e2 = expected_skips("sigma_wave", {"sigma_wave.py"}, corpora)
     for name, cond in (("corpora shipped -> no skip expected", e1 == []),
                        ("corpora absent -> replay skip expected",
                         e2 == [REPLAY_SKIP])):
