@@ -111,8 +111,11 @@ check("B110 R-S: S x y z -> x z (y z); S K K I reduces to I at TV-5's 12 ATP, an
       (receipt(skki, env_of(sk, skk, skki)), receipt(siik, env_of(si, sii, siik))))
 ref2 = sg.ser(sg.REF, sg.F_ATOM, atom=I_H)
 ref1 = sg.ser(sg.REF, sg.F_ATOM, atom=sg.node_hash(ref2))
-check("B111 R-R unwraps one level per step: a chain REF -> REF -> I of length 2 costs 3·2 ATP (TV-9)",
-      receipt(ref1, env_of(ref1, ref2)) == (I_HEX, 6, "normal_form"), receipt(ref1, env_of(ref1, ref2)))
+one = tried(sg.step5, ("ref", sg.node_hash(ref2)), 1000, env_of(ref1, ref2), {"fetches": 0}, sg.DEFAULT_LIMITS)
+check("B111 R-R unwraps one level per step: REF(h) steps to the thunk of h itself (not of what h refers to) at 1 ATP, "
+      "and a chain REF -> REF -> I of length 2 costs 3·2 ATP (TV-9)",
+      one == (("thunk", sg.node_hash(ref2)), 1) and receipt(ref1, env_of(ref1, ref2)) == (I_HEX, 6, "normal_form"),
+      (one, receipt(ref1, env_of(ref1, ref2))))
 # §3.2: identity by hash
 lower_i = sg.ser(sg.LITERAL, sg.F_ATOM, atom=sg.sha(b"i"))
 not_i = app(sg.node_hash(lower_i), K_H)

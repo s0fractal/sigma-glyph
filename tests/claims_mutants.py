@@ -37,6 +37,9 @@ MUTANTS = [
     ("G10", ORACLE, '    return ("app", ("app", x, z), ("app", y, z)), cost\n', '    return ("app", ("app", x, z), ("app", z, y)), cost\n',
      BOOK1, ["B110"]),
     ("G11", ORACLE, '        return ("thunk", t[1]), 1\n', '        return ("thunk", t[1]), 0\n', BOOK1, ["B111"]),
+    ("G18", ORACLE, '        return ("thunk", t[1]), 1\n',
+     '        v = force(t[1], store, stats, limits)\n'
+     '        return (("thunk", v[1]) if v[0] == "ref" else ("thunk", t[1])), 1\n', BOOK1, ["B111"]),
     ("G12", ORACLE, '    if t[0] == "lit":   return node_hash(ser(LITERAL, F_ATOM, atom=t[1])) == gh\n',
      '    if t[0] == "lit":   return True\n', BOOK1, ["B112"]),
     ("G13", ORACLE, "    if glyph_eq(function[1], K_H):\n", '    if glyph_eq(function[1], K_H) and argument[0] != "thunk":\n',
