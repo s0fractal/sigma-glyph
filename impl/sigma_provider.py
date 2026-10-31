@@ -2,9 +2,7 @@
 """sigma-resume as an installable provider: the consumer surface of the resumable
 kernel (impl/sigma_resume.py), for a caller that has only the installed wheel.
 
-STATUS: DRAFT consumer surface over the DRAFT sigma-resume reference
-(spec/drafts/sigma-resume-draft-1.md). It is not normative Book I and not an
-adopted edition: Book I `eval_receipt`/`eval_hash` remain the specification. This
+The consumer surface over spec/sigma-resume.md's reference implementation. This
 module adds no semantics; every answer comes from sigma_resume / sigma_glyph.
 
 Library (bytes and hex in, JSON-able values out):

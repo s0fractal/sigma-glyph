@@ -1,9 +1,7 @@
-"""Resumable Book I computation: DRAFT reference for phases P1/P2 of the
-sigma-warrant redesign (Documents/Codex/2026-10-17/sigma-warrant-redesign).
-
-NOT NORMATIVE. Book I `eval_receipt`/`eval_hash` are unchanged and remain the
-specification; this module runs the same transition (`sigma_glyph.step5`) and
-adds what the redesign asks of a kernel:
+"""Resumable Book I computation: the reference implementation of
+spec/sigma-resume.md (the document is the specification; where they disagree,
+this module is the defect). Book I `eval_receipt`/`eval_hash` are unchanged; this
+module runs the same transition (`sigma_glyph.step5`) and adds:
 
 - a ComputationRoot that names the task (term, runtime, cost model, environment),
   separate from any budget;

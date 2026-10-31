@@ -55,8 +55,8 @@ When a document and a command disagree, the command is right.
   SHA-256 identity, SKI normal-order reduction, size-priced ATP. The contract two
   independent nodes need to agree on a result hash. `book-1-truth.en.md` is an
   informative translation, not the citation target.
-- [spec/drafts/sigma-resume-draft-1.md](spec/drafts/sigma-resume-draft-1.md) —
-  draft, not normative Book I: segments, checkpoints, resume, receipts.
+- [spec/sigma-resume.md](spec/sigma-resume.md) —
+  normative with Book I (draft standard): segments, checkpoints, resume, receipts.
 
 Two implementations from one author/model lineage agree on all 49 vectors and on
 generated terms (Python and Rust), and the evaluator's determinism, totality and

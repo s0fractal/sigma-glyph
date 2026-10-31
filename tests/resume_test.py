@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""sigma-resume draft reference (impl/sigma_resume.py) against the redesign's
+"""sigma-resume's reference (impl/sigma_resume.py, spec/sigma-resume.md) against the redesign's
 test matrix, N01-N37 (Documents/Codex/2026-10-17/sigma-warrant-redesign).
 
 Each case names its N-id and checks the reason, not only that something failed.

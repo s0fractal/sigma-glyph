@@ -5,3 +5,7 @@ version = 4
 [[package]]
 name = "sigma-glyph-book1"
 version = "0.1.0"
+
+[[patch.unused]]
+name = "creusot-std"
+version = "0.15.0-dev"
