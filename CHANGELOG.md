@@ -35,6 +35,16 @@ witness case of `tests/book1_claims_test.py` and a mutant of
 `tests/claims_mutants.py` (17 of 17 killed), 2 unbacked with the layer that
 holds them named. CI runs `warrant claims check`, the witnesses and the mutants.
 
+The rest of Book I's claims (§3.4 interface, Receipt, uint32 domain,
+exhaustion before access, failed resolve, totality, the semantic memory bound;
+§3.5 the environment's key property, demanded content, unresolved; §3.6 local
+faults and admission, out-of-domain input; §5.2 FALSE; §5.3 reason hashes and
+the reserved one; §6 no η, the K rule of A; §7 the suite, TV-4, TV-7): 24 more,
+22 backed (cases B201-B220, mutants G21-G38), 2 unbacked with their reason
+(the environment is read only through demanded hashes; stability is mechanized
+in Lean and bridged, not mutated). 43 claims in all, 39 backed, 36 of 36
+mutants killed.
+
 What stays is checked as before: Book I oracle, Rust engine (now the only other
 engine in the fuzzer), conformance and properties, the Book I Lean fronts and
 their guard (its registry cases moved from the wave front to the bytes front),

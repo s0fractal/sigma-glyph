@@ -147,5 +147,128 @@ check("B117 a genesis hash is a normal form without materialization: eval(H(I)) 
       == (I_HEX, 0, "normal_form") and receipt(ik, env_of(ik))[2] == "normal_form",
       tried(lambda: tuple(sg.eval_receipt(I_H, 10, {}))))
 
+class Counting(dict):
+    """An environment that counts how often it is read."""
+    reads = 0
+
+    def get(self, k, d=None):
+        Counting.reads += 1
+        return super().get(k, d)
+
+
+def reads_of(f, *a):
+    """(what f(*a) returned or raised, how many environment reads it made)."""
+    Counting.reads = 0
+    got = tried(f, *a)
+    return got, Counting.reads
+
+
+ghost = sg.sha(b"this node was never stored")
+i_ghost = app(I_H, ghost)
+dis_atp = sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=sg.R_ATP)
+omega_half = app(sg.node_hash(sii), sg.node_hash(sii))   # (S I I)(S I I)
+omega_env = env_of(si, sii, omega_half)
+
+# §3.4: the interface and the Receipt
+exits = [receipt(ik, env_of(ik))[2], receipt(skki, env_of(sk, skk, skki), atp=11)[2], receipt(i_ghost, env_of(i_ghost))[2]]
+r_dict = tried(lambda: sorted(sg.eval_receipt(sg.node_hash(ik), 10, env_of(ik)).as_dict()))
+check("B201 a Receipt is {exit, result_hash, atp_spent}, its exit one of normal_form, atp_exhausted, unresolved_reference",
+      exits == ["normal_form", "atp_exhausted", "unresolved_reference"] and r_dict == ["atp_spent", "exit", "result_hash"],
+      (exits, r_dict))
+stored = receipt(dis_atp, env_of(dis_atp))
+exhausted = receipt(skki, env_of(sk, skk, skki), atp=11)
+check("B202 the same result_hash can be a normal form or an exhaustion: a stored DISSONANCE(ATP Exhausted) evaluates to "
+      "itself with exit normal_form", stored[0] == exhausted[0] and stored[2] == "normal_form" and exhausted[2] == "atp_exhausted",
+      (stored, exhausted))
+out_of_domain = [reads_of(sg.eval_receipt, sg.node_hash(ik), atp, Counting(env_of(ik)))
+                 for atp in (2 ** 32, -1, True, 1.5, 2 ** 64)]
+check("B203 an ATP budget outside uint32 is refused locally (ValueError), before the environment is read, never clamped",
+      all(got == "ValueError" and n == 0 for got, n in out_of_domain), out_of_domain)
+ref_missing = sg.ser(sg.REF, sg.F_ATOM, atom=sg.sha(b"missing"))
+zero = reads_of(lambda: (lambda r: (r.exit, r.atp_spent))(sg.eval_receipt(sg.node_hash(ref_missing), 0, Counting(env_of(ref_missing)))))
+check("B204 at spent == atp exhaustion is decided before any store access: eval(REF(missing), 0) = ATP Exhausted, spent 0, "
+      "no read", zero == (("atp_exhausted", 0), 0), zero)
+tv8 = receipt(i_ghost, env_of(i_ghost))
+check("B205 a failed resolve is not charged: APPLY(I, ghost) is Unresolved Reference at 4 ATP (TV-8)",
+      tv8 == (sg.node_hash(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=sg.R_UNRES)).hex(), 4, "unresolved_reference"), tv8)
+omega = [receipt(omega_half, omega_env, atp=n)[2] for n in (0, 1, 7, 100, 1000)]
+check("B206 eval is total: Omega at budgets 0, 1, 7, 100, 1000 returns DISSONANCE(ATP Exhausted), never an exception (TV-7)",
+      omega == ["atp_exhausted"] * 5
+      and sg.node_hash(omega_half).hex() == "0609d7e3bac2c6927c34ade51c7d6728a75c6ac0206fdb184524843b4fb94211", omega)
+
+
+def bound_holds(top, env, atp):
+    """Whether materialized_size(t) - 1 <= spent at every step of eval(top, atp)."""
+    t, spent, stats = ("thunk", sg.node_hash(top)), 0, {"fetches": 0}
+    while True:
+        r = tried(sg.step5, t, atp - spent, env, stats, sg.DEFAULT_LIMITS)
+        if r is None or isinstance(r, str):
+            return True
+        t, spent = r[0], spent + r[1]
+        if sg.size(t) - 1 > spent:
+            return False
+
+
+tv6 = app(sg.node_hash(sii), sg.node_hash(ik))       # S I I (I K)
+check("B207 along every execution materialized_size(t) - 1 <= spent: TV-6 (S I I (I K)) and Omega, step by step",
+      bound_holds(tv6, env_of(si, sii, ik, tv6), 1000) and bound_holds(omega_half, omega_env, 500)
+      and receipt(tv6, env_of(si, sii, ik, tv6))[1:] == (21, "normal_form"))
+# §3.5: the content environment
+foreign = {sg.node_hash(ik): sg.K_BYTES}
+check("B208 bytes under a key they do not hash to are not executed as that key's node: a local refusal, no Receipt",
+      tried(sg.eval_receipt, sg.node_hash(ik), 10, foreign) == "ResourceFault", tried(sg.eval_receipt, sg.node_hash(ik), 10, foreign))
+extra = {**env_of(ki, k_i_missing), sg.sha(b"unrelated"): b"\x03\x01" + ATOM, sg.sha(b"wrong key"): sg.I_BYTES}
+check("B209 an entry the execution never demands changes no Receipt (even an invalid one, or one under a foreign key)",
+      receipt(k_i_missing, extra) == receipt(k_i_missing, env_of(ki, k_i_missing)), receipt(k_i_missing, extra))
+check("B210 adding content changes only an unresolved_reference exit: a settled normal_form or atp_exhausted Receipt stays",
+      receipt(skki, {**env_of(sk, skk, skki), **env_of(lit, ref, apl)}) == receipt(skki, env_of(sk, skk, skki))
+      and receipt(skki, {**env_of(sk, skk, skki), **env_of(lit)}, atp=11) == receipt(skki, env_of(sk, skk, skki), atp=11))
+check("B211 a demanded hash that is neither stored nor a genesis axiom gives DISSONANCE(Unresolved Reference)",
+      tv8[2] == "unresolved_reference" and tv8[0] == sg.node_hash(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=H(
+          "75daae55453d9a98bfadb847d70b73fdd0be91d3b6ef8511d22fc42aa2c7c8e2"))).hex(), tv8)
+# §3.6: local refusals are not results
+tight = dict(sg.DEFAULT_LIMITS, max_store_fetches=2)
+check("B212 a local resource limit breached during eval is a ResourceFault, never serialized as a DISSONANCE",
+      tried(sg.eval_receipt, sg.node_hash(skki), 100, env_of(sk, skk, skki), tight) == "ResourceFault",
+      tried(sg.eval_receipt, sg.node_hash(skki), 100, env_of(sk, skk, skki), tight))
+admission = reads_of(sg.eval_receipt, sg.node_hash(ik), 1000, Counting(env_of(ik)), dict(sg.DEFAULT_LIMITS, max_atp=100))
+check("B213 a verifier may refuse before execution: a budget above its admission limit is AdmissionRefused, no read, no Receipt",
+      admission == ("AdmissionRefused", 0), admission)
+short_hash = [reads_of(sg.eval_receipt, h, 10, Counting(env_of(ik))) for h in (sg.node_hash(ik)[:31], sg.node_hash(ik) + b"\x00")]
+check("B214 a term_hash that is not exactly 32 bytes is refused locally, before the environment is read",
+      all(got == "ValueError" and n == 0 for got, n in short_hash), short_hash)
+# §5.2, §5.3
+check("B215 the reason hashes are SHA-256 of their names, as the Book prints them",
+      [sg.R_INVALID.hex(), sg.R_ATP.hex(), sg.R_UNRES.hex()] == [
+          "7cc62bcc7c921683532cec1c1c331ca81d76b001e0c7f407a4078df7f696efe8",
+          "dc435a08513893bacd07abd802b9c526e92ae57ca6db40c1c8f369fd7032e090",
+          "75daae55453d9a98bfadb847d70b73fdd0be91d3b6ef8511d22fc42aa2c7c8e2"])
+damped = sg.sha(b"Signal Damped")
+reasons = {receipt(skki, env_of(sk, skk, skki), atp=11)[0], tv8[0], INVALID_HEX}
+check("B216 no rule of Book I produces the reserved reason Signal Damped",
+      sg.node_hash(sg.ser(sg.DISSONANCE, sg.F_ATOM, atom=damped)).hex() not in reasons
+      and damped not in (sg.R_INVALID, sg.R_ATP, sg.R_UNRES))
+# §6: C1
+lam = lambda x, m: ("lam", x, m)
+var = lambda x: ("var", x)
+kxy = tried(lambda: sg.term_hash(sg.c1(lam("x", lam("y", var("x"))))).hex())
+eta = tried(lambda: sg.term_hash(sg.c1(lam("f", lam("x", ("lapp", var("f"), var("x")))))))
+check("B217 C1[λx.λy.x] is S (K K) I with the Book's hash (TV-10), and no η-reduction: C1[λf.λx.f x] is not C1[λf.f] = I",
+      kxy == "bed95fbc7ccd2cf53d3562138a69a90a9c38de9f7a23d9015eef1b6638d4eb1d" and eta != I_H and isinstance(eta, bytes),
+      (kxy, eta))
+free = tried(sg.c1, lam("x", ("lapp", var("y"), var("x"))))
+const = tried(lambda: sg.c1(lam("x", lam("y", var("y")))))
+check("B218 A(x, M) = K M when x is not free in M: λx.λy.y is K I, and λx.y x is S (K y) I with y left free, not bound",
+      const == ("app", sg.KG, sg.IG) and free == ("app", ("app", sg.SG, ("app", sg.KG, var("y"))), sg.IG), (free, const))
+# §7: the suite
+import subprocess  # noqa: E402
+suite = subprocess.run([sys.executable, "-B", str(Path(__file__).resolve().parent / "spec_conformance" / "run_reference.py")],
+                       capture_output=True, text=True)
+check("B219 the machine-readable suite is part of the edition: every vector of vectors.json replays on the oracle",
+      suite.returncode == 0 and "CONFORMANCE: ALL PASS" in suite.stdout, suite.stdout[-300:])
+tv4 = [receipt(ik, env_of(ik), atp=n)[1:] for n in (0, 2, 3)]
+check("B220 TV-4 at budgets 0, 2, 3: exhausted with spent 0, 0 (the root's bytes discarded: force costs 3 > 2) and 3",
+      tv4 == [(0, "atp_exhausted"), (0, "atp_exhausted"), (3, "atp_exhausted")], tv4)
+
 print(f"\nBOOK1-CLAIMS: {'ALL PASS' if not failures else 'FAILURES ' + ' '.join(failures)}")
 sys.exit(1 if failures else 0)
