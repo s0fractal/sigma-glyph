@@ -1,0 +1,3 @@
+# The store (Warrant 3): parallel appends merge without conflict; its bytes are hashed and signed, never converted.
+.warrant/records.jsonl merge=union -text
+.warrant/blobs/** -text

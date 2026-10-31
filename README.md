@@ -177,6 +177,13 @@ For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent
 gate or governance adoption.
 
+Reviews are records, not prose: `.warrant/` is this repository's Warrant 3
+store (`warrant-graph`, pinned in `.github/warrant-requirements.txt`). A pull
+request's head is a `pr-head@1` version; the reviewer named by
+`.warrant/v3.json` (`pr/acceptor`) accepts it or files `finding@1` challenges
+against it, signed with its own key. `warrant status` and `warrant review view`
+read them. The owner merges (AGENTS.md rule 5).
+
 ## Published evidence
 
 - *One Integer for Semantic Work and Materialization* —

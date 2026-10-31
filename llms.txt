@@ -24,7 +24,8 @@ says what left, why, and the commit that keeps its bytes.
 - **`master` is the only thing in force.** Branches are candidates: readable,
   citable, not adopted. Check the ref before reporting anything absent — that
   single mistake is the source of most false findings filed against this project.
-- [MAP.md](MAP.md): generated from git — where every cited document actually is.
+- `.warrant/`: this repository's Warrant 3 records — pull-request heads, reviews,
+  findings — read with `warrant status` and `warrant review view` (warrant-graph).
 - [AGENTS.md](AGENTS.md): conduct rules, and the incident that caused them.
 
 ## Check anything in one command

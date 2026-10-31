@@ -13,10 +13,13 @@ are not style — breaking them corrupts the thing this project exists to protec
 2. **Never assert review or roster authority in a commit.** A trailer like
    `Reviewed-by: <X> (2-of-3 roster)` is **false provenance**. Adoption is a
    signed record by the keys the repository's configuration names — **not** a
-   commit message. Through v0.7.0 that was a threshold warrant in the Warrant 0.x
-   store `.warrants/` (retired 2026-10-31, kept at commit `96414ab`); its
-   successor is the Warrant 3 store `.warrant/`. An agent is not a roster member
-   and cannot self-grant that authority.
+   commit message: a Warrant 3 record in `.warrant/`, under the keys and roles of
+   `.warrant/v3.json`. A review is the reviewer's own signed acceptance of a
+   pull request's head version, or a finding it files against it (`warrant
+   review`); a commit or a comment carries none. Through v0.7.0 adoption was a
+   threshold warrant in the Warrant 0.x store `.warrants/` (retired 2026-10-31,
+   kept at commit `96414ab`). An agent is not a roster member and cannot
+   self-grant that authority.
 
 3. **An "independent gate" means adversarial counter-vector hunting by a fresh
    reviewer — NOT running the green test suites.** Green suites are *necessary but

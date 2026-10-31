@@ -19,6 +19,15 @@ paths with their digests at `96414ab`):
   roadmap, the review policy and the review scripts; `tools/paper_claims.py` and
   `tools/retirement_check.py`.
 
+Then the repository's records move to Warrant 3: `.warrant/` holds Warrant's
+six bootstrap schemas and Codex's acceptances of them (the same signed bytes
+as warrant's and minds'), `v3.json` names claude and codex and their roles, and
+`merge.json` the base, the required checks and the owner paths (the owner
+merges). CI installs `warrant-graph` 3.0.0a3 by hash and requires the store
+canonical, nothing rejected, no problem. `MAP.md` and `tools/repo_map.py` are
+retired: where a document lives is git's answer, and what is in force is
+`master`.
+
 What stays is checked as before: Book I oracle, Rust engine (now the only other
 engine in the fuzzer), conformance and properties, the Book I Lean fronts and
 their guard (its registry cases moved from the wave front to the bytes front),
