@@ -143,6 +143,7 @@ python3 tests/resume_differential.py | tee /dev/stderr | grep -q "RESUME DIFFERE
 sh tests/resume_differential_controls.sh | tee /dev/stderr | grep -q "DIFFERENTIAL CONTROLS: ALL BITE"
 
 say "Anchors"
+python3 tools/verify_anchors.py --selftest | tee /dev/stderr | grep -q "VERIFY-ANCHORS-SELFTEST: ALL PASS"
 python3 tools/verify_anchors.py            | tee /dev/stderr | grep -q "anchors verified"
 
 # Lean proofs + bridges run only where `lean` is installed (heavy toolchain).

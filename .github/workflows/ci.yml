@@ -10,7 +10,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # Full history from the start: version_check and verify_anchors read the
+      # retired anchored files at the commit they left (Codex on #72, F1).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: '3.12' }
       # Mirrored from warrant (until 2026-10-19 X1 enforced byte-identity of
@@ -154,8 +158,12 @@ jobs:
         run: python3 tests/spec_conformance/run_reference.py
       - name: Property-based suite (seeded, stdlib-only)
         run: python3 tests/spec_conformance/test_properties.py
-      # A retired anchored file is verified at the commit it was retired from: that needs the history.
+      # A retired anchored file is verified at the commit it was retired from; any
+      # other missing file fails. The selftest burns both directions first.
       - name: Verify Specification Anchors
+        shell: bash
         run: |
-          git fetch --no-tags --unshallow || git fetch --no-tags
+          set -euo pipefail
+          python3 tools/verify_anchors.py --selftest | tee /dev/stderr \
+            | grep -q "VERIFY-ANCHORS-SELFTEST: ALL PASS"
           python3 tools/verify_anchors.py

@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 sys.path.insert(0, str(ROOT / "tools"))
-from verify_anchors import read as anchored_bytes   # noqa: E402  (a retired anchored file: at its retirement's commit)
+from verify_anchors import Missing, read as anchored_bytes   # noqa: E402  (a retired anchored file: at its commit)
 
 BOOK_I = "Book I"
 BOOKS = {BOOK_I: "spec/book-1-truth.md"}            # Books II and III retired 2026-10-31
@@ -46,7 +46,11 @@ KNOWN = {}
 
 
 def book_version(path: str) -> str:
-    text = anchored_bytes(path, str(ROOT))[0].decode()
+    try:
+        text = anchored_bytes(path, str(ROOT))[0].decode()
+    except Missing as e:                    # a version nobody can read is a version that agrees with nothing
+        print(e, file=sys.stderr)
+        return ""
     found = re.search(r'^\*\*Version:\*\* *(\d+(?:\.\d+)*)', text, re.M)
     return found.group(1) if found else ""
 
