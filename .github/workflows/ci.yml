@@ -27,6 +27,17 @@ jobs:
           "$RUNNER_TEMP/warrant/bin/pip" install --quiet --no-deps --require-hashes -r .github/warrant-requirements.txt
           "$RUNNER_TEMP/warrant/bin/warrant" status | tee /dev/stderr > /dev/null
           "$RUNNER_TEMP/warrant/bin/warrant" status --json | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if d["canonical"] and not d["rejected"] and not d["problems"] and not d["schemas_pending"] else 1)'
+      # Book I's normative sentences as claim@1 records (.warrant/claims.json): each quotes the Book, names
+      # the cases that witness it (tests/book1_claims_test.py) and the mutants that must break them
+      # (tests/claims_mutants.py). The check refuses a sentence the Book no longer holds, a witness no test
+      # prints, a mutant the harness does not list or one off its claim's cases.
+      - name: Book I's claims hold (witnesses pass, every cited mutant is killed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/warrant/bin/warrant" claims check
+          python3 tests/book1_claims_test.py | tee /dev/stderr | grep -q "^BOOK1-CLAIMS: ALL PASS"
+          python3 tests/claims_mutants.py            # exits 0 only when every mutant is killed
       # Six version numbers in three schemes, and nothing said how they relate.
       - name: The version numbers agree with each other
         shell: bash

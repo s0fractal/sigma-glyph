@@ -1,0 +1,9 @@
+{
+ "mutants": "tests/claims_mutants.py",
+ "retired": [],
+ "source": "spec/book-1-truth.md",
+ "warrant": "claims/1",
+ "witnesses": [
+  "tests/*_claims_test.py"
+ ]
+}

@@ -67,6 +67,10 @@ say "Release surface (what an installed copy promises)"
 python3 tools/check_release_surface.py --selftest | tee /dev/stderr | grep -q "RELEASE-SURFACE-SELFTEST: ALL PASS"
 python3 tools/check_release_surface.py            | tee /dev/stderr | grep -q "RELEASE SURFACE: ALL PASS"
 
+say "Book I's claims: witnesses, and every cited mutant killed"
+python3 tests/book1_claims_test.py         | tee /dev/stderr | grep -q "^BOOK1-CLAIMS: ALL PASS"
+python3 tests/claims_mutants.py            # exits 0 only when every mutant is killed
+
 say "Conformance + properties"
 python3 tests/spec_conformance/run_reference.py  | tee /dev/stderr | grep -q "ALL PASS"
 python3 tests/spec_conformance/test_properties.py
