@@ -118,6 +118,16 @@ def cases(call):
     out["S09"] = resume() == r
     # malformed resume operands stay a protocol refusal
     out["S00"] = "refused" in call("resume", dict(base, checkpoint=ck, state=st, credit=True), nodes)
+    # S20 (sigma-resume §5 on the wire): the witness bytes are canonical JSON or refused before replay. The same
+    # well-shaped witness: spaced bytes are INVALID_CYCLE_WITNESS, canonical bytes reach replay (and fail there,
+    # as a witness of another computation must).
+    wit = {"schema": "sigma-resume.cycle@draft-1", "computation_id": "0" * 64, "entry_spent_total": 1,
+           "entry_state_id": "0" * 64, "cycle_action_count": 1, "cycle_cost": 1}
+    spaced = call("verify_cycle", dict(base, witness=e(json.dumps(wit, sort_keys=True).encode())), nodes)
+    canon = call("verify_cycle", dict(base, witness=e(json.dumps(wit, sort_keys=True, separators=(",", ":")).encode())),
+                 nodes)
+    out["S20"] = (spaced.get("code", "").startswith("INVALID_CYCLE_WITNESS") and "not canonical" in spaced["code"]
+                  and canon.get("code", "").startswith("PREFIX_MISMATCH"))
     return out
 
 
@@ -128,6 +138,8 @@ MUTANTS = [
      '    if code not in RESUMABLE:\n        return {"status": "DEFERRED", "base_verification": base, "diagnostic": code}\n', ""),
     ("a terminal base is advanced again", "S06",
      '    if code in TERMINAL:\n', '    if False:\n'),
+    ("the witness bytes are parsed by plain json.loads", "S20",
+     "        doc = R.parse_cycle_witness(witness)\n", "        doc = json.loads(witness)\n"),
 ]
 
 

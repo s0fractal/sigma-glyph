@@ -563,6 +563,23 @@ def _witness_shape_problem(witness):
     return None
 
 
+def parse_cycle_witness(raw):
+    """A cycle witness from its wire bytes (§5): canonical JSON with exactly the schema's fields, valid digests and
+    in-domain integers. Duplicate names, floats and non-canonical bytes are refused, not normalized, so a malformed
+    witness never reaches replay. (Before 1.0.1 the provider parsed with plain json.loads: whitespace and an
+    overwritten duplicate name reached replay. Codex's challenge bdf2f7f7 on G1, 2026-11-01.)"""
+    try:
+        w = json.loads(raw, object_pairs_hook=_no_duplicates, parse_float=_no_float)
+    except (ValueError, TypeError) as e:
+        raise InvalidEncoding(f"witness is not JSON: {e}") from None
+    shape = _witness_shape_problem(w)
+    if shape:
+        raise InvalidEncoding(shape)
+    if _canon(w) != raw:
+        raise InvalidEncoding("witness bytes are not canonical")
+    return w
+
+
 def verify_cycle(expected_root, env, witness, limits=None):
     """CYCLE_PROVEN, or a named refusal. The verifier replays the prefix from the
     root it chose to exactly the entry's spent (spent is strictly increasing, so

@@ -107,13 +107,16 @@ heading. The detached registry `spec/ANCHORS.txt` and its bundle headings were
 retired on 2026-11-01 ([`history/RETIREMENT-2026-11-ANCHORS.md`](history/RETIREMENT-2026-11-ANCHORS.md)):
 Warrant's records and the release tags hold what it held.
 
-### Distribution: 1.0.0
+### Distribution: 1.0.1
 
-`pyproject.toml` carries **1.0.0**: the distribution of release v1.0.0, Book I
-(`sigma_glyph`) and the resume kernel and provider (`sigma_resume`,
-`sigma_provider`), without the retired Book II and III modules. It is on PyPI
-since 2026-11-01, cut from tag `v1.0.0` once goal G1's obligations were
-accepted (AGENTS.md rule 5 says by whom and on what evidence).
+`pyproject.toml` carries **1.0.1**: Book I (`sigma_glyph`) and the resume kernel
+and provider (`sigma_resume`, `sigma_provider`), without the retired Book II and
+III modules, implementing Book I 1.0.0 and sigma-resume 1.0.0. 1.0.0 is on PyPI
+since 2026-11-01, cut from tag `v1.0.0` once goal G1's obligations were accepted
+(AGENTS.md rule 5 says by whom and on what evidence). Its provider did not
+conform to sigma-resume §5: it normalized a non-canonical cycle witness and
+replayed it (Codex's challenge on G1). 1.0.1 refuses those bytes before replay;
+the documents are unchanged.
 Releases and what was checked about each are in [`PUBLISHING.md`](PUBLISHING.md)
 and [`CHANGELOG.md`](CHANGELOG.md); PyPI is right about what it holds.
 

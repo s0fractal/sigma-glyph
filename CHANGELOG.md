@@ -1,6 +1,25 @@
 # Changelog
 
-## sigma-glyph 1.0.0 (unreleased) — Book I and resume, one released standard
+## sigma-glyph 1.0.1 — the cycle witness on the wire
+
+**Fix (non-conformance in 1.0.0).** sigma-resume §5 defines a cycle witness as
+canonical JSON and requires a malformed one to be refused before any replay.
+`sigma_provider.verify_cycle` parsed the witness bytes with plain `json.loads`:
+spaced or unsorted bytes, a trailing newline and an overwritten duplicate name
+were normalized and replayed (Codex's challenge `bdf2f7f7` of G1's met version,
+reproduced on the published 1.0.0 wheel). `sigma_resume.parse_cycle_witness`
+now refuses duplicate names, floats, any field or value outside the schema and
+non-canonical bytes as `INVALID_CYCLE_WITNESS`, before the store is read; the
+provider uses it. The provider's request parse refuses duplicate names too.
+
+**Why the claims did not catch it.** RESUME-5-2 and RESUME-5-3 were witnessed by
+R21, which hands the verifier a dictionary: no bytes, so no encoding. They are
+refiled with R23 (the wire, through the provider, with a store that counts
+reads) and mutants H25–H27; `provider_resume_test.py` S20 runs the same check
+against the installed wheel in CI. Book I and sigma-resume stay 1.0.0: the
+documents were right, the implementation was not.
+
+## sigma-glyph 1.0.0 (2026-11-01) — Book I and resume, one released standard
 
 **Version 1.** Book I and sigma-resume are 1.0.0 and STANDARD; `pyproject.toml`
 is 1.0.0. Book I 1.0.0 states the semantics of 0.6.0 unchanged: the wire

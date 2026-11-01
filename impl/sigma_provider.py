@@ -246,9 +246,9 @@ def find_cycle(runtime, inp, hashes, blobs, max_steps):
 def verify_cycle(runtime, inp, hashes, blobs, witness):
     env = _env(hashes, blobs)
     try:
-        doc = json.loads(witness)
-    except ValueError:
-        return "INVALID_CYCLE_WITNESS: not JSON"
+        doc = R.parse_cycle_witness(witness)
+    except R.InvalidEncoding as e:
+        return f"INVALID_CYCLE_WITNESS: {e}"
     return R.verify_cycle(_root(runtime, inp, env), env, doc)
 
 
@@ -371,7 +371,7 @@ def handle(req):
 
 def serve():
     try:
-        req = json.loads(sys.stdin.buffer.read())
+        req = json.loads(sys.stdin.buffer.read(), object_pairs_hook=R._no_duplicates)   # a duplicate name is refused, not overwritten
     except ValueError:
         req = None
     sys.stdout.write(json.dumps(handle(req), sort_keys=True) + "\n")
