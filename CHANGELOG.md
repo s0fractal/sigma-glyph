@@ -1,6 +1,6 @@
 # Changelog
 
-## sigma-glyph 1.0.1 — the cycle witness on the wire
+## sigma-glyph 1.0.1 (2026-11-01) — the cycle witness on the wire
 
 **Fix (non-conformance in 1.0.0).** sigma-resume §5 defines a cycle witness as
 canonical JSON and requires a malformed one to be refused before any replay.
