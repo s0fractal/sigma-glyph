@@ -19,13 +19,12 @@ checkout's job.
 
 You ran the reference implementations and their local suites. That covers the
 predicates those suites name, not every sentence of the specification.
-`.warrant/claims.json` covers 68 normative sentences of Book I and sigma-resume:
-each is a claim that names the cases witnessing it and the mutants that must
-break them, or says why it is unbacked (`warrant claims view`). The registry is
-not complete: some MUST clauses have no claim yet (Book I §6's ban on capturing
-a free variable, §7's prose/vector agreement), and `warrant claims check` checks
-the registered claims against their documents, not the documents for clauses
-nobody registered. `tools/spec_audit.py` lists what is still outside its reach. No implementation,
+What covers the sentences is `.warrant/claims.json`: every MUST, SHALL and
+REQUIRED of Book I and sigma-resume lies in some claim's sentence, and `warrant
+claims check` refuses one that does not (`coverage`). Each claim names the cases
+witnessing it and the mutants that must break them, or says why it is unbacked or
+only informative (`warrant claims view`). `tools/spec_audit.py` lists what is
+still outside its reach. No implementation,
 the reference one included, takes precedence over the normative text and the
 anchored suite: a prose/vector disagreement is a defect to file, not a call the
 oracle makes.

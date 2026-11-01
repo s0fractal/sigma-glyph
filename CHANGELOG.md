@@ -91,6 +91,14 @@ establishes (`checkCycle_sound`, `cycle_proven_no_normal_form`);
 `resume_bridge_check.py` runs the Lean cycle checker against `verify_cycle` on
 12 223 generated cases, in `proofs.yml` and `tools/test-all.sh`.
 
+**Every MUST is a claim.** `.warrant/claims.json` names `coverage` (MUST, SHALL, REQUIRED; warrant-graph
+3.0.0a5), so `warrant claims check` refuses a keyword of Book I or sigma-resume that lies in no claim's sentence
+(Codex's finding 5c401f4c on #78 showed two). 20 new claims and 10 longer versions of existing ones close every occurrence it found:
+71 backed (new witnesses B222–B224 for §7: prose against vectors, the closed schema, exit against outcome; new
+mutants G44–G47 break the suite and the schema, not the oracle), 12 unbacked with a reason (most: no mutant of an
+existing statement can reach the rule), 5 informative (the RFC 2119 lines, the scope remark, §7's notation, the blob
+contract outside the Book). `tools/check_release_surface.py` names its fixtures from the retired modules as such.
+
 ## Distribution 0.8.0 — the checked resume provider ships (released 2026-10-19)
 
 `pyproject.toml` moves from `0.8.0.dev0` to `0.8.0`, released from tag

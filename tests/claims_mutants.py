@@ -23,6 +23,8 @@ BOOK1 = "tests/book1_claims_test.py"
 ORACLE = "impl/sigma_glyph.py"
 RESUME = "tests/resume_claims_test.py"
 KERNEL = "impl/sigma_resume.py"
+SUITE = "tests/spec_conformance/vectors.json"
+SCHEMA = "spec/schemas/book1-conformance.schema.json"
 
 # (id, file, find, replace, test file, [cases])
 MUTANTS = [
@@ -88,6 +90,16 @@ MUTANTS = [
     ("G41", ORACLE, "    if allowed is not None and atp > allowed:\n", "    if allowed is not None and atp >= allowed:\n", BOOK1, ["B213"]),
     ("G42", ORACLE, "    if type(atp) is not int or not 0 <= atp <= UINT32_MAX:\n", "    if type(atp) is not int or not 0 < atp <= UINT32_MAX:\n",
      BOOK1, ["B203"]),
+    # §7: the suite and its schema are data the Book makes normative, so a mutant may break them too
+    ("G44", SUITE, '"result_hash": "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",\n        "atp_spent": 4\n',
+     '"result_hash": "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",\n        "atp_spent": 5\n', BOOK1, ["B222"]),
+    ("G45", SUITE, '"outcome": "normal_form",\n        "result_hash": "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",\n        "atp_spent": 4\n',
+     '"outcome": "normal_form",\n        "result_hash": "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",\n        "atp_spent": 4\n',
+     BOOK1, ["B222"]),
+    ("G46", SCHEMA, '  "type": "object",\n  "additionalProperties": false,\n  "required": [\n    "format",\n',
+     '  "type": "object",\n  "additionalProperties": true,\n  "required": [\n    "format",\n', BOOK1, ["B223"]),
+    ("G47", SCHEMA, '                "unresolved_reference"\n              ]\n            },\n            "outcome": {',
+     '                "unresolved_reference",\n                "invalid_object"\n              ]\n            },\n            "outcome": {', BOOK1, ["B224"]),
     ("H01", KERNEL, '    return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()\n',
      '    return json.dumps(doc, sort_keys=True, separators=(", ", ": "), ensure_ascii=False).encode()\n', RESUME, ["R01"]),
     ("H02", KERNEL, '           "environment_id": env.environment_id}\n', '           "environment_id": env.environment_id, "credit": 0}\n',
