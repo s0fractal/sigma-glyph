@@ -35,9 +35,16 @@ are not style — breaking them corrupts the thing this project exists to protec
 5. **Pushing is at the agent's discretion; some actions still need the owner.**
    - **At the agent's discretion:** pushing a working branch (never `master`), and
      opening or updating a pull request.
+   - **Delegated by the owner (2026-11-01), decided by the evidence:** a release
+     tag and the package `.github/workflows/publish.yml` builds from it. An agent
+     cuts the release when the evidence holds: master CI green on the commit,
+     every backed claim accepted by the claims checker, `pyproject.toml` naming
+     the tag's version, and, for a normative version, its adoption record
+     accepted. The owner's words: decide by the mathematics and the mission, not
+     by asking. One release per decision, its evidence named in the report.
    - **Explicit owner authorization for the specific action:** merging to
-     `master`, rewriting shared history, and publishing (a release, a package,
-     a DOI deposit). Approval of one such step is not approval of the next.
+     `master`, rewriting shared history, and a DOI deposit. Approval of one such
+     step is not approval of the next.
 
 6. **Review is not required on every pull request.** Ordinary changes are decided
    by the full test matrix plus whatever review the change warrants. These go
@@ -52,7 +59,8 @@ are not style — breaking them corrupts the thing this project exists to protec
 
    *(Rules 5 and 6 were relaxed by the owner on 2026-10-17. Rule 5 previously
    required authorization for every push, and every pull request was treated as
-   if it needed a gate.)*
+   if it needed a gate. On 2026-11-01 the owner delegated release tags and
+   package publication.)*
 
 ## Precedent (why this file exists)
 

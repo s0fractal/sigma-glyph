@@ -8,5 +8,10 @@
  "warrant": "claims/1",
  "witnesses": [
   "tests/*_claims_test.py"
+ ],
+ "coverage": [
+  "MUST",
+  "SHALL",
+  "REQUIRED"
  ]
 }

@@ -287,5 +287,58 @@ check("B221 the compatibility profile eval -> (result_term, atp_spent) is the Re
       "unpacks as that pair", not isinstance(pair, str) and (sg.term_hash(pair[0]), pair[1]) == (full.result_hash, full.atp_spent)
       and len(tuple(full)) == 2 and sg.term_hash(tuple(full)[0]) == full.result_hash, (pair, full))
 
+# §7: prose and suite agree, field by field; the suite's schema is closed; exit and outcome are two levels
+import json  # noqa: E402
+import re  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+import spec_audit as sa  # noqa: E402
+import suite_schema as ss  # noqa: E402
+
+
+def prose_problems():
+    """What spec_audit's part B (prose against vectors, test by test) reports for the Book's own text."""
+    uk = sa.UK.read_text()
+    glyphs = dict(re.findall(r'\|\s*(\w)\s*\|\s*`0001`\+SHA-256\("\w"\)\s*\|\s*`([0-9a-f]{64})`\s*\|', uk))
+    false_hash = re.search(r'Bytes\s*`0206‖H\(K\)‖H\(I\)`;\s*Hash\s*`([0-9a-f]{64})`', uk)
+    if false_hash:
+        glyphs["FALSE"] = false_hash.group(1)
+    setup, problems = [], []
+    proved, derived = sa.store_verified(setup), sa.derivable_constants(uk, setup)
+    report = sa.prose_matches_vectors(uk, glyphs, proved, derived, problems)
+    return problems, report.decided
+
+
+disagree, decided = prose_problems()
+check("B222 §7's prose and the suite's records agree on every checked statement (subject, budget, exit, result hash, "
+      "ATP spent), and at least 30 statements are checked", disagree == [] and decided >= 30, (disagree[:3], decided))
+suite_path, schema_path = ss.SUITES[0]
+suite_doc = json.loads((Path(__file__).resolve().parents[1] / suite_path).read_text())
+schema_doc = json.loads((Path(__file__).resolve().parents[1] / schema_path).read_text())
+
+
+def errors_of(doc):
+    errors = []
+    ss.validate(doc, schema_doc, schema_doc, "", errors)
+    return errors
+
+
+grown = dict(suite_doc, meaning="for one reader only")
+vector_grown = dict(suite_doc, vectors=[dict(suite_doc["vectors"][-1], hint="x")] + suite_doc["vectors"][1:])
+check("B223 the suite's schema is closed: the suite validates, and an unknown field at the top or in a record makes it "
+      "invalid", errors_of(suite_doc) == [] and errors_of(grown) != [] and errors_of(vector_grown) != [],
+      (errors_of(suite_doc)[:2], errors_of(grown)[:1], errors_of(vector_grown)[:1]))
+ev = schema_doc["$defs"]
+exits = next(set(d["properties"]["expected"]["properties"]["exit"]["enum"]) for d in ev.values()
+             if "expected" in d.get("properties", {}) and "exit" in d["properties"]["expected"].get("properties", {}))
+outcomes = next(set(d["properties"]["expected"]["properties"]["outcome"]["enum"]) for d in ev.values()
+                if "expected" in d.get("properties", {}) and "outcome" in d["properties"]["expected"].get("properties", {}))
+evals = [v["expected"] for v in suite_doc["vectors"] if v["kind"] == "eval"]
+invalid = [e for e in evals if e["outcome"] == "invalid_object"]
+check("B224 exit and outcome are two levels: the schema's exit enum is exactly the Receipt's three exits, outcome adds "
+      "only invalid_object, and an invalid_object outcome is a normal_form exit whose result is the Canonical Invalid "
+      "Object", exits == set(sg.EXITS) and outcomes == set(sg.EXITS) | {"invalid_object"} and invalid
+      and all(e["exit"] == "normal_form" and e["result_hash"] == INVALID_HEX for e in invalid)
+      and all(e["exit"] == e["outcome"] for e in evals if e["outcome"] != "invalid_object"), (exits, outcomes, invalid))
+
 print(f"\nBOOK1-CLAIMS: {'ALL PASS' if not failures else 'FAILURES ' + ' '.join(failures)}")
 sys.exit(1 if failures else 0)
