@@ -42,12 +42,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "impl"))
 import sigma_glyph as sg  # noqa: E402
 
-SPEC_VERSION = "0.6.0"   # Book I document version these vectors conform to
-SUITE_VERSION = "0.6.0"  # conformance-suite package (release) version; MINOR: format v3 adds expected.exit
-BOOK1_ANCHOR = "e3e5d00863d7dcf875258168029611949339fe307ad3d9e5e565c12543cc94fd"
+SPEC_VERSION = "1.0.0"   # Book I document version these vectors conform to
+SUITE_VERSION = "1.0.0"  # conformance-suite package (release) version; 1.0.0: the vectors of 0.6.0, unchanged, for release v1.0.0
+BOOK1_ANCHOR = "8bba27b55eaf9a12afed1d43bdf56fe6c84db38f8ba0d2e286616441c76ad0cc"
 
 # ============================================================================
-# Spec-declared expectations — hand-written from spec/book-1-truth.md v0.6.0
+# Spec-declared expectations — hand-written from spec/book-1-truth.md v0.6.0 (unchanged in 1.0.0)
 # ============================================================================
 # NOTHING in this block calls the oracle. The only computation is
 # hashlib.sha256 over byte strings the SPEC dictates, plus the four-line

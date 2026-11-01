@@ -1,4 +1,4 @@
-"""Sigma-GLYPH Book I reference implementation (Book I 0.6.0, adopted bundle v0.7.0).
+"""Sigma-GLYPH Book I reference implementation (Book I 1.0.0, release v1.0.0; the semantics of 0.6.0).
 
 Scope: SigmaNodeV2 canonical serialization/deserialization, validation,
 SHA-256 NodeHash, CAS object store, genesis I/K/S (intrinsic), and the

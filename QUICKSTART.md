@@ -127,7 +127,6 @@ Specified in `spec/sigma-resume.md`; Book I governs the transition.
 
 ```bash
 tools/test-all.sh                   # the whole matrix CI runs, one command
-python3 tools/verify_anchors.py     # the anchored specification bytes (Book I §8)
 ```
 
 Deeper: `spec/book-1-truth.md` is ~250 lines and self-contained;

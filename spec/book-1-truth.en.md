@@ -1,11 +1,11 @@
 # Σ-GLYPH — Book I: TRUTH
 
-**Version:** 0.6.0
+**Version:** 1.0.0
 **Type:** Bit-Exact Computational Core
-**Status:** DRAFT STANDARD
+**Status:** STANDARD, released as v1.0.0 with sigma-resume 1.0.0 (release tag `v1.0.0`). Adoption is a signed record (AGENTS.md rule 2), not this line.
 
 > **Informative English translation.** This is an English rendering of the
-> normative Σ-GLYPH Book I v0.6.0. The canonical, anchored source of record is
+> normative Σ-GLYPH Book I v1.0.0. The canonical, anchored source of record is
 > [`book-1-truth.md`](book-1-truth.md) (Ukrainian). In any discrepancy the
 > anchored source governs, until the maintainer roster adjudicates and re-anchors
 > an English normative edition (§8). All hashes, byte strings, code, tables, ADR
@@ -17,8 +17,8 @@
 > once translated words are set aside; it also re-derives every constant printed
 > here from the constructions printed here. CI fails if the two texts drift.
 >
-> **This file is not anchored.** `spec/ANCHORS.txt` anchors the normative Book,
-> not this rendering, so these bytes carry no integrity guarantee of their own —
+> **This file is not normative.** The Book's SpecAnchor (§8) is computed from the
+> Ukrainian text, not this rendering, so these bytes carry no integrity guarantee of their own —
 > only the checked relationship above. If you are implementing from this text, read
 > [`IMPLEMENTING.md`](IMPLEMENTING.md) first: it shows that every constant is
 > derivable without our code, and states the two places where the Book still
@@ -429,9 +429,9 @@ section; those rules remain normative where they are established.
 
 **The suite's schema (MUST).** The suite being normative, its shape is normative
 too — and a shape cannot be declared by a version number: `format_version` names
-a version and defines nothing. The suite's schema is a separate anchored file,
-`spec/schemas/book1-conformance.schema.json`, anchored in `spec/ANCHORS.txt`
-beside the suite it describes. It is **closed**: an unknown field makes a record
+a version and defines nothing. The suite's schema is a separate file of this
+edition, `spec/schemas/book1-conformance.schema.json`, beside the suite it
+describes. It is **closed**: an unknown field makes a record
 invalid, so the suite cannot grow a value that means something to one reader and
 nothing to another. A record the schema rejects is not a record of this edition.
 
@@ -504,10 +504,11 @@ length ≠ expected — all → Canonical Invalid Object.
 
 ## 8. Specification Anchor (Update Protocol)
 
-Every published version of this Book is anchored in the system itself:
-`SpecAnchor(v) = NodeHash(LITERAL, atom = SHA-256(document_bytes))`. By
-construction the anchor cannot be contained in the document it hashes; it is
-published detached (the ANCHORS file / the genesis registry). A change to the
+Every published version of this Book is identified by its content:
+`SpecAnchor(v) = NodeHash(LITERAL, atom = SHA-256(document_bytes))`, where
+`document_bytes` are the Book's bytes at that version's release tag. By
+construction the anchor cannot be contained in the document it hashes; anyone
+computes it from the tag's bytes, and no separate registry is needed. A change to the
 standard = a new LITERAL = a new anchor; an "update" is always a fork with an
 explicit ancestor, and version reconciliation is by anchors, not by file names.
 

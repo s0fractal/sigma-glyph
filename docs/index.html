@@ -4,7 +4,7 @@
   Hand-written, zero dependencies, zero build step: a project whose core is
   "SHA-256 from scratch, no external crates" does not pull a toolchain to make
   a brochure. Every command shown was run on master on 2026-11-01 (Book I
-  0.6.0, sigma-resume 1.0.0-rc.1); every pasted output is real. Where a check runs only in CI (Lean), the command is shown
+  1.0.0, sigma-resume 1.0.0, the semantics of Book I 0.6.0); every pasted output is real. Where a check runs only in CI (Lean), the command is shown
   without a fabricated result. If this page and the code disagree, the code
   wins — that rule is in the spec.
 -->
@@ -74,7 +74,7 @@
 
   <h1>Σ-GLYPH</h1>
   <p class="lede">Deterministic compute by content. The same term with the same budget and the same content yields the same receipt — on any machine, across conforming implementations. A long computation can be cut into budgeted segments, resumed from checkpoints by anyone, and verified by replay.</p>
-  <p class="sub">A content-addressed SKI evaluation core with a bit-exact determinism guarantee, and a resumable kernel on top of it. Integer-only, total, budgeted. <span style="color:var(--accent)">Book I 0.6.0 · sigma-resume 1.0.0-rc.1.</span></p>
+  <p class="sub">A content-addressed SKI evaluation core with a bit-exact determinism guarantee, and a resumable kernel on top of it. Integer-only, total, budgeted. <span style="color:var(--accent)">Book I 1.0.0 · sigma-resume 1.0.0 (release v1.0.0).</span></p>
 
   <span class="formula">Receipt = eval(term_hash, atp, content_environment)&nbsp;&nbsp;&nbsp;// deterministic · integer-only · total</span>
   <p class="note">This repository keeps two documents: <strong>Book I</strong> (the compute core) and <strong>sigma-resume</strong> (segments, checkpoints, receipts). Everything else it once carried was retired on 2026-10-31 (<a href="https://github.com/s0fractal/sigma-glyph/blob/master/history/RETIREMENT-2026-10-ECHO.md">the retirement record</a>).</p>

@@ -1,7 +1,7 @@
 # Σ-GLYPH — sigma-resume: resumable Book I computation
 
-**Version:** 1.0.0-rc.1
-**Status:** DRAFT STANDARD, with Book I 0.6.0. Adoption is a signed record (AGENTS.md rule 2), not this line.
+**Version:** 1.0.0
+**Status:** STANDARD, released as v1.0.0 with Book I 1.0.0 (release tag `v1.0.0`). Adoption is a signed record (AGENTS.md rule 2), not this line.
 **Scope:** how one Book I computation is split into budgeted segments, carried as a checkpoint, resumed by anyone,
 and verified by replay. Book I governs the transition; this document adds nothing to it.
 

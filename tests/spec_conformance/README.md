@@ -4,8 +4,8 @@ Machine-readable test vectors for Book I: `vectors.json` (Book I, TRUTH — 49
 eval/object/deserialize vectors). Purpose: an implementation in any language can
 claim conformance by passing the suite — without reading the Python reference
 implementation. (The Book II, Book III and GOV suites were retired on
-2026-10-31 with their documents; `tools/verify_anchors.py` still verifies their
-adopted bytes at the commit they were retired from.)
+2026-10-31 with their documents; `history/RETIREMENT-2026-10-ECHO.md` lists
+their bytes' digests at the commit they were retired from.)
 
 ## Files
 
@@ -20,7 +20,7 @@ adopted bytes at the commit they were retired from.)
 
 The **normative** shape is
 [`spec/schemas/book1-conformance.schema.json`](../../spec/schemas/book1-conformance.schema.json),
-anchored in `spec/ANCHORS.txt` beside the suite. It is closed: an unknown field
+part of each released edition beside the suite. It is closed: an unknown field
 makes a record invalid. What follows is a reading aid, not the definition —
 `python3 tools/suite_schema.py` decides.
 
@@ -30,8 +30,8 @@ Top level:
 {
   "format": "sigma-glyph-conformance",
   "format_version": 3,
-  "spec_version": "0.6.0",        // Book I DOCUMENT version the vectors conform to
-  "suite_version": "0.6.0",       // conformance-suite PACKAGE version
+  "spec_version": "1.0.0",        // Book I DOCUMENT version the vectors conform to
+  "suite_version": "1.0.0",       // conformance-suite PACKAGE version
   "book1_anchor": "…",            // Specification Anchor of that Book I
   "oracle": "impl/sigma_glyph.py",
   "objects": { "<node-hash-hex>": "<canonical-bytes-hex>", … },
