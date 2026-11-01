@@ -99,6 +99,9 @@ MUTANTS = [
     ("G48", SUITE, '= 4 ATP",\n      "term": "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",\n      "atp": 100,\n      "expected": {\n        "exit": "normal_form",',
      '= 4 ATP",\n      "term": "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",\n      "atp": 100,\n      "expected": {\n        "exit": "atp_exhausted",',
      BOOK1, ["B222"]),     # Codex finding 0dca7c5a on #80: the exit, not only the outcome
+    ("G49", SUITE, '"term": "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc",\n      "atp": 12,\n      "expected": {\n        "exit": "normal_form",\n        "outcome": "normal_form",',
+     '"term": "c9f57b3f594d7b72b0855b0d6fabba89e6ccdf6840c8f84aeb5fd4707300bbfc",\n      "atp": 12,\n      "expected": {\n        "exit": "normal_form",\n        "outcome": "atp_exhausted",',
+     BOOK1, ["B222"]),     # Codex finding 16ea1b34 on #80: a result with no outcome word is a normal form
     ("G46", SCHEMA, '  "type": "object",\n  "additionalProperties": false,\n  "required": [\n    "format",\n',
      '  "type": "object",\n  "additionalProperties": true,\n  "required": [\n    "format",\n', BOOK1, ["B223"]),
     ("G47", SCHEMA, '                "unresolved_reference"\n              ]\n            },\n            "outcome": {',

@@ -95,7 +95,7 @@ establishes (`checkCycle_sound`, `cycle_proven_no_normal_form`);
 3.0.0a5), so `warrant claims check` refuses a keyword of Book I or sigma-resume that lies in no claim's sentence
 (Codex's finding 5c401f4c on #78 showed two). 20 new claims and 10 longer versions of existing ones close every occurrence it found:
 71 backed (new witnesses B222–B224 for §7: prose against vectors, the closed schema, exit against outcome; new
-mutants G44–G48 break the suite and the schema, not the oracle; `spec_audit` now binds a record's exit to its prose, not only its outcome: Codex finding 0dca7c5a on #80), 12 unbacked with a reason (most: no mutant of an
+mutants G44–G49 break the suite and the schema, not the oracle; `spec_audit` now binds a record's outcome and exit to what its prose states, a result with no outcome word being a normal form: Codex findings 0dca7c5a and 16ea1b34 on #80), 12 unbacked with a reason (most: no mutant of an
 existing statement can reach the rule), 5 informative (the RFC 2119 lines, the scope remark, §7's notation, the blob
 contract outside the Book). `tools/check_release_surface.py` names its fixtures from the retired modules as such.
 

@@ -497,14 +497,13 @@ def satisfies(record: dict, claim: Claim, glyphs: dict[str, str]) -> bool:
     if claim.subject_hash is not None and \
             claim.subject_hash not in {record.get("term"), record.get("bytes")}:
         return False
-    if claim.outcome is not None and expected.get("outcome") != claim.outcome:
-        return False
-    # §7 notation: `= ⟨X⟩` and an invalid object state the exit normal_form, "ATP Exhausted" and "Unresolved
-    # Reference" their own; the record's exit must be that one too, not only its outcome (Codex finding 0dca7c5a
-    # on #80: TV-4 with exit atp_exhausted and outcome normal_form agreed with its prose).
-    stated_exit = ("normal_form" if claim.outcome in (None, "invalid_object") and (claim.outcome or claim.result)
-                   else claim.outcome)
-    if stated_exit is not None and expected.get("exit") != stated_exit:
+    # §7 notation: `= ⟨X⟩` states a normal form, "ATP Exhausted", "Unresolved Reference" and "Invalid Object" their
+    # own; each fixes the record's outcome AND its exit (invalid_object is a normal_form exit). A result with no outcome
+    # word is a normal form, not "no outcome stated" (Codex findings 0dca7c5a and 16ea1b34 on #80: TV-4 with exit
+    # atp_exhausted, and TV-5 with outcome atp_exhausted, both agreed with their prose).
+    stated = claim.outcome or ("normal_form" if claim.result is not None else None)
+    if stated is not None and (expected.get("outcome") != stated
+                               or expected.get("exit") != ("normal_form" if stated == "invalid_object" else stated)):
         return False
     if claim.spend is not None and expected.get("atp_spent") != claim.spend:
         return False
