@@ -44,7 +44,6 @@ Individual pieces:
 python3 impl/sigma_glyph.py                     # ALL PASS            (Book I)
 python3 tests/spec_conformance/run_reference.py # CONFORMANCE: ALL PASS
 python3 tests/resume_test.py                    # SIGMA-RESUME: … PASS, 0 FAIL
-python3 tools/verify_anchors.py                 # the adopted specification bytes
 ```
 
 When a document and a command disagree, the command is right.

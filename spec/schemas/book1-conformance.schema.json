@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sigma-glyph.org/schemas/book1-conformance/3",
   "title": "Sigma-GLYPH Book I conformance suite, format version 3",
-  "description": "The normative shape of tests/spec_conformance/vectors.json. This file is anchored in spec/ANCHORS.txt: the suite's schema is fixed by bytes, not by a version number a reader has to interpret. Closed-world throughout - an unknown field makes a record invalid, so a suite cannot grow a meaning nobody declared.",
+  "description": "The normative shape of tests/spec_conformance/vectors.json. This file is part of each released edition beside the suite: the suite's schema is fixed by bytes, not by a version number a reader has to interpret. Closed-world throughout - an unknown field makes a record invalid, so a suite cannot grow a meaning nobody declared.",
   "type": "object",
   "additionalProperties": false,
   "required": [

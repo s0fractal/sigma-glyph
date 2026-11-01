@@ -439,7 +439,7 @@ than copying any of it.
   whoever can edit the registry can edit it too, and no bridge consumes it as
   authority. What it buys is that the edit is loud and NAMES what changed,
   instead of hiding inside a 30 000-line pin file — which is exactly what the
-  earlier count-only version did not buy. It is not part of `spec/ANCHORS.txt`.
+  earlier count-only version did not buy.
 * **`native_decide` theorems are guarded, and their TCB is the compiler.** The
   only `native_decide` proofs left are the five `bytes`-front pins in
   `MachineBytes.lean` (`genesis_I`, `genesis_K`, `genesis_S`,

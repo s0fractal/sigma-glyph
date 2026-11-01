@@ -2,22 +2,10 @@
 
 Utilities for working with the sigma-glyph specification and implementation.
 
-## `verify_anchors.py` — Specification Anchor Verification
-
-**Purpose:** Verify that specification anchors in `spec/ANCHORS.txt` match the actual SHA-256 hashes of specification documents.
-
-**Usage:**
-```bash
-python3 tools/verify_anchors.py
-```
-
-**What it checks:** every file of the current (topmost) section of
-`spec/ANCHORS.txt` hashes to its anchor. A file retired on 2026-10-31 (Books II
-and III, GOV-anchors, LORE and their suites) is read at the commit it was
-retired from, so the adopted bytes stay verifiable; the check needs that
-history (CI unshallows first).
-
-**Contract:** Specification anchors are `NodeHash(LITERAL, atom = SHA-256(document_bytes))` — ensuring published specs are immutable and verifiable.
+The specification's integrity is held by Warrant's records (claims quoting each
+normative sentence, the claims checker's acceptances) and the release tags; the
+anchor registry and `verify_anchors.py` were retired on 2026-11-01
+(`history/RETIREMENT-2026-11-ANCHORS.md`).
 
 ---
 

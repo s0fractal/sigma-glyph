@@ -12,9 +12,8 @@ whether unknown fields are allowed, or what values an enum may take. Two
 conforming checkers could disagree about whether a record was well-formed, and
 therefore about whether the edition itself was conformant.
 
-So the shape lives in `spec/schemas/*.json`, those files are anchored in
-`spec/ANCHORS.txt` alongside the suites they describe, and this checks one
-against the other. Closed-world throughout: `additionalProperties: false`
+So the shape lives in `spec/schemas/*.json`, beside the suites they describe in
+each released edition, and this checks one against the other. Closed-world throughout: `additionalProperties: false`
 everywhere, so a suite cannot grow a field that means something to one reader and
 nothing to another.
 
