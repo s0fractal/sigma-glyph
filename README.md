@@ -33,7 +33,8 @@ what left, why and where its bytes are.
 Two implementations agree on all 49 Book I conformance vectors and on generated
 terms: the Python reference and a from-scratch Rust implementation, from one
 author/model lineage. Lean 4 checks determinism, totality, the semantic-size
-bound and valid-store monotonicity. This is strong internal conformance evidence, not
+bound and valid-store monotonicity of Book I, and for sigma-resume segmentation
+invariance, one state per spent and what an accepted cycle witness establishes. This is strong internal conformance evidence, not
 independent custody, outside adoption, semantic truth or immunity of a binary to
 local faults.
 
