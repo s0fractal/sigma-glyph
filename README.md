@@ -111,7 +111,7 @@ are verified at commit `96414ab` by `tools/verify_anchors.py`.
 `pyproject.toml` carries **0.9.0.dev0**: the next distribution ships Book I
 (`sigma_glyph`) and the resume kernel and provider (`sigma_resume`,
 `sigma_provider`), without the retired Book II and III modules. Nothing is
-published until the owner cuts a GitHub Release.
+published until a GitHub Release is cut (AGENTS.md rule 5 says by whom and on what evidence).
 
 The latest PyPI release is **0.8.0** (2026-10-19), the first with
 `sigma_resume` and `sigma_provider`, still beside the Book II and III modules.
@@ -152,9 +152,9 @@ For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent
 gate or governance adoption.
 
-68 normative sentences of Book I and sigma-resume are claims, not yet all of
-them (some MUST clauses, such as Book I §6's ban on capturing a free variable,
-have no claim): `.warrant/claims.json` names both documents, the witness files
+Every RFC 2119 keyword of Book I and sigma-resume (MUST, SHALL, REQUIRED) lies
+in some claim's sentence, and `warrant claims check` refuses one that does not
+(`coverage`): `.warrant/claims.json` names both documents, the witness files
 (`tests/book1_claims_test.py`, `tests/resume_claims_test.py`) and the mutant
 harness (`tests/claims_mutants.py`); each claim@1 record quotes one sentence verbatim and
 cites the cases that witness it and the mutants that must break them, or says

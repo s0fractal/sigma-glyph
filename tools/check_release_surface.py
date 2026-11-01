@@ -23,7 +23,7 @@ WHAT IT CHECKS
    (against pyproject), and exactly which files ship.
 2. The installed modules come from the venv's site-packages — not from a checkout
    that happens to be on `sys.path`. Every module the wheel claims is importable.
-3. The three self-tests are run from a directory that is NOT the checkout, and
+3. The modules' self-tests are run from a directory that is NOT the checkout, and
    their output is classified: exit 0, the machine tag present, no `FAIL`, no
    traceback, and the SKIP notices exactly where the wheel's contents say they
    must be.
@@ -324,7 +324,7 @@ def inspect_wheel(wheel):
     for m in MODULES:
         if f"{m}.py" not in names:
             problems.append(f"{wheel.name}: does not contain {m}.py — the "
-                            f"distribution promises three top-level modules")
+                            f"distribution promises its top-level modules {MODULES}")
 
     problems += _version_problems(wheel.name, info["version"])
     pyproject = (ROOT / "pyproject.toml").read_text()
@@ -414,7 +414,12 @@ def check_snippet(installed_python, problems):
 
 # --------------------------------------------------------------------------
 def selftest():
-    """Drive `classify` on recorded outputs, including the two real defects."""
+    """Drive `classify` on recorded outputs, including the two real defects.
+
+    The two defects were in `sigma_wave` and `sigma_federation`, retired after
+    0.8.0; their recorded outputs stay as fixtures because the rules they
+    exercise (a skip must match the wheel's contents, a NOT_RUNNABLE verb must
+    refuse and say why) still hold for every module this gate checks."""
     cases = []
 
     real_wave_fail = ("OK   a\nOK   b\nFAIL wave_vectors.json present run: "
@@ -434,18 +439,16 @@ def selftest():
 
     good = ("OK   a\nOK   b\nSKIP recorded-vector replay: not shipped\n\n"
             "WAVE: ALL PASS (2/2) — SKIPPED: recorded-vector replay\n")
-    cases.append(("fixed wheel, replay honestly skipped",
-                  classify("sigma_wave", WAVE_PASS, 2, 0, good, "",
-                           [REPLAY_SKIP]), False))
-
-    cases.append(("a suite that skipped its way to ALL PASS",
-                  classify("sigma_wave", WAVE_PASS, 13, 0,
-                           "WAVE: ALL PASS (0/0)\n", "", []), True))
-
-    cases.append(("a skip with no missing file behind it",
-                  classify("sigma_wave", WAVE_PASS, 2, 0,
-                           "OK   a\nOK   b\nSKIP recorded-vector replay: eh\n"
-                           "WAVE: ALL PASS (2/2)\n", "", []), True))
+    cases.extend([
+        ("fixed wheel, replay honestly skipped",
+         classify("sigma_wave", WAVE_PASS, 2, 0, good, "", [REPLAY_SKIP]), False),
+        ("a suite that skipped its way to ALL PASS",
+         classify("sigma_wave", WAVE_PASS, 13, 0, "WAVE: ALL PASS (0/0)\n", "", []), True),
+        ("a skip with no missing file behind it",
+         classify("sigma_wave", WAVE_PASS, 2, 0,
+                  "OK   a\nOK   b\nSKIP recorded-vector replay: eh\nWAVE: ALL PASS (2/2)\n", "", []),
+         True),
+    ])
 
     checkout_ok = "OK   a\nOK   b\n\nWAVE: ALL PASS (2/2)\n"
     cases.append(("checkout run, corpora present, nothing skipped",
@@ -465,23 +468,16 @@ def selftest():
     refusal = ("REFUSING: `gen` regenerates the conformance corpus at "
                "tests/spec_conformance/wave_vectors.json and requires a source "
                "checkout of sigma-glyph.\n")
-    cases.append(("fixed wheel, `gen` refuses and says what it needs",
-                  classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
-                                CHECKOUT_REQUIRED, 2, "", refusal),
-                  False))
-
-    cases.append(("a NOT_RUNNABLE verb that exits 0",
-                  classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
-                                CHECKOUT_REQUIRED, 0, "", ""), True))
-
-    cases.append(("a refusal that never says why",
-                  classify_verb("sigma_wave", "gen", NOT_RUNNABLE,
-                                CHECKOUT_REQUIRED, 2, "", "nope\n"),
-                  True))
-
-    cases.append(("a RUNNABLE verb that exits 0",
-                  classify_verb("sigma_glyph", "", RUNNABLE, None, 0,
-                                "ALL PASS\n", ""), False))
+    cases.extend([
+        ("fixed wheel, `gen` refuses and says what it needs",
+         classify_verb("sigma_wave", "gen", NOT_RUNNABLE, CHECKOUT_REQUIRED, 2, "", refusal), False),
+        ("a NOT_RUNNABLE verb that exits 0",
+         classify_verb("sigma_wave", "gen", NOT_RUNNABLE, CHECKOUT_REQUIRED, 0, "", ""), True),
+        ("a refusal that never says why",
+         classify_verb("sigma_wave", "gen", NOT_RUNNABLE, CHECKOUT_REQUIRED, 2, "", "nope\n"), True),
+        ("a RUNNABLE verb that exits 0",
+         classify_verb("sigma_glyph", "", RUNNABLE, None, 0, "ALL PASS\n", ""), False),
+    ])
 
     # Division of labour, stated as a case: classify_verb judges the EXIT
     # STATUS and the traceback; whether the tally is honest is `classify`'s job

@@ -116,10 +116,10 @@ $ (cd impl-rs &amp;&amp; cargo build --release) &amp;&amp; \
 $ python3 proofs/eval_bridge_check.py
 <span class="out">EVAL-BRIDGE: ALL AGREE (33/33)</span></pre>
 
-  <h2>Normative sentences as claims</h2>
-  <p>68 normative sentences of Book I and sigma-resume are claim records in <code>.warrant/</code>. Each quotes its sentence verbatim and either names the test cases that witness it and the mutants — deliberate breakages of the implementation — that those cases must catch, or says why it is unbacked. 63 are backed. A claims checker accepts a backed claim only after replaying its witnesses and its 64-mutant harness at one commit, and CI re-executes every new acceptance. Change the sentence, and the claim stops matching its document; break the code, and a witness fails. The registry is not complete: some MUST clauses have no claim yet, and the check covers the registered sentences, not the ones nobody registered.</p>
+  <h2>Every MUST is a claim</h2>
+  <p>The normative sentences of Book I and sigma-resume are 88 claim records in <code>.warrant/</code>, and the check runs both ways: every MUST, SHALL and REQUIRED in either document must lie in some claim's sentence, and every claim's sentence must still be in its document. Each claim quotes its sentence verbatim and either names the test cases that witness it and the mutants — deliberate breakages of the implementation, the suite or its schema — that those cases must catch, or says why it is unbacked (12) or only informative (5, such as the RFC 2119 boilerplate). 71 are backed. A claims checker accepts a backed claim only after replaying its witnesses and its 70-mutant harness at one commit, and CI re-executes every new acceptance.</p>
 <pre>$ warrant claims check
-<span class="out">claims: 68 live of spec/book-1-truth.md, spec/sigma-resume.md; 0 problem(s)</span></pre>
+<span class="out">claims: 88 live of spec/book-1-truth.md, spec/sigma-resume.md; 0 problem(s)</span></pre>
   <p class="note"><code>warrant</code> is <a href="https://pypi.org/project/warrant-graph/">warrant-graph</a>, pinned in <code>.github/warrant-requirements.txt</code>. Reviews are records in the same store: a pull request's head is accepted by the reviewer the repository's profile names, or challenged with findings it signs.</p>
 
   <h2>What it is / what it is not</h2>
