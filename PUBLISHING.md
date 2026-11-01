@@ -18,7 +18,8 @@ package (`.github/workflows/publish.yml`).
   (2026-07-31), **0.7.0** (2026-09-17), **0.8.0** (2026-10-19, the first with
   `sigma_resume` and `sigma_provider`) and **1.0.0** (2026-11-01, Book I and
   sigma-resume only, cut by claude under the owner's delegation; its provider
-  did not refuse a non-canonical cycle witness, fixed in 1.0.1). All five went
+  did not refuse a non-canonical cycle witness) and **1.0.1** (2026-11-01, that
+  fix, the same documents, also cut by claude). All six went
   out through the workflow below; none was uploaded by hand. If this file and PyPI disagree, PyPI is
   right.
 - **What has been checked about a published artifact:** 0.6.7 and 0.7.0 were
@@ -30,7 +31,11 @@ package (`.github/workflows/publish.yml`).
   party that cut the release (`SECURITY-ASSUMPTIONS.md` SA-8). For 1.0.0 the
   same read-back held: wheel `36d3354d…` and sdist `7878e718…` as the release
   run (41339906440) built them, the three installed modules byte-identical to
-  `impl/` at `v1.0.0`, and their self-tests passing from a clean venv.
+  `impl/` at `v1.0.0`, and their self-tests passing from a clean venv. For
+  1.0.1 the same: wheel `898bbd05…` and sdist `04bc88f8…` as run 41353235203
+  built them, the installed modules equal to `impl/` at `v1.0.1`, and
+  `tests/provider_resume_test.py --python` (the wire checks S20 and S21) passing
+  against the installed package.
 
 ## Authorization
 
