@@ -155,7 +155,7 @@ python3 tools/verify_anchors.py            | tee /dev/stderr | grep -q "anchors 
 if command -v lean >/dev/null 2>&1; then
   say "Lean proofs + differential bridges"
   for b in bridge_check store_mono_bridge_check byte_bridge_check eval_bridge_check \
-           c1_bridge_check; do
+           c1_bridge_check resume_bridge_check; do
     python3 "proofs/$b.py" | tee /dev/stderr | grep -qE "HOLD|ALL AGREE"
   done
   say "Guard regression: bridge soundness guard rejects the review's bypass vectors"

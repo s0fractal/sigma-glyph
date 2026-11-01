@@ -72,8 +72,8 @@ CI checks `SizeBound.lean` directly; the rest of the proofs reach CI through the
 differential bridges rather than as kernel checks of their own.
 
 What a bridge can and cannot establish is enumerated in `proofs/README.md`, and
-that enumeration is the source of truth for it — three of the four differentials
-run the compiled Lean model, two do not run Lean beyond the guard, and no
+that enumeration is the source of truth for it — three of the five differentials
+run the Lean model, two do not run Lean beyond the guard, and no
 differential can exercise a `Prop`-valued definition, which is exactly where each
 theorem's hypotheses live. Definition drift is caught by pins, not by
 differentials.

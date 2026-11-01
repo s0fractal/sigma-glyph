@@ -164,6 +164,57 @@ already earned its keep: it caught an A-2/A-3 ordering bug in the first draft of
 the Lean model — the oracle checks `x∉FV → K M` before the `S` rule for
 applications too, and the model didn't.) Run: `python3 proofs/c1_bridge_check.py`.
 
+## sigma-resume: segments and cycle witnesses (`ResumeMachine.lean`, `ResumeCycle.lean`, `ResumeLink.lean`)
+
+`spec/sigma-resume.md` is mechanized over an abstract machine: a deterministic
+transition whose fired actions cost at least 1, and `adv`, the run
+`sigma_resume._run` makes without host fences (fire while the next action is
+affordable; stop at a normal form, a blocked reference, or PAUSED). Theorems:
+
+- `adv_le` — a run never spends more than its budget;
+- `adv_split` — **§2 segmentation invariance**, with credit that accumulates as
+  §3 states it: a run with `a + b` equals a run with `a`, then a run from where
+  it stopped with what it left over plus `b`. (`adv_seg`, the special case of a
+  segment that spends its whole budget, is kept.)
+- `adv_spent_det` — **§4 "exactly one state has it"**: two budgets that spend
+  the same reach the same state, which is what lets `verify` replay to the
+  claimed `spent_total` rather than the claimed credit;
+- `checkCycle_sound` — `checkCycle` is `verify_cycle` over the machine, in its
+  order of checks; its CYCLE_PROVEN means the start reaches the entry spending
+  exactly `entry_spent` and `n ≥ 1` actions return to the entry at `cost`;
+- `cycle_proven_no_normal_form` — then every number of actions fires from the
+  start, and at every budget the run stops at a state from which an action
+  fires: §5's "never reaches a normal form", at any budget.
+
+`ResumeLink.lean` instantiates the machine with Book I: `step_nf_any` and
+`step_fire_any` prove §2 "No control state" for `EvalMachine.step` (the action
+it picks does not depend on the remaining budget), `run_eq_adv` proves that
+`_run` written over `EvalMachine.step` as Python writes it equals `adv`, so
+`adv_split` and `adv_spent_det` hold for the Book I transition, and
+`book_cycle_no_normal_form` carries the cycle theorem to it. No Book I term with
+a state cycle is known; the experimental Y/M/W profile is not mechanized.
+
+TCB: kernel-checked, standard axioms only (`propext`, `Quot.sound`, and
+`Classical.choice` for thirteen of the twenty-five). Host fences (admission
+ceilings, resource checks, recursion depth, absent evidence) are outside the
+model; in `_run` they end a segment in a local outcome, which §2 excludes.
+
+**Bridge** — `resume_bridge_check.py`: source + environment guard (front
+`resume`), then `checkCycle`, run by Lean (`ResumeCycleRun.lean`), against
+`sigma_resume.verify_cycle` on 12 223 generated cases: finite transition tables
+substituted through `sigma_resume.STEP`, true witnesses read off each orbit with
+their neighbours (one field off by one, another entry, a doubled period, the
+ceiling below the period or the prefix) and random ones. All three verdicts
+must occur. Removing `verify_cycle`'s period-cost check makes 764 of them
+disagree. What it does not exercise: `adv_split` and `adv_spent_det` have no
+differential of their own; they rest on `run_eq_adv` and on the eval bridge's
+tie between `EvalMachine.step` and the oracle.
+
+Moved from s0fractal/minds on 2026-11-01 (`proofs/Vars1/Replay.lean` abstract
+part, `Vars1/Cycle.lean` without the VARS gate, `Vars1Sigma/Link.lean` without
+the checkpoint lineage, I12 of `test_vars1_props.py`); `adv_split` and
+`adv_spent_det` were proved for this move.
+
 ## Mechanization status
 
 The Book I formal-verification targets are covered — the memory bound
@@ -180,10 +231,10 @@ future classifier. Two claims that used to sit *beside* the theorems rather
 than among them are now inside: that a run ends because the machine settled
 and not because the fuel ran out (`eval_settles`, the "unreached at atp+1"
 source comment), and that the memory price bounds the *peak* of the run and
-not just its answer (`evalHash_peak_size`). The four fronts are *layered*,
+not just its answer (`evalHash_peak_size`). The fronts are *layered*,
 not independent:
-`EvalMachine` is built on `MachineBytes`, which is built on `Sha256` — each
-front stands on the proven one below it.
+`ResumeLink` is built on `EvalMachine`, which is built on `MachineBytes`, which
+is built on `Sha256` — each front stands on the proven one below it.
 
 Not mechanized: `bridge_check.py` still samples the SizeBound premise on the
 *Python oracle's* traces (a useful independent cross-check, since the Lean
@@ -356,10 +407,11 @@ than copying any of it.
 
 * **Which fronts have a Lean-executing differential, precisely.** An earlier
   version of this section named the four differentials as the control for
-  definition drift. Two of them run the compiled Lean model:
+  definition drift. Three of them run the Lean model:
   `byte_bridge_check.py` (334 buffers through `BytesRun.lean`) and
-  `eval_bridge_check.py` (33 vectors through `EvalRun.lean`); a third,
-  `wave_bridge_check.py`, was retired with Book II. The other two do
+  `eval_bridge_check.py` (33 vectors through `EvalRun.lean`), and
+  `resume_bridge_check.py` runs `checkCycle` through `ResumeCycleRun.lean`
+  (12 223 cases); `wave_bridge_check.py` was retired with Book II. The other two do
   **not** run Lean beyond the guard: `bridge_check.py`'s 861 steps drive
   `impl/sigma_glyph.py` against the SizeBound *premise* (a cross-check of the
   Python oracle, not of the Lean file), and `c1_bridge_check.py`'s 3000 λ-terms

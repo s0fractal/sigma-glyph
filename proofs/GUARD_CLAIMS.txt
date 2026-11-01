@@ -43,7 +43,7 @@
 # the registry can edit this file too. What it buys is that the edit is loud
 # and names the theorem, instead of hiding inside a 30 000-line pin file.
 
-pins-sha256 d699eb252d6e9e9fff7687618a4521d419e3ada3e7b435fcb65929b1e4de987b
+pins-sha256 1ec038936e9af257d5a8e1ea417d89e482804dfc599206fc1eaca4f8250b2ca5
 
 core-modules Init Lean Std
 
@@ -122,6 +122,39 @@ front c1 guarded Book1.C1.tv10_id
 front c1 guarded Book1.C1.tv10_const
 front c1 native-decide-ok
 front c1 native-decide-sources
+
+front resume build Sha256 MachineBytes EvalMachine ResumeMachine ResumeCycle ResumeLink
+front resume modules ResumeLink
+front resume strict-sources Sha256.lean MachineBytes.lean EvalMachine.lean ResumeMachine.lean ResumeCycle.lean ResumeLink.lean
+front resume runner-sources ResumeCycleRun.lean
+front resume axioms propext Classical.choice Quot.sound
+front resume guarded SigmaResume.adv_eq
+front resume guarded SigmaResume.adv_le
+front resume guarded SigmaResume.adv_seg
+front resume guarded SigmaResume.adv_split
+front resume guarded SigmaResume.adv_spent_det
+front resume guarded SigmaResume.runN_steps
+front resume guarded SigmaResume.steps_add
+front resume guarded SigmaResume.steps_prefix
+front resume guarded SigmaResume.adv_reach
+front resume guarded SigmaResume.cycle_from_entry
+front resume guarded SigmaResume.cycle_fires_forever
+front resume guarded SigmaResume.steps_succ_fires
+front resume guarded SigmaResume.cycle_no_stop
+front resume guarded SigmaResume.checkCycle_sound
+front resume guarded SigmaResume.cycle_proven_no_normal_form
+front resume guarded SigmaResume.isFire_not_isNF
+front resume guarded SigmaResume.step_nf_any
+front resume guarded SigmaResume.step_fire_any
+front resume guarded SigmaResume.force_size
+front resume guarded SigmaResume.step_cost_le_size
+front resume guarded SigmaResume.bookStep_cost_pos
+front resume guarded SigmaResume.run_eq_adv
+front resume guarded SigmaResume.bookStep_isNF_iff
+front resume guarded SigmaResume.adv_store
+front resume guarded SigmaResume.book_cycle_no_normal_form
+front resume native-decide-ok
+front resume native-decide-sources
 
 unguarded SigmaGlyph.step_preserves
 unguarded EvalMachine.size_pos

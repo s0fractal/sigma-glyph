@@ -81,6 +81,16 @@ convention's example names Book I instead of GOV-anchors, and
 `tools/version_check.py` reads sigma-resume's version beside Book I's.
 `publish.yml` installs its build tools wheels-only (Sonar S8541).
 
+**sigma-resume is mechanized.** A new proof front `resume` (moved from
+s0fractal/minds on 2026-11-01): `ResumeMachine.lean` proves §2 segmentation
+invariance with accumulating credit (`adv_split`) and §4's one state per spent
+(`adv_spent_det`); `ResumeCycle.lean` proves what `verify_cycle`'s CYCLE_PROVEN
+establishes (`checkCycle_sound`, `cycle_proven_no_normal_form`);
+`ResumeLink.lean` carries both to Book I's `EvalMachine.step` (`run_eq_adv`,
+§2 "No control state"). 25 theorems, guarded and pinned;
+`resume_bridge_check.py` runs the Lean cycle checker against `verify_cycle` on
+12 223 generated cases, in `proofs.yml` and `tools/test-all.sh`.
+
 ## Distribution 0.8.0 — the checked resume provider ships (released 2026-10-19)
 
 `pyproject.toml` moves from `0.8.0.dev0` to `0.8.0`, released from tag
