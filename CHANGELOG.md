@@ -64,11 +64,27 @@ their guard (its registry cases moved from the wave front to the bytes front),
 the resume matrix, mutants and differential, the provider wheel. CI pins no
 sibling repository; `tools/test-all.sh` needs no `WARRANT` operand.
 
-## Distribution 0.8.0 — the checked resume provider ships (release pending)
+The claims checker's acceptances of the 63 backed claims landed with #77, and
+the review waker now runs its replays under this repository's pinned
+warrant-graph, so CI re-executes both the acceptances and the review replays.
 
-`pyproject.toml` moves from `0.8.0.dev0` to `0.8.0`. To be released from tag
-`v0.8.0` through the OIDC publish workflow; until that run, PyPI's latest is
-0.7.0. The provider modules are byte-identical to `f3fd1dd` (Codex ACCEPT of
+**The surface after the echo.** The documents a reader meets first stop
+describing what left: `docs/index.html` (a v0.6.6 snapshot with Books II and
+III, the GOV chain and three evaluators) shows Book I and sigma-resume with
+outputs run on this tree, including a resumed computation; README's status
+section, QUICKSTART (a second runnable snippet, segments against one run),
+PUBLISHING (0.8.0 was missing), SECURITY-ASSUMPTIONS (SA-1, SA-6, SA-8, SA-9,
+SA-12, NG-5 named GOV-anchors, a retired gate policy, a `cross-repo` check and
+three releases), SONAR-DISPOSITIONS (counts at `65aea5f`), CITATION and
+`proofs/README` (a `native_decide` paragraph about wave theorems). The ANCHORS
+convention's example names Book I instead of GOV-anchors, and
+`tools/version_check.py` reads sigma-resume's version beside Book I's.
+`publish.yml` installs its build tools wheels-only (Sonar S8541).
+
+## Distribution 0.8.0 — the checked resume provider ships (released 2026-10-19)
+
+`pyproject.toml` moves from `0.8.0.dev0` to `0.8.0`, released from tag
+`v0.8.0` through the OIDC publish workflow on 2026-10-19. The provider modules are byte-identical to `f3fd1dd` (Codex ACCEPT of
 #65 at `22742b5`, same tree), so the provider identity Warrant 2 accepts,
 `0caff793…`, does not change. No normative bundle changes after adopted `v0.7.0`.
 

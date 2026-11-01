@@ -387,17 +387,15 @@ than copying any of it.
   whoever can edit the registry can edit it too, and no bridge consumes it as
   authority. What it buys is that the edit is loud and NAMES what changed,
   instead of hiding inside a 30 000-line pin file — which is exactly what the
-  earlier count-only version did not buy. It is not part of `spec/ANCHORS.txt`
-  — adding a file to a governed release bundle is a roster action, not an
-  agent's.
-* **`native_decide` sources whose statements are pinned but not axiom-cone
-  checked.** `WaveAlgebra.lut_range`, `lut_zero` and `am_fixed_scan` generate
-  trust axioms the guarded wave theorems consume. They are named in
-  `native_decide_sources`, and their statements are pinned and claimed — but
-  they stay on the `unguarded` list, i.e. what they SAY is pinned while what
-  they REST ON is not re-checked. Their TCB is the Lean compiler by
-  construction (that is what `native_decide` means), which is why this front's
-  TCB paragraph above says so.
+  earlier count-only version did not buy. It is not part of `spec/ANCHORS.txt`.
+* **`native_decide` theorems are guarded, and their TCB is the compiler.** The
+  only `native_decide` proofs left are the five `bytes`-front pins in
+  `MachineBytes.lean` (`genesis_I`, `genesis_K`, `genesis_S`,
+  `false_is_a_theorem`, `invalid_object_pins`). The front lists them in
+  `native_decide_ok` and `native_decide_sources` and guards each one, so their
+  statements are pinned and their axiom cones checked; what the cones rest on is
+  the Lean compiler by construction (SA-1). Book II's `WaveAlgebra` sources,
+  which used to sit on the `unguarded` list, left with Book II.
 * **The core-module allowance is trust, not verification.** Constants owned by
   `Init`/`Lean`/`Std` are unpinned; the toolchain pin (`lean-toolchain`) is
   what fixes them. The allowance is an explicit, claimed line rather than an

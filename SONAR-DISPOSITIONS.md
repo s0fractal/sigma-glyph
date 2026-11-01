@@ -6,16 +6,18 @@ not say "Sonar clean" while this file has entries.*
 
 Read with `SECURITY-ASSUMPTIONS.md`: that file records what the system assumes,
 this one records what a static analyser reports that we have decided not to change.
+Dispositions for files that left the tree (the Warrant 0.x gates on 2026-10-19,
+the echo on 2026-10-31) are at commit `96414ab`.
 
-Entries naming `tools/anchor_governance.py` are historical: that file was retired
-on 2026-10-19 (`history/RETIREMENT-2026-10-WARRANT-0X-GATES.md`).
+## Where the numbers stand
+
+At `master@65aea5f` (2026-11-01) the analyser reported **13 unresolved**, no
+security hotspots, security rating **C**. Two of the 13 are vulnerabilities:
+`githubactions:S8541` in `publish.yml`, fixed in the same change as this
+revision of the file, and `python:S2245`, accepted below. The other eleven are
+code smells, sorted below into fixed, accepted and deferred.
 
 ## Accepted
-
-Three dispositions accepted here earlier (`python:S3776` in a needs-packet fixture,
-`pythonsecurity:S8707` in the two-jurisdictions demo, `pythonsecurity:S8705` in
-`tools/hermes_review.py`) left with their files on 2026-10-31
-(history/RETIREMENT-2026-10-ECHO.md); their text is at commit `96414ab`.
 
 ### `python:S2245` — a seeded PRNG in a differential bridge
 
@@ -30,24 +32,33 @@ comment stays because it is true for a reader; the finding is accepted here
 because the mechanism for suppressing it does not work in this analyser, and
 silently pretending it is gone would be worse than saying so.
 
-## Fixed rather than accepted, in the same pass
+### `python:S3776` / `rust:S3776` — cognitive complexity in the kernels
 
-| Rule | Site | What it actually was |
+`impl/sigma_resume.py` (three functions), `impl/sigma_provider.py` (one),
+`impl-rs/src/main.rs` (one).
+
+These are the reference transition and its consumer surface; each function
+follows a numbered section of `spec/sigma-resume.md` or Book I branch by branch,
+and splitting one moves a rule away from the sentence it implements. A change to
+these files also changes the provider identity a consumer pins, and claims
+acceptances are replays of exact bytes; neither is worth paying for a metric.
+Refactoring belongs to a change that has its own reason to touch them.
+
+## Fixed in the same change as this revision
+
+| Rule | Site | What it was |
 | --- | --- | --- |
-| `pythonsecurity:S8707` | `tools/anchor_governance.py` | `replay` opened whatever path it was given; a symlink, a device or a file outside the tree would have been read as governance vectors. Now required to be a regular file **inside the repository** — the vectors it replays are repository artifacts, which is the whole set of inputs the command is for |
-| `python:S1192`, `python:S3776` | `tools/repo_map.py` | the salvaged row check grew past reading; the ref, liveness and resolution questions are three named functions now, and `"origin/"` is one constant |
-| `python:S8786` | `tools/spec_audit.py`, `tools/paper_claims.py` | two patterns that scanned super-linearly. Bounded |
-| `python:S1481` | the DA-SIGMA-0002 reproducer | two prices recomputed and discarded; `at_price` is pure, so it was work nobody read. Deleted |
-| `python:S5713` | `experiments/exp-002/validate_fixtures.py` | `UnicodeDecodeError` and `JSONDecodeError` named beside `ValueError`, which they both subclass |
-| `python:S3776` | `proofs/store_mono_bridge_check.py` | the grow and shrink directions are now their own functions; the bridge reports the same 67 and 1153 |
+| `githubactions:S8541` | `.github/workflows/publish.yml` | `pip install build twine` without `--only-binary :all:` could run a setup script; both are pure wheels, so the install is now wheels-only |
+| `rust:S1612` | `impl-rs/src/main.rs`, `number_value` | a closure around `u8::is_ascii_digit` |
 
-## Where the numbers stand
+## Deferred, with the change that removes them
 
-At `master@9a32283` the analyser reported **7 unresolved**: 3 for the demo, 1 for
-the hermes taint, 1 for the seeded PRNG, and 2 maintainability items now fixed.
-Security rating **C**, driven entirely by the four `pythonsecurity` findings above.
-The quality gate is green on new code, which is not the same as the project being
-clean, and this file exists so the difference is legible.
+| Rule | Site | Why not now |
+| --- | --- | --- |
+| `python:S9409` (2) | `tools/check_release_surface.py` | both sites are in self-test fixtures for the retired `sigma_wave` module; the next change to that gate removes the fixtures rather than polishing them |
+| `python:S3776` | `tools/suite_schema.py`, `check_record` | one closed-schema walk; it goes with the same tooling pass |
+| `python:S1192` | `impl/sigma_provider.py`, `"sigma_resume.py"` ×3 | provider identity bytes, as above |
+| `rust:S9045` | `impl-rs/src/main.rs`, `mod tests` | moving the module after the resume items is a 200-line diff with no behaviour; it goes with the next change to that file |
 
 ## Not accepted, and not fixable here
 

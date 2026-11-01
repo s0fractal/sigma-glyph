@@ -44,6 +44,10 @@ One sentence, because everything below bounds it:
 > integer-only and total, with no float, clock or network in reduction. ATP
 > bounds priced work and peak **semantic materialized-node count**. It does not
 > bound process memory, and the verifier must apply a local admission policy.
+>
+> sigma-resume adds: the same computation run in budgeted segments and resumed
+> from checkpoints reaches the same kernel outcome as one straight run, and a
+> receipt is verified by replaying it from the verifier's own root.
 
 ## Scoped assumptions
 
@@ -57,9 +61,10 @@ theorems trust the Lean **compiler** as well as the kernel. `C1Compiler.lean`
 does not use it.
 
 The assumption is discharged nowhere and cannot be: that is what `native_decide`
-means. It is named per-front in `proofs/README.md`, which also lists the
-`native_decide` sources whose *statements* are pinned while what they *rest on*
-is not re-checked.
+means. The five theorems that use it are the `MachineBytes` genesis and
+invalid-object pins; `proofs/README.md` names them per front. Their statements
+are pinned and their axiom cones guarded; what the cones rest on is the
+compiler.
 
 ### SA-2. Most proof fronts reach CI through differential bridges, not kernel checks
 
@@ -80,77 +85,60 @@ revocable delegation, and its signature attests **that a delegated process ran
 under a policy a human signed** — not that a model decided something in its own
 right. Non-repudiation rests with the accountable human entity and does not move.
 
-The full positioning, including four places where the current mechanism does not
-yet match it, is in the sibling repository:
-[`warrant/MODEL-ACTORS.md`](https://github.com/s0fractal/warrant/blob/master/MODEL-ACTORS.md)
-and `warrant/MAINTAINER-LEASE.md`.
+In this repository that is mechanical. Every actor that signs a record has a key
+bound to a role in `.warrant/v3.json` (an owner-path file): the author files a
+pull request's head, the reviewer (`pr/acceptor`) accepts it or files findings,
+the claims checker (`claim/verifier`) accepts a claim only after replaying its
+witnesses and mutants, and the review replayer re-runs a finding's test. None of
+them merges: the owner does (AGENTS.md rule 5), and branch protection makes a
+merge go through a pull request with the required checks green (SA-12).
 
-One of those four is here. `spec/GOV-anchors.md` §5 annotates
-`claude-fable-5@sigma-glyph` as `(maintainer)` and §4 states "the maintainer is a
-model". That document is a STANDARD, anchored in `spec/ANCHORS.txt` by the
-SHA-256 of its exact bytes, and its anchor-set has been adopted by threshold
-warrant — re-wording it changes the anchor and requires a governed adoption, so
-it stands as written and is flagged here instead.
+What a key binding does **not** establish: that the model behind a key decided
+anything in its own right, or that two keys stand for independent parties. Both
+reviewers and authors are delegates of the same human, and the positioning in
+the sibling repository
+([`warrant/MODEL-ACTORS.md`](https://github.com/s0fractal/warrant/blob/master/MODEL-ACTORS.md))
+still applies. The previous text of this item flagged a `(maintainer)`
+annotation in `spec/GOV-anchors.md`; that document was retired on 2026-10-31,
+and with it the place where the mechanism and the positioning disagreed.
 
-Read under the delegation framing, §4's sentence is an argument about **delegated
-actors expiring on a published schedule**, and that is the strongest thing in it:
-a delegate whose deprecation date is announced in advance by the party operating
-it is a liveness fault a policy can be *designed against* rather than merely
-survive, which is why §4 requires successions staged before planned retirements
-and `N − M ≥ 1`.
+### SA-8. The publish path has run four times, on one runner, read back by the releaser
 
-### SA-8. The publish path has now run three times, for three releases on one runner
+`.github/workflows/publish.yml` has published four releases to PyPI through
+Trusted Publishing with no stored token: **0.6.6.post1** (2026-07-30), **0.6.7**
+(2026-07-31), **0.7.0** (2026-09-17) and **0.8.0** (2026-10-19). The token
+exchange, the `pypi` environment gate and PyPI's acceptance of this repository's
+workflow identity have worked for those tags on GitHub's hosted runner, with the
+action SHAs pinned in that file. For 0.7.0 the served digests were compared with
+the release run's own artifacts and matched; `PUBLISHING.md` records what was
+checked for each release.
 
-This item used to say that nothing had ever been published and that the first
-release would also be the first test of the OIDC path. That stopped being true
-on 2026-07-30, and an assumption that overstates a limitation misleads exactly
-as much as one that understates it — so it is rewritten rather than deleted.
+What that does **not** establish:
 
-`.github/workflows/publish.yml` has executed end to end **three times**:
-`sigma-glyph` **0.6.6.post1** (2026-07-30), **0.6.7** (2026-07-31) and **0.7.0**
-(2026-09-17) are on PyPI, uploaded through Trusted Publishing with no stored
-token. The token exchange, the `pypi` environment gate, and PyPI's acceptance of
-this repository's workflow identity are no longer unexercised — they worked, for
-those three tags, on GitHub's hosted runner, with the action SHAs pinned in that
-file.
-
-For 0.7.0 the artifact was also read back: the digests PyPI serves are the
-digests the release run built (wheel `c9ee4768…6276a`, sdist `5ad36077…bcf8`),
-and the installed modules are byte-identical to `impl/` at tag `v0.7.0`. That
-closes the gap between "the workflow said success" and "this is what it
-uploaded" for this release only, and it was done by the party that cut the
-release.
-
-What that does **not** establish, which is the part still worth reading as an
-assumption:
-
-- **Three runs are not a track record.** Nothing has exercised the path after a
-  rotated publisher, a renamed workflow, a changed environment name, or from a
-  runner other than the hosted one. A Trusted Publishing configuration that
-  quietly stops matching fails at upload — after the gate has already passed.
-- **The TestPyPI dry run has still never been performed.** `PUBLISHING.md`
-  describes it and the `testpypi` job has never run; all three real publishes
-  went straight to PyPI.
-- **Only this project has installed the result.** `pip install sigma-glyph`
-  into a clean venv, followed by the three self-tests and — for 0.7.0 — the
-  anchored suites replayed from outside any checkout, was done on one host by
-  the party that cut the release. No outside party is known to have installed
-  any version, and none has reproduced the upload. A reviewer verified 0.7.0's
-  candidate artifacts before the release; nobody but this project has read back
-  what PyPI now serves.
+- **Four runs are not a track record.** Nothing has exercised the path after a
+  rotated publisher, a renamed workflow or environment, or from another runner.
+  A configuration that quietly stops matching fails at upload, after the gate.
+- **The TestPyPI dry run has never been performed.** All four publishes went
+  straight to PyPI.
+- **Only this project has installed the result.** Every read-back was done on
+  one host by the party that cut the release. No outside party is known to have
+  installed any version or reproduced an upload.
 - **A green publish is not a gate.** `tools/check_release_surface.py` measures
   the artifact against this repository's own documentation and says nothing
-  about whether either is correct. SA-9 is unaffected.
+  about whether either is correct.
 
-### SA-9. No independent gate is currently affordable
+### SA-9. Review is by a second model family, not by an independent party
 
-Work lands with the attestation described in warrant's
-`policies/gate-settlement.json` rather than with a passed gate. Green suites are
-necessary and not sufficient: in this project every real gate has been green and
-still found new reproducible bugs the suites did not cover (`AGENTS.md` rule 3).
+A pull request is reviewed by the actor `.warrant/v3.json` names as
+`pr/acceptor` (Codex), whose acceptance or findings are signed records in
+`.warrant/records.jsonl`, and CI re-executes the review replays and claims
+acceptances new since the base. That is a different model family looking at the
+change with the means to run it, which in this project has repeatedly found
+reproducible defects the suites did not cover (`AGENTS.md` rule 3).
 
-Nothing in this document has passed an independent gate, and this item is the
-reason no claim in it is stated as validated without naming by what.
+It is not an independent gate: the reviewer is a delegate of the same human who
+owns the repository (SA-6), and no party outside this project has reviewed any
+revision. Nothing here is stated as validated without naming by what.
 
 ### SA-10. The proof-guard registry assumes review, not verification, at two points
 
@@ -206,18 +194,20 @@ because they could not read this repository's protection settings. Those setting
 were then read, and the condition held: **rulesets empty, `master` unprotected**.
 Anyone with push could move the branch directly, guard and all.
 
-**What was done.** `master` now requires a pull request and five checks read from
-live runs rather than invented — `test`, `lean`, `cross-repo`,
-`SonarCloud Code Analysis`, `GitGuardian Security Checks` — with branches required
-up to date, force-pushes and deletions refused, and **admin enforcement on**. That
-last part was tested rather than assumed: with `enforce_admins` off, a direct push
-by an admin succeeded and was reverted by a forward commit, not a rewrite; with it
+**What was done.** `master` requires a pull request and four checks —
+`test`, `lean`, `SonarCloud Code Analysis`, `GitGuardian Security Checks` (read
+from the branch protection on 2026-11-01; `cross-repo` left with Warrant 0.x) —
+with force-pushes and deletions refused and **admin enforcement on**. That last
+part was tested rather than assumed: with `enforce_admins` off, a direct push by
+an admin succeeded and was reverted by a forward commit, not a rewrite; with it
 on, the same push is rejected with `protected branch hook declined`.
 
 **What is still open, and it is the interesting half.** A *pull request* can still
 change a theorem, the guard, the tests and the workflow together, and the required
-checks are the ones that pull request defines. No review is required, so an author
-can merge their own. The recursion is narrowed to one door, not closed:
+checks are the ones that pull request defines. GitHub requires no approving
+review; the reviewer's acceptance is a record (SA-9), and `.github/` and
+`.warrant/v3.json` are owner paths, which the owner merges. The recursion is
+narrowed to one door, not closed:
 
     proof ← guard ← tests ← workflow ← all editable in the same change
 
@@ -230,10 +220,12 @@ alone.
 
 ### NG-5. Serving as its own trust anchor
 
-A verifier MUST refuse a trust config located inside the tree being verified: an
-in-tree trust anchor is weaker than signed git tags (`GOV-anchors.md` §3 step 1).
-`spec/GOV-anchors.md` §5 is documentation, not a trust anchor. Distributing trust
-is out of scope of this repository and stays out of it.
+`.warrant/v3.json` is this repository's statement of whose keys it accepts for
+which role, and CI assesses the records under it. That is a declaration by the
+tree under review, not a trust anchor: a verifier outside this project brings
+its own trust and reads the records under it (Warrant 3 assesses records under
+the receiver's profile). Distributing trust is out of scope of this repository
+and stays out of it.
 
 ### NG-6. Treating a local resource fault as a canonical failure
 

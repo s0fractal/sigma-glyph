@@ -74,5 +74,5 @@ references:
         alias: s0fractal
     repository-code: "https://github.com/s0fractal/warrant"
     notes: >-
-      Consumes Book I as the ski@v1 check runtime, and supplies the Warrant v0.3
-      record format that Book III federation and GOV-anchors are profiles of.
+      Records this repository's reviews, findings and claims (Warrant 3, in
+      .warrant/); its pilot extra runs the resume kernel through sigma_provider.

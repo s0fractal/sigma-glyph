@@ -8,25 +8,24 @@ python3 impl/sigma_glyph.py         # Book I  (compute core)   -> ALL PASS
 python3 tests/resume_test.py        # sigma-resume              -> SIGMA-RESUME: … PASS, 0 FAIL
 ```
 
-`pip install sigma-glyph` gets the same module as `python -m sigma_glyph`
-(0.8.0 adds `sigma_provider`, the resume surface). README's "Status by
-surface" says which bundle the PyPI release packages and why it can be one
-bundle behind the adopted specification. **Clone anyway if
-you want the sentence below to be true:** the wheel does not ship
-`tests/spec_conformance/`, so an installed copy runs its property checks in full
-and announces the recorded-vector replays as an explicit `SKIP`. Re-deriving
-every vector is the checkout's job.
+`pip install sigma-glyph` gets the same modules as `python -m sigma_glyph` and
+`python -m sigma_provider` (0.8.0 is the first release with the resume surface).
+**Clone anyway if you want the sentences below to be true:** the wheel does not
+ship `tests/`, so an installed copy runs its property checks and cannot replay
+the conformance vectors or the claims witnesses. Re-deriving every vector is the
+checkout's job.
 
 ## What just happened
 
 You ran the reference implementations and their local suites. That covers the
-predicates those suites name, not every sentence in the Books. In particular,
-`tools/spec_audit.py` lists unresolved predicates and clauses outside its reach.
-Since Book I 0.6.0 (the adopted v0.7.0 bundle) no implementation, the reference
-one included, takes precedence over the normative text and the anchored suite;
-a prose/vector disagreement is a defect to file, not a call the oracle makes.
-Through v0.6.7 the Book said the opposite, and PR #24 records why that was a
-specification defect.
+predicates those suites name, not every sentence of the specification. What
+covers the sentences is `.warrant/claims.json`: each normative sentence of Book I
+and sigma-resume is a claim that names the cases witnessing it and the mutants
+that must break them, or says why it is unbacked (`warrant claims view`).
+`tools/spec_audit.py` lists what is still outside its reach. No implementation,
+the reference one included, takes precedence over the normative text and the
+anchored suite: a prose/vector disagreement is a defect to file, not a call the
+oracle makes.
 
 ## Compute one thing
 
@@ -73,6 +72,43 @@ occurred; `eval_receipt(term, atp, store)` returns the exit explicitly (Book I
 earlier PyPI 0.6.7 module also has. The snippet is kept to that shared surface
 so the release gate can run it both ways.
 
+## Resume one thing
+
+The same kind of computation, run as six segments of 5 ATP each, reaches the
+result one segment of 1000 ATP reaches, and the chain of checkpoints verifies by
+replay:
+
+```bash
+python3 - <<'PY'
+import sys; sys.path.insert(0, 'impl')
+import sigma_provider as p
+
+RT = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost"
+t = p.term("S K K (S K K (K I))")                 # -> K I
+inp, nodes = t["input"], t["nodes"]; hashes = sorted(nodes)
+s = p.start(RT, inp, hashes)
+ck, st, chain, n = s["checkpoint"], s["state"], [(s["checkpoint"], s["state"])], 0
+while True:
+    a = p.advance(RT, hashes, nodes, ck, st, 5); n += 1
+    ck, st = a["checkpoint"], a["state"]; chain.append((ck, st))
+    if a["outcome"] != "PAUSED": break
+one = p.advance(RT, hashes, nodes, s["checkpoint"], s["state"], 1000)
+print(n, "segments:", a["outcome"], a["result"][:16])
+print("one run:   ", one["outcome"], one["result"][:16])
+print("verify:", sorted({v["code"] for v in p.verify(RT, inp, hashes, nodes, chain)}))
+PY
+```
+
+```text
+6 segments: NORMAL_FORM 65cd957fee7ec9fb
+one run:    NORMAL_FORM 65cd957fee7ec9fb
+verify: ['NORMAL_FORM', 'PAUSED']
+```
+
+`65cd957f…` is `K I`, Book I §5.2's "FALSE is a theorem". To continue a
+stranger's checkpoint use `p.resume(...)`, which replays it from your own root
+first; `advance` trusts the checkpoint it is given.
+
 ## The two layers in one paragraph each
 
 **Book I — TRUTH.** A content-addressed SKI machine. Identity is
@@ -85,15 +121,13 @@ a normal form, an explicit local refusal or a checkpoint (PAUSED); anyone can
 resume a checkpoint from their own root and verify a receipt by replaying it.
 Specified in `spec/sigma-resume.md`; Book I governs the transition.
 
-Books II (waves) and III (federation) were retired on 2026-10-31
-(`history/RETIREMENT-2026-10-ECHO.md`).
-
 ## Audit the project itself
 
 ```bash
 tools/test-all.sh                   # the whole matrix CI runs, one command
-python3 tools/verify_anchors.py     # the adopted specification bytes
+python3 tools/verify_anchors.py     # the anchored specification bytes (Book I §8)
 ```
 
-Deeper: `spec/book-1-truth.md` is ~250 lines and self-contained. Adversarial
+Deeper: `spec/book-1-truth.md` is ~250 lines and self-contained;
+`spec/sigma-resume.md` builds on it. Adversarial
 review is the development model: attack one exact claim, with a reproducer.

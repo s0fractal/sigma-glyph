@@ -160,12 +160,12 @@ That sentence of §7 was changed in Book I 0.6.0 through ADR-010, which carried
 the narrower proposal that first argued it, ADR-008 (closed as superseded; at
 commit `96414ab`). Filing that vector remains an edit to anchored bytes.
 
-**Two implementations agree (three did, until warrant-go left with Warrant 0.x),
-and that is weaker evidence than it looks.** The Python oracle, `warrant-go` and
-the Rust implementation were written
+**Two implementations agree, and that is weaker evidence than it looks.** The
+Python oracle and the Rust implementation (and, until it left with Warrant 0.x,
+`warrant-go`) were written
 from the same specification text by the same author with model assistance. They
 are good evidence about coding slips and specification ambiguity; they are weak
-evidence about specification *error*, because three implementations of a wrong
+evidence about specification *error*, because any number of implementations of a wrong
 sentence agree perfectly.
 
 ## If you do implement it

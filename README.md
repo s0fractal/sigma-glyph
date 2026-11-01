@@ -18,10 +18,7 @@ input and yields `Unresolved Reference`; local process/resource faults stay
 outside canonical outcomes. Implementations must apply local admission limits
 before reading untrusted terms or stores.
 
-The three-input form above is normative in Book I 0.6.0. Earlier README text
-incorrectly omitted the content environment even though the Lean model, Python
-implementation and unresolved-reference semantics already depended on it. The
-defect was found in external review and resolved in v0.7.0 through ADR-010.
+The three-input form above is normative in Book I 0.6.0.
 
 ## What it establishes
 
@@ -35,9 +32,8 @@ what left, why and where its bytes are.
 
 Two implementations agree on all 49 Book I conformance vectors and on generated
 terms: the Python reference and a from-scratch Rust implementation, from one
-author/model lineage (a third, Warrant 0.x's Go evaluator, left with Warrant
-0.x). Lean 4 checks determinism, totality, the semantic-size bound and
-valid-store monotonicity. This is strong internal conformance evidence, not
+author/model lineage. Lean 4 checks determinism, totality, the semantic-size
+bound and valid-store monotonicity. This is strong internal conformance evidence, not
 independent custody, outside adoption, semantic truth or immunity of a binary to
 local faults.
 
@@ -55,6 +51,7 @@ From a checkout:
 python3 impl/sigma_glyph.py                     # Book I
 python3 tests/spec_conformance/run_reference.py # the conformance vectors
 python3 tests/resume_test.py                    # sigma-resume
+python3 tests/book1_claims_test.py              # the claims' witnesses
 tools/test-all.sh                               # full repository suite
 ```
 
@@ -67,8 +64,7 @@ python -m sigma_glyph
 
 The wheel contains the Python modules, not the replay corpora; full
 re-derivation needs a checkout. The artifact boundary and release procedure are
-in [`PUBLISHING.md`](PUBLISHING.md). The published 0.7.0 and 0.8.0 still ship
-`sigma_wave` and `sigma_federation`; the next distribution will not.
+in [`PUBLISHING.md`](PUBLISHING.md).
 
 ### The resume provider, installed
 
@@ -95,53 +91,31 @@ identity grants nothing.
 
 ## Status by surface
 
-Several things move separately here, and their labels are not interchangeable.
 Each paragraph names its authoritative source; when this section and that
 source disagree, the source is right. `tools/version_check.py` checks the two
-version headings below against `spec/ANCHORS.txt` and `pyproject.toml`.
+headings below against `spec/ANCHORS.txt` and `pyproject.toml`.
 
 ### Adopted bundle: v0.7.0
 
-**v0.7.0** (2026-08-30) is the newest adopted anchor set in
-[`spec/ANCHORS.txt`](spec/ANCHORS.txt): Book I 0.6.0, Books II and III 0.7.0,
-GOV-anchors 1.0.2. It was adopted by threshold warrant `0e634c17…46e1` (2-of-3,
-two distinct roster keys) over anchor set `abf10f2a…adf59`, recorded in the
-Warrant 0.x store `.warrants/`, retired 2026-10-31 and kept at commit `96414ab`.
-The retired documents of the bundle are verified there by
-`tools/verify_anchors.py`. The bundle makes the content environment and receipt explicit,
-removes reference-oracle precedence, anchors all three suite schemas and admits
-at most one Pin per NodeHash in the annotation profile. Adoption records this
-project's own governance act; it does not claim outside review, custody or use.
-`SECURITY-ASSUMPTIONS.md` SA-5 records what custody each threshold act has
-actually had.
-
-A bundle heading is a governance label, not a git tag and not a release. They
-coincide here only because the 0.7.0 distribution was cut from this bundle: the
-`v0.7.0` tag, GitHub release and PyPI upload are release acts of 2026-09-17,
-not the adoption of 2026-08-30. Release history and exact changed anchors
-belong to [`CHANGELOG.md`](CHANGELOG.md), `spec/ANCHORS.txt` and
-[`spec/VERSIONS.md`](spec/VERSIONS.md).
+**v0.7.0** (2026-08-30) is the newest anchor set in
+[`spec/ANCHORS.txt`](spec/ANCHORS.txt), the detached registry Book I §8 requires:
+Book I 0.6.0 by the SHA-256 of its bytes. sigma-resume 1.0.0-rc.1 is not yet
+anchored; anchoring both is the 1.0 act, and adoption is a signed record
+(AGENTS.md rule 2), not a heading. The v0.7.0 adoption record and the bundle's
+other documents (Books II and III, GOV-anchors) were retired on 2026-10-31 and
+are verified at commit `96414ab` by `tools/verify_anchors.py`.
 
 ### Distribution: 0.9.0.dev0
 
 `pyproject.toml` carries **0.9.0.dev0**: the next distribution ships Book I
 (`sigma_glyph`) and the resume kernel and provider (`sigma_resume`,
 `sigma_provider`), without the retired Book II and III modules. Nothing is
-published until a GitHub Release runs `.github/workflows/publish.yml`.
+published until the owner cuts a GitHub Release.
 
-`sigma-glyph` **0.8.0** is the latest PyPI release: the first that ships
-`sigma_resume` and `sigma_provider` (the checked `resume`), next to the three
-Books' modules. PyPI is right about what it holds.
-
-`sigma-glyph` **0.7.0** (2026-09-17), the release before it, was built from git
-tag `v0.7.0` (commit `9d10bbc…`) by `.github/workflows/publish.yml`. It packages the adopted v0.7.0 bundle
-(Book I 0.6.0, Books II and III 0.7.0), so an installed copy is no longer one
-bundle behind — the first release for which that is true since the bundle was
-adopted. The published wheel is `c9ee4768…6276a` and the sdist `5ad36077…bcf8`;
-both are byte-identical to the artifacts the release run built, and the three
-installed modules are byte-identical to `impl/` at the tag.
-[`PUBLISHING.md`](PUBLISHING.md) owns the release procedure; if it and PyPI
-disagree, PyPI is right.
+The latest PyPI release is **0.8.0** (2026-10-19), the first with
+`sigma_resume` and `sigma_provider`, still beside the Book II and III modules.
+Releases and what was checked about each are in [`PUBLISHING.md`](PUBLISHING.md)
+and [`CHANGELOG.md`](CHANGELOG.md); PyPI is right about what it holds.
 
 ## The specification
 
@@ -169,9 +143,9 @@ python3 tools/version_check.py
 ```
 
 Implementation guidance is in [`spec/IMPLEMENTING.md`](spec/IMPLEMENTING.md).
-Every adopted specification byte set is detached in
+Every anchored specification byte set is detached in
 [`spec/ANCHORS.txt`](spec/ANCHORS.txt); a specification update is an explicit
-fork, not a mutable page edit.
+fork, not a mutable page edit (Book I §8).
 
 For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent
@@ -206,8 +180,8 @@ read them. The owner merges (AGENTS.md rule 5).
 - *Does One Integer Still Price Work and Memory in Parallel?* —
   [Zenodo 10.5281/zenodo.22073568](https://doi.org/10.5281/zenodo.22073568), a
   preregistered experiment: the aggregate bound survived the measured parallel
-  reducer while per-redex refusal did not. Its harness (`experiments/exp-004/`)
-  is kept at commit `96414ab` and in the deposit.
+  reducer while per-redex refusal did not. Its harness is in the deposit and at
+  commit `96414ab`.
 
 Prior eras and their historical hashes are preserved in git history and in the
 deposited snapshot, not in the default tree: `history/` holds the retirement

@@ -849,11 +849,7 @@ impl<'a> JsonParser<'a> {
 
     fn number_value(&mut self) -> Result<Json, String> {
         let start = self.offset;
-        while self
-            .bytes
-            .get(self.offset)
-            .is_some_and(|b| b.is_ascii_digit())
-        {
+        while self.bytes.get(self.offset).is_some_and(u8::is_ascii_digit) {
             self.offset += 1;
         }
         if self.offset - start > 1 && self.bytes[start] == b'0' {
