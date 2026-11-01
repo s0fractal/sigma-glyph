@@ -5,7 +5,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The proofs read no .warrant/ record: a commit that changes only .warrant/ leaves them as they were.
+      # When this workflow already passed on exactly the tree without .warrant/ (cache entry
+      # `proofs-pass-<tree>`, saved only after such a run), the steps below are skipped and the run says so.
+      - name: The tree without .warrant/ (what the proofs check)
+        id: tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          tree=$(git ls-tree HEAD | awk -F '\t' '$2 != ".warrant"' | git mktree)
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          echo "code tree $tree (HEAD tree $(git rev-parse 'HEAD^{tree}'))"
+      - name: The proofs passed on this tree already?
+        id: passed
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/proofs-pass
+          key: proofs-pass-${{ steps.tree.outputs.tree }}
+          lookup-only: true
+      - name: Proof steps run or skipped
+        env:
+          HIT: ${{ steps.passed.outputs.cache-hit }}
+          TREE: ${{ steps.tree.outputs.tree }}
+        run: |
+          if [ "$HIT" = "true" ]; then echo "code tree $TREE passed the proofs before: proof steps skipped"
+          else echo "code tree $TREE not passed before: every proof step runs"; fi
       - name: Install elan (pinned installer, pinned toolchain)
+        if: steps.passed.outputs.cache-hit != 'true'
         # This workflow decides whether the proofs check out, so the code that
         # sets it up is part of what the proofs rest on. It used to pipe
         # elan-init.sh from `master` straight into sh: a mutable ref, in a
@@ -25,6 +51,7 @@ jobs:
           rm -f elan-init.sh
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Check the memory-bound proof
+        if: steps.passed.outputs.cache-hit != 'true'
         # `lean` exits 0 on a file containing `sorry` (warning only), and it
         # exits 0 on a VACUOUS theorem too; the real guard over SizeBound.lean
         # (axiom cone + pinned statement + source denylist) lives in
@@ -35,35 +62,53 @@ jobs:
       # nobody runs (SECURITY-ASSUMPTIONS SA-2). Store monotonicity gets the
       # same treatment as every other theorem here.
       - name: Bridge - store monotonicity holds on the live oracle
+        if: steps.passed.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           python3 proofs/store_mono_bridge_check.py | tee /dev/stderr \
             | grep -q "STORE-MONO BRIDGE: ALL AGREE"
       - name: Bridge - step premise holds on live oracle traces (+ SizeBound no-sorry guard)
+        if: steps.passed.outputs.cache-hit != 'true'
         run: python3 proofs/bridge_check.py
       - name: Byte-level machine correspondence + differential bridge (Book I bytes)
+        if: steps.passed.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           python3 proofs/byte_bridge_check.py | tee /dev/stderr | grep -q "BYTE-BRIDGE: ALL AGREE"
       - name: Evaluator determinism/totality + differential bridge (Book I eval)
+        if: steps.passed.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           python3 proofs/eval_bridge_check.py | tee /dev/stderr | grep -q "EVAL-BRIDGE: ALL AGREE"
       - name: C1 compiler FV-preservation/closedness + differential bridge (Book I §6)
+        if: steps.passed.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           python3 proofs/c1_bridge_check.py | tee /dev/stderr | grep -q "C1-BRIDGE: ALL AGREE"
       - name: sigma-resume segments and cycle witnesses + differential bridge (checkCycle == verify_cycle)
+        if: steps.passed.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           python3 proofs/resume_bridge_check.py | tee /dev/stderr | grep -q "RESUME-BRIDGE: ALL AGREE"
       - name: Guard regression - soundness guard rejects every proven bypass vector
+        if: steps.passed.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           python3 tests/proof_guard_test.py | tee /dev/stderr | grep -q "PROOF-GUARD: ALL PASS"
+      - name: Record that the proofs passed on this code tree
+        if: steps.passed.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/proofs-pass"
+          echo "${{ steps.tree.outputs.tree }} passed the proofs in run ${{ github.run_id }} at $GITHUB_SHA" \
+            > "$RUNNER_TEMP/proofs-pass/passed"
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.passed.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/proofs-pass
+          key: proofs-pass-${{ steps.tree.outputs.tree }}
