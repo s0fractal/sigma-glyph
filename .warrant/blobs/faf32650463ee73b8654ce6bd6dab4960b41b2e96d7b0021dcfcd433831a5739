@@ -1,0 +1,36 @@
+{
+  "actor": "codex",
+  "base": "1517206dcec7f65fc73335b3f9d4a66a12537972",
+  "ci": {
+    "conclusion": "success",
+    "excerpts": [
+      "test\tsigma-resume kernel (matrix, mutants, Python = Rust, controls)\t2026-11-01T16:29:48.3828678Z UNRUN N69-wasm: wasm build or node missing (cargo build --release --target wasm32-unknown-unknown)",
+      "test\tsigma-resume kernel (matrix, mutants, Python = Rust, controls)\t2026-11-01T16:29:48.3829740Z RESUME DIFFERENTIAL: ALL AGREE"
+    ],
+    "head_sha": "57e4b59ceaa767d599cb97702ae1beba49cbc946",
+    "other_passes": "49/49 Rust conformance, 148/148 reference assertions, generated-term seeds 1337/4242/20240717, 70/70 claims mutants, resume mutants all killed on target (observed in downloaded CI log; mutants not rerun locally).",
+    "status": "completed",
+    "url": "https://github.com/s0fractal/sigma-glyph/actions/runs/41326026896"
+  },
+  "finding": "The cited green CI run did not validate the WebAssembly engine, contrary to the established statement in T. This is an evidence and CI coverage defect; no engine disagreement was observed in the local replay.",
+  "local_replay": {
+    "conformance": "Native Rust 49/49 and Python reference 148/148 passed locally.",
+    "method": "git archive of the release commit, extracted outside the review worktree; native and WASM built separately with cargo --release --locked. M differs from the release commit only in .warrant/records.jsonl.",
+    "with_wasm": {
+      "exit": 0,
+      "stdout": "ok    N69 Python and Rust agree on 2268/2268 runs; outcomes covered: ['BLOCKED_REFERENCE', 'CAS_MISMATCH', 'EVIDENCE_UNAVAILABLE', 'INCOMPLETE', 'NORMAL_FORM', 'PAUSED']\nok    N61 available credit over the local ceiling: ADMISSION_REFUSED in both, before any decode\nok    N62 stopped by a limit: INCOMPLETE with the last atomic state, which resumes to the same normal form\nok    R-N69 rich profile: Python and Rust agree on 1548/1548 runs; outcomes ['INCOMPLETE', 'NORMAL_FORM', 'PAUSED']\nok    R-ISO-rust Rust: M M halts under Book I, loops under the rich profile; an unknown profile is refused\nok    N69-wasm wasm-in-worker agrees with native Rust on 60/60 runs\nok    N62-worker deadline in the worker: the worker is terminated, DEADLINE is local, no state and no answer\nok    N69-worker-startup worker CLI startup failure: structured local RESOURCE_FAULT, nonzero exit\n\nRESUME DIFFERENTIAL: ALL AGREE\n"
+    },
+    "without_wasm": {
+      "exit": 0,
+      "stdout": "ok    N69 Python and Rust agree on 2268/2268 runs; outcomes covered: ['BLOCKED_REFERENCE', 'CAS_MISMATCH', 'EVIDENCE_UNAVAILABLE', 'INCOMPLETE', 'NORMAL_FORM', 'PAUSED']\nok    N61 available credit over the local ceiling: ADMISSION_REFUSED in both, before any decode\nok    N62 stopped by a limit: INCOMPLETE with the last atomic state, which resumes to the same normal form\nok    R-N69 rich profile: Python and Rust agree on 1548/1548 runs; outcomes ['INCOMPLETE', 'NORMAL_FORM', 'PAUSED']\nok    R-ISO-rust Rust: M M halts under Book I, loops under the rich profile; an unknown profile is refused\nUNRUN N69-wasm: wasm build or node missing (cargo build --release --target wasm32-unknown-unknown)\n\nRESUME DIFFERENTIAL: ALL AGREE\n"
+    }
+  },
+  "release_commit": "57e4b59ceaa767d599cb97702ae1beba49cbc946",
+  "required_correction": "Make the CI evidence actually exercise WebAssembly (install/build its target and refuse a skip), and file a successor version with the new exact-commit run; alternatively correct the closure to cite explicit, preserved WebAssembly evidence and disclose the CI omission. Local agreement must not be attributed to run 41326026896.",
+  "source": {
+    ".github/workflows/ci.yml:97-118": "Builds native Rust, then runs resume differential and greps ALL AGREE; no WebAssembly target installation or build occurs in this workflow.",
+    "tests/resume_differential.py:130-132": "Missing WASM artifact or node prints UNRUN and returns without entering a failed result.",
+    "tests/resume_differential.py:264-265": "The overall result considers only populated results, so missing WebAssembly still returns success."
+  },
+  "target": "3a6ecbc8015e11e00f8b684541f28d39cf40b17f200a0779c073015a8012bdf6"
+}
