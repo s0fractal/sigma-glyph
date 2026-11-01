@@ -108,13 +108,26 @@ jobs:
           done
       # sigma-resume (spec/sigma-resume.md): the matrix, its on-target mutants, the Python = Rust
       # differential and the broken-engine controls.
-      - name: sigma-resume kernel (matrix, mutants, Python = Rust, controls)
+      # The third engine: the same Rust kernel built for wasm32 and run in a node worker. Without the
+      # target the differential reports N69-wasm UNRUN and still prints ALL AGREE, so the run below
+      # requires the WebAssembly case to have run (Codex's challenge on G1 O3, 2026-11-01).
+      - name: sigma-resume WebAssembly engine (wasm32 build)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup target add wasm32-unknown-unknown
+          (cd impl-rs/wasm-resume && cargo build --release --locked --target wasm32-unknown-unknown)
+          node --version
+      - name: sigma-resume kernel (matrix, mutants, Python = Rust = WebAssembly, controls)
         shell: bash
         run: |
           set -euo pipefail
           python3 tests/resume_test.py | tee /dev/stderr | grep -q "^SIGMA-RESUME: [0-9]* PASS, 0 FAIL"
           python3 tests/resume_mutants.py | tee /dev/stderr | grep -q "RESUME MUTANTS: ALL KILLED ON TARGET"
-          python3 tests/resume_differential.py | tee /dev/stderr | grep -q "RESUME DIFFERENTIAL: ALL AGREE"
+          python3 tests/resume_differential.py > "$RUNNER_TEMP/diff.txt"; cat "$RUNNER_TEMP/diff.txt"
+          grep -q "RESUME DIFFERENTIAL: ALL AGREE" "$RUNNER_TEMP/diff.txt"
+          grep -q "^ok  *N69-wasm " "$RUNNER_TEMP/diff.txt"
+          if grep -q "^UNRUN" "$RUNNER_TEMP/diff.txt"; then echo "a resume differential case did not run"; exit 1; fi
           sh tests/resume_differential_controls.sh | tee /dev/stderr | grep -q "DIFFERENTIAL CONTROLS: ALL BITE"
       # The resume provider as a consumer gets it: a wheel built from this commit,
       # installed in a fresh environment, run from outside the checkout. The same
