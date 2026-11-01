@@ -30,9 +30,12 @@ package (`.github/workflows/publish.yml`).
 ## Authorization
 
 Publishing is outward-facing and hard to reverse: a version number on PyPI
-cannot be reused even after a delete. Nothing in the pipeline publishes until
-the owner cuts a Release (`AGENTS.md` rule 5). This file describes how; it is
-not an approval.
+cannot be reused even after a delete. Nothing in the pipeline publishes until a
+Release is cut. Since 2026-11-01 the owner delegates that to the agents, decided
+by the evidence (`AGENTS.md` rule 5): master CI green on the commit, every backed
+claim accepted, `pyproject.toml` naming the tag's version, and, for a normative
+version, its adoption record accepted. This file describes how; it is not the
+evidence.
 
 ## Releasing
 

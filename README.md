@@ -111,7 +111,7 @@ are verified at commit `96414ab` by `tools/verify_anchors.py`.
 `pyproject.toml` carries **0.9.0.dev0**: the next distribution ships Book I
 (`sigma_glyph`) and the resume kernel and provider (`sigma_resume`,
 `sigma_provider`), without the retired Book II and III modules. Nothing is
-published until the owner cuts a GitHub Release.
+published until a GitHub Release is cut (AGENTS.md rule 5 says by whom and on what evidence).
 
 The latest PyPI release is **0.8.0** (2026-10-19), the first with
 `sigma_resume` and `sigma_provider`, still beside the Book II and III modules.
