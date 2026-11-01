@@ -204,6 +204,47 @@ check("R21 a witness is exactly {schema: sigma-resume.cycle@draft-1, computation
       and shapes["unknown field"] == "INVALID_CYCLE_WITNESS: fields are not exactly the witness schema's"
       and shapes["more actions than cost"] == "INVALID_CYCLE_WITNESS: more actions than cost (every action costs at least 1)"
       and shapes["bad digest"].startswith("INVALID_CYCLE_WITNESS"), shapes)
+# §5 on the wire: the witness is bytes, and the provider must refuse a malformed encoding before it reads the store
+import sigma_provider as P  # noqa: E402
+
+
+class Counted(dict):
+    """A store that counts reads: replay reads it, a refusal before replay does not."""
+    reads = 0
+
+    def get(self, key, default=None):
+        self.reads += 1
+        return super().get(key, default)
+
+
+wire_ok = R._canon(witness(2, 3))
+y_store = Counted({hy.hex(): yi})
+y_args = (R.RICH_RUNTIME_ID, hy.hex(), [hy.hex()], y_store)
+wire = {"spaced": json.dumps(witness(2, 3), sort_keys=True).encode(),
+        "duplicate name": wire_ok.replace(b"{", b'{"cycle_cost":false,', 1),
+        "float count": wire_ok.replace(b'"cycle_cost":3', b'"cycle_cost":3.0'),
+        "trailing newline": wire_ok + b"\n",
+        "unsorted": json.dumps(witness(2, 3), separators=(",", ":")).encode(),
+        "nested": b'{"schema":' + b"[" * 10**6 + b"0" + b"]" * 10**6 + b"}",
+        "actions over cost, another root": R._canon(witness(5, 3, computation_id="0" * 64))}
+got = {}
+for k, raw in wire.items():
+    y_store.reads = 0
+    try:
+        got[k] = (P.verify_cycle(*y_args, raw), y_store.reads)
+    except Exception as x:          # an exception is no named refusal: the case fails, it does not crash the suite
+        got[k] = (f"raised {type(x).__name__}", y_store.reads)
+y_store.reads = 0
+proof = (P.verify_cycle(*y_args, wire_ok), y_store.reads)
+check("R23 a cycle witness is canonical JSON on the wire: whitespace, an overwritten duplicate name, a float, a trailing "
+      "newline, unsorted names, nesting past the recursion limit, or more actions than cost (whatever root it names) are "
+      "refused as INVALID_CYCLE_WITNESS before the store is read; the canonical bytes of "
+      "the same witness prove the cycle", proof[0] == "CYCLE_PROVEN" and proof[1] > 0
+      and all(code.startswith("INVALID_CYCLE_WITNESS") and reads == 0 for code, reads in got.values())
+      and "duplicate name" in got["duplicate name"][0] and "non-integer" in got["float count"][0]
+      and all("not canonical" in got[k][0] for k in ("spaced", "trailing newline", "unsorted"))
+      and "nested too deeply" in got["nested"][0] and "more actions than cost" in got["actions over cost, another root"][0]
+      and wire["unsorted"] != wire_ok and json.loads(wire["unsorted"]) == witness(2, 3), {**got, "proof": proof})
 # §6 the profile
 book1 = G.eval_receipt(G.node_hash(tv6), 1000, {G.node_hash(b): b for b in TV6})
 check("R22 the Book I profile is this specification's: its runtime and cost-model ids are the Book's, and resume reaches "

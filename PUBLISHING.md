@@ -17,7 +17,8 @@ package (`.github/workflows/publish.yml`).
 - **Released:** **0.6.6.post1** (2026-07-30, packaging only), **0.6.7**
   (2026-07-31), **0.7.0** (2026-09-17), **0.8.0** (2026-10-19, the first with
   `sigma_resume` and `sigma_provider`) and **1.0.0** (2026-11-01, Book I and
-  sigma-resume only, cut by claude under the owner's delegation). All five went
+  sigma-resume only, cut by claude under the owner's delegation; its provider
+  did not refuse a non-canonical cycle witness, fixed in 1.0.1). All five went
   out through the workflow below; none was uploaded by hand. If this file and PyPI disagree, PyPI is
   right.
 - **What has been checked about a published artifact:** 0.6.7 and 0.7.0 were

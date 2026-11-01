@@ -118,6 +118,30 @@ def cases(call):
     out["S09"] = resume() == r
     # malformed resume operands stay a protocol refusal
     out["S00"] = "refused" in call("resume", dict(base, checkpoint=ck, state=st, credit=True), nodes)
+    # S20 (sigma-resume §5 on the wire): the witness bytes are canonical JSON or refused before replay. The same
+    # well-shaped witness: spaced bytes are INVALID_CYCLE_WITNESS, canonical bytes reach replay (and fail there,
+    # as a witness of another computation must).
+    wit = {"schema": "sigma-resume.cycle@draft-1", "computation_id": "0" * 64, "entry_spent_total": 1,
+           "entry_state_id": "0" * 64, "cycle_action_count": 1, "cycle_cost": 1}
+    spaced = call("verify_cycle", dict(base, witness=e(json.dumps(wit, sort_keys=True).encode())), nodes)
+    canon = call("verify_cycle", dict(base, witness=e(json.dumps(wit, sort_keys=True, separators=(",", ":")).encode())),
+                 nodes)
+    out["S20"] = (spaced.get("code", "").startswith("INVALID_CYCLE_WITNESS") and "not canonical" in spaced["code"]
+                  and canon.get("code", "").startswith("PREFIX_MISMATCH"))
+    # S21: JSON nested past the interpreter's recursion limit raises RecursionError, not ValueError. Every place
+    # the provider decodes JSON answers it as malformed instead of ending without an answer: the request itself,
+    # a cycle witness, a checkpoint (Codex's finding on #93: a nested witness ended Python 3.11's provider).
+    deep = b"[" * 10**6 + b"0" + b"]" * 10**6
+    try:
+        raw = subprocess.run(call.argv, input=deep, capture_output=True, cwd=call.cwd, timeout=120)
+        request = json.loads(raw.stdout)
+        witness = call("verify_cycle", dict(base, witness=e(b'{"schema":' + deep + b"}")), nodes)
+        chain = call("verify", dict(base, chain=[[e(b'{"schema":' + deep + b"}"), st]]), nodes)
+        out["S21"] = ("refused" in request and witness.get("code", "").startswith("INVALID_CYCLE_WITNESS")
+                      and "INVALID_ENCODING" in json.dumps(chain))
+    except Exception as x:          # no answer at all is the defect: the case fails, it does not crash the suite
+        print(f"S21 raised {type(x).__name__}")
+        out["S21"] = False
     return out
 
 
@@ -128,6 +152,10 @@ MUTANTS = [
      '    if code not in RESUMABLE:\n        return {"status": "DEFERRED", "base_verification": base, "diagnostic": code}\n', ""),
     ("a terminal base is advanced again", "S06",
      '    if code in TERMINAL:\n', '    if False:\n'),
+    ("the witness bytes are parsed by plain json.loads", "S20",
+     "        doc = R.parse_cycle_witness(witness)\n", "        doc = json.loads(witness)\n"),
+    ("a deeply nested request ends the provider without an answer", "S21",
+     "    except (ValueError, RecursionError):\n", "    except ValueError:\n"),
 ]
 
 
