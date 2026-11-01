@@ -1,8 +1,29 @@
 # Changelog
 
-## Distribution 0.9.0 (unreleased) — Book I and resume, and nothing else
+## sigma-glyph 1.0.0 (unreleased) — Book I and resume, one released standard
 
-`pyproject.toml` moves to `0.9.0.dev0`. Only Book I and sigma-resume stay; the
+**Version 1.** Book I and sigma-resume are 1.0.0 and STANDARD; `pyproject.toml`
+is 1.0.0. Book I 1.0.0 states the semantics of 0.6.0 unchanged: the wire
+identifiers (`sigma-book1-0.6.0/...`, sigma-resume's `…@draft-1`) stay, because
+they are inside every `computation_id` (spec/VERSIONS.md). The conformance suite
+is the same 49 vectors, `spec_version` and `suite_version` 1.0.0, pinned to Book
+I 1.0.0's bytes.
+
+**The anchor registry is retired.** `spec/ANCHORS.txt` and `verify_anchors.py`
+held, before Warrant, what the release tags, the claims (every normative keyword
+quoted, `coverage`) and the claims checker's acceptances hold now; Book I §8
+computes the SpecAnchor from the bytes at the release tag
+(`history/RETIREMENT-2026-11-ANCHORS.md`, by the owner's word). README's
+adopted-bundle heading and its checks go with it; `version_check.py` holds the
+suite's `spec_version` to Book I's and README's distribution to pyproject's.
+
+**Adoption is a goal.** `.warrant/` holds goal G1 "sigma-glyph 1.0" with four
+obligations: every keyword a claim and every backed claim accepted, the proofs
+holding, the implementations agreeing, the release. Codex accepts their
+closures and the goal; the release duty closes on PyPI's readback.
+
+The rest of this section is the 0.9.0 work that 1.0.0 now carries:
+`pyproject.toml` moved to `0.9.0.dev0`. Only Book I and sigma-resume stay; the
 rest was retired on 2026-10-31 by the owner's decision
 ([history/RETIREMENT-2026-10-ECHO.md](history/RETIREMENT-2026-10-ECHO.md), 478
 paths with their digests at `96414ab`):

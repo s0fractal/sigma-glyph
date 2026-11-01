@@ -144,10 +144,6 @@ python3 tests/resume_mutants.py | tee /dev/stderr | grep -q "RESUME MUTANTS: ALL
 python3 tests/resume_differential.py | tee /dev/stderr | grep -q "RESUME DIFFERENTIAL: ALL AGREE"
 sh tests/resume_differential_controls.sh | tee /dev/stderr | grep -q "DIFFERENTIAL CONTROLS: ALL BITE"
 
-say "Anchors"
-python3 tools/verify_anchors.py --selftest | tee /dev/stderr | grep -q "VERIFY-ANCHORS-SELFTEST: ALL PASS"
-python3 tools/verify_anchors.py            | tee /dev/stderr | grep -q "anchors verified"
-
 # Lean proofs + bridges run only where `lean` is installed (heavy toolchain).
 # c1_bridge_check is in this loop because CI's proofs.yml runs it: omitting it
 # locally meant the "complete validation matrix" checked one fewer proof

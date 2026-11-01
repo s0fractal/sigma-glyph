@@ -18,7 +18,7 @@ input and yields `Unresolved Reference`; local process/resource faults stay
 outside canonical outcomes. Implementations must apply local admission limits
 before reading untrusted terms or stores.
 
-The three-input form above is normative in Book I 0.6.0.
+The three-input form above is normative since Book I 0.6.0.
 
 ## What it establishes
 
@@ -93,25 +93,27 @@ identity grants nothing.
 ## Status by surface
 
 Each paragraph names its authoritative source; when this section and that
-source disagree, the source is right. `tools/version_check.py` checks the two
-headings below against `spec/ANCHORS.txt` and `pyproject.toml`.
+source disagree, the source is right. `tools/version_check.py` checks the
+distribution heading below against `pyproject.toml`, and the conformance
+suite's `spec_version` against Book I's.
 
-### Adopted bundle: v0.7.0
+### Specification
 
-**v0.7.0** (2026-08-30) is the newest anchor set in
-[`spec/ANCHORS.txt`](spec/ANCHORS.txt), the detached registry Book I §8 requires:
-Book I 0.6.0 by the SHA-256 of its bytes. sigma-resume 1.0.0-rc.1 is not yet
-anchored; anchoring both is the 1.0 act, and adoption is a signed record
-(AGENTS.md rule 2), not a heading. The v0.7.0 adoption record and the bundle's
-other documents (Books II and III, GOV-anchors) were retired on 2026-10-31 and
-are verified at commit `96414ab` by `tools/verify_anchors.py`.
+**Book I 1.0.0** and **sigma-resume 1.0.0**, both STANDARD, the semantics of
+Book I 0.6.0 unchanged. A version is the bytes at its release tag, and its
+identity Book I §8's SpecAnchor of those bytes; it is adopted when the roadmap
+goal "sigma-glyph 1.0" is met, a signed record (AGENTS.md rule 2), not a
+heading. The detached registry `spec/ANCHORS.txt` and its bundle headings were
+retired on 2026-11-01 ([`history/RETIREMENT-2026-11-ANCHORS.md`](history/RETIREMENT-2026-11-ANCHORS.md)):
+Warrant's records and the release tags hold what it held.
 
-### Distribution: 0.9.0.dev0
+### Distribution: 1.0.0
 
-`pyproject.toml` carries **0.9.0.dev0**: the next distribution ships Book I
+`pyproject.toml` carries **1.0.0**: the distribution of release v1.0.0, Book I
 (`sigma_glyph`) and the resume kernel and provider (`sigma_resume`,
 `sigma_provider`), without the retired Book II and III modules. Nothing is
-published until a GitHub Release is cut (AGENTS.md rule 5 says by whom and on what evidence).
+published until a GitHub Release is cut, and that waits for the adoption above
+(AGENTS.md rule 5 says by whom and on what evidence).
 
 The latest PyPI release is **0.8.0** (2026-10-19), the first with
 `sigma_resume` and `sigma_provider`, still beside the Book II and III modules.
@@ -144,9 +146,9 @@ python3 tools/version_check.py
 ```
 
 Implementation guidance is in [`spec/IMPLEMENTING.md`](spec/IMPLEMENTING.md).
-Every anchored specification byte set is detached in
-[`spec/ANCHORS.txt`](spec/ANCHORS.txt); a specification update is an explicit
-fork, not a mutable page edit (Book I §8).
+A released version is the bytes at its tag, and its identity the SpecAnchor of
+those bytes; a specification update is an explicit fork, not a mutable page edit
+(Book I §8).
 
 For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent

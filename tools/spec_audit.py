@@ -42,7 +42,6 @@ from typing import NamedTuple
 ROOT = Path(__file__).resolve().parents[1]
 UK = ROOT / "spec/book-1-truth.md"
 EN = ROOT / "spec/book-1-truth.en.md"
-ANCHORS = ROOT / "spec/ANCHORS.txt"
 VECTORS = ROOT / "tests/spec_conformance/vectors.json"
 
 RFC = r'\b(MUST NOT|MUST|SHOULD NOT|SHOULD|MAY)\b'
@@ -182,19 +181,6 @@ UNFILED = {
                   "proves it. Filing it means editing an anchored file; it joins "
                   "the governed change in ADR-008.",
 }
-
-
-def anchor_matches(problems: list[str]) -> None:
-    """§8: SpecAnchor = NodeHash(LITERAL, atom = SHA-256(document_bytes))."""
-    expected = node_hash(0x00, 0x01, hashlib.sha256(UK.read_bytes()).digest())
-    listed = re.findall(r'([0-9a-f]{64})\s+spec/book-1-truth\.md', ANCHORS.read_text())
-    if not enough(listed, 1, "anchors for Book I", problems):
-        return
-    if expected not in listed:
-        problems.append(f"the Book's own bytes anchor to {expected}, which is not "
-                        f"among the anchors published for it ({listed[-1]} is the "
-                        "most recent) — either the text changed without a "
-                        "re-anchor, or §8's construction is not what is published")
 
 
 # ------------------------------------------------------------ B. prose/vectors
@@ -869,7 +855,6 @@ def main() -> int:
     false_hash = re.search(r'Bytes\s*`0206‖H\(K\)‖H\(I\)`;\s*Hash\s*`([0-9a-f]{64})`', uk)
     if false_hash:
         glyphs["FALSE"] = false_hash.group(1)
-    anchor_matches(problems)
     suite_pins_this_spec(problems)
     report_uk = prose_matches_vectors(uk, glyphs, proved, derived, problems)
     accounted, checked, unchecked = (report_uk.accounted, report_uk.decided,

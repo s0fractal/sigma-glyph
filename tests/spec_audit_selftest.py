@@ -16,7 +16,7 @@ the sentence describing it — and the fix is a perturbation per gap.
 Each perturbation must produce **its own** complaint, and any further complaint
 must be one this file names in advance and requires. Two kinds are named:
 
-- the anchor and suite-pin complaints, which follow from editing the document at
+- the suite-pin complaint, which follows from editing the document at
   all, because §8 says a changed document is a new anchor;
 - genuine cascades through the Book's own structure — changing `H(K)` must also
   break `FALSE`, which is built from it, and changing a hash in one language must
@@ -52,7 +52,6 @@ def run(root: Path) -> tuple[int, str]:
     """Run the audit against a copy of the spec, not the repository's own."""
     spec_audit.UK = root / "spec/book-1-truth.md"
     spec_audit.EN = root / "spec/book-1-truth.en.md"
-    spec_audit.ANCHORS = root / "spec/ANCHORS.txt"
     spec_audit.VECTORS = root / "tests/spec_conformance/vectors.json"
     errors = io.StringIO()
     with contextlib.redirect_stderr(errors), contextlib.redirect_stdout(io.StringIO()):
@@ -65,7 +64,7 @@ def copy_spec(into: Path) -> Path:
     (root / "spec").mkdir(parents=True)
     (root / "tests/spec_conformance").mkdir(parents=True)
     for relative in ("spec/book-1-truth.md", "spec/book-1-truth.en.md",
-                     "spec/ANCHORS.txt", "tests/spec_conformance/vectors.json"):
+                     "tests/spec_conformance/vectors.json"):
         shutil.copy(ROOT / relative, root / relative)
     return root
 
@@ -191,12 +190,6 @@ def main() -> int:
                 (r / "tests/spec_conformance/vectors.json").read_text()),
                 book1_anchor="0" * 64))))
 
-    problems += expect(
-        "I  the Book edited without re-anchoring",
-        "which is not\namong the anchors".replace("\n", " "),
-        lambda r: edit(r / "spec/book-1-truth.md",
-                       "Все тепле живе деінде.", "Все тепле живе деінде. "))
-
     # --- the three gaps external review reproduced against the first version,
     # and the one that keeps its recorded exception from becoming permanent.
 
@@ -250,8 +243,7 @@ def main() -> int:
             "TV-12: bare intrinsic thunk: eval(H(I))"))
 
     # Editing a note does not move `book1_anchor`, which pins the Book rather
-    # than the suite, so this one has no cascade here. The suite's own bytes are
-    # anchored too, and `tools/verify_anchors.py` is what catches that.
+    # than the suite, so this one has no cascade here.
     problems += expect(
         "M  a recorded exception that is no longer needed",
         "is no\nlonger needed".replace("\n", " "), file_the_waived_claim)
@@ -405,13 +397,12 @@ def main() -> int:
         spoken = io.StringIO()
         spec_audit.UK = root / "spec/book-1-truth.md"
         spec_audit.EN = root / "spec/book-1-truth.en.md"
-        spec_audit.ANCHORS = root / "spec/ANCHORS.txt"
         spec_audit.VECTORS = root / "tests/spec_conformance/vectors.json"
         with contextlib.redirect_stdout(spoken), contextlib.redirect_stderr(io.StringIO()):
             spec_audit.main()
         said = spoken.getvalue()
         # Only the ledger line: the closing summary is not printed when the run
-        # fails, and editing the Book always fails it on the anchor.
+        # fails, and editing the Book always fails it on the suite's pin.
         if "uncovered  TV-4: storage access" not in said:
             problems.append("AC a clause outside the five predicates is not named "
                             "in the report, so a passing run would look like a "
