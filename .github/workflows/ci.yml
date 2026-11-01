@@ -41,17 +41,16 @@ jobs:
           python3 tests/resume_claims_test.py | tee /dev/stderr | grep -q "^RESUME-CLAIMS: ALL PASS"
           python3 tests/claims_mutants.py            # exits 0 only when every mutant is killed
       # The claims checker accepts a backed claim only after it re-ran its witnesses and mutants at one
-      # commit; CI re-executes every acceptance new since the base at its commit and refuses one whose
-      # `code` is not the installed checker's (the pinned warrant-graph). The review replayer's results
-      # are not re-executed here: the review waker runs its own warrant build, not this repository's
-      # pin, so its `code` is never the one installed here (a residual of the waker, not of a replay).
-      - name: Claims checker acceptances new since the base, re-executed at their commits
+      # commit; CI re-executes every acceptance new since the base at its commit, and the review
+      # replayer's results the same way, and refuses one whose `code` is not the installed checker's.
+      - name: Claims checker acceptances and review replays new since the base, re-executed at their commits
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           BASE_SHA=${BASE_SHA:-$(git rev-parse "$GITHUB_SHA^1")}
+          "$RUNNER_TEMP/warrant/bin/warrant" review verify --base "$BASE_SHA"
           "$RUNNER_TEMP/warrant/bin/warrant" claims verify --base "$BASE_SHA"
       # Six version numbers in three schemes, and nothing said how they relate.
       - name: The version numbers agree with each other
