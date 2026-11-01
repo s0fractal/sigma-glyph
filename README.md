@@ -111,12 +111,9 @@ Warrant's records and the release tags hold what it held.
 
 `pyproject.toml` carries **1.0.0**: the distribution of release v1.0.0, Book I
 (`sigma_glyph`) and the resume kernel and provider (`sigma_resume`,
-`sigma_provider`), without the retired Book II and III modules. Nothing is
-published until a GitHub Release is cut, and that waits for the adoption above
-(AGENTS.md rule 5 says by whom and on what evidence).
-
-The latest PyPI release is **0.8.0** (2026-10-19), the first with
-`sigma_resume` and `sigma_provider`, still beside the Book II and III modules.
+`sigma_provider`), without the retired Book II and III modules. It is on PyPI
+since 2026-11-01, cut from tag `v1.0.0` once goal G1's obligations were
+accepted (AGENTS.md rule 5 says by whom and on what evidence).
 Releases and what was checked about each are in [`PUBLISHING.md`](PUBLISHING.md)
 and [`CHANGELOG.md`](CHANGELOG.md); PyPI is right about what it holds.
 
