@@ -96,6 +96,9 @@ MUTANTS = [
     ("G45", SUITE, '"outcome": "normal_form",\n        "result_hash": "bc0c2fe26e44e2aed8ce500a74963bc270fd4a49ec0c2e4837ce7a64bb0a486c",\n        "atp_spent": 4\n',
      '"outcome": "normal_form",\n        "result_hash": "2f33694d09810641fa5b8c47a7c0dc42e1b99eb8c9784a00aaee9a66330f4162",\n        "atp_spent": 4\n',
      BOOK1, ["B222"]),
+    ("G48", SUITE, '= 4 ATP",\n      "term": "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",\n      "atp": 100,\n      "expected": {\n        "exit": "normal_form",',
+     '= 4 ATP",\n      "term": "51d8148feda28f17304c9ed6c34d9d548c83a84c380f4dd1ba0a037ceb9d4d3e",\n      "atp": 100,\n      "expected": {\n        "exit": "atp_exhausted",',
+     BOOK1, ["B222"]),     # Codex finding 0dca7c5a on #80: the exit, not only the outcome
     ("G46", SCHEMA, '  "type": "object",\n  "additionalProperties": false,\n  "required": [\n    "format",\n',
      '  "type": "object",\n  "additionalProperties": true,\n  "required": [\n    "format",\n', BOOK1, ["B223"]),
     ("G47", SCHEMA, '                "unresolved_reference"\n              ]\n            },\n            "outcome": {',

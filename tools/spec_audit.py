@@ -499,6 +499,13 @@ def satisfies(record: dict, claim: Claim, glyphs: dict[str, str]) -> bool:
         return False
     if claim.outcome is not None and expected.get("outcome") != claim.outcome:
         return False
+    # §7 notation: `= ⟨X⟩` and an invalid object state the exit normal_form, "ATP Exhausted" and "Unresolved
+    # Reference" their own; the record's exit must be that one too, not only its outcome (Codex finding 0dca7c5a
+    # on #80: TV-4 with exit atp_exhausted and outcome normal_form agreed with its prose).
+    stated_exit = ("normal_form" if claim.outcome in (None, "invalid_object") and (claim.outcome or claim.result)
+                   else claim.outcome)
+    if stated_exit is not None and expected.get("exit") != stated_exit:
+        return False
     if claim.spend is not None and expected.get("atp_spent") != claim.spend:
         return False
     if claim.result is not None:
