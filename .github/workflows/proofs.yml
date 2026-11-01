@@ -57,6 +57,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 proofs/c1_bridge_check.py | tee /dev/stderr | grep -q "C1-BRIDGE: ALL AGREE"
+      - name: sigma-resume segments and cycle witnesses + differential bridge (checkCycle == verify_cycle)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 proofs/resume_bridge_check.py | tee /dev/stderr | grep -q "RESUME-BRIDGE: ALL AGREE"
       - name: Guard regression - soundness guard rejects every proven bypass vector
         shell: bash
         run: |
