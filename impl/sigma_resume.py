@@ -209,6 +209,8 @@ def parse_checkpoint(raw):
     refused, not normalized."""
     try:
         doc = json.loads(raw, object_pairs_hook=_no_duplicates, parse_float=_no_float)
+    except RecursionError:   # deep nesting raises RecursionError, not ValueError
+        raise InvalidEncoding("checkpoint is not JSON: nested too deeply") from None
     except (ValueError, TypeError) as e:
         raise InvalidEncoding(f"checkpoint is not JSON: {e}") from None
     want = {"schema", "computation_id", "state_id", "credit_total", "spent_total",
@@ -560,6 +562,8 @@ def _witness_shape_problem(witness):
             _check_int(k, witness[k])
     except InvalidEncoding as e:
         return str(e)
+    if witness["cycle_action_count"] > witness["cycle_cost"]:
+        return "more actions than cost (every action costs at least 1)"
     return None
 
 
@@ -570,6 +574,8 @@ def parse_cycle_witness(raw):
     overwritten duplicate name reached replay. Codex's challenge bdf2f7f7 on G1, 2026-11-01.)"""
     try:
         w = json.loads(raw, object_pairs_hook=_no_duplicates, parse_float=_no_float)
+    except RecursionError:   # deep nesting: not a ValueError, and before 1.0.1 it ended the provider without an answer
+        raise InvalidEncoding("witness is not JSON: nested too deeply") from None
     except (ValueError, TypeError) as e:
         raise InvalidEncoding(f"witness is not JSON: {e}") from None
     shape = _witness_shape_problem(w)
@@ -594,8 +600,6 @@ def verify_cycle(expected_root, env, witness, limits=None):
     entry_spent, n, cost = witness["entry_spent_total"], witness["cycle_action_count"], witness["cycle_cost"]
     if n == 0 or cost == 0:
         return "INVALID_CYCLE_WITNESS: a cycle needs at least one priced action"
-    if n > cost:
-        return "INVALID_CYCLE_WITNESS: more actions than cost (every action costs at least 1)"
     allowed = limits.get("max_atp")
     if allowed is not None and cost > allowed:
         # The same per-call ceiling advance() applies: replaying the period is

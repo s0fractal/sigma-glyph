@@ -372,7 +372,7 @@ def handle(req):
 def serve():
     try:
         req = json.loads(sys.stdin.buffer.read(), object_pairs_hook=R._no_duplicates)   # a duplicate name is refused, not overwritten
-    except ValueError:
+    except (ValueError, RecursionError):
         req = None
     sys.stdout.write(json.dumps(handle(req), sort_keys=True) + "\n")
     return 0

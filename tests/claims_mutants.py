@@ -141,13 +141,15 @@ MUTANTS = [
      '    replay = advance(b_doc, b_id, b_state, env, doc["credit_total"] - b_doc["spent_total"], limits, runtime)\n', RESUME, ["R18"]),
     ("H20", KERNEL, '            and got["peak_semantic_size"] == doc["peak_semantic_size"])\n', "            )\n", RESUME, ["R19"]),
     ("H21", KERNEL, "    if spent != cost:\n", "    if False:\n", RESUME, ["R20"]),
-    ("H22", KERNEL, "    if n > cost:\n", "    if False:\n", RESUME, ["R21"]),
+    ("H22", KERNEL, '    if witness["cycle_action_count"] > witness["cycle_cost"]:\n', "    if False:\n", RESUME, ["R21", "R23"]),
     ("H23", KERNEL, 'RUNTIME_SEMANTICS_ID = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost"\n',
      'RUNTIME_SEMANTICS_ID = "sigma-book1-0.6.0/hash-thunk/leftmost-outermost/2"\n', RESUME, ["R22"]),
     ("H24", KERNEL, 'SCHEMA_CYCLE = "sigma-resume.cycle@draft-1"\n', 'SCHEMA_CYCLE = "sigma-resume.cycle@draft-2"\n', RESUME, ["R21"]),
     ("H25", KERNEL, '    if _canon(w) != raw:\n', "    if False:\n", RESUME, ["R23"]),
     ("H26", KERNEL, "        w = json.loads(raw, object_pairs_hook=_no_duplicates, parse_float=_no_float)\n",
      "        w = json.loads(raw, parse_float=_no_float)\n", RESUME, ["R23"]),
+    ("H28", KERNEL, "    except RecursionError:   # deep nesting: not a ValueError, and before 1.0.1 it ended the provider without an answer\n"
+     '        raise InvalidEncoding("witness is not JSON: nested too deeply") from None\n', "", RESUME, ["R23"]),
     ("H27", PROVIDER, "        doc = R.parse_cycle_witness(witness)\n", "        doc = json.loads(witness)\n", RESUME, ["R23"]),
 ]
 
