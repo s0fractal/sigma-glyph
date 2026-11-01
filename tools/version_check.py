@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Do the six version numbers in this repository agree with each other?
+"""Do the version numbers in this repository agree with each other?
 
-There are six, in three schemes: Book I's own `**Version:**`, GOV-anchors'
-document version, the conformance suites' `spec_version`, the suite package's
-`suite_version`, and the `vX.Y.Z` release bundle in `spec/ANCHORS.txt`. Nothing
-stated how they relate, so nothing could be wrong — and two of them are.
+Book I's own `**Version:**`, sigma-resume's, the conformance suite's
+`spec_version`, the suite package's `suite_version`, the `vX.Y.Z` bundle in
+`spec/ANCHORS.txt` and the distribution in `pyproject.toml`. When nothing stated
+how they relate, nothing could be wrong — and two of them were.
 
 What is checkable is checked here. What is not is listed rather than implied:
 version numbers are claims about intent, and only the relations below are facts
@@ -26,10 +26,9 @@ from verify_anchors import Missing, read as anchored_bytes   # noqa: E402  (a re
 BOOK_I = "Book I"
 BOOKS = {BOOK_I: "spec/book-1-truth.md"}            # Books II and III retired 2026-10-31
 # Every anchored document that carries its own `**Version:**`, for the bundle
-# convention's example. It used to be readable only for Books, so illustrating
-# the convention with a document that does not move when a Book does -- which is
-# exactly what the convention is about -- was not expressible.
-VERSIONED = dict(BOOKS, **{"GOV-anchors": "spec/GOV-anchors.md"})
+# convention's example. GOV-anchors left with the echo on 2026-10-31.
+VERSIONED = dict(BOOKS)
+RESUME = "spec/sigma-resume.md"                     # versioned, not yet anchored
 
 # A suite's `spec_version` is the version of the Book it conforms to. Two suites
 # disagree with that on `master`, and correcting either means regenerating an
@@ -51,7 +50,7 @@ def book_version(path: str) -> str:
     except Missing as e:                    # a version nobody can read is a version that agrees with nothing
         print(e, file=sys.stderr)
         return ""
-    found = re.search(r'^\*\*Version:\*\* *(\d+(?:\.\d+)*)', text, re.M)
+    found = re.search(r'^\*\*Version:\*\* *(\d+(?:\.\d+)*(?:-[0-9A-Za-z.]+)?)', text, re.M)
     return found.group(1) if found else ""
 
 
@@ -257,7 +256,7 @@ def main() -> int:
     print("versions on this tree")
     for name, path in BOOKS.items():
         print(f"  {name:9} {book_version(path)}")
-    print(f"  GOV       {book_version('spec/GOV-anchors.md')}")
+    print(f"  resume    {book_version(RESUME)}")
     print(f"  bundle    {top_bundle()}")
     print(f"  pyproject {pyproject_version()}")
     suite = json.loads((ROOT / 'tests/spec_conformance/vectors.json').read_text())

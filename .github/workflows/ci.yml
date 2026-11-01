@@ -27,7 +27,7 @@ jobs:
           "$RUNNER_TEMP/warrant/bin/pip" install --quiet --no-deps --require-hashes -r .github/warrant-requirements.txt
           "$RUNNER_TEMP/warrant/bin/warrant" status | tee /dev/stderr > /dev/null
           "$RUNNER_TEMP/warrant/bin/warrant" status --json | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if d["canonical"] and not d["rejected"] and not d["problems"] and not d["schemas_pending"] else 1)'
-      # The normative sentences of Book I and sigma-resume as claim@1 records (.warrant/claims.json): each
+      # Registered normative sentences of Book I and sigma-resume as claim@1 records (.warrant/claims.json): each
       # quotes its document, names the cases that witness it (tests/*_claims_test.py) and the mutants that
       # must break them
       # (tests/claims_mutants.py). The check refuses a sentence the Book no longer holds, a witness no test
