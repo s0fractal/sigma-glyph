@@ -12,6 +12,10 @@
  "coverage": [
   "MUST",
   "SHALL",
-  "REQUIRED"
+  "REQUIRED",
+  "SHOULD",
+  "RECOMMENDED",
+  "MAY",
+  "OPTIONAL"
  ]
 }

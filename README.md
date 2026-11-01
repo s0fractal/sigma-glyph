@@ -154,8 +154,9 @@ For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent
 gate or governance adoption.
 
-Every RFC 2119 keyword of Book I and sigma-resume (MUST, SHALL, REQUIRED) lies
-in some claim's sentence, and `warrant claims check` refuses one that does not
+Every RFC 2119 keyword of Book I and sigma-resume (MUST, SHALL, REQUIRED,
+SHOULD, RECOMMENDED, MAY, OPTIONAL; each NOT form contains one of them) lies in
+some claim's sentence, and `warrant claims check` refuses one that does not
 (`coverage`): `.warrant/claims.json` names both documents, the witness files
 (`tests/book1_claims_test.py`, `tests/resume_claims_test.py`) and the mutant
 harness (`tests/claims_mutants.py`); each claim@1 record quotes one sentence verbatim and
