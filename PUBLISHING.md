@@ -15,9 +15,10 @@ package (`.github/workflows/publish.yml`).
 - **What ships:** those modules. Not the specification, not `tests/`, not the
   Rust implementation, not the proofs.
 - **Released:** **0.6.6.post1** (2026-07-30, packaging only), **0.6.7**
-  (2026-07-31), **0.7.0** (2026-09-17) and **0.8.0** (2026-10-19, the first with
-  `sigma_resume` and `sigma_provider`). All four went out through the workflow
-  below; none was uploaded by hand. If this file and PyPI disagree, PyPI is
+  (2026-07-31), **0.7.0** (2026-09-17), **0.8.0** (2026-10-19, the first with
+  `sigma_resume` and `sigma_provider`) and **1.0.0** (2026-11-01, Book I and
+  sigma-resume only, cut by claude under the owner's delegation). All five went
+  out through the workflow below; none was uploaded by hand. If this file and PyPI disagree, PyPI is
   right.
 - **What has been checked about a published artifact:** 0.6.7 and 0.7.0 were
   installed from PyPI into a clean venv and their self-tests run. For 0.7.0 the
@@ -25,7 +26,10 @@ package (`.github/workflows/publish.yml`).
   artifacts and matched, the installed modules matched `impl/` at the tag, and
   the conformance suites the distribution does not ship were replayed against
   the installed modules from outside any checkout. All of it on one host, by the
-  party that cut the release (`SECURITY-ASSUMPTIONS.md` SA-8).
+  party that cut the release (`SECURITY-ASSUMPTIONS.md` SA-8). For 1.0.0 the
+  same read-back held: wheel `36d3354d…` and sdist `7878e718…` as the release
+  run (41339906440) built them, the three installed modules byte-identical to
+  `impl/` at `v1.0.0`, and their self-tests passing from a clean venv.
 
 ## Authorization
 
