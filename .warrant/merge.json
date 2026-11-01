@@ -16,7 +16,6 @@
     ".github/",
     ".warrant/merge.json",
     ".warrant/v3.json",
-    "AGENTS.md",
-    "spec/ANCHORS.txt"
+    "AGENTS.md"
   ]
 }
