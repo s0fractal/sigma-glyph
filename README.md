@@ -151,8 +151,9 @@ For AI or human review, run the reference suite first and attack one exact
 claim/operand boundary. Green tests are baseline evidence, not an independent
 gate or governance adoption.
 
-The normative sentences of Book I and sigma-resume are claims:
-`.warrant/claims.json` names both documents, the witness files
+68 normative sentences of Book I and sigma-resume are claims, not yet all of
+them (some MUST clauses, such as Book I §6's ban on capturing a free variable,
+have no claim): `.warrant/claims.json` names both documents, the witness files
 (`tests/book1_claims_test.py`, `tests/resume_claims_test.py`) and the mutant
 harness (`tests/claims_mutants.py`); each claim@1 record quotes one sentence verbatim and
 cites the cases that witness it and the mutants that must break them, or says
