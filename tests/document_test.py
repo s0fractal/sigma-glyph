@@ -10,6 +10,7 @@ Needs warrant-graph (.github/warrant-requirements.txt), which the records are re
     python3 tests/document_test.py"""
 import copy
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -22,6 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import document as D               # noqa: E402
 from warrant import claims as C    # noqa: E402
+from warrant import jcs as J       # noqa: E402
+from warrant import records as R   # noqa: E402
+from warrant.keys import Key       # noqa: E402
 from warrant.repo import Failed, Repo  # noqa: E402
 
 SOURCE = "spec/sigma-resume.md"
@@ -55,8 +59,8 @@ def git(*a):
     return subprocess.run(["git", "-C", GIT, *a], capture_output=True).stdout
 
 
-def cli(*a, root=ROOT, env=None):
-    return subprocess.run([sys.executable, "-B", TOOL, "--root", str(root), *a], capture_output=True, text=True,
+def cli(*a, root=ROOT, env=None, text=True):
+    return subprocess.run([sys.executable, "-B", TOOL, "--root", str(root), *a], capture_output=True, text=text,
                           env={**os.environ, **(env or {})})
 
 
@@ -69,8 +73,8 @@ def code_of(f, *a):
     return None
 
 
-def codes(rep, snap, version, committed=None, keywords=None):
-    return {c for c, _ in D.problems(rep, snap, version, keywords if keywords is not None else coverage, committed)}
+def codes(rep, snap, version, root=None, keywords=None):
+    return {c for c, _ in D.problems(rep, snap, version, keywords if keywords is not None else coverage, root)}
 
 
 released = git("show", f"{RELEASE_COMMIT}:{SOURCE}")
@@ -88,13 +92,10 @@ rendered = tried(D.render, rep, snap, RELEASE_VERSION)
 check("D01", rendered == released, f"the release's document version does not render to {RELEASE_TAG}'s bytes: {str(rendered)[:120]}")
 
 # ---- the generator, as a command, into build/
-with tempfile.TemporaryDirectory() as td:
-    out = Path(td) / "first.md"
-    first = cli("render", "--out", str(out))
-    second = cli("render", "--out", str(Path(td) / "second.md"), env={"PYTHONHASHSEED": "7", "TZ": "Asia/Tokyo", "LC_ALL": "C"})
-    same = out.exists() and (Path(td) / "second.md").exists() and out.read_bytes() == (Path(td) / "second.md").read_bytes()
-    check("D02", first.returncode == 0 and same and out.read_bytes() == (ROOT / SOURCE).read_bytes(),
-          f"render is not deterministic or is not the committed file: {first.stderr[:200]}")
+first = cli("render", "--stdout", text=False)
+second = cli("render", "--stdout", text=False, env={"PYTHONHASHSEED": "7", "TZ": "Asia/Tokyo", "LC_ALL": "C"})
+check("D02", first.returncode == 0 and first.stdout == second.stdout == (ROOT / SOURCE).read_bytes(),
+      f"render is not deterministic or is not the committed file: {first.stderr[:200]}")
 default = cli("render")
 built = ROOT / "build" / SOURCE
 check("D03", default.returncode == 0 and built.exists() and built.read_bytes() == (ROOT / SOURCE).read_bytes()
@@ -166,7 +167,17 @@ refusal("D13", "CLAIM_STALE", lambda: codes(*variant(retire_first_claim)))
 refusal("D14", "DOCUMENT_PROSE", lambda: code_of(D.render, *variant(lambda b, p, _: p.pop())))
 refusal("D15", "DOCUMENT_CLAIM", lambda: code_of(D.render, *variant(claim_of_another_source)))
 refusal("D16", "UNCLAIMED_KEYWORD", lambda: codes(*variant(add_keyword)))
-refusal("D17", "SPEC_NOT_PROJECTION", lambda: codes(rep, snap, leaf, (ROOT / SOURCE).read_bytes() + b"\n"))
+
+
+def committed_one_byte_longer():
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / SOURCE
+        path.parent.mkdir()
+        path.write_bytes((ROOT / SOURCE).read_bytes() + b"\n")
+        return codes(rep, snap, leaf, td)
+
+
+refusal("D17", "SPEC_NOT_PROJECTION", committed_one_byte_longer)
 refusal("D18", "DOCUMENT_UNKNOWN", lambda: code_of(D.render, rep, snap, rep["_recs"][leaf]["body"]["claims"][0]))
 
 
@@ -221,7 +232,7 @@ def tampered(what, cmd="render"):
         dot = Path(td) / ".warrant"
         shutil.copytree(ROOT / ".warrant", dot)
         what(dot)
-        got = cli(cmd, *(("--out", str(Path(td) / "out.md")) if cmd == "render" else ()), root=td)
+        got = cli(cmd, root=td)
         return got.returncode, got.stderr
 
 
@@ -253,6 +264,76 @@ refused("D20", "STORE", forge_prose)
 refused("D21", "STORE", lengthen_blob)
 refused("D28", "DOCUMENT_MISSING", drop_document, "check")
 refused("D29", "DOCUMENT_MISSING", drop_document)
+
+
+# ---- a version's source is a signed string, not the operator's word on where to write (Codex's finding on #100)
+def with_document(source, act):
+    """act(outside, root, version) over a copy of the store with one more current document, of `source` (a function of
+    `outside`, or a string), signed by a fresh fixture identity, never a real actor's. `outside` holds a sentinel."""
+    with tempfile.TemporaryDirectory() as td:
+        root, outside = Path(td) / "repo", Path(td) / "outside"
+        root.mkdir()
+        outside.mkdir()
+        (outside / "sentinel.md").write_bytes(b"keep this\n")
+        shutil.copytree(ROOT / ".warrant", root / ".warrant")
+        key = Key.from_seed_hex("12" * 32)
+        cfg = json.loads((root / ".warrant" / "v3.json").read_text())
+        cfg["trust"]["keys"]["fixture"] = [key.public]
+        (root / ".warrant" / "v3.json").write_text(json.dumps(cfg))
+        store = Repo(root)
+        blob = store.store.put_blob(J.canon(["replacement\n"]))
+        body = {"state": "current", "source": source(outside) if callable(source) else source, "claims": [], "prose": blob}
+        version = store.file("fixture", key, [R.record("entity", "fixture", 0, body, D.DOCUMENT, refs=[blob])])[0]
+        return act(outside, root, version)
+
+
+def held_back(cmd, source, link=None, target="sentinel.md"):
+    """Whether `cmd` of the document refuses it as DOCUMENT_SOURCE and nothing outside build/ changes; `link` is a name
+    below the root made a symbolic link to `target` in the outside first."""
+    def act(outside, root, version):
+        if link:
+            (root / link).parent.mkdir(parents=True, exist_ok=True)
+            (root / link).symlink_to(outside / target if target else outside)
+        (root / "sentinel.md").write_bytes(b"keep this too\n")
+        got = cli(cmd, *(("--version", version) if cmd == "render" else ()), root=root)
+        kept = (outside / "sentinel.md").read_bytes() == b"keep this\n" and (root / "sentinel.md").read_bytes() == b"keep this too\n"
+        return (got.returncode == 2 and "REFUSED DOCUMENT_SOURCE " in got.stderr and kept
+                and sorted(p.name for p in outside.iterdir()) == ["sentinel.md"]) or (got.returncode, got.stderr, kept)
+    return with_document(source, act)
+
+
+check("D40", tried(held_back, "render", "../sentinel.md") is True, f"{tried(held_back, 'render', '../sentinel.md')}")
+check("D41", tried(held_back, "render", lambda o: str(o / "sentinel.md")) is True, "an absolute source wrote outside build/")
+check("D42", all(code_of(D.plain_source, s) == "DOCUMENT_SOURCE" for s in
+                 ["", "/a", "..", "../a", "a/..", "a/../b", "a/./b", "a//b", "a/", "a\n", "a\\b", ".a", "a/.b", "~/a", "-a"])
+      and D.plain_source(SOURCE) == SOURCE and D.plain_source("spec/book-1-truth.md") == "spec/book-1-truth.md", "a source shape")
+check("D43", tried(held_back, "render", "x.md", "build", None) is True, "build/ as a link took the write outside")
+check("D44", tried(held_back, "render", "spec/x.md", "build/spec", None) is True, "a directory below build/ as a link took the write outside")
+check("D45", tried(held_back, "render", "x.md", "build/x.md") is True, "a file below build/ as a link took the write outside")
+check("D46", tried(held_back, "check", "x.md", "x.md") is True, "check read through a link")
+check("D47", tried(held_back, "check", "../sentinel.md") is True, "check took a source outside the root")
+
+
+def into_a_directory(outside, root, version):
+    (root / "build" / "x").mkdir(parents=True)
+    got = cli("render", "--version", version, root=root)
+    return got.returncode == 2 and "REFUSED IO " in got.stderr
+
+
+def two_on_stdout(outside, root, version):
+    got = cli("render", "--stdout", root=root)
+    return got.returncode == 2 and "REFUSED DOCUMENT_UNKNOWN " in got.stderr and got.stdout == ""
+
+
+def writes_below_build(outside, root, version):
+    got = cli("render", "--version", version, root=root)
+    return got.returncode == 0 and (root / "build" / "spec" / "x.md").read_bytes() == b"replacement\n"
+
+
+check("D48", tried(with_document, "x", into_a_directory) is True, "a directory at the destination is no refusal")
+check("D49", tried(with_document, "spec/x.md", two_on_stdout) is True, "--stdout took two documents")
+refusal("D50", "DOCUMENT_SOURCE", lambda: code_of(D.migrate, repo, "../sentinel.md", "claude", None))
+check("D51", tried(with_document, "spec/x.md", writes_below_build) is True, "a plain source was not rendered below build/")
 
 
 # ---- the one parser, for the first version only

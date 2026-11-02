@@ -7,6 +7,9 @@ holds its claims in order and the prose around them, and `tools/document.py rend
 writes it to `build/` (gitignored). `tests/document_test.py` holds the rendering to
 the bytes of tag `v1.0.0` and to the committed file. The committed file stays, and
 is still what `warrant claims check` reads; no module and no document byte changes.
+A version's `source` is confined: `render` and `check` refuse anything but a relative
+path of plain names and follow no symbolic link below the root, and the only other
+destination is the shell's, through `--stdout`.
 
 ## Unreleased — every RFC 2119 keyword, not three of them
 

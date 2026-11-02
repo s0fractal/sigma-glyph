@@ -8,11 +8,14 @@ of the two, and nothing else: a version id fixes every byte, so a released docum
 later store. The form is warrant's `warrant-claims/document@1` (W5, 9144debd) without its literal grammar, its heading
 pins and its per-sentence layout: here the prose is not all layout, and a claim holds its line breaks verbatim.
 
-    python3 tools/document.py render [--version ID] [--out FILE]    # build/<source> of each current document
+    python3 tools/document.py render [--version ID] [--stdout]      # build/<source> of each current document
     python3 tools/document.py check                                 # each current document against the store and tests
     python3 tools/document.py migrate --source S --actor A --key K  # once per source; see below
 
 `render` refuses a store the claims check would refuse, and a version whose parts are not what it says (DOCUMENT_*).
+A version's `source` is a signed string, not the operator's word on where to write: only a relative path of plain names
+is one (DOCUMENT_SOURCE), and no symbolic link below the root is followed to read or write it. The only destination an
+operator names is the shell's, through `--stdout`.
 `check` also refuses what makes a current document no longer the whole story: a version of a claim that is not its
 lineage's leaf (CLAIM_STALE), a live claim of the source the document does not hold (CLAIM_NOT_IN_DOCUMENT), one
 lineage held twice (DOCUMENT_CLAIM_TWICE), a keyword of `.warrant/claims.json` `coverage` outside the positions of the
@@ -37,6 +40,7 @@ from warrant.store import Refused
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT = "document@1"
+SOURCE_PATH = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]*(?:/[A-Za-z0-9_][A-Za-z0-9._-]*)*")
 SCHEMA = {"name": DOCUMENT,
           "fields": {"state": "str", "source": "str", "claims": "refs", "prose": "ref", "because": "str?"},
           "states": {"current": None, "retired": None}, "closed": [], "successors": {}}
@@ -52,12 +56,30 @@ def clean_report(repo):
     return rep, snap
 
 
+def plain_source(source):
+    """`source`, refused unless it is a relative path of plain names: no `..`, no root, no empty or hidden name."""
+    if not SOURCE_PATH.fullmatch(source):
+        raise Failed("DOCUMENT_SOURCE", f"{source!r} is no relative path of plain names")
+    return source
+
+
+def confined(root, relative):
+    """The path of the plain `relative` below `root`, refused when a name on the way is a symbolic link."""
+    at = Path(root)
+    for name in relative.split("/"):
+        at = at / name
+        if at.is_symlink():
+            raise Failed("DOCUMENT_SOURCE", f"{relative!r} goes through the symbolic link {at}")
+    return at
+
+
 def parts(rep, snap, version):
     """(body, prose, [claim bodies]) of the document version `version`, refused unless each part is what it says."""
     rec = rep["_recs"].get(version)
     if rec is None or rec["schema"] != DOCUMENT or rep["_basis"].get(version) != "SIGNED":
         raise Failed("DOCUMENT_UNKNOWN", f"{version} is no signed {DOCUMENT} version of this store")
     body = rec["body"]
+    plain_source(body["source"])
     claims = body.get("claims") or []
     prose = snap.json_blob(body.get("prose"))
     if not (isinstance(prose, list) and all(isinstance(p, str) for p in prose) and len(prose) == len(claims) + 1):
@@ -96,7 +118,7 @@ def current(rep):
         if body["state"] == "retired":
             continue
         if body["source"] in out:
-            raise Failed("DOCUMENT_TWICE", f"{body['source']} has two documents")
+            raise Failed("DOCUMENT_TWICE", f"{body['source']!r} has two documents")
         out[body["source"]] = lin["leaf"]
     return out
 
@@ -118,8 +140,9 @@ def keyword_problems(prose, held, keywords):
     return out
 
 
-def problems(rep, snap, version, keywords, committed=None):
-    """[(code, detail)] that keep document version `version` from being its source's whole, current form."""
+def problems(rep, snap, version, keywords, root=None):
+    """[(code, detail)] that keep document version `version` from being its source's whole, current form, with the
+    file its source names below `root`, if there is one."""
     body, prose, held = parts(rep, snap, version)
     recs, source, out = rep["_recs"], body["source"], []
     lineage_of = {v: L for L, lin in rep["lineages"].items() if lin["schema"] == C.CLAIM for v in lin["versions"]}
@@ -135,7 +158,8 @@ def problems(rep, snap, version, keywords, committed=None):
     out += [("CLAIM_NOT_IN_DOCUMENT", f"{b['id']} of {source} is not in the document")
             for L, b in sorted(live.items()) if b["source"] == source and L not in seen]
     out += keyword_problems(prose, held, keywords)
-    if committed is not None and committed != interleave(prose, [b["text"] for b in held]):
+    committed = confined(root, source) if root else None
+    if committed and committed.exists() and committed.read_bytes() != interleave(prose, [b["text"] for b in held]):
         out.append(("SPEC_NOT_PROJECTION", f"the committed {source} is not the rendering of {version[:12]}"))
     return out
 
@@ -159,6 +183,7 @@ def split_at_claims(text, sentences):
 
 
 def migrate(repo, source, actor, key):
+    path = confined(repo.root, plain_source(source))
     rep, _ = clean_report(repo)
     if not any(s == DOCUMENT for s in rep["schemas"]):
         if any(p["name"] == DOCUMENT for p in rep["schemas_pending"].values()):
@@ -166,16 +191,51 @@ def migrate(repo, source, actor, key):
         return "schema", repo.file(actor, key, [R.record("schema", actor, 0, SCHEMA)])
     if source in current(rep):
         raise Failed("DOCUMENT_EXISTS", f"{source} has a document: file a new version, not a migration")
-    data = (repo.root / source).read_bytes()
+    data = path.read_bytes()
     live = {L: b for L, b in C.live(rep).items() if b["source"] == source}
-    Ls = sorted(live)
-    prose, order = split_at_claims(data.decode("utf-8"), [live[L]["text"] for L in Ls])
-    versions = [rep["lineages"][Ls[i]]["leaf"] for i in order]
-    if interleave(prose, [live[Ls[i]]["text"] for i in order]) != data:
+    lineages = sorted(live)
+    prose, order = split_at_claims(data.decode("utf-8"), [live[L]["text"] for L in lineages])
+    versions = [rep["lineages"][lineages[i]]["leaf"] for i in order]
+    if interleave(prose, [live[lineages[i]]["text"] for i in order]) != data:
         raise Failed("MIGRATE_NOT_IDENTICAL", f"the split of {source} does not render to its bytes")
     blob = repo.store.put_blob(J.canon(prose))
     body = {"state": "current", "source": source, "claims": versions, "prose": blob}
     return "document", repo.file(actor, key, [R.record("entity", actor, 0, body, DOCUMENT, refs=[blob, *versions])])
+
+
+def render_command(repo, version, stdout):
+    rep, snap = clean_report(repo)
+    versions = [version] if version else list(current(rep).values())
+    if not versions:
+        raise Failed("DOCUMENT_MISSING", f"this store holds no current {DOCUMENT}")
+    if stdout and len(versions) != 1:
+        raise Failed("DOCUMENT_UNKNOWN", f"--stdout holds one document and there are {len(versions)}")
+    for v in versions:
+        data = render(rep, snap, v)
+        if stdout:
+            sys.stdout.buffer.write(data)
+            continue
+        out = confined(repo.root, "build/" + rep["_recs"][v]["body"]["source"])
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(data)
+        print(f"{out} {hashlib.sha256(data).hexdigest()} from {v}")
+    return 0
+
+
+def check_command(repo):
+    rep, snap = clean_report(repo)
+    keywords = C.config(repo.root).get("coverage", ["MUST"])
+    docs = current(rep)
+    if not docs:
+        raise Failed("DOCUMENT_MISSING", f"this store holds no current {DOCUMENT}")
+    found = []
+    for source, v in sorted(docs.items()):
+        found += problems(rep, snap, v, keywords, repo.root)
+        print(f"document: {source} is {v}")
+    for code, detail in found:
+        print(f"{code} {detail}")
+    print(f"documents: {len(docs)}; {len(found)} problem(s)")
+    return 1 if found else 0
 
 
 def main(argv=None):
@@ -184,7 +244,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("render")
     r.add_argument("--version")
-    r.add_argument("--out")
+    r.add_argument("--stdout", action="store_true")
     sub.add_parser("check")
     m = sub.add_parser("migrate")
     m.add_argument("--source", required=True)
@@ -197,38 +257,15 @@ def main(argv=None):
             what, ids = migrate(repo, a.source, a.actor, load_key(a.key, repo.root))
             print(f"filed the {what}: {ids[0]}")
             return 0
-        rep, snap = clean_report(repo)
-        if a.cmd == "render":
-            versions = [a.version] if a.version else list(current(rep).values())
-            if not versions:
-                raise Failed("DOCUMENT_MISSING", f"this store holds no current {DOCUMENT}")
-            if a.out and len(versions) != 1:
-                raise Failed("DOCUMENT_UNKNOWN", f"--out names one file and there are {len(versions)} documents")
-            for v in versions:
-                data = render(rep, snap, v)
-                out = Path(a.out) if a.out else repo.root / "build" / rep["_recs"][v]["body"]["source"]
-                out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_bytes(data)
-                print(f"{out} {hashlib.sha256(data).hexdigest()} from {v}")
-            return 0
-        keywords = C.config(repo.root).get("coverage", ["MUST"])
-        docs = current(rep)
-        if not docs:
-            raise Failed("DOCUMENT_MISSING", f"this store holds no current {DOCUMENT}")
-        found = []
-        for source, v in sorted(docs.items()):
-            path = repo.root / source
-            found += problems(rep, snap, v, keywords, path.read_bytes() if path.exists() else None)
-            print(f"document: {source} is {v}")
-        for code, detail in found:
-            print(f"{code} {detail}")
-        print(f"documents: {len(docs)}; {len(found)} problem(s)")
-        return 1 if found else 0
+        return render_command(repo, a.version, a.stdout) if a.cmd == "render" else check_command(repo)
     except Failed as e:
         print(f"REFUSED {e.code} {e}", file=sys.stderr)
         return 2
     except Refused as e:
         print(f"REFUSED STORE {e}", file=sys.stderr)
+        return 2
+    except OSError as e:
+        print(f"REFUSED IO {e}", file=sys.stderr)
         return 2
 
 

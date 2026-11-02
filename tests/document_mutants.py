@@ -40,18 +40,28 @@ H.MUTANTS = [
     ("D-M15", G, 'if b["source"] == source and L not in seen]', "if False]", T, ["D10"]),
     ("D-M16", G, "        if not any(a <= m.start() and m.end() <= b for a, b in spans):\n", "        if False:\n", T, ["D16", "D19"]),
     ("D-M17", G, '        if text.startswith("#", text.rfind("\\n", 0, m.start()) + 1):\n', "        if False:\n", T, ["D24"]),
-    ("D-M18", G, "    if committed is not None and committed != interleave(", "    if False and committed != interleave(", T, ["D17"]),
+    ("D-M18", G, "    if committed and committed.exists() and committed.read_bytes() != interleave(", "    if False and committed.read_bytes() != interleave(", T, ["D17"]),
     # Which version is current.
     ("D-M19", G, '        if lin["verdict"] == "FORK" or lin["leaf"] is None:\n', "        if False:\n", T, ["D25"]),
     ("D-M20", G, '        if body["source"] in out:\n', "        if False:\n", T, ["D26"]),
     ("D-M21", G, '        if body["state"] == "retired":\n', "        if False:\n", T, ["D27"]),
-    ("D-M22", G, "        docs = current(rep)\n        if not docs:\n", "        docs = current(rep)\n        if False:\n", T, ["D28"]),
-    ("D-M23", G, "            if not versions:\n", "            if False:\n", T, ["D29"]),
+    ("D-M22", G, "    docs = current(rep)\n    if not docs:\n", "    docs = current(rep)\n    if False:\n", T, ["D28"]),
+    ("D-M23", G, "    if not versions:\n", "    if False:\n", T, ["D29"]),
     # The parser of a first version.
     ("D-M24", G, "        if text.count(s) != 1:\n", "        if text.count(s) > 1:\n", T, ["D31"]),
     ("D-M25", G, "        if text.count(s) != 1:\n", "        if text.count(s) == 0:\n", T, ["D30"]),
     ("D-M26", G, "        if at < end:\n", "        if False:\n", T, ["D32"]),
     ("D-M27", G, "    if source in current(rep):\n", "    if False:\n", T, ["D34"]),
+    # A version's source against where it writes and reads.
+    ("D-M28", G, '    plain_source(body["source"])\n', "", T, ["D40", "D41"]),
+    ("D-M29", G, "SOURCE_PATH.fullmatch(source)", "SOURCE_PATH.match(source)", T, ["D42"]),
+    ("D-M30", G, 'r"[A-Za-z0-9_][A-Za-z0-9._-]*(?:/[A-Za-z0-9_][A-Za-z0-9._-]*)*"', 'r"[A-Za-z0-9._/-]+"', T, ["D42"]),
+    ("D-M31", G, "        if at.is_symlink():\n", "        if False:\n", T, ["D43", "D44", "D45", "D46"]),
+    ("D-M32", G, 'out = confined(repo.root, "build/" + rep["_recs"][v]["body"]["source"])', 'out = repo.root / "build" / rep["_recs"][v]["body"]["source"]', T, ["D43", "D44", "D45"]),
+    ("D-M33", G, "committed = confined(root, source) if root else None", "committed = Path(root) / source if root else None", T, ["D46"]),
+    ("D-M34", G, "    except OSError as e:\n", "    except ZeroDivisionError as e:\n", T, ["D48"]),
+    ("D-M35", G, "    if stdout and len(versions) != 1:\n", "    if False:\n", T, ["D49"]),
+    ("D-M36", G, "path = confined(repo.root, plain_source(source))", "path = repo.root / source", T, ["D50"]),
 ]
 
 if __name__ == "__main__":
