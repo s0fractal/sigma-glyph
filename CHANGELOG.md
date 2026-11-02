@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — every RFC 2119 keyword, not three of them
+
+`coverage` named MUST, SHALL and REQUIRED, while goal G1 and README said "every
+normative keyword": Book I §6's "Фронтенди з іншими профілями MAY існувати поза
+стандартом" was in no claim (Codex's challenge `7907dbb0` of G1). `coverage`
+now names all seven keywords; that sentence is BOOK1-6-4, unbacked with its
+reason (a permission about frontends outside the standard). No module changes.
+
 ## sigma-glyph 1.0.1 (2026-11-01) — the cycle witness on the wire
 
 **Fix (non-conformance in 1.0.0).** sigma-resume §5 defines a cycle witness as
