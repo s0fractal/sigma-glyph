@@ -1,3 +1,6 @@
 # The store (Warrant 3): parallel appends merge without conflict; its bytes are hashed and signed, never converted.
 .warrant/records.jsonl merge=union -text
 .warrant/blobs/** -text
+# Records are signed data, not a change to read in a pull request: GitHub collapses their diff, still one click away.
+.warrant/records.jsonl linguist-generated=true
+.warrant/blobs/** linguist-generated=true
