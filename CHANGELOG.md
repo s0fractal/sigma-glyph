@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — sigma-resume renders from the records
+
+`spec/sigma-resume.md` now has a second form: a `document@1` lineage in `.warrant/`
+holds its claims in order and the prose around them, and `tools/document.py render`
+writes it to `build/` (gitignored). `tests/document_test.py` holds the rendering to
+the bytes of tag `v1.0.0` and to the committed file. The committed file stays, and
+is still what `warrant claims check` reads; no module and no document byte changes.
+
 ## Unreleased — every RFC 2119 keyword, not three of them
 
 `coverage` named MUST, SHALL and REQUIRED, while goal G1 and README said "every

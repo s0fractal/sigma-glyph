@@ -69,6 +69,17 @@ python3 tests/book1_claims_test.py         | tee /dev/stderr | grep -q "^BOOK1-C
 python3 tests/resume_claims_test.py        | tee /dev/stderr | grep -q "^RESUME-CLAIMS: ALL PASS"
 python3 tests/claims_mutants.py            # exits 0 only when every mutant is killed
 
+say "sigma-resume as a projection of the records: v1.0.0's bytes, and every mutant killed"
+# The records are read with warrant-graph, which CI installs from .github/warrant-requirements.txt;
+# WARRANT_PYTHON names a Python that has it.
+_warrant_py="${WARRANT_PYTHON:-python3}"
+if "$_warrant_py" -c 'import warrant.claims' 2>/dev/null; then
+  "$_warrant_py" tests/document_test.py    | tee /dev/stderr | grep -q "^DOCUMENT: ALL PASS"
+  "$_warrant_py" tests/document_mutants.py     # exits 0 only when every mutant is killed
+else
+  skip "the document's projection: no warrant-graph in $_warrant_py (set WARRANT_PYTHON)"
+fi
+
 say "Conformance + properties"
 python3 tests/spec_conformance/run_reference.py  | tee /dev/stderr | grep -q "ALL PASS"
 python3 tests/spec_conformance/test_properties.py

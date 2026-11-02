@@ -33,6 +33,7 @@ from warrant import claims as C
 from warrant import jcs as J
 from warrant import records as R
 from warrant.repo import Failed, Repo, load_key
+from warrant.store import Refused
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT = "document@1"
@@ -57,11 +58,12 @@ def parts(rep, snap, version):
     if rec is None or rec["schema"] != DOCUMENT or rep["_basis"].get(version) != "SIGNED":
         raise Failed("DOCUMENT_UNKNOWN", f"{version} is no signed {DOCUMENT} version of this store")
     body = rec["body"]
-    prose = snap.json_blob(body["prose"])
-    if not (isinstance(prose, list) and all(isinstance(p, str) for p in prose) and len(prose) == len(body["claims"]) + 1):
-        raise Failed("DOCUMENT_PROSE", f"{version[:12]}: its prose is no list of {len(body['claims']) + 1} strings")
+    claims = body.get("claims") or []
+    prose = snap.json_blob(body.get("prose"))
+    if not (isinstance(prose, list) and all(isinstance(p, str) for p in prose) and len(prose) == len(claims) + 1):
+        raise Failed("DOCUMENT_PROSE", f"{version[:12]}: its prose is no list of {len(claims) + 1} strings")
     held = []
-    for c in body["claims"]:
+    for c in claims:
         r = rep["_recs"].get(c)
         if r is None or r["schema"] != C.CLAIM or rep["_basis"].get(c) != "SIGNED" or r["body"]["source"] != body["source"]:
             raise Failed("DOCUMENT_CLAIM", f"{version[:12]}: {c[:12]} is no signed claim of {body['source']}")
@@ -189,8 +191,8 @@ def main(argv=None):
     m.add_argument("--actor", required=True)
     m.add_argument("--key", required=True)
     a = ap.parse_args(argv)
-    repo = Repo(a.root)
     try:
+        repo = Repo(a.root)
         if a.cmd == "migrate":
             what, ids = migrate(repo, a.source, a.actor, load_key(a.key, repo.root))
             print(f"filed the {what}: {ids[0]}")
@@ -198,10 +200,10 @@ def main(argv=None):
         rep, snap = clean_report(repo)
         if a.cmd == "render":
             versions = [a.version] if a.version else list(current(rep).values())
-            if a.out and len(versions) != 1:
-                raise Failed("DOCUMENT_UNKNOWN", f"--out names one file and there are {len(versions)} documents")
             if not versions:
                 raise Failed("DOCUMENT_MISSING", f"this store holds no current {DOCUMENT}")
+            if a.out and len(versions) != 1:
+                raise Failed("DOCUMENT_UNKNOWN", f"--out names one file and there are {len(versions)} documents")
             for v in versions:
                 data = render(rep, snap, v)
                 out = Path(a.out) if a.out else repo.root / "build" / rep["_recs"][v]["body"]["source"]
@@ -224,6 +226,9 @@ def main(argv=None):
         return 1 if found else 0
     except Failed as e:
         print(f"REFUSED {e.code} {e}", file=sys.stderr)
+        return 2
+    except Refused as e:
+        print(f"REFUSED STORE {e}", file=sys.stderr)
         return 2
 
 
