@@ -66,6 +66,19 @@ jobs:
         run: |
           set -euo pipefail
           "$RUNNER_TEMP/warrant/bin/warrant" claims check
+      # spec/sigma-resume.md as a projection (tools/document.py): the release's document version renders to the
+      # bytes of its tag, and the current one to the committed file. On every commit: it reads the records.
+      - name: The document renders from the records, byte for byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/warrant/bin/python" tests/document_test.py | tee /dev/stderr | grep -q "^DOCUMENT: ALL PASS"
+      - name: Every mutant of the document's generator and records is killed
+        if: steps.passed.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/warrant/bin/python" tests/document_mutants.py            # exits 0 only when every mutant is killed
       - name: The claims' witnesses pass and every cited mutant is killed
         if: steps.passed.outputs.cache-hit != 'true'
         shell: bash
